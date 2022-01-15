@@ -734,7 +734,7 @@ public class Circle{
     public static double radToDeg(double radians){ // 类方法
         return radians*180/PI;
     }
-    public double radius; // 实例字段
+    public double radius = 2.0; // 实例字段,同时设置默认值
     public double circumference(){ // 实例方法
         return 2*PI*radius;
     }
@@ -767,4 +767,455 @@ public class Circle{
 ### §2.8.3 构造方法
 
 #### §2.8.3.1 默认构造方法
+
+之前的例子都没有定义构造方法，创建对象时调用的是`OBJECT object_name = new OBJECT()`，之后可以单独使用赋值语句改变实例字段。
+
+这个默认构造方法实际上就是`super()`，编译时会强制加上：
+
+```java
+public class Example{
+    // ...
+    public static Example(){
+        super();
+    }
+}
+```
+
+如果对应的父类没有定义无参数的构造方法，则编译时会出错。
+
+#### §2.8.3.2 自定义构造方法
+
+自定义构造方法允许**定义对象时**对实例变量进行初始化。
+
+```java
+public class Circle{
+    public static final double PI = 3.14159265;
+    protected double radius; // 保证子类无法更改
+    public double circumference(){
+        return 2 * PI * radius;
+    }
+    public Circle(double radius){ // 自定义构造方法
+        this.radius = radius;
+    }
+}
+```
+
+> 注意：自定义构造方法有以下注意事项：
+>
+> - 构造方法的函数名与类名应该一致
+> - 不能指定构造方法的返回类型，连`void`都不用
+> - 构造方法不能带有`return`语句
+
+事实上，同一个类内的自定义构造方法可以不止一个，允许重构。
+
+```java
+public Circle{
+    // ...
+    public Circle(){
+        radius = 3;
+    }
+    public Circle(double radius){
+        this.radius = radius;
+    }
+}
+```
+
+这些构造方法之间也可以互相调用，编译器会根据传入`this()`的数据类型自动选择对应的构造方法。`this()`语句只能出现在构造方法的第一行。
+
+```java
+public Circle{
+    // ...
+    public Circle(double radius){
+        this.radius = radius;
+    }
+    public Circle(){
+        this(3.0); //利用this对象调用另一个Circle()
+    }
+}
+```
+
+### §2.8.4 静态初始化方法
+
+静态初始化方法允许**编译类**时对类字段进行初始化，由关键字`static`及花括号包含的代码块组成。一个类中可以包含多个静态初始化方法，编译时会将这些代码块整合进一个方法执行。其中不能使用`this`关键字、实例字段和实例方法。
+
+```java
+public class SinFunctionGraph(){
+    private static final int sample = 100;
+    private static double x[] = new double[sample];
+    private static double f_x[] = new double[sample];
+    static{ // 静态初始化方法
+        double initial = 0.0;
+        double delta = 0.05;
+        for(int i=0;i<sample;i++){
+            x[i]=initial+i*delta
+            f_x[i]=Math.sin(x[i]);
+        }
+    }
+}
+```
+
+### §2.8.5 实例初始化方法
+
+与静态初始化相似，但是针对的是实例字段，且不用带`static`关键字。可以将构造方法中的初始化代码移动至实例初始化方法中，让构造方法更加清晰。
+
+```java
+public class Example{
+    // ...
+    private int[] index = new int[100];
+    
+    {
+        for(int i=0;i<100;i++){
+            data[i]=i;
+        }
+    }
+}
+```
+
+### §2.8.6 子类和继承
+
+定义子类需要使用`extends`关键字，后接父类名称。在子类的构造方法中，可以使用超类的构造方法`super(parameter)`将参数传给父类的构造方法。
+
+```java
+public class PlaneCircle extends Circle{ // 继承了Circle类中的所有字段和方法
+    private final double centerX=0,centerY=0;
+    public PlaneCircle(double r,double x, double y){
+        super(r);
+        this.centerX = x;
+        this.centery = y;
+    }
+    public boolean isPointInsideCircle(double point_x, double point_y){
+        double distance = Math.pow(this.centerX-point_x,2)+Math.pow(this.centerY-point_y,2)-Math.pow(this.radius,2);
+        if(distance<=0){
+            return true;
+        }else{
+            return false;
+        }
+    }
+}
+```
+
+每个子类都能完全兼容父类，在兼容的过程中会丢失一些父类没有的字段和方法。
+
+```java
+PlaneCircle a = new PlaneCircle(2.5,0,2);
+Circle b = a; // 不报错
+```
+
+每个父类都可以通过显示校正转换为子类。
+
+```java
+Circle a = new Circle(3.0);
+PlaneCircle b = (PlaneCircle) a;
+```
+
+如果声明类时使用了`final`修饰符，则该类无法被扩展成新的子类。
+
+```java
+public final class Circle{
+	// ...
+}
+public class PlaneCircle extends Circle{ // 报错
+    // ...
+}
+```
+
+### §2.8.7 超类
+
+在Java中，子类和父类的关系为$子类\overset{超类}{\underset{子类}{\rightleftharpoons}}父类$。自定义的每个类都有对应的超类，如果没有`extends`关键字，则超类为`java.lang.object`。`java.lang.object`是Java中唯一没有超类的类，所有Java类都从`java.lang.object`中继承字段和方法。这些子类和超类的关系构成了类层次结构。
+
+```mermaid
+graph LR
+Object[Object] --> Circle[自定义Circle]
+Circle --> PlaneCircle[自定义PlaneCircle]
+Object --> Math[Math]
+Object --> System[System]
+Object --> Reader[Reader]
+Reader --> InputStreamReader[InputStreamReader]
+Reader --> FilterReader[FilterReader]
+Reader --> StringReader[StringReader]
+InputStreamReader --> FileReader[FileReader]
+```
+
+关键字`super`用于在子类构造方法中调用超类的构造方法，类似于使用`this`调用同一个类中的其他构造方法。`super(parameter)`也可以按照传入参数的类型选择超类对应的构造方法。
+
+> 注意：仅当在子类构造方法中才能使用`super()`，且必须使用`super()`，并将其放在子类构造方法的第一行。
+
+### §2.8.8 构造方法链
+
+创建子类实例时，Java会按顺序执行下列任务：
+
+1. 调用子类的构造方法，入栈。
+2. 子类构造方法的第一行必为`super(parameter)`，由此进入父类构造方法，入栈。
+3. 如父类为`java.lang.object`直属子类，其构造方法不含`super()`，则其构造方法会隐式调用`super()`，由此进入`java.lang.object`构造方法，入栈。
+4. 执行`java.lang.object`的构造方法，将`object`对象传入父类构造方法，出栈。
+5. 执行父类的构造方法，将父类对象传入子类构造方法，出栈。
+6. 执行子类的构造方法，将子类对象传入执行创建子类代码所在作用域的环境，出栈。
+
+### §2.8.9 覆盖
+
+#### §2.8.9.1 覆盖字段
+
+当父类和子类含有相同名称的实例字段时，在子类的辖域内，子类名称会覆盖父类名称。
+
+```java
+public class Circle {
+    public double radius;
+    public Circle(double radius){
+        this.radius = radius;
+    }
+}
+public class PlainCircle extends Circle{
+    public double radius;
+    public PlainCircle(double radius){
+        super(2);
+        this.radius = radius;
+    }
+    public static void main(String[] args){
+        PlainCircle a = new PlainCircle();
+        System.out.println(a.radius); // 1.0
+    }
+}
+```
+
+为了访问父类的同名字段，可以使用`super`关键字或显式类型转换。
+
+```java
+radius; // 子类实例字段
+this.radius; // 子类实例字段
+super.x; // 父类实例字段
+((B) this).x; // 父类实例字段
+super.super.x; // 报错
+```
+
+#### §2.8.9.2 覆盖方法
+
+与字段不同，父类方法一旦被子类方法覆盖，就永远无法在调用父类方法。
+
+```java
+class Father{
+    int i = 1; // 父类实例字段
+    int f(){ // 父类实例方法
+        return i;
+    }
+    static char g(){ // 父类类方法
+        return 'A';
+    }
+}
+class Son extends Father{
+    int i = 2; // 子类实例字段
+    int f(){ // 子类实例方法
+        return -i;
+    }
+    static char g(){ // 子类类方法
+        return 'B';
+    }
+}
+public class OverrideTest{
+    public static void main(String args[]){
+        Son son = new Son();
+        System.out.println(son.i); // 2,子类成员调用子类实例字段
+        System.out.println(son.f()); // -2,子类成员调用子类实例方法
+        System.out.println(son.g()); // B,子类成员调用子类类方法
+        System.out.println(Son.g()); // B,子类直接调用子类类方法
+        Father father = (Son) son;
+        System.out.println(father.i); // 1,子类转父类,调用父类实例字段
+        System.out.println(father.f()); // -2,子类转父类,调用子类实例字段
+        System.out.println(father.g()); // A,子类转父类,调用了父类类方法
+        System.out.println(Father.g()); // A,父类直接调用了父类类方法
+    }
+}
+
+```
+
+### §2.8.10 隐藏和封装
+
+#### §2.8.10.1 访问规则
+
+- 对于使用`public`修饰符的成员，只要能访问其所在的类，就能访问该成员。
+- 对于使用`private`修饰符的成员，只有在其所在类的内部，才能访问该成员。
+- 对于使用`protected`修饰符的成员，只要在其所在类对应的包内部，或者在其子类的内部，都能访问该成员。
+- 对于没有任何修饰符的成员，使用默认的访问规则，只有在其所在类对应的包内部，才能访问该成员。
+
+#### §2.8.10.2 访问控制和继承
+
+- 子类继承超类中所有可以访问的实例字段和实例方法。
+- 如果子类和超类在同一个包中定义，则子类继承所有未被`private`声明的实例字段和实例方法。
+- 如果子类和超类在不同的包中定义，则子类继承所有使用`protected`和`public`修饰的实例字段和实例方法。
+- 使用`private`修饰的字段和方法不会被继承。
+- 构造方法不会被继承，但是可以通过构造方法链调用。
+
+> 注意：子类创建的每个对象都包含着一个完整的超类实例，即使超类中有些成员被`private`等修饰符修饰。
+
+|                  | `public` | `protected` | `private` | 默认 |
+| ---------------- | -------- | ----------- | --------- | ---- |
+| 定义成员的类内部 | √        | √           | √         | √    |
+| 同一个包中的类   | √        | √           | ×         | √    |
+| 不同包中的子类   | √        | √           | ×         | ×    |
+| 不同包，非子类   | √        | ×           | ×         | ×    |
+
+#### §2.8.11 数据访问器方法
+
+使用`protected`修饰类中的变量，使其他类无法随意更改该类创建的对象中的成员。然后给构造方法加上所需的限制条件，给类添加对应的数据访问器方法，从而保证在创建或修改时都能满足限制条件。
+
+```java
+public class Circle{
+    public static final double PI = 3.14159265;
+    protected double radius; // 半径在子类中课件
+    protected void checkRadius(double radius){
+        if(radius < 0.0){
+            throw new IllegalArgumentException("Radius must be positive!");
+        }
+    }
+    public Circle(double radius){
+        checkRadius(radius);
+        this.radius = radius;
+    }
+    public double getRadius(){
+        return radius;
+    }
+    public void setRadius(double radius){
+        checkRadius(radius);
+        this.radius = radius;
+    }
+}
+```
+
+### §2.8.11 抽象类
+
+Java允许使用`abstract`修饰符声明方法并创建抽象类，用于只定义方法但不实现方法。
+
+- 只要类中有一个`abstract`方法，那么这个类本身就自动成为抽象类，而且必须用`abstract`显式声明为抽象类。
+- 抽象类无法实例化。
+- 抽象类的子类必须覆盖其声明的所有方法才能实例化。
+- 抽象类的子类如果没有覆盖其声明的所有方法，则该子类还是抽象类，而且不需使用`abstruct`显式声明为抽象类。
+- 使用`static`、`private`、`final`声明的方法不能是抽象方法，因为其在子类中不能覆盖。
+- 使用`final`修饰的类不能是抽象类。
+
+```java
+public abstract class Shape {
+    public abstract double area();
+    public abstract double circumference();
+}
+class Circle extends Shape{
+    public static final double PI = 3.14159265;
+    protected double radius;
+    public double area() {
+        return PI*radius*radius;
+    }
+    public double circumference(){
+        return 2*PI*radius;
+    }
+    public Circle(double radius){
+        if(radius<=0){
+            throw new IllegalArgumentException("Radius must be positive.");
+        }
+        this.radius = radius;
+    }
+}
+class Rectangle extends Shape{
+    protected double width,height;
+    public Rectangle(double width, double height){
+        if(width<=0||height<=0){
+            throw new IllegalArgumentException("Width or height must be positive.");
+        }
+        this.height = height;
+        this.width = width;
+    }
+    public double area(){
+        return height * width;
+    }
+    public double circumference() {
+        return 2 * (height + width);
+    }
+}
+abstract class ActualShape extends Shape{
+    public static void main(String[] args){
+        Shape[] realShape = new Shape[2];
+        realShape[0] = new Circle(2.0);
+        realShape[1] = new Rectangle(1.5,6);
+        double areaSum = 0;
+        for(Shape item : realShape){
+            areaSum += item.area();
+        }
+        System.out.println(areaSum); // 21.5663706,计算总面积
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### §2.8.12 转换引用类型
+
+在类层次结构图中，我们引入族谱图中的“直系亲属”和“旁系亲属”概念。
+
+- 旁系类之间不能转换类型，即使使用矫正运算符进行显式转换也不行。
+- 在直系类中，从子类转化为超类是放大转换，因此不用显式校正。
+- 在直系类中，从超类转化为子类是缩小转换，需要进行显式校正。
+- 对于数组而言，如果数组的两种数据类型可以互相转换，则两个数组也可以互相转换，**除非这两种数据类型都属于八种基本类型**。
+
+### §2.8.13 修饰符
+
+| 修饰符      | 用于 | 效果                                      |
+| ----------- | ---- | ----------------------------------------- |
+| `abstract`  | 类   | 该类不能实例化,可能包含只声明未实现的方法 |
+|             | 接口 | 加与不加都一样,因为所有借口默认都是抽象的 |
+|             | 方法 | 该方法没有主体,主题由子类提供             |
+| `default`   | 方法 |                                           |
+| `final`     | 类   |                                           |
+|             | 方法 |                                           |
+|             | 字段 |                                           |
+|             | 变量 |                                           |
+| `native`    | 方法 |                                           |
+| 无修饰符    | 类   |                                           |
+|             | 接口 |                                           |
+|             | 成员 |                                           |
+| `private`   | 成员 |                                           |
+| `protected` | 成员 |                                           |
+| `public`    | 类   |                                           |
+|             | 接口 |                                           |
+|             | 成员 |                                           |
+|             |      |                                           |
+|             |      |                                           |
+|             |      |                                           |
+|             |      |                                           |
+|             |      |                                           |
+|             |      |                                           |
+|             |      |                                           |
+|             |      |                                           |
 
