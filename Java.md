@@ -1053,7 +1053,7 @@ public class OverrideTest{
 | 不同包中的子类   | √        | √           | ×         | ×    |
 | 不同包，非子类   | √        | ×           | ×         | ×    |
 
-#### §2.8.11 数据访问器方法
+#### §2.8.10.3 数据访问器方法
 
 使用`protected`修饰类中的变量，使其他类无法随意更改该类创建的对象中的成员。然后给构造方法加上所需的限制条件，给类添加对应的数据访问器方法，从而保证在创建或修改时都能满足限制条件。
 
@@ -1142,44 +1142,6 @@ abstract class ActualShape extends Shape{
 }
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ### §2.8.12 转换引用类型
 
 在类层次结构图中，我们引入族谱图中的“直系亲属”和“旁系亲属”概念。
@@ -1191,31 +1153,298 @@ abstract class ActualShape extends Shape{
 
 ### §2.8.13 修饰符
 
-| 修饰符      | 用于 | 效果                                      |
-| ----------- | ---- | ----------------------------------------- |
-| `abstract`  | 类   | 该类不能实例化,可能包含只声明未实现的方法 |
-|             | 接口 | 加与不加都一样,因为所有借口默认都是抽象的 |
-|             | 方法 | 该方法没有主体,主题由子类提供             |
-| `default`   | 方法 |                                           |
-| `final`     | 类   |                                           |
-|             | 方法 |                                           |
-|             | 字段 |                                           |
-|             | 变量 |                                           |
-| `native`    | 方法 |                                           |
-| 无修饰符    | 类   |                                           |
-|             | 接口 |                                           |
-|             | 成员 |                                           |
-| `private`   | 成员 |                                           |
-| `protected` | 成员 |                                           |
-| `public`    | 类   |                                           |
-|             | 接口 |                                           |
-|             | 成员 |                                           |
-|             |      |                                           |
-|             |      |                                           |
-|             |      |                                           |
-|             |      |                                           |
-|             |      |                                           |
-|             |      |                                           |
-|             |      |                                           |
-|             |      |                                           |
+| 修饰符         | 用于       | 效果                                                         |
+| -------------- | ---------- | ------------------------------------------------------------ |
+| `abstract`     | 类         | 该类不能实例化,可能包含只声明未实现的方法                    |
+|                | 接口       | 加与不加都一样,因为所有借口默认都是抽象的                    |
+|                | 方法       | 该方法没有主体,主题由子类提供                                |
+| `default`      | 方法       | 该接口方法的实现是可选的,若未实现,则让接口为该方法所属的类提供默认实现 |
+| `final`        | 类         | 不能创建该类的子类                                           |
+|                | 方法       | 不能覆盖这个方法                                             |
+|                | 字段       | 该字段为常量,`static final`指编译时常量                      |
+|                | 变量       | 局部变量/方法参数/异常参数的值不能修改                       |
+| `native`       | 方法       | 该方法的实现与平台无关(例如C语言),没有主体                   |
+| 无修饰符       | 类         | 未被`public`修饰的类只能在包中访问                           |
+|                | 接口       | 未被`public`修饰的接口只能在包中访问                         |
+|                | 成员       | 未被`private`、`protected`、`public`修饰的成员具有包可见性,只能在包内访问 |
+| `private`      | 成员       | 只能在其所在的包内访问                                       |
+| `protected`    | 成员       | 只能在其所在的包和子类中访问                                 |
+| `public`       | 类         | 只要能访问其所在的包,就能访问该类                            |
+|                | 接口       | 只要能访问其所在的包,就能访问该接口                          |
+|                | 成员       | 只要能访问其所在的包,就能访问该成员                          |
+| `strictfp`     | 类         | 该类中的所有方法都会被隐式地声明为`strictfp`                 |
+|                | 方法       | 该方法严格遵守IEEE 754标准执行浮点运算,中间的计算结果和最终数值都要使用`IEEE float`或`double`表示 |
+| `static`       | 类         | 使用`static`声明的内部类是顶层类,而不是所在类的成员          |
+|                | 方法       | 该方法是类方法,不隐式传入`this`对象既可引用,也可通过类名调用 |
+|                | 字段       | 该字段为类字段,不管创建多少类实例,类字段都只有一个实例,可通过类名调用 |
+|                | 初始化程序 | 在加载类时运行,而非创建实例时运行                            |
+| `synchronized` | 方法       | 使两个线程不能同时访问该方法                                 |
+| `transient`    | 字段       | 使该字段不会随对象一起序列化                                 |
+| `volatile`     | 字段       | 该字段能被异步线程访问                                       |
 
+## §2.9 接口
+
+与定义类相似，定义接口使用的关键字是`interface`。
+
+```java
+interface Centered{
+    void setCenter(double center_x,double center_y);
+    double getCenterX();
+    double getCenterY();
+}
+```
+
+接口的成员有以下限制：
+
+- **除了默认方法外**，接口中的所有方法都会被`abstract`隐式修饰（也可以手动显式修饰），成为抽象方法，因此不能有方法主体。
+- 接口中的所有成员都会被`public`隐式修饰（也可以手动现实修饰），因此成员不能被`protected`、`private`修饰。
+- 由于上一点，所以接口不能定义任何实例字段，只能定义同时由`public`和`final`修饰的常量。
+- 接口不能实例化，因此不能包含构造方法。但是可以将实现该接口的类进行实例化，然后将得到的对象校正为接口的实例。
+- 接口中可以包含嵌套类型，并对其使用`public`和`static`隐式修饰。
+
+### §2.9.1 扩展接口
+
+与扩展类相似，接口也可以被扩展，但是子接口可以有多个父接口。子接口会继承每个父接口中的所有方法和常量，实现这个子接口的类必须实现其自定义的和继承而来的所有方法。
+
+```java
+interface Positionanle extends Centered{
+    void setUpperRightCorner(double x,double y)；
+}
+```
+
+### §2.9.2 实现接口
+
+与类实例化成为对象相似，接口也可以使用关键字`implements`实例化成类，表明该类要实现的一系列接口。如果没有全部实现，该类必须用`abstract`显式声明为抽象类。
+
+```java
+interface Centered{
+    void setCenter(double center_x,double center_y);
+    double getCenterX();
+    double getCenterY();
+}
+public abstract class Shape {
+    public abstract double area();
+    public abstract double circumference();
+}
+class Rectangle extends Shape{
+    protected double width,height;
+    public Rectangle(double width, double height){
+        if(width<=0||height<=0){
+            throw new IllegalArgumentException("Width or height must be positive.");
+        }
+        this.height = height;
+        this.width = width;
+    }
+    public double area(){
+        return height * width;
+    }
+    public double circumference() {
+        return 2 * (height + width);
+    }
+}
+public class CenteredRectangle extends Rectangle implements Centered{
+    private double center_x,center_y;
+    public CenteredRectangle(double center_x,double center_y,double width,double height){
+        super(width,height);
+        this.center_x = center_x;
+        this.center_y = center_y;
+    }
+    public void setCenter(double x,double y){center_x=x;center_y=y;}
+    public double getCenterX(){return center_x;}
+    public double getCenterY(){return center_y;}
+}
+```
+
+### §2.9.3 默认方法
+
+升级接口后，原来支持该接口的类会因为缺失接口中新增的方法而在编译时抛出`NoClassDefError`异常。为避免升级借口而导致的不向后兼容，Java 8引入了默认方法这一功能，只需给接口中新增的方法使用`default`关键词进行修饰，就可以表明该方法的实现是可选的。默认方法作为一个例外，是可以在接口中编写主体的。
+
+- 实现接口的类可以不实现接口中的默认方法。
+- 若接口的类是实现了默认方法，则使用这个类中的实现，而非接口中的实现。
+- 若接口的类没有实现默认方法，则使用接口中的实现。
+
+## §2.10 泛型
+
+Java提供了丰富且灵活的数据类型，但是早期版本存在相当大的不足：数据结构顽癣隐藏了存储于其中的数据类型。对于一个存储不同对象的集合，开发者不知道从集合内选出的元素到底是哪一种对象，从而引发错误。更关键的是，这是一种运行时错误，也就是说javac在编译阶段检测不到这种错误，只有在运行时才能发现。
+
+```java
+List shapes = new ArrayList();
+shapes.add(new CenteredCircle(1,1,1));
+shapes.add(new Circle(2,2,2));
+// List::add(index)返回Object,需要显式校正为CenteredCircle
+CenteredCircle first_circle = (CenteredCircle)shapes.get(0);
+// runtime报错
+CenteredCircle second_circle = (CenteredCircle)shapes.get(1);
+```
+
+为了解决这个问题，泛型在Java 5
+
+应运而生，可以让javac在编译阶段就发现这个问题。
+
+```java
+List<CenteredCircle> shapes = new ArrayList<CenteredCircle>();
+shapes.add(new CenteredCircle(1,1,1));
+// compiler报错
+shapes.add(new Circle(2,2,2));
+// List<CenteredCircle>::get()返回CenteredCircle,无需校正
+CenteredCircle first_circle = shapes.get(0);
+```
+
+综上所述，**容器的类型**定义为泛型(general type)，语法为`List<T>`，其中`T`成为类型参数(type parameter)。`List`类中定义了一种抽象的数据类型`E`，`E`不对类型参数做任何假设，而是代表当前调用`List`中的元素的真实类型，可以在方法的签名和主体中使用。
+
+```java
+interface List<E> extends Collection<E>{
+    boolean add(E element); // E可以用于方法的签名
+    default E get(int index); // E可以用于方法的主体
+}
+```
+
+在指定泛型时也可以使用菱形语法，只在左侧的`<>`填充数据类型，而不用填充右侧的`<>`，编译器会自动识别。
+
+```java
+// 正常语法
+List<CenteredCircle> shapes = new ArrayList<CenteredCircle>();
+// 菱形语法
+List<CenteredCircle> shapes = new ArrayList<>();
+```
+
+### §2.10.1 类型擦除
+
+泛型自Java 5引入。为了实现向后兼容，需要未指定泛型的容器能容纳各种数据类型，也需要指定了泛型的容器只能容纳特定的数据类型。
+
+```java
+public class Example{
+    public static void main(String[] args){
+        ArrayList a = new ArrayList();
+        a.add("Hello");
+        a.add("World");
+        ArrayList<String> b = (ArrayList<String>)a; // 并不安全
+    }
+}
+```
+
+在编译形成class文件时，Java会先检查传入的数据类型是否与泛型有冲突。如果没有冲突，则Java会忽视所有泛型信息，将`ArrayList<String>`与`ArrayList`视为同一种数据类型，生成不含泛型信息的class文件。
+
+> 注意：类型擦除使得两个签名看似不同的方法产生冲突。
+>
+> ```java
+> public class OrderCounter{
+>     int OrderCounter(Map<String,List<String>> orders){
+>         // ...
+>     }
+>     int OrderCounter(Map<String,Integer> orders){
+>         // ...
+>     }
+> }
+> ```
+>
+> 表面上这两个构造方法可以起到重构的作用，但是编译成class文件时，Java发现类型擦除后，这两个构造方法的签名都是`int OrderCounter(Map)`，也就是把一个心啊共同的函数定义了两次，于是不能通过编译。
+
+### §2.10.2 通配符
+
+#### §2.10.2.1 未知类型通配符
+
+泛型的作用是保证容器只能储存某种数据类型的实体。如果我们不知道所谓“某种数据类型”到底是哪种数据类型，可以用`<?>`表示。
+
+```java
+ArrayList stringTypeList = new ArrayList();
+stringTypeList.add("Hello");
+stringTypeList.add("World");
+ArrayList normalList = stringTypeList;
+ArrayList<?> unknownTypeList = stringTypeList;
+Object item_fromUnknownTypeList = unknownTypeList.get(0);
+Object item_fromNormalList = unknownTypeList.get(0);
+System.out.println(item_fromUnknownTypeList.equals(item_fromNormalList)); // true
+```
+
+虽然我们不知道通配符确定的是哪种数据类型，但是不能把位置数据类型随便放入通配符确定的泛型容器中。
+
+```java
+ArrayList stringTypeList = new ArrayList();
+stringTypeList.add("Hello");
+stringTypeList.add("World");
+ArrayList normalList = stringTypeList;
+ArrayList<?> unknownTypeList = stringTypeList;
+normalList.add(new Object()); // 成功
+unknownTypeList.add(new Object()); // 报错
+```
+
+Java规定，使用通配符的泛型的容器不能实例化。
+
+```java
+ArrayList a = new ArrayList(); // 成功
+ArrayList b = new ArrayList<?>(); // 失败
+ArrayList<?> c = new ArrayList<?>(); // 失败
+```
+
+> 注意：虽然子类和超类可以互相转化：
+>
+> ```java
+> Object a = new Object();
+> String b = new String();
+> Object c = b; // 成功
+> String d = (String)a; // 成功
+> ```
+>
+> 但是其对应的泛型不能互相转化，即使显式校正也不行：
+>
+> ```java
+> ArrayList<Object> a = new ArrayList<>();
+> ArrayList<String> b = new ArrayList<>();
+> ArrayList<Object> c = b; // 失败
+> ArrayList<Object> d = (ArrayList<Object>)b; // 失败
+> ArrayList<String> e = a; // 失败
+> ArrayList<String> f = (ArrayList<String>)a; // 失败
+> ```
+
+#### §2.10.2.2 受限通配符
+
+`<? extends interface>`表示保证容器只能储存某种数据类型的实体，其中这种数据类型实现了`interface`接口。
+
+```java
+ArrayList<? extends Cloneable> a = new ArrayList();
+```
+
+## §2.11 枚举
+
+枚举是一种特殊的类，功能非常有限。因为枚举实例在运行时创建，而且在外部不能实例化，所以把构造方法声明为私有方法。
+
+```java
+abstract class Shape {}
+class Triangle extends Shape{
+    private double length;
+    public Triangle(double length){
+        this.length = length;
+    }
+}
+class Square extends Shape{
+    private double length;
+    public Square(double length){
+        this.length = length;
+    }
+}
+public enum RegularPolygon{
+    Triangle(3),Square(4); // 枚举
+    private Shape shape;
+    public Shape getShape(){
+        return shape;
+    }
+    private RegularPolygon(int sides){
+        switch(sides){
+            case 3:
+                shape = new Triangle(0.0);
+                break;
+            case 4:
+                shape = new Square(0.0);
+                break;
+        }
+    }
+}
+```
+
+枚举具有以下特点：
+
+- 枚举都从`java.lang.Enum`隐式扩展而来，是`java.lang.Enum`的子类。
+- 枚举不能泛型化。
+- 枚举不能再作为超类创建子类了。
+- 枚举内只能有一个`private`修饰的构造方法。
