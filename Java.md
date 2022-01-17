@@ -1060,7 +1060,7 @@ public class OverrideTest{
 ```java
 public class Circle{
     public static final double PI = 3.14159265;
-    protected double radius; // 半径在子类中课件
+    protected double radius; // 半径在子类中可见
     protected void checkRadius(double radius){
         if(radius < 0.0){
             throw new IllegalArgumentException("Radius must be positive!");
@@ -1182,6 +1182,222 @@ abstract class ActualShape extends Shape{
 | `transient`    | 字段       | 使该字段不会随对象一起序列化                                 |
 | `volatile`     | 字段       | 该字段能被异步线程访问                                       |
 
+### §2.8.14 嵌套
+
+在`class`内部定义的类称为嵌套类或内部类，通常用于以下两种情况：
+
+- 如果某个类需要特别深入的访问另一个类型，则可以使用嵌套类。
+- 如果某个类只在特定的情况下才使用，并且其代码区域特别小，应该封装在一个小范围内，则可以使用嵌套类。
+
+嵌套类的好处有以下几点：
+
+- 访问嵌套类中的字段和方法非常简便，就像是这些字段和方法本来就定义在包含它的类中一样。
+- 嵌套类的访问权限管理非常的极端。对于包含它的类而言，嵌套类等价于被`public`修饰的其他类；对于其它类而言，嵌套类甚至比`private`还要极端，永远也无法访问。
+- 嵌套类不能被单独实例化，只能随着其所在类一起被实例化，从而实现类和嵌套类一一对应的关系。
+
+事实上，JVM和类文件会将嵌套类与普通类一视同仁，将所有类都视作普通的顶层类。javac为了区分嵌套类和普通类，会在类文件中插入隐藏字段、方法和构造方法参数，统称为合成物(synthetic)，可以由javap反汇编识别。
+
+嵌套类有四种类型，分别是静态成员类型、非静态成员类、局部类和匿名类。
+
+#### §2.8.14.1 静态成员类型
+
+静态成员类型类似于类的静态成员。
+
+静态成员类型具有以下特点：
+
+- 静态成员类型和所在类的任何实例都不关联，也就是说没有`this`对象。
+- 静态成员类型只能访问所在类的静态成员，不能访问所在类之外的静态成员，但是能访问所在类内的所有静态成员类型。同理，反过来说，类内的静态成员都能访问静态成员类型内的成员。
+- 所有嵌套类都不能被实例化，所以静态成员类型中的字段、接口、枚举、注解全部都被`static`隐式修饰。
+- 只有静态成员类型才支持再嵌套内部的静态成员类型，其他三种嵌套类型不支持嵌套静态成员类型。
+- 静态成员类型不能和其他的外层类重名。
+- 静态成员类型只能在顶层类型，或该顶层类型中的静态成员类型内定义，不能在任何成员类、局部类、匿名类中定义。
+
+```java
+public class LinkedStack{ // 用链表实现堆栈
+    static interface Linkable{ // 静态成员接口
+        public Linkable getNext();
+        public void setNext(Linkable node);
+    }
+    Linkable head;
+    public void push(Linkable Node){
+        // ...
+    }
+    public Object pop9){
+        // ...
+    }
+}
+public LinkableInteger implements LinkedStack.Linkable{
+    int i;
+    public LinkableInteger(int i){
+        this.i = i;
+    }
+    LinkableStack.Linkable next;
+    public LinkedStack.Linkable getNext{
+        return next;
+    }
+    public void setNext(LinkedStack.Linkable node){
+        next = node;
+    }
+}
+```
+
+#### §2.8.14.2 非静态成员类
+
+非静态成员类是外层类或枚举类型的成员，而且不使用`static`修饰。如果把静态成员类型类比成类字段或类方法，那么非静态成员类就是实例字段和实例方法。之所以不叫做“非静态成员类**型**”，是因为非静态成员类型只能是类，所以采用这种简称。
+
+非静态成员类具有以下特点：
+
+- 非静态成员类的实例始终关联另一个外层类型的实例。
+
+- 非静态成员类的内部能访问外层类型的所有字段和方法。
+
+- 非静态成员类同样不能与外界类或外界包重名。
+
+- 非静态成员类不能包含任何被`static`修饰的字段、方法和类，除非是同时被`static`和`final`修饰的常量。
+
+- 与静态成员类型不同，非静态成员类可以使用`this`对象。
+
+  ```java
+  import java.util.Iterator;
+  public class LinkedStack{ // 用链表实现堆栈,进一步完善,增加迭代器
+      // ...
+      public Iterator<Linkable> iterator(){
+          return new LinkedIterator();
+      }
+      protected class LinkedIterator implements Iterator<Linkable>{ // 非静态成员类
+          Linkable current;
+          public LInkedIterator(){
+              current = head;
+          }
+          public boolean hasNext(){
+              return current != null;
+          }
+          public Linkable next(){
+              if(current == null){
+                  throw new java.util.NoSuchElementException();
+              }
+              Linkable value = current;
+              current = current.getNext();
+              return value;
+          }
+      }
+      public void remove(){
+          throw new UnsupportedOperationException();
+      }
+  }
+  ```
+
+  在这里我们用隐式调用实现了`public LinkedIterator()`方法。如果用`this`对象显示调用的话，该方法可以进行如下改写，其形式一般为`className.this`，其中`className`是外部类的名称，这种语法常用于外层类成员与嵌套类成员重名时的情况：
+
+  ```java
+  //...
+  public LinkedIterator(){
+      current = head; // 非静态成员类内的类字段 = 其外部类的实例字段
+  }
+  public LinkedIterator(){
+      this.current = LinkedStack.this.head; // this显式调用
+  }
+  //...
+  ```
+
+#### §2.8.14.3 局部类
+
+局部类在方法、类的静态初始化程序、类的实例初始化程序中定义。因为Java所有的代码块都在类中定义，所以局部类也嵌套于类中。
+
+```java
+public class LinkedStack{
+    // ...
+    public Iterator<Linkable> Iterator(){
+        class LinkedIterator implements Iterator<Linkable>{ // 局部类,在方法中定义
+				// ...
+            }
+        }
+    	return new LInkedIterator();
+    }
+}
+```
+
+局部类有以下特点：
+
+- 局部类和外层实例关联，而且能访问外层类的任何成员。
+- 局部类能访问局部方法的作用域中**被`final`修饰**的局部变量、方法参数、异常参数。
+- 局部类的作用域不能超出定义它的代码块，但是在该代码块中定义的局部类实例可以在作用域之外使用。
+- 局部类不能被`private`、`protected`、`public`、`static`修饰，因此不能定义静态字段、静态方法和静态类。除非是同时被`static`和`final`修饰的常量。
+- 除局部类自身之外，局部类所在的代码块中的变量、方法参数、异常参数只有被`final`修饰，才能被局部类调用，被因为局部类实例的生命周期可能比定义它的代码块的生命周期要长。
+- 局部类不能定义接口、枚举和注解。
+- 局部类不能和外层类重名。
+
+```java
+package com.example;
+class A{
+    protected char a = 'a';
+}
+class B{
+    protected char b = 'b';
+}
+public class C extends A{
+    private char c = 'c';
+    public static char d = 'd';
+    public void creteLocalObject(final char e){
+        final char f = 'f';
+        int i = 0;
+        class Local extends B{
+            char g = 'g';
+            public void printVars(){
+                System.out.println(a); // 从外层类的父类继承的字段
+                System.out.println(b); // 从嵌套类的父类继承的字段
+                System.out.println(c); // 外层类的字段,C.this.c
+                System.out.println(d); // 外层类的字段,C.this.d
+                System.out.println(e); // 局部类所在作用域的final方法参数
+                System.out.println(f); // 局部类所在作用域的final字段
+                System.out.println(g); // 局部类内部的字段
+                System.out.println(i); // 报错,未被final修饰,故嵌套类内部不能访问
+            }
+        }
+        Local l = new Local();
+        l.printVars();
+    }
+}
+```
+
+#### §2.8.14.4 匿名类
+
+匿名类是没有名称的局部类，仅用`new`在表达式中同时完成定义和实例化。
+
+```java
+public Iterator<Linkable> iterator(){
+    return new Iterator<Linkable>(){
+        Linkable current;
+        {current = head;} // 实例初始化程序
+        public boolean hasNext(){
+            return current != null;
+        }
+        public Linkable next(){
+            if(current == null){
+                throw new java,util.NoSuchElementException();
+            }
+            Linkable value = current;
+            current = current,getNext();
+            return value;
+        }
+        public void remove(){
+            throw new UnsupportedOperationException();
+        }
+    };
+}
+```
+
+匿名类有以下特点：
+
+- 匿名类不支持`extends`和`implements`。
+- 因为匿名类没有名称，所以无法在匿名类内部定义构造方法。因此在创建匿名类实例时，小括号传入的参数实际上传给了所有类的父类——`Object`。而`new Object()`不需要传参，所以匿名类不需要传入参数。
+- 匿名类实质上是一种局部类，所以匿名类继承了局部类的所有特点。
+- 虽然匿名类不支持构造方法，但是可以用实例初始化方法代替构造方法，而这正是Java引入实例初始化方法的初衷。
+
+#### §2.8.14.5 作用域与继承层次结构
+
+对于嵌套类而言，我们要考虑两套作用域与继承层次结构：一是从超类到子类的**继承层次结构**，二是从外层类到嵌套类的**包含层次结构**。这两种层次结构完全互相独立。如果超类的字段或方法与外层类的字段或方法重名，造成命名冲突，则以继承的字段或方法为准。
+
 ## §2.9 接口
 
 与定义类相似，定义接口使用的关键字是`interface`。
@@ -1265,7 +1481,7 @@ public class CenteredRectangle extends Rectangle implements Centered{
 
 ## §2.10 泛型
 
-Java提供了丰富且灵活的数据类型，但是早期版本存在相当大的不足：数据结构顽癣隐藏了存储于其中的数据类型。对于一个存储不同对象的集合，开发者不知道从集合内选出的元素到底是哪一种对象，从而引发错误。更关键的是，这是一种运行时错误，也就是说javac在编译阶段检测不到这种错误，只有在运行时才能发现。
+Java提供了丰富且灵活的数据类型，但是早期版本存在相当大的不足：数据结构完全隐藏了存储于其中的数据类型。对于一个存储不同对象的集合，开发者不知道从集合内选出的元素到底是哪一种对象，从而引发错误。更关键的是，这是一种运行时错误，也就是说javac在编译阶段检测不到这种错误，只有在运行时才能发现。
 
 ```java
 List shapes = new ArrayList();
@@ -1338,7 +1554,7 @@ public class Example{
 > }
 > ```
 >
-> 表面上这两个构造方法可以起到重构的作用，但是编译成class文件时，Java发现类型擦除后，这两个构造方法的签名都是`int OrderCounter(Map)`，也就是把一个心啊共同的函数定义了两次，于是不能通过编译。
+> 表面上这两个构造方法可以起到重构的作用，但是编译成class文件时，Java发现类型擦除后，这两个构造方法的签名都是`int OrderCounter(Map)`，也就是把一个签名共同的函数定义了两次，于是不能通过编译。
 
 ### §2.10.2 通配符
 
@@ -1448,3 +1664,172 @@ public enum RegularPolygon{
 - 枚举不能泛型化。
 - 枚举不能再作为超类创建子类了。
 - 枚举内只能有一个`private`修饰的构造方法。
+
+## §2.12 注解
+
+注解是一种特殊的接口，对编译过程和运行过程没有任何影响，唯一的作用是提醒IDE一些高级设计层面的信息。
+
+与普通的接口不同，注解还有以下特点：
+
+- 注解都从`java.lang.annotation.Annotation`隐式扩展而来，是`java.lang.annotation.Annotaion`的子接口。
+- 注解都不能泛型化。
+- 注解不能作为父接口拓展子接口。
+- 注解内定义的方法不能含参数，不能抛出异常，返回类型有限制，可以有一个默认返回值。
+
+## §2.13 lambda表达式
+
+Java 8引入了lambda表达式，由一个参数列表和一个方法主体构成。
+
+```java
+(p,q) -> {/* 方法主体 */}
+```
+
+lambda表达式的出现，让开发者在不使用匿名类的情况下也能实现类似的效果，且字符更少，语法更简洁。
+
+```java
+import java.io.File
+File dir = new File("/myfolder");
+// 匿名类
+String[] filelist = dir.list(new FilenameFilter(){
+    public boolean accept(File f,String s){
+        return s.endsWith(".java");
+    }
+});
+// lambda表达式
+String[] filelist = dir.list(
+	(f,s)->{return s.endsWith(".java");}
+//  (File f,String s)->{return s.endswith(".java");}
+);
+```
+
+### §2.13.1 方法引用
+
+前面我们已经知道了lambda表达式的使用规则。容易发现，我们使用lambda表达式时，一般是想使用某方法对传入参数进行处理，而且传入参数的类型和要使用的方法非常的明确，没有歧义。也就是说，我们可以从lambda表达式自身出发，推导出期望的传入参数的数据类型和期望使用的方法。这是我们可以使用**方法引用**进一步简化lambda表达式。
+
+```java
+// lambda表达式
+(MyObject obj) -> {obj.myFunction();}
+// 方法引用
+MyObject::myFunction
+```
+
+# §3 面向对象设计
+
+## §3.1 `java.lang.Object`的方法
+
+### §3.1.1 `Object.toString()`
+
+`Object.toString()`返回对象所属类的名称、对象的Hash值~Hex~组合起来的字符串。
+
+```java
+public static void main(String[] args){
+    Object a = new Object();
+    System.out.println(a); // java.lang.Object@119d7047
+}
+```
+
+`System.out.println(Object)`会先默认执行此方法，再输出对应的字符串。
+
+```java
+// PrintStream.java, line 1046
+public void println(Object x) {
+    String s = String.valueOf(x);
+	// ...
+}
+```
+
+```java
+// String.java, line 3364
+public static String valueOf(Object obj) {
+    return (obj == null) ? "null" : obj.toString();
+}
+```
+
+原生的`Object.toString()`只起到了标识的作用。真实情况中一般会将其重载，使其能输出一系列所需的信息。
+
+### §3.1.2 `Object.equals(Object)`
+
+`Object.equals(Object)`用于判断两个`object`指针是否指向同一个对象。
+
+```java
+public static void main(String[] args){
+    Object obj_1 = new Object();
+    Object obj_2 = new Object();
+    System.out.println(obj_1.equals(obj_2)); // false
+    Object obj_3 = obj_1;
+    System.out.println(obj_3.equals(obj_1)); // true
+}
+```
+
+众所周知，`==`运算符的作用就是检测两个指针是否指向同一个`Object`，而Java原生的`Object.equals(Object)`就是直接粗暴地用`==`实现的。
+
+```java
+// 	Object.java, line 149
+public boolean equals(Object obj) {
+    return (this == obj);
+}
+```
+
+众所又周知，`String`的`String.equals(String)`方法却不是检测指针指向的字符串对象是否是同一个，而是检测两个字符串对象的内容是否相同。这是因为`String`类内部重载了`.equals(String)`方法。
+
+```java
+// String.java, line 1020
+public boolean equals(Object anObject) {
+    if (this == anObject) {
+        return true;
+    }
+    if (anObject instanceof String) {
+        String aString = (String)anObject;
+        if (!COMPACT_STRINGS || this.coder == aString.coder) {
+            return StringLatin1.equals(value, aString.value);
+        }
+    }
+       return false;
+    }
+```
+
+
+
+```java
+public class Circle implements Comparable<Circle>{
+    private final double x,y,r;
+    public Circle(double x,double y,double r){
+        if(r < 0){
+            throw new IllegalArgumentException("Radius must be positive.");
+        }
+        this.x = x;
+        this.y = y;
+        this.r = r;
+    }
+    public double getX() {return x;}
+    public double getY() {return y;}
+    public double getR() {return r;}
+
+    @Override public String toString(){
+        return String.format("center=(%f,%f),radius=%f",x,y,r);
+    }
+    @Override public boolean equals(Object o){
+        if(o == this) return true; // 引用同一个对象
+        if(!(o instanceof Circle)) return false; // 类型是否相同
+        Circle o_new = (Circle) o;
+        if(this.x==o_new.x&&this.y==o_new.y&&this.r==o_new.r)
+            return true;
+        else
+            return false;
+    }
+    @Override public int hashCode(){
+        double result = 17;
+        result = 37 * result + x;
+        result = 37 * result + y;
+        result = 37 * result + r;
+        return (int) result;
+    }
+    @Override public int compareTo(Circle that){
+        double result = this.r - that.r;
+        if(result>0) return 1;
+        if(result<0) return -1;
+        return 0;
+    }
+}
+```
+
