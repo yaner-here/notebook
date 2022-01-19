@@ -48,7 +48,7 @@ drop table users;
 单行插入：
 
 ```sql
-insert into users(id,username,score) value (1,'YG',750);
+insert into users(id,username,score) value (1,'张三',750);
 ```
 
 多行插入：
@@ -124,8 +124,24 @@ select distinct username from users;
 ### §4.2.1 表达式判别
 
 ```sql
-select * from users where score>60;
-select * from users where score>=60 and score<600 or score>700; -- and优先级大于or
+select username from users where score>=60;
+-- 比较字符串时,将所有字符串按名称从小到大排序
+-- 例如:'10'>'1','啊'<'这'
+select username from users where username>'闫';
+-- 比较NULL时,任何包含NULL的表达式均不为True,需要用IS NULL
+select username from users where username = null;-- ×
+select username from users where username is null;-- √
+select username from users where username is not null ;-- √
+-- 否定前缀NOT
+select username from users where not username is null;
+-- AND和OR,注意AND优先级大于OR
+select username from users where id<5 and score>60;
+select username from users where id<5 and (score>60 or score<100);
+-- 可以将NULL理解为位于0和1之间的值,1>null>0
+1 and null = null
+0 and null = 0
+1 or null =1
+0 or null =null
 ```
 
 ### §4.2.2 LIKE筛选
@@ -167,9 +183,64 @@ select id,username from users as p1 where exists
     );
 ```
 
-## §4.4 聚合函数
+### §4.2.6 GROUP BY筛选
 
-### §4.4.1 统计类
+```sql
+select username,count(username) from users group by username;
+select username,count(username) from users group by username,id;
+```
+
+### §4.2.7 HAVING筛选
+
+```sql
+select username,count(*) from users where count(*)=2 group by username; -- ×
+select username,count(*) from users group by username having count(*)=2; -- √
+```
+
+### §4.2.8 ORDER BY筛选
+
+```sql
+        -- NULL会聚集在表首或表尾
+        select id,username from users order by username,id desc;
+        select id,username from users order by 2,1 desc;-- 数字代表select列
+```
+
+### §4.2.9 IN筛选
+
+```sql
+select id from users where username='张三' or username='李四';
+select id from users where username in ('张三','李四');
+```
+
+### §4.2.10 LIKE筛选
+
+```sql
+-- 前方一致查询
+    select * from users where username like 'a%';
+-- 中间一致查询
+    select * from users where username like '%g%';
+-- 后方一致查询
+    select * from users where username like '%z';
+-- 通配符
+```
+
+### §4.2.11 BETWEEN筛选
+
+```sql
+select * from users where score between 50 and 80;
+```
+
+### §4.2.12 EXIST/NO EXIST筛选
+
+```sql
+select id,username from users as p1 where exists(
+    select 1 as whatever_something from users as p2
+        where p1.username='闫刚' and p2.score>60);
+```
+
+## §4.3 函数
+
+### §4.3.1 统计类聚合函数
 
 ```sql
 select count(*) from users; -- 统计表中一共有多少行,当且仅当实参为*时统计NULL
@@ -177,19 +248,64 @@ select count(score) from users; -- 统计表中score一列的数量,不包括NUL
 select count(distinct username) from users; -- 统计不重名username的数量,不包括NULL
 ```
 
-### §4.4.2 计算类
+### §4.3.2 计算类聚合函数
 
 ```sql
 select sum(score),avg(score),max(score),min(score) from users;
 ```
 
-CASE表达式
+### §4.3.3 字符串函数
 
 ```sql
-case sex
-	when '1' then '男'
-	when '2' then '女'
-else '未定义' end
+-- CONCAT(str,str,...),拼接字符串
+    select concat(username,password) from users;
+-- LENGTH(str),统计字符串占用字节数(ASCII1字节,UTF2字节)
+    select length(concat(username,password)) from users;
+-- UPPER(str)/LOWER(str),转换为大/小写
+    select lower('ABC');
+    select upper('abc');
+-- REPLACE(string,pre_character,after_character),替换字符串
+    select replace(username,'刘','闫') from users;
+-- SUBSTRING(str FROM start FOR length),截取字符串(序号从1开始数)
+    select substring(username from 1 for 1) from users;
+    select substring(username,1,1) from users;-- 简化版
+    select substr(username from 1 for 1) from users;
+-- 另一种写法
+    select substr(username,1,1) from users;
+```
+
+### §4.3.4 日期函数
+
+```sql
+-- CURRENT_DATE,返回当前日期(年-月-日)
+    select current_date;
+    select current_date();
+-- CURRENT_TIMESTAMP,返回当前时间戳(年-月-日 时:分:秒)
+    select current_timestamp();
+    select current_timestamp;
+-- CURRENT_TIME,返回当前时间(时:分:秒)
+    select current_time;
+    select current_time();
+-- EXTRACT(type FROM date_variable),截取日期中的各种元素
+    select extract(year from current_timestamp),
+           extract(month from current_timestamp),
+           extract(day from current_timestamp),
+           extract(hour from current_timestamp),
+           extract(minute from current_timestamp),
+           extract(second from current_timestamp);
+```
+
+### §4.3.5 转换函数
+
+```sql
+-- CAST(variable,format),转换数据类型
+    select cast(current_timestamp as date);-- 时间戳转换为日期
+    select cast('0001' as signed integer);-- 字符串转换为整数
+    select cast('2020-1-1' as date);-- 字符串转换为日期
+-- COALESCE(null,variable,...),返回从左往右第一个不为NULL的值
+    select coalesce(null,null,1,2);
+    select coalesce(score,'NULL') from users;
+-- 若为NULL则返回字符串'NULL'
 ```
 
 
