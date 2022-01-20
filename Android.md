@@ -270,3 +270,285 @@ setTitle(R.string.app_name); // R即为上文介绍的R.java或R.txt
     android:text="@string/false_button"/>
 ```
 
+## §1.5 添加问题
+
+创建一个`Question`类，用于表示对每一道习题的抽象形式。
+
+```java
+package com.example.geoquiz;
+public class Question {
+    private int mTextResId;
+    private boolean mAnswerTrue;
+    public int getTextResId() {
+        return mTextResId;
+    }
+    public void setTextResId(int textResId) {
+        mTextResId = textResId;
+    }
+    public boolean isAnswerTrue() {
+        return mAnswerTrue;
+    }
+    public void setAnswerTrue(boolean answerTrue) {
+        mAnswerTrue = answerTrue;
+    }
+    public Question(int textResId, boolean answerTrue){
+        mTextResId = textResId;
+        mAnswerTrue = answerTrue;
+    }
+}
+```
+
+使用`Question`类更新`Activity`类：
+
+```java
+// ...
+public class MainActivity extends AppCompatActivity {
+    private Button mTrueButton;
+    private Button mFalseButton;
+    private Button mNextButton; // 添加下一个按钮
+    private TextView mQuesitonTextView;
+
+    private Question[] mQuestionBank = new Question[]{ // 提前硬编码习题
+            new Question(R.string.question_australia,true),
+            new Question(R.string.question_oceans,true),
+            new Question(R.string.question_mideast,false),
+            new Question(R.string.question_africa,false),
+            new Question(R.string.question_americas,true),
+            new Question(R.string.question_asia,true),
+    };
+    private int mCurrentIndex = 0; // 记录当前习题序号
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+		//...
+        mQuesitonTextView = (TextView) findViewById(R.id.question_text_view);
+        updateQuestion();
+        mTrueButton = (Button) findViewById(R.id.true_button);
+        mFalseButton = (Button) findViewById(R.id.false_button);
+        mNextButton = (Button) findViewById(R.id.next_button);
+        mTrueButton.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(View v){ // 使用封装函数checkAnswer()
+                checkAnswer(true);
+            }
+        });
+        mFalseButton.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(View v){ // 使用封装函数checkAnswer()
+                checkAnswer(false);
+            }
+        });
+        mNextButton.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(View v){ // 当前问题序号+1并更新问题
+                mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
+                updateQuestion();
+            }
+        });
+    }
+    private void updateQuestion(){ // 按照当前序号更新习题
+        int question = mQuestionBank[mCurrentIndex].getTextResId();
+        mQuesitonTextView.setText(question);
+    }
+    private void checkAnswer(boolean userPressedTrue){ // 检测userPressedTrue和isAnswerTrue是否一致
+        boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
+        int messageResId = 0;
+        if(userPressedTrue == answerIsTrue){
+            messageResId = R.string.correct_toast;
+        }else{
+            messageResId = R.string.incorrect_toast;
+        }
+        Toast.makeText(MainActivity.this,messageResId,Toast.LENGTH_SHORT).show();
+    }
+}
+```
+
+在`String.xml`中添加对应的字符串资源：
+
+```xml
+<resources>
+    <string name="app_name">GeoQuiz</string>
+    <string name="question_australia">Canberra is the capital of Australia</string>
+    <string name="question_oceans">The Pacific Ocean is larger than the Atlantic Ocean</string>
+    <string name="question_mideast">The Suez Canal connects the Red Sea and the Indian Ocean</string>
+    <string name="question_africa">The source of the Nile River is in Egypt</string>
+    <string name="question_americas">The Amazon River is the longest river in the Americas</string>
+    <string name="question_asia">Lake Baikal is the world\'s oldest and deepest freshwater lake.</string>
+    <string name="true_button">True</string>
+    <string name="false_button">False</string>
+    <string name="next_button">Next</string>
+    <string name="correct_toast">Correct!</string>
+    <string name="incorrect_toast">Incorrect!</string>
+</resources>
+```
+
+## §1.6 修BUG
+
+### §1.6.1 旋转屏幕导致Activity销毁
+
+由§2 生命周期的内容可知，旋转屏幕时会将当前`Activity`实例销毁，从而自动跳转到第一个问题。因此，我们需要对宽屏进行适配。
+
+首先，创建一个给宽屏使用的XML布局文件，存放在目录`app/src/main/res/layout-land`目录下：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <TextView
+        android:id="@+id/question_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:padding="24dp" />
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|center_horizontal"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/true_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/true_button"
+            style="?android:attr/buttonBarButtonStyle" />
+        <Button
+            android:id="@+id/false_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/false_button"
+            style="?android:attr/buttonBarButtonStyle" />
+    </LinearLayout>
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="bottom|right">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/previous_button"
+                android:text="@string/previous_button"
+                android:drawableStart="@drawable/arrow_left"
+                android:drawablePadding="4sp"/>
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/next_button"
+                android:text="@string/next_button"
+                android:drawableEnd="@drawable/arrow_right"
+                android:drawablePadding="4dp"/>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>
+```
+
+> 注意：这里我们使用了`<FrameLayout>`标签，设置其`android:layout_gravity`属性，将跳转按钮放置在屏幕的最右下角，而这是`<LinearLayout>`做不到的。
+
+接着，我们需要创建一个可以被多个`Activity`实例共享的变量，用于存储当前的问题序号。`Bundle`数据类型存储着字符串值与限定类型之间的映射关系，在`@Override protected void onCreate(Bundle savedInstanceState)`中我们就使用过这种数据类型。：
+
+```
+
+```
+
+
+
+# §2 生命周期
+
+每个`Activity`实例都有生命周期，在其生命周期内按照以下关系在运行、暂停、停止、不存在这四种状态间转换。
+
+```mermaid
+flowchart TB
+	a1((不存在))
+	a1--"onCreate()"-->a2
+	a2--"onDestory()"-->a1
+	subgraph b1 ["整个生命周期<br>对象实例在内存中"]
+		a2((停止))
+		a2--"onStart()"-->a3
+		a3--"onStop()"-->a2
+		subgraph b2 ["可视生命周期<br>视图部分或全部可见"]
+			a3((暂停))
+			a3--"onResume()"-->a4
+			a4--"onPause()"-->a3
+			subgraph b3 ["前台生命周期<br>用于与当前Activity交互"]
+				a4((运行))
+			end
+		end
+	end
+```
+
+| `Activity`状态 | 是否有内存实例 | 用户是否可见 | 是否处于前台 |
+| -------------- | -------------- | ------------ | ------------ |
+| 不存在         | ×              | ×            | ×            |
+| 停止           | √              | ×            | ×            |
+| 暂停           | √              | √或⍻         | ×            |
+| 运行           | √              | √            | √            |
+
+`OnCreate()`负责：
+
+- 将组件实例化，并调用`setContentView(int)`将组件放置在屏幕上
+- 引用已经实例化的组件
+- 为组建设置监听器
+- 访问外部模型数据
+
+## §2.1 日志记录
+
+Android的`android.util.Log`用于向系统及共享日志中心发送日志信息，常用其中的`Log.d(String tag, String msg)`方法，其中`tag`是日志的来源，第二个是日志的具体内容。
+
+```java
+public class MainActivity extends AppCompatActivity {
+	// ...
+	private static final String TAG = "MainActivity";
+    @Override protected void onCreate(Bundle savedInstanceState) {
+    	super.onCreate(savedInstanceState);
+        Log.d(TAG,"onCreate(Bundle) called");
+        //...
+    }
+    @Override public void onStart(){
+        super.onStart();
+        Log.d(TAG,"onStart() called");
+    }
+    @Override public void onResume(){
+        super.onResume();
+        Log.d(TAG,"onResume() called");
+    }
+    @Override public void onPause(){
+        super.onPause();
+        Log.d(TAG,"onPause() called");
+    }
+    @Override public void onStop(){
+        super.onStop();
+        Log.d(TAG,"onStop() called");
+    }
+    @Override public void onDestroy(){
+        super.onDestroy();
+        Log.d(TAG,"onDestroy() called");
+    }
+    // ...
+}
+```
+
+在Logcat中可以看到如下信息：
+
+```Logcat
+// 应用被创建时,从不存在状态变为存在状态
+2022-01-20 14:01:32.591 6937-6937/com.example.geoquiz I/art:     at void com.example.geoquiz.MainActivity.onCreate(android.os.Bundle) (MainActivity.java:32)
+2022-01-20 14:01:32.623 6937-6937/com.example.geoquiz D/MainActivity: onStart() called
+2022-01-20 14:01:32.624 6937-6937/com.example.geoquiz D/MainActivity: onResume() called
+// 单击返回键时,从运行状态变为不存在状态
+2022-01-20 14:02:12.239 6937-6937/com.example.geoquiz D/MainActivity: onPause() called
+2022-01-20 14:02:12.394 6937-6937/com.example.geoquiz D/MainActivity: onStop() called
+2022-01-20 14:02:12.394 6937-6937/com.example.geoquiz D/MainActivity: onDestroy() called
+// 单击Home键时,从运行状态变为停止状态
+2022-01-20 14:05:32.196 7076-7076/com.example.geoquiz D/MainActivity: onPause() called
+2022-01-20 14:05:32.360 7076-7076/com.example.geoquiz D/MainActivity: onStop() called
+// 旋转屏幕时
+2022-01-20 14:08:54.998 7183-7183/com.example.geoquiz D/MainActivity: onPause() called
+2022-01-20 14:08:55.000 7183-7183/com.example.geoquiz D/MainActivity: onStop() called
+2022-01-20 14:08:55.001 7183-7183/com.example.geoquiz D/MainActivity: onDestroy() called
+2022-01-20 14:08:55.058 7183-7183/com.example.geoquiz D/MainActivity: onCreate(Bundle) called
+2022-01-20 14:08:55.067 7183-7183/com.example.geoquiz D/MainActivity: onStart() called
+2022-01-20 14:08:55.068 7183-7183/com.example.geoquiz D/MainActivity: onResume() called
+```
+
