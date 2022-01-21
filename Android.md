@@ -379,9 +379,7 @@ public class MainActivity extends AppCompatActivity {
 </resources>
 ```
 
-## §1.6 修BUG
-
-### §1.6.1 旋转屏幕导致Activity销毁
+## §1.6 修复旋转屏幕导致Activity销毁的BUG
 
 由§2 生命周期的内容可知，旋转屏幕时会将当前`Activity`实例销毁，从而自动跳转到第一个问题。因此，我们需要对宽屏进行适配。
 
@@ -446,10 +444,116 @@ public class MainActivity extends AppCompatActivity {
 
 > 注意：这里我们使用了`<FrameLayout>`标签，设置其`android:layout_gravity`属性，将跳转按钮放置在屏幕的最右下角，而这是`<LinearLayout>`做不到的。
 
-接着，我们需要创建一个可以被多个`Activity`实例共享的变量，用于存储当前的问题序号。`Bundle`数据类型存储着字符串值与限定类型之间的映射关系，在`@Override protected void onCreate(Bundle savedInstanceState)`中我们就使用过这种数据类型。：
+接着，我们需要创建一个可以被多个`Activity`实例共享的变量，用于存储当前的问题序号。`Bundle`数据类型存储着字符串值与限定类型之间的映射关系，在`@Override protected void onCreate(Bundle savedInstanceState)`中我们就使用过这种数据类型。可以覆盖`onSaveInstanceState(Bundle)`方法，将所需变量保存到`Bundle`中：
 
+```java
+public class MainActivity extends AppCompatActivity{
+    // ...
+    private static final String KEY_INDEX = "index";
+	// ...
+    @Override protected void onCreate(Bundle savedInstanceState){
+        // ...
+        if(savedInstanceState != null){
+            mCurrentIndex = savedInstanceState.getInt(KET_INDEX,0);
+        }
+        // ...
+    }
+    @Override public void onSaveInstanceState(Bundle savedInstanceState){
+        super.onSaveInstanceState(savedInstanceState);
+        Log.i(TAG,"onSaveInstanceState");
+        savedInstanceState.putInt(KEY_INDEX,mCurrentIndex);
+    }
+    // ...
+}
 ```
 
+## §1.7 创建新`Activity`
+
+首先准备字符串资源：
+
+```xml
+<resource>
+	<!-- ... -->
+    <string name="warning_text">Are you sure you want to do this?</string>
+    <string name="show_answer_button">Show Answer</string>
+    <string name="cheat_button">Cheat!</string>
+    <string name="judgment_toast">Cheating is wrong.</string>
+</resource>
+```
+
+创建新`Activity`的过程至少涉及三个文件的更新：Java类文件、XML布局文件和APP本身的manifest文件。这三个文件关联密切，一旦出错就会导致难以撤回的灾难。Android Studio提供了新建`Activity`向导的功能，免去了出错的风险。
+
+`AndroidManifest.xml`文件位于`app/manifests`目录内，记录了该APP内包含的所有资源，包括刚才新建的Activity：
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.geoquiz">
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GeoQuiz">
+        <!-- 新建的Activity -->
+        <activity
+            android:name=".CheatActivity"
+            android:exported="false" />
+        <!-- 原有的的Activity -->
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+```
+
+`Intent`是`component`用于与操作系统通信的媒介工具。`component`包括`Activity`、`Service`、`Broadcast`、`ContentReciver`、`ContentProvider`等一系列安卓自带的组件。`Intent`类的构造函数`Intent(Context packageContext,class<?> cls)`接受两个形参，`packageContext`接受当前`Activity`类的实例，`cls`接受要打开的`Activity`对应的类对象：
+
+```java
+Intent intent = new Intent(MainActivity.this,CheatActivity.class);
+```
+
+为了在多个`Activity`之间传递数据，我们可以使用`Intent.putExtra(String name,boolean value)`的方法将数据写入`Intent`实例中。该方法返回`Intent`实例自身，因此可以实现链式调用：
+
+```java
+intent.putExtra("data1",true)
+    .putExtra("data2",false)
+    .putExtra("data3",true);
+```
+
+在多个`Activity`之间最简单的切换方式是调用`startActivity(Intent)`方法。
+
+```java
+public class CheatActivity extends AppCompatActivity {
+	// ...
+    public static Intent newIntent(Context packageContext, boolean answerIsTrue){
+        Intent intent = new Intent(packageContext,CheatActivity.class);
+        intent.putExtra("com.example.geoquiz.answer_is_true",answerIsTrue);
+        return intent;
+    }
+}
+```
+
+
+
+```java
+public class MainActivity extends AppCompatActivity{
+    // ...
+    private Button mCheatButton;
+    // ...
+    @Override protected void onCreate(Bundle savedInstanceState){
+        // ...
+        mCheatButton = (Button) findViewById(R.id.cheat_button);
+    	mCheatButton.setOnClickListener(new View.OnClickListener(){
+            boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
+            Intent intent = CheatActivity.newIntent(MainActivity.this,answerIsTrue);
+            startActivity(intent);
+        });
+    }
+}
 ```
 
 
@@ -492,9 +596,21 @@ flowchart TB
 - 为组建设置监听器
 - 访问外部模型数据
 
-## §2.1 日志记录
+# §3 日志与调试
 
-Android的`android.util.Log`用于向系统及共享日志中心发送日志信息，常用其中的`Log.d(String tag, String msg)`方法，其中`tag`是日志的来源，第二个是日志的具体内容。
+## §3.1 启用日志
+
+Android的`android.util.Log`用于向系统及共享日志中心发送日志信息，内含多种方法，分别代表不同的等级：
+
+| 方法                           | 日志级别 | 说明                   |
+| ------------------------------ | -------- | ---------------------- |
+| `Log.e(String tag,String msg)` | ERROR    | 错误                   |
+| `Log.w(String tag,String msg)` | WARNING  | 警告                   |
+| `Log.i(String tag,String msg)` | INFO     | 信息型消息             |
+| `Log.d(String tag,String msg)` | DEBUG    | 调试输出(可能被过滤掉) |
+| `Log.v(String tag,String msg)` | VERBOSE  | 仅用于开发             |
+
+常用其中的`Log.d(String tag, String msg)`方法，其中`tag`是日志的来源，第二个是日志的具体内容。
 
 ```java
 public class MainActivity extends AppCompatActivity {
@@ -552,3 +668,134 @@ public class MainActivity extends AppCompatActivity {
 2022-01-20 14:08:55.068 7183-7183/com.example.geoquiz D/MainActivity: onResume() called
 ```
 
+## §3.2 审查异常
+
+假设删去了`.java`文件中的某一行，发现APP闪退,如何根据日志判断出问题在哪？
+
+```log
+E/AndroidRuntime: FATAL EXCEPTION: main
+    Process: com.example.geoquiz, PID: 3296
+    java.lang.RuntimeException: Unable to start activity ComponentInfo{com.example.geoquiz/com.example.geoquiz.MainActivity}: java.lang.NullPointerException: Attempt to invoke virtual method 'void android.widget.TextView.setText(int)' on a null object reference
+        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2670)
+        at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2731)
+        at android.app.ActivityThread.-wrap12(ActivityThread.java)
+        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1482)
+        at android.os.Handler.dispatchMessage(Handler.java:102)
+        at android.os.Looper.loop(Looper.java:154)
+        at android.app.ActivityThread.main(ActivityThread.java:6161)
+        at java.lang.reflect.Method.invoke(Native Method)
+        at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:892)
+        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:782)
+     Caused by: java.lang.NullPointerException: Attempt to invoke virtual method 'void android.widget.TextView.setText(int)' on a null object reference
+        at com.example.geoquiz.MainActivity.updateQuestion(MainActivity.java:97)
+        at com.example.geoquiz.MainActivity.onCreate(MainActivity.java:40)
+        at android.app.Activity.performCreate(Activity.java:6698)
+        at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1118)
+        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2623)
+        at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2731) 
+        at android.app.ActivityThread.-wrap12(ActivityThread.java) 
+        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1482) 
+        at android.os.Handler.dispatchMessage(Handler.java:102) 
+        at android.os.Looper.loop(Looper.java:154) 
+        at android.app.ActivityThread.main(ActivityThread.java:6161) 
+        at java.lang.reflect.Method.invoke(Native Method) 
+        at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:892) 
+        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:782) 
+```
+
+- `Attempt to invoke virtual method 'void android.widget.TextView.setText(int)' on a null object reference`
+
+  某个函数在调用`TextView.setText()`方法时，该`TextView`实例不存在。
+
+- `at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2670)`
+
+  这是一个运行时错误，在编译过程中无法发现。
+
+- `at com.example.geoquiz.MainActivity.updateQuestion(MainActivity.java:97)`
+
+  我们定位到出错的这个函数体：
+
+  ```java
+  private void updateQuestion(){
+  	int question = mQuestionBank[mCurrentIndex].getTextResId();
+  	mQuestionTextView.setText(question);
+  }
+  ```
+
+  发现是`mQuestionTextView`是空指针。我们再定位到该变量被定义的地方：
+
+  ```java
+  private TextView mQuestionTextView;
+  ```
+
+  于是我们找到了问题：只定义了`mQuestionTextView`，而没有给它赋值，因此缺的那一行就是：
+
+  ```java
+  mQuestionTextView = (TextView) findViewById(R.id.question_text_view);
+  ```
+
+## §3.3 栈跟踪日志
+
+假设删去了`.java`文件中的某一行，发现程序虽然能运行，但是点击Next按钮无法跳转到下一个Quiz，如何根据日志判断出问题在哪？
+
+我们先看Logcat，但是发现除了预先设定的`Log.d()`输出的日志外，没有报错信息：
+
+```log
+2022-01-21 11:38:37.655 3578-3578/com.example.geoquiz D/MainActivity: onCreate(Bundle) called
+2022-01-21 11:38:37.663 3578-3578/com.example.geoquiz I/art:     at void com.example.geoquiz.MainActivity.onCreate(android.os.Bundle) (MainActivity.java:33)
+2022-01-21 11:38:37.663 3578-3578/com.example.geoquiz I/art:     at void com.example.geoquiz.MainActivity.onCreate(android.os.Bundle) (MainActivity.java:33)
+2022-01-21 11:38:37.697 3578-3578/com.example.geoquiz D/MainActivity: onStart() called
+2022-01-21 11:38:37.698 3578-3578/com.example.geoquiz D/MainActivity: onResume() called
+```
+
+这意味着该BUG不是在编译时和运行时产生的低级BUG，而是高层逻辑上的BUG，这时我们在§3.2中使用的日志不足以满足我们的调试需求。因此我们还需要使用更多的`Log.d()`来记录栈跟踪日志，观察每次点击Next按钮后，`mCurrentIndex`变量的变化情况：
+
+```java
+public class MainActivity extends AppCompatActivity{
+    // ...
+    private void updateQuestion(){
+        Log.d(TAG,"Updating question text ",new Exception());
+        //...
+    }
+}
+```
+
+这里我们给`Log.d()`将一个新建的`Exception`对象传入了新形参`Throwable tr`当中，用于作为不抛出的`Exception`实例传入`updateQuestion()`方法中，从而输出该`Exception`的栈跟踪记录：
+
+```log
+2022-01-21 11:49:56.739 3805-3805/com.example.geoquiz D/MainActivity: Updating question text 
+    java.lang.Exception
+        at com.example.geoquiz.MainActivity.updateQuestion(MainActivity.java:96)
+        at com.example.geoquiz.MainActivity.access$300(MainActivity.java:11)
+        at com.example.geoquiz.MainActivity$3.onClick(MainActivity.java:60)
+        // ...
+2022-01-21 11:49:57.730 3805-3805/com.example.geoquiz D/MainActivity: Updating question text 
+    java.lang.Exception
+        at com.example.geoquiz.MainActivity.updateQuestion(MainActivity.java:96)
+        at com.example.geoquiz.MainActivity.access$300(MainActivity.java:11)
+        at com.example.geoquiz.MainActivity$3.onClick(MainActivity.java:60)
+        // ...
+```
+
+可以看到，程序的确调用了`MainActivity.updateQuestion()`方法，刷新了Quiz，所以只可能是因为`mCurrentIndex`的值没有改变。向上跟踪到`MainActivity.onClick()`，果然没有该变量的更新语句，于是只需增添上即可：
+
+```java
+mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
+```
+
+## §3.4 设置断点
+
+虽然日志可以方便的追踪栈，但是每次输出的文本太长了，会让Logcat不清晰，并且黑客可以通过输出的调试信息来绕过类文件，直接得到程序内部的结构。基于此，利用断点进行调试更加灵活和安全。
+
+Android Studio支持的断点有六种类型：
+
+- Exception Breakpoints
+- Symbolic Breakpoints
+- Java Method Breakpoints
+- Java Field Watchpoints
+- Java Exception Breakpoints
+- Kotlin Filed Watchpoints
+
+## §3.5 Android Lint
+
+Android Lint是Android应用代码的静态分析器，能在不运行代码的情况下检查代码错误。在Android Studio的菜单栏`Analyse/Inspect Code...`可以使用，然后在底边的`Inspection Results`查看结果。
