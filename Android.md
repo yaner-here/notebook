@@ -524,20 +524,60 @@ intent.putExtra("data1",true)
     .putExtra("data3",true);
 ```
 
+新建的`Activity`可以使用`getIntent()`方法获得传递的`Intent`实例，然后再调用`Intent.getBooleanExtra(String name,boolean defaultValue)`来获得对应的变量：
+
+```java
+private boolean mAnswerIsTrue;
+mAnswerIsTrue = getIntent().getBooleanExtra(EXTRA_ANSWER_IS_TRUE,false);
+```
+
 在多个`Activity`之间最简单的切换方式是调用`startActivity(Intent)`方法。
 
 ```java
+package com.example.geoquiz;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+
+import java.awt.font.TextAttribute;
+
 public class CheatActivity extends AppCompatActivity {
-	// ...
+    private boolean mAnswerIsTrue;
+    private TextView mAnswerTextView;
+    private Button mShowAnswerButton;
+    private static final String EXTRA_ANSWER_IS_TRUE = "com.example.geoquiz.answer_is_true";
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_cheat);
+
+        mAnswerIsTrue = getIntent().getBooleanExtra(EXTRA_ANSWER_IS_TRUE,false);
+        mAnswerTextView = (TextView) findViewById(R.id.answer_text_view);
+        mShowAnswerButton = (Button) findViewById(R.id.show_answer_button);
+        mShowAnswerButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(mAnswerIsTrue){
+                    mAnswerTextView.setText(R.string.true_button);
+                }else{
+                    mAnswerTextView.setText(R.string.false_button);
+                }
+            }
+        });
+    }
     public static Intent newIntent(Context packageContext, boolean answerIsTrue){
         Intent intent = new Intent(packageContext,CheatActivity.class);
-        intent.putExtra("com.example.geoquiz.answer_is_true",answerIsTrue);
+        intent.putExtra(A"com.example.geoquiz.answer_is_true",answerIsTrue);
         return intent;
     }
 }
 ```
-
-
 
 ```java
 public class MainActivity extends AppCompatActivity{
@@ -553,6 +593,104 @@ public class MainActivity extends AppCompatActivity{
             startActivity(intent);
         });
     }
+}
+```
+
+作弊功能已完成，现在添加判断是否作弊的功能。
+
+除了`startActivity(Intent)`方法外，`startActivityForResult(Intent intent,int requestCode)`也能实现`Activity`间的切换，并且开发者可以自行设置请求代码`requestCode`，先传给子`Activity`再传给父`Activity`，以此来实现`Activity`间的交互。为此，修改`mCheatButton`监听器：
+
+```java
+mCheatButton.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
+        Intent intent = CheatActivity.newIntent(MainActivity.this,answerIsTrue);
+        startActivityForResult(intent,REQUEST_CODE_CHEAT);
+    }
+});
+```
+
+子`Activity`向父`Activity`发送返回信息有以下两种方法：
+
+```java
+public final void setResult(int resultCode)
+public final void setResult(int resultCode,Intent intent)
+/** resultCode常量既可以使用自定义的常量,也可以使用自带的常量:
+ *  Activity.RESULT_OK
+ *  Activity.RESULT_CANCELED
+ **/
+```
+
+最终代码如下：
+
+```java
+package com.example.geoquiz;
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import java.awt.font.TextAttribute;
+public class CheatActivity extends AppCompatActivity {
+    private boolean mAnswerIsTrue;
+    private TextView mAnswerTextView;
+    private Button mShowAnswerButton;
+    private static final String EXTRA_ANSWER_IS_TRUE = "com.example.geoquiz.answer_is_true";
+    private static final String EXTRA_ANSWER_SHOWN = "com.example.geoquiz.answer_shown";
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_cheat);
+
+        mAnswerIsTrue = getIntent().getBooleanExtra(EXTRA_ANSWER_IS_TRUE,false);
+        mAnswerTextView = (TextView) findViewById(R.id.answer_text_view);
+        mShowAnswerButton = (Button) findViewById(R.id.show_answer_button);
+        mShowAnswerButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(mAnswerIsTrue){
+                    mAnswerTextView.setText(R.string.true_button);
+                }else{
+                    mAnswerTextView.setText(R.string.false_button);
+                }
+                setAnswerShowResult(true);
+            }
+        });
+    }
+    public static Intent newIntent(Context packageContext, boolean answerIsTrue){
+        Intent intent = new Intent(packageContext,CheatActivity.class);
+        intent.putExtra(EXTRA_ANSWER_IS_TRUE,answerIsTrue);
+        return intent;
+    }
+    public static boolean wasAnswerShown(Intent result){
+        return result.getBooleanExtra(EXTRA_ANSWER_SHOWN,false);
+    }
+    private void setAnswerShowResult(boolean isAnswerShown){
+        Intent intent = new Intent();
+        intent.putExtra(EXTRA_ANSWER_SHOWN,isAnswerShown);
+        setResult(RESULT_OK,intent);
+    }
+}
+```
+
+```java
+public class MainActivity extends AppCompatActivity{
+    // ...
+    @Override public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
+        if (resultCode != Activity.RESULT_OK) {
+            return;
+        }
+        if (intent == null) {
+            return;
+        } else {
+            mIsCheater = CheatActivity.wasAnswerShown(intent);
+        }
+    }
+    // ...
 }
 ```
 
@@ -799,3 +937,147 @@ Android Studio支持的断点有六种类型：
 ## §3.5 Android Lint
 
 Android Lint是Android应用代码的静态分析器，能在不运行代码的情况下检查代码错误。在Android Studio的菜单栏`Analyse/Inspect Code...`可以使用，然后在底边的`Inspection Results`查看结果。
+
+项目如果在低版本SDK中引用了高版本SDK才引入的方法，那么在低版本SDK上运行时就会崩溃，一般会抛出空指针错误，在测试过程中非常耗时。得益于Android Lint的改进，现在开发者可以使用该工具，自动检查API和`build.gradle`中的配置是否发生冲突。
+
+# §4 `Activity`
+
+## §4.1 `Launcher Activity`
+
+`Launcher Activity`是指应用被创建时第一个运行的`Activity`，`AndroidManifest.xml`中，不仅涵盖了整个项目中所有使用的`Activity`，并且使用`<action>`和`<category>`标签指定了谁是`Launcher Activity`：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.geoquiz">
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GeoQuiz">
+        
+        <activity
+            android:name=".CheatActivity"
+            android:exported="false" />
+        <!-- Launcher Activity -->
+        <activity android:name=".MainActivity">
+            <!-- 定义Launcher Activity的代码 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+```
+
+## §4.2 切换`Activity`
+
+入栈：
+
+- `startActivity(Intent intent)`
+- `startActivityForResult(Intent intent,int requestCode)`
+
+出栈：
+
+- 用户按下返回键
+- `Activity.finish()`
+
+# §5 兼容性
+
+## §5.1 编译配置
+
+在项目的`./app/`目录下有一个`build.gradle`文件，记录着当前项目的编译配置：
+
+```gradle
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion '30.0.3'
+
+    defaultConfig {
+        applicationId "com.example.geoquiz"
+        minSdkVersion 30
+        targetSdkVersion 30
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'com.google.android.material:material:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    testImplementation 'junit:junit:4.+'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+}
+```
+
+其中有一些特别重要的参数：
+
+- `compileSdkVersion`：编译版本，开发者和编译器内的共享信息，不会传给Android系统。IDE和编译器根据`compileSdkVersion`查找所需的类和包
+- `minSdkVersion`：最低支持版本，该APP会拒绝安装在比`minSdkVersion`更低的版本上。
+- `targetSdkVersion`：目标版本，告知Android该APP是为`targetSdkVersion`版本的API设计的。
+
+手动修改`build.gradle`后，必须要点击Android Studio的菜单栏`Tools/Android/Sync Project with Gradle Files`，实现项目和Gradle的同步，项目随即会重新编译。
+
+## §5.2 检查编译版本
+
+前面我们提到过，可以更改`build.gradle`来限制API版本，也可以用Android Lint提前发现兼容性问题。然而这些方法只是回避了兼容性问题，都没有真正的解决。我们的目标是让这个项目在哪个API版本的Android系统上都能跑，只不过高版本系统可以使用更多的功能，而低版本系统在牺牲部分功能的情况下仍然能进行基本的使用。为此，我们可以利用`Build.VERSION.SDK_INT`获取当前系统的API等级，利用`Build.VERSION_CODES.xxx`获取某安卓代号对应的API等级，将高级别API代码放在判断系统版本的条件语句中：
+
+```java
+// 给mShowAnswerButton增加圆形收缩消失动画
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+// ...
+public class CheatActivity extends AppCompatActivity{
+    @Override protected void onCreate(Bundle savedInstanceState){
+        // ...
+        mShowAnswerButton.setOnClickListener(new View.OnClickListener{
+            @Override public void onClick(View v){
+                // ...
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
+                    int cx = mShowAnswerButton.getWidth() / 2;
+                    int cy = mShowAnswerButton.getHeight() / 2;
+                    float radius = mShowAnswerButton.getWidth();
+                    Animator anim = ViewAnimationUtils.createCircularReveal(
+                            mShowAnswerButton, cx, cy, radius, 0);
+                    anim.addListener(new AnimatorListenerAdapter() {
+                        @Override public void onAnimationEnd(Animator animation) {
+                            super.onAnimationEnd(animation);
+                            mShowAnswerButton.setVisibility(View.INVISIBLE);
+                        }
+                    });
+                    anim.start();
+                }else{
+                    mShowAnswerButton.setVisibility(View.INVISIBLE);
+                }
+            }
+        });
+    }
+}
+```
+
+## §5.3 Android开发者文档
+
+[Android开发者文档](http://developer.android.com/)分为三大部分：设计，开发和发布。
