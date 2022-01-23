@@ -35,16 +35,18 @@
 | Android 12 | Android 12            | 31      | S (Snow Cone)          |
 | Android 13 | Android 13            | 32      | T (Tiramisu)           |
 
-# §1 Android开发初体验
+# §1 实战项目
 
-## §1.1 用户界面设计
+## §1.1 GeoQuiz
+
+### §1.1.1 用户界面设计
 
 应用的界面由以下两点组成：
 
 - `activity`是Android SDK中`Activity`类的一个实例，负责管理用户与界面的交互。应用的功能通过编写`Activity`的子类来实现。
 - 布局(`layout`)定义了一系列界面对象，并规定了他们在屏幕上的显示位置，储存在`.xml`文件中。
 
-## §1.2 视图层级结构
+### §1.1.2 视图层级结构
 
 组建包含在视图(View)对象的层级结构中，这种结构称为视图层级结构(View Hierarchy)。
 
@@ -122,13 +124,13 @@ flowchart TB
 	end
 ```
 
-### §1.2.1 根元素
+### §1.1.3 根元素
 
 XML文件只能有一个根元素，且必须指定`Android XML`资源文件的命名空间属性。
 
-### §1.2.2 组件属性
+### §1.1.4 组件属性
 
-#### §1.2.2.1 `android:layout_width`和`android:layout_height`
+#### §1.1.4.1 `android:layout_width`和`android:layout_height`
 
 `android:layout_width`和`android:layout_height`分别用于规定组件的宽度和高度，几乎所有组件都需要`android:layout_width`和`android:layout_height`。这种属性有以下取值：
 
@@ -138,14 +140,14 @@ XML文件只能有一个根元素，且必须指定`Android XML`资源文件的�
 
 根组件的这两个属性均被强制设定为`match_parent`。虽然根组件不从属于任何一个组件，但是永远从属于Android提供的父视图。其他组件的这两个属性默认设置为`wrap_content`。
 
-#### §1.2.2.2 `android:orientation`
+#### §1.1.4.2 `android:orientation`
 
  `android:orientation`属性决定`LinearLayout`组件如何排列其内部包含的组件。该属性有以下两种取值：
 
 - `vertical`：垂直放置子组件
 - `horizontal`：水平放置子组件
 
-#### §1.2.2.3 `android:text`
+#### §1.1.4.3 `android:text`
 
 `TextView`和`Button`组件均具有`android:text`，用于指定该组件要显示的文字内容。其属性值可以是字符串本身（硬编码，例如`android:text="ABC123"`），也可以是对字符串资源的引用（例如`android:text="@string/strName"`）。
 
@@ -160,7 +162,7 @@ XML文件只能有一个根元素，且必须指定`Android XML`资源文件的�
 </resources>
 ```
 
-## §1.3 视图类
+### §1.1.5 视图类
 
 在创建Activity文件时，IDE会在`app/java/com.xxx.xxx`目录下创建一个同名`.java`文件，默认如下所示：
 
@@ -219,7 +221,7 @@ public class MainActivity extends AppCompatActivity{
 }
 ```
 
-## §1.4 资源
+### §1.1.6 资源
 
 资源是APP中以非代码形式储存的内容，例如多媒体文件、XML文件等，一律存储于`app/res`目录中。为调用资源，我们既可以像`android:text`属性那样使用`@string/strName`，也可以使用资源ID。
 
@@ -270,7 +272,7 @@ setTitle(R.string.app_name); // R即为上文介绍的R.java或R.txt
     android:text="@string/false_button"/>
 ```
 
-## §1.5 添加问题
+### §1.1.7 添加问题
 
 创建一个`Question`类，用于表示对每一道习题的抽象形式。
 
@@ -379,9 +381,49 @@ public class MainActivity extends AppCompatActivity {
 </resources>
 ```
 
-## §1.6 修复旋转屏幕导致Activity销毁的BUG
+### §1.1.8 `Activity`的生命周期
 
-由§2 生命周期的内容可知，旋转屏幕时会将当前`Activity`实例销毁，从而自动跳转到第一个问题。因此，我们需要对宽屏进行适配。
+每个`Activity`实例都有生命周期，在其生命周期内按照以下关系在运行、暂停、停止、不存在这四种状态间转换。
+
+
+
+```mermaid
+flowchart TB
+	a1((不存在))
+	a1--"onCreate()"-->a2
+	a2--"onDestory()"-->a1
+	subgraph b1 ["整个生命周期<br>对象实例在内存中"]
+		a2((停止))
+		a2--"onStart()"-->a3
+		a3--"onStop()"-->a2
+		subgraph b2 ["可视生命周期<br>视图部分或全部可见"]
+			a3((暂停))
+			a3--"onResume()"-->a4
+			a4--"onPause()"-->a3
+			subgraph b3 ["前台生命周期<br>用于与当前Activity交互"]
+				a4((运行))
+			end
+		end
+	end
+```
+
+| `Activity`状态 | 是否有内存实例 | 用户是否可见 | 是否处于前台 |
+| -------------- | -------------- | ------------ | ------------ |
+| 不存在         | ×              | ×            | ×            |
+| 停止           | √              | ×            | ×            |
+| 暂停           | √              | √或⍻         | ×            |
+| 运行           | √              | √            | √            |
+
+`OnCreate()`负责：
+
+- 将组件实例化，并调用`setContentView(int)`将组件放置在屏幕上
+- 引用已经实例化的组件
+- 为组建设置监听器
+- 访问外部模型数据
+
+### §1.1.9 修复旋转屏幕导致Activity销毁的BUG
+
+由生命周期的内容可知，旋转屏幕时会将当前`Activity`实例销毁，从而自动跳转到第一个问题。因此，我们需要对宽屏进行适配。
 
 首先，创建一个给宽屏使用的XML布局文件，存放在目录`app/src/main/res/layout-land`目录下：
 
@@ -467,7 +509,7 @@ public class MainActivity extends AppCompatActivity{
 }
 ```
 
-## §1.7 创建新`Activity`
+### §1.1.10 创建新`Activity`
 
 首先准备字符串资源：
 
@@ -694,45 +736,393 @@ public class MainActivity extends AppCompatActivity{
 }
 ```
 
+## §1.2 CriminalIntent
 
+### §1.2.1 `Fragment`的创建和托管
 
-# §2 生命周期
+在GeoQuiz项目中，我们使用`Activity`完成了整个项目的开发。但是`Activity`有一个致命的缺陷：同屏只能有一个`Activity`运行。如果我们想设计一个QQ HD类似的界面，左侧较窄，排列着当前的联系人，右侧较宽，为聊天界面，`Activity`就无法实现这种效果。该项目将使用`Fragment`来实现上述效果。
 
-每个`Activity`实例都有生命周期，在其生命周期内按照以下关系在运行、暂停、停止、不存在这四种状态间转换。
+`Fragment`在API 11被引入，有原生版本和支持库版本之分。原生版本为系统自带的，定义于`android.app`，在不同系统上的实现过程略有差别，界面也会有所差异。为了保证界面统一，我们使用支持库版本。支持库版本的`Fragment`定义在`AppCompat`库的`android.support.v4.app`或`androidx.fragment.app.Fragment`类中，必须在`build.bundle`中添加该库的依赖：
 
-```mermaid
-flowchart TB
-	a1((不存在))
-	a1--"onCreate()"-->a2
-	a2--"onDestory()"-->a1
-	subgraph b1 ["整个生命周期<br>对象实例在内存中"]
-		a2((停止))
-		a2--"onStart()"-->a3
-		a3--"onStop()"-->a2
-		subgraph b2 ["可视生命周期<br>视图部分或全部可见"]
-			a3((暂停))
-			a3--"onResume()"-->a4
-			a4--"onPause()"-->a3
-			subgraph b3 ["前台生命周期<br>用于与当前Activity交互"]
-				a4((运行))
-			end
-		end
-	end
+```json
+// ...
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    // ...
+}
 ```
 
-| `Activity`状态 | 是否有内存实例 | 用户是否可见 | 是否处于前台 |
-| -------------- | -------------- | ------------ | ------------ |
-| 不存在         | ×              | ×            | ×            |
-| 停止           | √              | ×            | ×            |
-| 暂停           | √              | √或⍻         | ×            |
-| 运行           | √              | √            | √            |
+`Activity`托管`Fragment`有两种方式：
 
-`OnCreate()`负责：
+- 在`Activity`的布局中添加`Fragment`：简单但不够灵活，在`Activity`的生命周期内无法替换`Fragment`视图
+- 在`Activity`的代码中添加`Fragment`：复杂但能动态控制`Fragment`视图
 
-- 将组件实例化，并调用`setContentView(int)`将组件放置在屏幕上
-- 引用已经实例化的组件
-- 为组建设置监听器
-- 访问外部模型数据
+这里我们对组件的灵活性要求特别高，因此我们选择在`Activity`的代码中添加`Fragment`。
+
+定义用于存储犯罪时间的`Crime.java`类：
+
+```java
+package com.example.criminalintent;
+import java.util.Date;
+import java.util.UUID;
+public class Crime {
+    private UUID mId;
+    private String mTitle;
+    private Date mDate;
+    private boolean mSolved;
+
+    public Crime(){
+        mId = UUID.randomUUID();
+        mDate = new Date();
+    }
+
+    public UUID getId(){
+        return mId;
+    }
+    public String getTitle(){
+        return mTitle;
+    }
+    public void setTitle(String title){
+        mTitle = title;
+    }
+    public Date getDate(){
+        return mDate;
+    }
+    public void setDate(Date date){
+        mDate = date;
+    }
+    public boolean isSolved(){
+        return mSolved;
+    }
+    public void setSolved(boolean solved){
+        mSolved = solved;
+    }
+}
+```
+
+添加用于创建罪行的`fragment_crime.xml`：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="16dp">
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="?android:listSeparatorTextViewStyle"
+        android:text="@string/crime_title_label"/>
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/crime_title"
+        android:hint="@string/crime_title_hint"/>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/crime_date"
+        android:text="@string/crime_details_label"/>
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@id/crime_date"/>
+    <CheckBox
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/crime_solved"
+        android:text="@string/crime_solved_label"/>
+</LinearLayout>
+```
+
+创建用于容纳整个界面的总`Activity`：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/fragment_container">
+</FrameLayout>
+```
+
+与`Activity`不同，`Fragment`布局的创建不像`public void Activity.onCreate(Bundle)`一样由`Fragment.onCreate(Bundle savedInstanceState)`创建，而是由`public View onCreateView(LayoutInflater infalter,ViewGroup container,Bundle savedInstanceState)`创建的：
+
+```java
+package com.example.criminalintent;
+
+import android.os.Bundle;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
+public class CrimeFragment extends Fragment {
+    private Crime mCrime;
+    @Override public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mCrime = new Crime();
+    }
+    @Override public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState){
+        View v = inflater.inflate(R.layout.fragment_crime,container,false);
+        return v;
+    }
+}
+
+```
+
+此处`onCreateView(LayoutInflater,ViewGroup,Bundle)`方法实例化`Fragment`视图的布局`View`，并将其作为返回值托管给`Activity`。
+
+接下来，我们给文本框添加一个监视器，一旦检测到文本有变化，就将新文本同步到`Crime`对象的`mTitle`字段中：
+
+```java
+// ...
+private EditText mTitleField;
+// ...
+@Override public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState){
+    // ...
+    mTitleField = (EditText) v.findViewById(R.id.crime_title);
+    mTitleField.addTextChangedListener(new TextWatcher() {
+        @Override public void beforeTextChanged(CharSequence charSequence, int start, int count, int after) {
+        
+        }
+        @Override public void onTextChanged(CharSequence charSequence, int start, int before, int count) {
+            mCrime.setTitle(charSequence.toString());
+        }
+        @Override public void afterTextChanged(Editable editable) {
+        
+        }
+    });
+    // ...
+}
+```
+
+同理，使用代码的方式设置`Button`。
+
+```java
+// ...
+private Button mDateButton;
+// ...
+@Override public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState){
+    // ...
+	mDateButton = (Button) v.findViewById(R.id.crime_date);
+	mDateButton.setText(mCrime.getDate().toString());
+	mDateButton.setEnabled(false);
+    // ...
+}
+```
+
+最后，给`CheckBox`组件设置监听器，实时更新`mSolved`变量：
+
+```java
+// ...
+private CheckBox mSolvedCheckBox;
+// ...
+@Override public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState){
+    // ...
+    mSolvedCheckBox = (CheckBox) v.findViewById(R.id.crime_solved);
+    mSolvedCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        @Override public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+            mCrime.setSolved(isChecked);
+        }
+    });
+    // ...
+}
+```
+
+`Fragment`已经配置完毕了，现在要将其添加给`Activity`。
+
+`Activity`类中定义了`FragmentManager`类，负责管理`Fragment`并将其对应的视图添加到`Activity`实例中：
+
+```java
+public class CrimeActivity extends AppCompatActivity {
+    @Override protected void onCreate(Bundle savedInstanceState) {
+        // ...
+        FragmentManager fm = getSupportFragmentManager();
+        Fragment fragment = fm.findFragmentById(R.id.fragment_container);
+        if(fragment == null){
+            fragment = new CrimeFragment();
+            fm.beginTransaction() // 创建并返回FragmentTransaction实例
+                .add(R.id.fragment_container,fragment) // 创建事务
+                .commit(); // 提交事务
+        }
+    }
+}
+```
+
+`Fragment.beginTransction().add().commit`作用如下：
+
+- `Fragment.beginTransaction()`创建并返回`FragmentTransaction`实例。
+- `FragmentTransction.add(int containerViewId,Fragment fragment)`负责按照`containerViewId`在`FragmentManager`队列中唯一标识`fragment`，并且查找哪个XML布局文件中定义了相同的`android:id="@+id/containerViewId"`，从而在该`ContainerView`中加载`fragment`。
+- `FragmentTransction.commit()`提交事务。
+
+### §1.2.2 `Fragment`的生命周期
+
+```mermaid
+graph LR
+	subgraph Create ["创建"]
+		C["onActivityCreate(Bundle)"]
+	end
+	subgraph Stop ["停止&nbsp;Activity/Fragment再次可见"]
+		D["onStart()"]
+		H["onDestoryView()"]
+	end
+	subgraph Pause ["暂停&nbsp;Activity/Fragment重返前台"]
+		E["onResume()"]
+		G["onStop()"]
+	end
+	subgraph Run
+		F["onPause()"]
+	end
+	subgraph "&nbsp"
+		B1["onAttach(Context)"]
+		B2["onCreate(bundle)"]
+		B3["onCreateView()"]
+	end
+A[/启动/]-->B["setContentView()"]-->C-->D-->E-->F-->G-->H[Activity关闭]-->I["OnDestroy()"]-->J["onDetach()"]-->K[/销毁/]
+B-->B1-->B2-->B3-->B
+```
+
+### §1.2.3 添加列表
+
+创建`CrimeLab`类，添加静态变量`sCrimeLab`（`s`表示`static`）用于存储`Crime`对象：
+
+```java
+package com.example.criminalintent;
+
+import android.content.Context;
+import android.widget.LinearLayout;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+public class CrimeLab {
+    private static CrimeLab sCrimeLab;
+    private List<Crime> mCrimes;
+    public static CrimeLab get(Context context){
+        if(sCrimeLab == null){
+            sCrimeLab = new CrimeLab(context);
+        }
+        return sCrimeLab;
+    }
+    private CrimeLab(Context context){
+        mCrimes = new ArrayList<>();
+    }
+    public List<Crime> getCrimes(){
+        return mCrimes;
+    }
+    public Crime getCrime(UUID id){
+        for(Crime crime : mCrimes){
+            if (crime.getId().equals(id)){
+                return crime;
+            }
+        }
+        return null;
+    }
+    public void testCrimeLab(){
+        for(int i = 0;i < 100;i++){
+            Crime crime = new Crime();
+            crime.setTitle("Crime #" + i);
+            crime.setSolved(i % 2 == 0);
+            mCrimes.add(crime);
+        }
+    }
+}
+```
+
+这个类的特殊之处在于，`CrimeLab`的构造方法是被`private`修饰的，也就是说在其他类中无法直接创建该类的实例，必须通过该类定义的`public`方法`CrimeLab.get(Context)`才能将其实例化。
+
+我们可以重复使用`CrimeActivity`类的代码才创建多个`CrimeListActivity`类。每次新建`Activity`时都需要重复这段代码，于是考虑将其封装成抽象类`SingleFragmentActivity`。
+
+```java
+package com.example.criminalintent;
+
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+
+public abstract class SingleFragmentActivity extends AppCompatActivity {
+    protected abstract Fragment createFragment();
+    @Override protected void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_fragment);
+        FragmentManager fm = getSupportFragmentManager();
+        Fragment fragment = fm.findFragmentById(R.id.fragment_container);
+        if(fragment == null){
+            fragment = createFragment();
+            fm.beginTransaction()
+                    .add(R.id.fragment_container,fragment)
+                    .commit();
+        }
+    }
+}
+
+```
+
+这样`CrimeActivity.java`就可以进行简化了。
+
+```java
+package com.example.criminalintent;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+
+import android.os.Bundle;
+
+public class CrimeActivity extends SingleFragmentActivity {
+    @Override protected Fragment createFragment(){
+        return new CrimeFragment();
+    }
+}
+```
+
+在`AndroidManifest.xml`中声明`CrimeListActivity`为`Launcher Activity`：
+
+```xml
+<manifest>
+	<!-- ... -->
+    <activity android:name=".CrimeListActivity">
+        <!-- ... -->
+    </activity>
+    <activity android:name=".CrimeActivity">
+    </activity>
+    <!-- ... -->
+</manifest>
+```
+
+现在运行程序，Android会解析`AndroidManifest.xml`中的`Launcher Activity`，即`CrimeListActivity`。该类内部本身没有定义`onCreate()`，于是向上追踪至其超类`SingleFragmentActivity`，执行该超类中的初始方法`SingleFragmentActivity.onCreate()`，进行了以下步骤：
+
+- 使用`setContentView()`方法，查找项目内`id`为`activity_fragment`的XML布局文件，即`activity_fragment.xml`。该布局文件内只有一个`<FrameLayout>`标签。
+- 创建一个`FragmentManager`实例，将`id`为`fragment_container`的XML布局文件（`activity_fragment.xml`）实例化，成为一个新的`Fragment`实例。
+- 检测该`Fragment`实例是否为`null`（一般情况下都为是），则舍弃该实例，转而用子类中的`createFragment()`方法创建一个新`Fragment`。该方法返回一个`Fragment`的子类`CrimeListFragment`（现在还未编写），并将其托管给`FragmentManager`。
+
+现在开始为`CrimeListFragment`做铺垫。创建`CrimeListActivity`和`CrimeListFragment`两个类：
+
+```java
+package com.example.criminalintent;
+
+import androidx.fragment.app.Fragment;
+
+public class CrimeListActivity extends SingleFragmentActivity {
+    @Override protected Fragment createFragment(){
+        return new CrimeListFragment();
+    }
+}
+```
+
+```java
+package com.example.criminalintent;
+
+import androidx.fragment.app.Fragment;
+
+public class CrimeListFragment extends Fragment {
+
+}
+```
+
+
 
 # §3 日志与调试
 
@@ -1080,4 +1470,5 @@ public class CheatActivity extends AppCompatActivity{
 
 ## §5.3 Android开发者文档
 
-[Android开发者文档](http://developer.android.com/)分为三大部分：设计，开发和发布。
+[Android开发者文档](http://developer.android.com/)分为三大部分：设计，开发和发布，可以根据API版本进行筛选。
+
