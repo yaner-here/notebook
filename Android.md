@@ -1092,13 +1092,7 @@ public class CrimeActivity extends SingleFragmentActivity {
 </manifest>
 ```
 
-现在运行程序，Android会解析`AndroidManifest.xml`中的`Launcher Activity`，即`CrimeListActivity`。该类内部本身没有定义`onCreate()`，于是向上追踪至其超类`SingleFragmentActivity`，执行该超类中的初始方法`SingleFragmentActivity.onCreate()`，进行了以下步骤：
-
-- 使用`setContentView()`方法，查找项目内`id`为`activity_fragment`的XML布局文件，即`activity_fragment.xml`。该布局文件内只有一个`<FrameLayout>`标签。
-- 创建一个`FragmentManager`实例，将`id`为`fragment_container`的XML布局文件（`activity_fragment.xml`）实例化，成为一个新的`Fragment`实例。
-- 检测该`Fragment`实例是否为`null`（一般情况下都为是），则舍弃该实例，转而用子类中的`createFragment()`方法创建一个新`Fragment`。该方法返回一个`Fragment`的子类`CrimeListFragment`（现在还未编写），并将其托管给`FragmentManager`。
-
-现在开始为`CrimeListFragment`做铺垫。创建`CrimeListActivity`和`CrimeListFragment`两个类：
+接下来给`CrimeListFragment`做铺垫。创建`CrimeListActivity`和`CrimeListFragment`两个类：
 
 ```java
 package com.example.criminalintent;
@@ -1122,7 +1116,238 @@ public class CrimeListFragment extends Fragment {
 }
 ```
 
+`RecyclerView`是`ViewGruop`的子类，其中每一个列表项都是由一个`View`子对象显示的。而且在加载列表项时选择分批加载，用户滑动屏幕切图时，上一个视图会被回收利用。
 
+`ViewHolder`是`View`的子类，唯一的用途就是容纳`View`视图。
+
+事实上，`RecyclerView`本身不能创建`ViewHolder`，这个操作是由`Adapter`完成的，负责创建`ViewHolder`并将其绑定至模型层数据。
+
+```mermaid
+graph LR
+	RecyclerView[RecyclerView]
+	RecyclerView-->ViewHolder1[ViewHolder]--"itemView"-->View1[View]
+	RecyclerView-->ViewHolder2[ViewHolder]--"itemView"-->View2[View]
+	RecyclerView-->ViewHolder3[ViewHolder]--"itemView"-->View3[View]
+```
+
+`RecyclerView`创建视图对象时，要经历以下流程：
+
+1. 寻找`RecyclerView`的`Adapter`。
+2. `RecyclerView`调用`Adapter`的`getItemCount()`方法，询问数组列表包含多少对象。
+3. `RecyclerView`调用`Adapter`的`onCreateViewHolder(ViewGroup,int)`方法创建`ViewHolder`及其要显示的`View`。
+4. `RecyclerHolder`将得到的`ViewHolder`传入`onBindViewHolder(ViewHolder,int)`方法中，`ViewHolder`将视图绑定在自己身上。
+5. 一旦`ViewHolder`填充满了屏幕，`RecyclerView`就会停止调用`onCreateViewHolder()`方法，同时将未被渲染的`ViewHolder`回收利用以节省内存。
+
+```mermaid
+sequenceDiagram
+    par 
+        RecyclerView->>Adapter:getItemCount()
+    and
+        Adapter->>RecyclerView:100
+    and
+        RecyclerView->>Adapter:onCreateViewHolder(...)
+    end
+    par 
+        Adapter->>RecyclerView:ViewHolder
+    and
+        RecyclerView->>Adapter:onBindViewHolder(...,0)
+    end
+    par 
+        RecyclerView->>Adapter:onCreateViewHolder(...)
+    and
+        Adapter->>RecyclerView:ViewHolder
+    and
+        RecyclerView->>Adapter:onBindViewHolder(...,1)
+    end
+```
+
+继续完善`CrimeListFragment`及其XML布局文件`fragment_crime_list.xml`：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.recyclerview.widget.RecyclerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/crime_recycler_view">
+</androidx.recyclerview.widget.RecyclerView>
+```
+
+```java
+package com.example.criminalintent;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.List;
+
+public class CrimeListFragment extends Fragment {
+    private RecyclerView mCrimeRecyclerView;
+    private CrimeAdapter mAdapter;
+
+    @Override public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
+        View view = inflater.inflate(R.layout.fragment_crime_list,container,false);
+        mCrimeRecyclerView = (RecyclerView) view.findViewById(R.id.crime_recycler_view);
+        mCrimeRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
+        updateUI();
+        return view;
+    }
+    private class CrimeHolder extends RecyclerView.ViewHolder{
+        private TextView mTitleTextView;
+        private TextView mDateTextView;
+        private Crime mCrime;
+        public CrimeHolder(LayoutInflater inflater,ViewGroup parent){
+            super(inflater.inflate(R.layout.list_item_crime,parent,false));
+            mTitleTextView = (TextView) itemView.findViewById(R.id.crime_title);
+            mDateTextView = (TextView) itemView.findViewById(R.id.crime_title);
+        }
+        public void bind(Crime crime){
+            mCrime = crime;
+            mTitleTextView.setText(mCrime.getTitle());
+            mDateTextView.setText(mCrime.getDate().toString());
+        }
+    }
+    private class CrimeAdapter extends RecyclerView.Adapter<CrimeHolder>{
+        private List<Crime> mCrimes;
+        public CrimeAdapter(List<Crime> crimes){
+            this.mCrimes = crimes;
+        }
+        @Override public CrimeHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            LayoutInflater layoutInflater = LayoutInflater.from(getActivity());
+            return new CrimeHolder(layoutInflater,parent);
+        }
+
+        @Override public void onBindViewHolder(CrimeHolder holder, int position) {
+            Crime crime = mCrimes.get(position);
+            holder.bind(crime);
+        }
+
+        @Override public int getItemCount() {
+            return mCrimes.size();
+        }
+    }
+    private void updateUI(){
+        CrimeLab crimeLab = CrimeLab.get(getActivity());
+        List<Crime> crimes = crimeLab.getCrimes();
+        mAdapter = new CrimeAdapter(crimes);
+        mCrimeRecyclerView.setAdapter(mAdapter);
+    }
+}
+```
+
+现在，只要获取到一个`Crime`实例，`CrimeHolder`就能刷新`TextView`。
+
+接下来给每个`itemView`都添加一个点击监听器：
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    private class CrimeHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+        // ...
+        public CrimeHolder(LayoutInflator inflater,ViewGroup parent){
+            // ...
+            itemView.setOnclickListener(this);
+        }
+        @Override public void onClick(View view){
+            Toast.makeText(
+            	getActivity(),
+                mCrime.getTitle()+" clicked!",
+                Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+}
+```
+
+### §1.2.4 图形布局工具
+
+- `Autoconnection to Parent`：在预览界面拖拽视图时，约束会自动配置，Android Studio会推断开发者的视图布置意图，实现自动连接
+- `Clear All Constraints`：清除全部约束
+- `Infer Constraints`：手动配置约束。
+
+视图尺寸支持三种类型：
+
+| 设置类型 | 设置值         | 含义                           |
+| -------- | -------------- | ------------------------------ |
+| 固定大小 | `[num]dp`      | 以dp为单位，为视图指定固定值   |
+| 包裹内容 | `wrap_content` | 使得尺寸刚好能容纳下包含的内容 |
+| 动态适应 | `0dp`          | 允许视图缩放以满足指定约束     |
+
+为了在右侧容纳图片，我们先点击"Convert LinearLayout to ConstraintLayout"按钮，把`<LinearLayout>`标签换成`<androidx.constraintlayout.widget.ConstraintLayout>`标签，接着把`crime_date`和`crime_title`的`layout_width`属性统一摄者为`wrap_content`，然后创建一个`ImageView`组件，将这些组件的边紧贴在边框四周，得到的XML布局文件如下：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/linearLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/crime_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Crime Title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/crime_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Crime Date"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/crime_title" />
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="39dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/ic_solved" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
+
+
+
+
+
+
+至此，该项目全部已经完成。现在运行程序，Android会解析`AndroidManifest.xml`中的`Launcher Activity`，即`CrimeListActivity`。该类内部本身没有定义`onCreate()`，于是向上追踪至其超类`SingleFragmentActivity`，执行该超类中的初始方法`SingleFragmentActivity.onCreate()`，进行了以下步骤：
+
+- 使用`setContentView()`方法，查找项目内`id`为`activity_fragment`的XML布局文件，即`activity_fragment.xml`。该布局文件内只有一个`<FrameLayout>`标签。
+- 创建一个`FragmentManager`实例，将`id`为`fragment_container`的XML布局文件（`activity_fragment.xml`）实例化，成为一个新的`Fragment`实例。
+- 检测该`Fragment`实例是否为`null`（一般情况下都为是），则舍弃该实例，转而用子类中的`createFragment()`方法创建一个新`Fragment`。该方法返回一个`Fragment`的子类`CrimeListFragment`，并将其托管给`FragmentManager`。
+
+- `CrimeListFragment`内含`onCreateView()`，每次尝试新建一个`View`实例时就会执行该方法。
+
+  - 该方法通过`LayoutInflator.inflate(int resource,ViewGroup root,boolean attachToRoot)`将`resource`指向的`fragment_crime_list.xml`XML布局文件实例化成为一个`View`对象，然后将该`View`对象对应的XML布局文件中的`<Android.recyclerview.widget.RecyclerView>`根标签通过`(RecyclerView) view.findViewById()`方法转换成了`RecyclerView`实例，并给该实例的`setLayoutManager()`方法绑定一个即时生成的`LinearLayoutManager`实例。最后`onCreateView()`返回修改过的`View`实例。
+
+  - 该方法会调用自定义的`updateUI()`方法，获得一个带有测试数据的`CrimeLab`实例，该实例通过内部的`List<Crime>`对象来存储多个`Crime`。该对象会被传入`CrimeAdapter`类的构造方法中产生一个实例。`CrimeAdapter`继承于`RecyclerView.Adapter<CrimeHolder>`超类，内有三个需要覆盖的方法：
+
+    - `public CrimeHolder onCreateViewHolder()`
+
+      将当前`Activity`的`LayoutInflator`和`ViewGroup`实例，传给`CrimeHolder`实例。这样的话在后续的代码中，每个`CrimeHolder`调用`findViewById()`时，都能用相同的`id`获得自己所包含的`View`的`TextView`实例。
+
+    - `public void onBindViewHolder()`
+
+      按照传入的`position`，在`List<Crime>`中查找对应的`Crime`，然后调用传来的`CrimeHolder`实例中的`bind()`方法进行绑定。
+
+    - `public int getItemCount()`
+
+      返回当前`CrimeApdator`中`List<Crime>`的元素个数。
+
+    前面提到`onCreateViewHolder()`返回的是自定义类`CrimeHolder`的实例。该类继承于`RecyclerView.ViewHolder`，内部定义的`bind(Crime)`方法可将传入的`Crime`实例中的字段输出至`CrimeHolder`内`View`实例`itemView`的`<TextView>`标签中。
+
+- 
 
 # §3 日志与调试
 
