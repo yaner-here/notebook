@@ -1078,7 +1078,35 @@ public class CrimeActivity extends SingleFragmentActivity {
 }
 ```
 
-在`AndroidManifest.xml`中声明`CrimeListActivity`为`Launcher Activity`：
+现在运行程序，Android会解析`AndroidManifest.xml`中的`Launcher Activity`，即`CrimeListActivity`。该类内部本身没有定义`onCreate()`，于是向上追踪至其超类`SingleFragmentActivity`，执行该超类中的初始方法`SingleFragmentActivity.onCreate()`，进行了以下步骤：
+
+- 使用`setContentView()`方法，查找项目内`id`为`activity_fragment`的XML布局文件，即`activity_fragment.xml`。该布局文件内只有一个`<FrameLayout>`标签。
+
+- 创建一个`FragmentManager`实例，将`id`为`fragment_container`的XML布局文件（`activity_fragment.xml`）实例化，成为一个新的`Fragment`实例。
+
+- 检测该`Fragment`实例是否为`null`（一般情况下都为是），则舍弃该实例，转而用子类中的`createFragment()`方法创建一个新`Fragment`。该方法返回一个`Fragment`的子类`CrimeListFragment`，并将其托管给`FragmentManager`。
+
+- `CrimeListFragment`内含`onCreateView()`，每次尝试新建一个`View`实例时就会执行该方法。
+
+  - 该方法通过`LayoutInflator.inflate(int resource,ViewGroup root,boolean attachToRoot)`将`resource`指向的`fragment_crime_list.xml`XML布局文件实例化成为一个`View`对象，然后将该`View`对象对应的XML布局文件中的`<Android.recyclerview.widget.RecyclerView>`根标签通过`(RecyclerView) view.findViewById()`方法转换成了`RecyclerView`实例，并给该实例的`setLayoutManager()`方法绑定一个即时生成的`LinearLayoutManager`实例。最后`onCreateView()`返回修改过的`View`实例。
+
+  - 该方法会调用自定义的`updateUI()`方法，获得一个带有测试数据的`CrimeLab`实例，该实例通过内部的`List<Crime>`对象来存储多个`Crime`。该对象会被传入`CrimeAdapter`类的构造方法中产生一个实例。`CrimeAdapter`继承于`RecyclerView.Adapter<CrimeHolder>`超类，内有三个需要覆盖的方法：
+
+    - `public CrimeHolder onCreateViewHolder()`
+
+      将当前`Activity`的`LayoutInflator`和`ViewGroup`实例，传给`CrimeHolder`实例。这样的话在后续的代码中，每个`CrimeHolder`调用`findViewById()`时，都能用相同的`id`获得自己所包含的`View`的`TextView`实例。
+
+    - `public void onBindViewHolder()`
+
+      按照传入的`position`，在`List<Crime>`中查找对应的`Crime`，然后调用传来的`CrimeHolder`实例中的`bind()`方法进行绑定。
+
+    - `public int getItemCount()`
+
+      返回当前`CrimeApdator`中`List<Crime>`的元素个数。
+
+    前面提到`onCreateViewHolder()`返回的是自定义类`CrimeHolder`的实例。该类继承于`RecyclerView.ViewHolder`，内部定义的`bind(Crime)`方法可将传入的`Crime`实例中的字段输出至`CrimeHolder`内`View`实例`itemView`的`<TextView>`标签中。
+
+现在开始开发列表的界面，将`AndroidManifest.xml`中声明`CrimeListActivity`为`Launcher Activity`：
 
 ```xml
 <manifest>
@@ -1277,7 +1305,7 @@ public class CrimeListFragment extends Fragment {
 | 包裹内容 | `wrap_content` | 使得尺寸刚好能容纳下包含的内容 |
 | 动态适应 | `0dp`          | 允许视图缩放以满足指定约束     |
 
-为了在右侧容纳图片，我们先点击"Convert LinearLayout to ConstraintLayout"按钮，把`<LinearLayout>`标签换成`<androidx.constraintlayout.widget.ConstraintLayout>`标签，接着把`crime_date`和`crime_title`的`layout_width`属性统一摄者为`wrap_content`，然后创建一个`ImageView`组件，将这些组件的边紧贴在边框四周，得到的XML布局文件如下：
+为了在右侧容纳图片，我们先点击"Convert LinearLayout to ConstraintLayout"按钮，把`<LinearLayout>`标签换成`<androidx.constraintlayout.widget.ConstraintLayout>`标签，接着把`crime_date`和`crime_title`的`layout_width`属性统一摄者为`wrap_content`，然后创建一个`ImageView`组件，将这些组件的边紧贴在边框四周，再根据自己的喜好排版，得到的XML布局文件如下：
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -1290,24 +1318,33 @@ public class CrimeListFragment extends Fragment {
 
     <TextView
         android:id="@+id/crime_title"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
         android:text="Crime Title"
+        android:textColor="@color/black"
+        android:textSize="18sp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/crime_date"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
         android:text="Crime Date"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/crime_title" />
 
     <ImageView
-        android:id="@+id/imageView"
+        android:id="@+id/crime_solved"
         android:layout_width="39dp"
         android:layout_height="wrap_content"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/ic_solved" />
@@ -1315,39 +1352,284 @@ public class CrimeListFragment extends Fragment {
 </androidx.constraintlayout.widget.ConstraintLayout>
 ```
 
+现在列表中的每一项都有手铐图片，这与我们的期望不符合。首先给该`<ImageView>`标签添加一个`Id`：
+
+```xml
+<androidx.constraintlayout.widget.ConstraintLayout>
+	<!-- ... -->
+    <ImageView
+   		android:id="@+id/crime_solved"/>
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
+然后在`CrimeListFragment.java`中添加逻辑：
+
+```java
+public class CrimeListFragment extends Fragment {
+	// ...
+    private class CrimeHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+		// ...
+        private ImageView mSolvedImageView;
+        public CrimeHolder(Layout inflater,ViewGroup parent){
+            // ...-`
+            mSolvedImageView = (ImageView) itemView.findViewById(R.id.crime_solved);
+        }
+        public void bind(Crime crime){
+            // ...
+            mSolvedImageView.setVisibility(crime.isSolved()?View.VISIBLE:View.GONE);
+        }
+    }
+}
+```
+
+Android SDK提供了多种像素单位：
+
+| 像素类型   | 全称                                    | 含义                                               | 是否受DPI影响 | 是否受字体(无障碍使用)影响 |
+| ---------- | --------------------------------------- | -------------------------------------------------- | ------------- | -------------------------- |
+| `px`       | 像素(Pixel)                             | 一个像素单位恒对应一个屏幕像素单位                 | √             | ×                          |
+| `dp`/`dip` | 密度无关像素(Density-Independent Pixel) | 指定显示在屏幕上的真实尺寸                         | ×             | ×                          |
+|            | `pt`                                    | 类似于`dp`，真实尺寸以点($\frac{1}{72}$英寸)为单位 |               |                            |
+|            | `mm`                                    | 类似于`dp`，真实尺寸以毫米为单位                   |               |                            |
+|            | `in`                                    | 类似于`dp`，真实尺寸以英寸为单位                   |               |                            |
+| `sp`       | 缩放无关像素(Scale-Independent Pixel)   | 字体大小与真实尺寸一一对应                         | ×             | √                          |
+
+Android应用设计规范采用的是[Material Design原则](developer.android.com/design/index.html)，
+
+接下来我们要建立列表中的项目与详情页的关系：
+
+```mermaid
+graph LR
+	subgraph 第二屏;
+		CrimeActivity[CrimeActivity]-->CrimeFragment[CrimeFragment]
+	end
+	subgraph 第一屏;
+		CrimeListActivity[CrimeListActivity]-->CrimeListFragment[CrimeListFragment]
+	end
+	CrimeListFragment--"startActivity(...)"-->CrimeActivity
+```
+
+我们先在`CrimeListFragment.java`中建立一个跳转的逻辑：
+
+```java
+public class CrimeListFragment extends Fragment {
+	// ...
+	@Override public void onClick(View view){
+        Intent intent = new Intent(getActivity(),CrimeActivity.class);
+        startActivity(intent);
+    }
+}
+```
+
+接着将当前`Crime`对象传给`Activity`：
+
+```java
+/* CrimeListFragment.java */
+package com.example.criminalintent;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import java.util.UUID;
+
+public class CrimeActivity extends SingleFragmentActivity {
+    public static final String EXTRA_CRIME_ID = "com.example.criminalintent.crime_id";
+    public static Intent newIntent(Context packageContext, UUID crimeId){
+        Intent intent = new Intent(packageContext,CrimeActivity.class);
+        intent.putExtra(EXTRA_CRIME_ID,crimeId);
+        return intent;
+    }
+    @Override protected Fragment createFragment(){
+        return new CrimeFragment();
+    }
+}
+```
+
+```java
+/* CrimeListFragment.java */
+public class CrimeListFragment extends Fragment {
+    // ...
+    private class CrimeHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+        Intent intent = CrimeActivity.newIntent(getActivity(),mCrime.getId());
+        startActivity(intent);
+    }
+}
+```
+
+现在`crimeId`已经从`CrimeListFragment`传输到了`CrimeActivity`的`intent`中，为了在`CrimeFragment`调用该字段，我们有两种方式：
+
+- 直接调用：
+
+  ```java
+  /* CrimeFragment.java */
+  public class CrimeFragment extends Fragment {
+  	@Override public void onCreate(Bundle savedInstanceState){
+          super.onCreate(savedInstanceState);
+          UUID crimeId = (UUID) getActivity()
+              .getIntent()
+              .getSerializableExtra(CrimeActivity.EXTRA_CRIME_ID);
+          mCrime = CrimeLab.get(getActivity()).getCrime(crimeId);
+      }
+  }
+  ```
+
+  这种方法的缺点是破坏了`CrimeFragment`的封装性，因为`crimeID`是保存在`CrimeActivity.EXTRA_CRIME_ID`中的，这意味着`CrimeFragment`必须由某个特定的`Activity`托管。如果后续针对平板提出右侧显示两个`CrimeFragment`以供人工对比的需求，那么这两个`CrimeFragment`必会显示相同的内容。
+
+- Fragment Argument
+
+  如果能把`crimeId`存储在`CrimeArgument`中，而不是`CrimeActivity`中，就能摆脱对`Activity`的依赖了。
+
+  ```java
+  public class CrimeFragment extends Fragment {
+  	// ...
+      private static final String ARG_CRIME_ID = "crime_id";
+      public static CrimeFragment newInstance(UUID crimeId){
+          Bundle args = new Bundle();
+          args.putSerializable(ARG_CRIME_ID,crimeId);
+          CrimeFragment fragment = new CrimeFragment();
+          fragment.setArguments(args);
+          return fragment;
+      }
+  }
+  ```
+
+  现在其他类不会用到`EXTRA_CRIME_ID`，可以将其设为私有字段：
+
+  ```java
+  public class CrimeActivity extends SingleFragmentActivity {
+      private static final String EXTRA_CRIME_ID = "com.example.criminalintent.crime_id";
+  	// ...
+      @Override protected Fragment createFragment(){
+          UUID crimeId = (UUID) getIntent().getSerializableExtra(EXTRA_CRIME_ID);
+          return CrimeFragment.newInstance(crimeId);
+          // 原return new CrimeFragment();
+      }
+  }
+  ```
+
+  ```java
+  public class CrimeFragment extends Fragment {
+      @Override public void onCreate(Bundle savedInstanceState) {
+          super.onCreate(savedInstanceState);
+          //原UUID crimeId = (UUID) getActivity().getIntent().getSerializableExtra(CrimeActivity.EXTRA_CRIME_ID);
+          UUID crimeId = (UUID) getArguments().getSerializable(ARG_CRIME_ID);
+          mCrime = CrimeLab.get(getActivity()).getCrime(crimeId);
+      }
+  }
+  ```
+
+- 直接在`CrimeFragment`创建一个实例字段
+
+  极其不推荐这种方法。系统会在很多情况下重建`Fragment`，其频率比重建`Activity`还频繁。回想第一个项目，光是转屏就已经够麻烦的了，现在按下Home键也会重建`Fragment`。一旦重建，储存的实例变量将不复存在，而`Fragment Argument`就是为了解决该问题而生的。
+
+获取到`Crime`后就能调用里面的字段了：
+
+```java
+public class CrimeFragment extends Fragment {
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState){
+        // ...
+        mTitleField.setText(mCrime.getTitle());
+    	// ...
+        mSolvedCheckBox.setChecked(mCrime.isSolved());
+        // ...
+    }
+}
+```
+
+### §1.2.5 刷新列表项
+
+现在按下返回键，我们发现手铐图标并没有刷新。在`CrimeListFragment`启动`CrimeActivity`实例后按下返回键时，用于托管`CrimeListFragment`的`FragmentManager`会使其重新恢复运行状态，这期间会调用其`onResume()`方法，于是我们就可以在这个方法中实现更新：
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    @Override public void onResume(){
+        super.onResume();
+        updateUI();
+    }
+    private void updateUI(){
+        CrimeLab crimeLab = CrimeLab.get(getActivity());
+        List<Crime> crimes = crimeLab.getCrimes();
+        if(mAdapter==null){
+            mAdapter = new CrimeAdapter(crimes);
+            mCrimeRecyclerView.setAdapter(mAdapter);
+        }else{
+            mAdapter.notifyDataSetChanged();
+        }
+    }
+    // ...
+}
+```
+
+### §1.2.6 `ViewPager`
+
+接下来在`CrimeFragment`界面添加一个功能，向左滑或向右滑能切换到逻辑上相邻的`CrimeFragment`。
+
+新建`CrimePagerActivity`类，让`CrimeFragment.startActivity()`方法不再新建`CrimeFragment`，而是新建`CrimePagerActivity`类，让其新建`CrimeFragment`：
+
+```java
+package com.example.criminalintent;
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class CrimePagerActivity extends AppCompatActivity {
+    @Override protected void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_crime_pager);
+    }
+}
+```
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.viewpager.widget.ViewPager xmlns="http://schemas.android.com/apk/res/android"
+    layout_width="match_parent"
+    layout_height="match_parent"
+    id="@+id/activity_crime_pager_view_pager">
+</androidx.viewpager.widget.ViewPager>
+```
+
+类似于`RecyclerView`需要借助`Adapter`提供的视图，`ViewPager`也需要`PagerAdapter`的支持：
+
+```java
+package com.example.criminalintent;
+import android.os.Bundle;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentStatePagerAdapter;
+import androidx.viewpager.widget.ViewPager;
+import java.util.List;
+
+public class CrimePagerActivity extends AppCompatActivity {
+    private ViewPager mViewPager;
+    private List<Crime> mCrimes;
+    @Override protected void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        // 设置CrimePagerActivity的XML布局
+        setContentView(R.layout.activity_crime_pager);
+        // 将XML布局中的根标签<ViewPager>绑定在mViewPager变量上
+        mViewPager = (ViewPager) findViewById(R.id.activity_crime_view_pager);
+        // 获取当前Fragment的托管容器的管理器(FragmentManager)
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        // 将mViewPager绑定一个FragmentStatePagerA 
+        mViewPager.setAdapter(new FragmentStatePagerAdapter() {
+            @Override public Fragment getItem(int position) {
+                Crime crime = mCrimes.get(position);
+                return CrimeFragment.newInstance(crime.getId());
+            }
+            @Override public int getCount() {
+                return mCrimes.size();
+            }
+        });
+    }
+}
+```
 
 
-
-
-
-
-至此，该项目全部已经完成。现在运行程序，Android会解析`AndroidManifest.xml`中的`Launcher Activity`，即`CrimeListActivity`。该类内部本身没有定义`onCreate()`，于是向上追踪至其超类`SingleFragmentActivity`，执行该超类中的初始方法`SingleFragmentActivity.onCreate()`，进行了以下步骤：
-
-- 使用`setContentView()`方法，查找项目内`id`为`activity_fragment`的XML布局文件，即`activity_fragment.xml`。该布局文件内只有一个`<FrameLayout>`标签。
-- 创建一个`FragmentManager`实例，将`id`为`fragment_container`的XML布局文件（`activity_fragment.xml`）实例化，成为一个新的`Fragment`实例。
-- 检测该`Fragment`实例是否为`null`（一般情况下都为是），则舍弃该实例，转而用子类中的`createFragment()`方法创建一个新`Fragment`。该方法返回一个`Fragment`的子类`CrimeListFragment`，并将其托管给`FragmentManager`。
-
-- `CrimeListFragment`内含`onCreateView()`，每次尝试新建一个`View`实例时就会执行该方法。
-
-  - 该方法通过`LayoutInflator.inflate(int resource,ViewGroup root,boolean attachToRoot)`将`resource`指向的`fragment_crime_list.xml`XML布局文件实例化成为一个`View`对象，然后将该`View`对象对应的XML布局文件中的`<Android.recyclerview.widget.RecyclerView>`根标签通过`(RecyclerView) view.findViewById()`方法转换成了`RecyclerView`实例，并给该实例的`setLayoutManager()`方法绑定一个即时生成的`LinearLayoutManager`实例。最后`onCreateView()`返回修改过的`View`实例。
-
-  - 该方法会调用自定义的`updateUI()`方法，获得一个带有测试数据的`CrimeLab`实例，该实例通过内部的`List<Crime>`对象来存储多个`Crime`。该对象会被传入`CrimeAdapter`类的构造方法中产生一个实例。`CrimeAdapter`继承于`RecyclerView.Adapter<CrimeHolder>`超类，内有三个需要覆盖的方法：
-
-    - `public CrimeHolder onCreateViewHolder()`
-
-      将当前`Activity`的`LayoutInflator`和`ViewGroup`实例，传给`CrimeHolder`实例。这样的话在后续的代码中，每个`CrimeHolder`调用`findViewById()`时，都能用相同的`id`获得自己所包含的`View`的`TextView`实例。
-
-    - `public void onBindViewHolder()`
-
-      按照传入的`position`，在`List<Crime>`中查找对应的`Crime`，然后调用传来的`CrimeHolder`实例中的`bind()`方法进行绑定。
-
-    - `public int getItemCount()`
-
-      返回当前`CrimeApdator`中`List<Crime>`的元素个数。
-
-    前面提到`onCreateViewHolder()`返回的是自定义类`CrimeHolder`的实例。该类继承于`RecyclerView.ViewHolder`，内部定义的`bind(Crime)`方法可将传入的`Crime`实例中的字段输出至`CrimeHolder`内`View`实例`itemView`的`<TextView>`标签中。
-
-- 
 
 # §3 日志与调试
 
