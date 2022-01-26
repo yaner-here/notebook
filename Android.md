@@ -1615,7 +1615,7 @@ public class CrimePagerActivity extends AppCompatActivity {
         mViewPager = (ViewPager) findViewById(R.id.activity_crime_view_pager);
         // 获取当前Fragment的托管容器的管理器(FragmentManager)
         FragmentManager fragmentManager = getSupportFragmentManager();
-        // 将mViewPager绑定一个FragmentStatePagerA 
+        // 将mViewPager绑定一个FragmentStatePagerAdapter实例
         mViewPager.setAdapter(new FragmentStatePagerAdapter() {
             @Override public Fragment getItem(int position) {
                 Crime crime = mCrimes.get(position);
@@ -1627,6 +1627,284 @@ public class CrimePagerActivity extends AppCompatActivity {
         });
     }
 }
+```
+
+现在弃用`CrimeActivity`，转而使用`CrimePagerActivity`：
+
+```java
+public class CrimePagerActivity extends AppCompatActivity{
+    // ...
+    public static final String EXTRA_CRIME_ID = "com.example.criminalintent.crime_id";
+    public static Intent newIntent(Context packageContext, UUID crimeId){
+        Intent intent = new Intent(packageContext,CrimePagerActivity.class);
+        intent.putExtra(EXTRA_CRIME_ID);
+        return intent;
+    }
+    // ...
+    @Override protected void onCreate(Bundle savedInstanceState){
+        // ...
+        UUID crimeId = (UUID) getIntent().getSerializableExtra(EXTRA_CRIME_ID);
+    	// ...
+    }
+}
+```
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    private class CrimeHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+        // ...
+        @Override public void onClick(View view){
+            Intent intent = CrimePagerActivity.newIntent(getActivity(),mCime.getId());
+        }
+        // ...
+    }
+	// ...
+}
+```
+
+要让APP启动`CrimePagerActivity`，还要在`AndroidManifest.xml`中声明它：
+
+```xml
+<manifest>
+	<!-- ... -->
+    <application>
+    	<!-- ... -->
+        <activity android:name=".CrimePagerActivity" />
+        <!-- ... -->
+    </application>
+    <!-- ... -->
+</manifest>
+```
+
+再删除`CrimeP`
+
+
+
+
+
+
+
+## §1.5 Locatr
+
+Android原生提供了一些列基本地理位置的API，定义于`android.location`库中。过去，为获得定位数据，必须严格手动调用GPS、基站、Wifi、加速感应器、陀螺仪等一系列API。未解决上述问题，Google Play Service提供了Fused Location Provider的定位服务。
+
+### §1.5.1 搭建框架
+
+建立模版XML文件`activity_fragment.xml`和抽象类`SingleFragmentActivity`：
+
+```xml
+<!-- 用于容纳Fragment -->
+<FrameLayout android:id="@+id/fragment_container"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+</FrameLayout>
+```
+
+```java
+package com.example.photogallery;
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+
+public abstract class SingleFragmentActivity extends AppCompatActivity {
+    protected abstract Fragment createFragment();
+    @Override protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // 将SingleFragmentActivity的子类的视图设置为activity_fragment.xml(只有一个<FrameLayout>根节点)
+        setContentView(R.layout.activity_fragment);
+		// 获取fragment所在父容器的管理器(FragmentManager)
+        FragmentManager fm = getSupportFragmentManager();
+        // 将id为fragment_container的根标签<FrameLayout>赋给fragment变量
+        Fragment fragment = fm.findFragmentById(R.id.fragment_container);
+		// 如果<FrameLayout>内没有任何内容
+        if (fragment == null) {
+            // 则刷新fragment为子类定义的createFragment()返回的Fragment,并将新fragment托给FragmentManager管理
+            fragment = createFragment();
+            fm.beginTransaction()
+                    .add(R.id.fragment_container, fragment)
+                    .commit();
+        }
+    }
+}
+```
+
+创建`PhotoGalleryActivity`类，将其设定为`SingleFragmentActivity`的子类：
+
+```java
+package com.example.photogallery;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class PhotoGalleryActivity extends SingleFragmentActivity {
+    @Override Fragment createFragment(){
+        return PhotoGalleryFragment.newInstance();
+    }
+}
+```
+
+新建`fragment_photo_gallery.xml`：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.recyclerview.widget.RecyclerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/photo_recycler_view"
+    tools:context="com.example.photogallery.PhotoGalleryActivity">
+
+</androidx.recyclerview.widget.RecyclerView>
+```
+
+新建`PhotoGalleryFragment.java`：
+
+```java
+package com.example.photogallery;
+
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+public class PhotoGalleryFragment extends Fragment {
+    private RecyclerView mPhotoRecyclerView;
+    public static PhotoGalleryFragment newInstance(){
+        return new PhotoGalleryFragment();
+    }
+    @Override public void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setRetainInstance(true);
+    }
+    @Override public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
+        View v = inflater.inflate(R.layout.fragment_photo_gallery,container,false);
+        mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.photo_recycler_view);
+        mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(),3));
+        return v;
+    }
+}
+```
+
+此时的业务逻辑整体如下：
+
+```mermaid
+flowchart TB
+	subgraph activity_fragment.xml [activity_fragment.xml]
+		FrameLayout1["&lt;FrameLayout&gt<br>android:id=&quot;fragment_container&quot;"]
+	end
+	subgraph SingleFragmentActivity [SingleFragmentActivity]
+		subgraph onCreateFuncOfSingleFragmentActivity ["onCreate()"]
+            setContentView1["setContentView(R.layout.activity_fragment)"]
+            setContentView1.->FrameLayout1
+            FragmentManager1["FragmentManager fm = getSupportFragmentManager()"]
+            FragmentManager1.->FrameLayout1
+            setContentView1-->FragmentManager1
+            FragmentManager1-->If1("fm.findFragmentById<br>(R.id.fragment_container)")
+            If1--"不为Null"-->FragmentOfSingleFragmentActivity1["Fragment fragment = fm.findFragmentById<br/>(R.id.fragment_container)"]
+            If1--"为Null"-->FragmentOfSingleFragmentActivity2["Fragment fragment = createFragment()"]
+            FragmentOfSingleFragmentActivity2-->FragmentOfSingleFragmentActivity3["fm.beginTransction()<br>.add(R.id.fragment_container,fragment)<br>.commit()"]
+            FragmentOfSingleFragmentActivity4[得到了fragment]
+            FragmentOfSingleFragmentActivity1-->FragmentOfSingleFragmentActivity4
+            FragmentOfSingleFragmentActivity3-->FragmentOfSingleFragmentActivity4
+            FragmentOfSingleFragmentActivity3.->FrameLayout1
+        end
+	end
+    subgraph PhotoGalleryActivity [PhotoGalleryActivity]
+        subgraph createFragmentOfPhotoGalleryActivity [createFragment]
+            createFragmentOfPhotoGalleryActivity1["返回PhotoGalleryFragment.newInstance()"]
+        end
+    end
+	subgraph fragment_photo_gallery.xml [fragment_photo_gallery.xml]
+        ViewPager1["androidx.recyclerview.widget.RecyclerView<br/>android:id=&quot;photo_recycler_view&quot;"]
+    end
+    subgraph PhotoGalleryFragment [PhotoGalleryFragment]
+        subgraph newInstanceOfPhotoGalleryFragment ["newInstance()"]
+            newInstanceOfPhotoGalleryFragment1["返回一个PhotoGalleryFragment实例"]
+        end
+        subgraph onCreateOfPhotoGalleryFragment ["onCreate()"]
+            onCreateOfPhotoGalleryFragment1["setRetainInstance(true)<br>在Activity销毁后保留Fragment"]
+        end
+        subgraph onCreateViewOfPhotoGalleryFragment ["onCreateView()"]
+            onCreateViewOfPhotoGalleryFragment1["View v = inflater.inflate(R.layout.fragment_photo_gallery,container,false)"]
+            onCreateViewOfPhotoGalleryFragment2["mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.photo_recycler_view)"]
+            onCreateViewOfPhotoGalleryFragment3["mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(),3))"]
+            onCreateViewOfPhotoGalleryFragment4["返回View实例v"]
+            onCreateViewOfPhotoGalleryFragment1-->onCreateViewOfPhotoGalleryFragment2
+            onCreateViewOfPhotoGalleryFragment2-->onCreateViewOfPhotoGalleryFragment3
+            onCreateViewOfPhotoGalleryFragment3-->onCreateViewOfPhotoGalleryFragment4
+        end
+        onCreateViewOfPhotoGalleryFragment1.->ViewPager1
+        onCreateViewOfPhotoGalleryFragment2.->ViewPager1
+        createFragmentOfPhotoGalleryActivity1-->newInstanceOfPhotoGalleryFragment1
+    end
+    SingleFragmentActivity--"延伸出子类"-->PhotoGalleryFragment
+```
+
+`SingleFramentActivity`作为超类，起到了模版的作用：
+
+```mermaid
+flowchart TB
+	subgraph activity_fragment.xml [activity_fragment.xml]
+		FrameLayout1["&lt;FrameLayout&gt<br>android:id=&quot;fragment_container&quot;"]
+	end
+	subgraph SingleFragmentActivity [SingleFragmentActivity]
+		subgraph onCreateFuncOfSingleFragmentActivity ["onCreate()"]
+            setContentView1["setContentView(R.layout.activity_fragment)"]
+            setContentView1.->FrameLayout1
+            FragmentManager1["FragmentManager fm = getSupportFragmentManager()"]
+            FragmentManager1.->FrameLayout1
+            setContentView1-->FragmentManager1
+            FragmentManager1-->If1("fm.findFragmentById<br>(R.id.fragment_container)")
+            If1--"不为Null"-->FragmentOfSingleFragmentActivity1["Fragment fragment = fm.findFragmentById<br/>(R.id.fragment_container)"]
+            If1--"为Null"-->FragmentOfSingleFragmentActivity2["Fragment fragment = createFragment()"]
+            FragmentOfSingleFragmentActivity2-->FragmentOfSingleFragmentActivity3["fm.beginTransction()<br>.add(R.id.fragment_container,fragment)<br>.commit()"]
+            FragmentOfSingleFragmentActivity4[得到了fragment]
+            FragmentOfSingleFragmentActivity1-->FragmentOfSingleFragmentActivity4
+            FragmentOfSingleFragmentActivity3-->FragmentOfSingleFragmentActivity4
+            FragmentOfSingleFragmentActivity3.->FrameLayout1
+        end
+	end
+```
+
+在`SingleFramentActivity`类的基础上延伸出了`PhotoGalleryActivity`类，其唯一作用就是通过`createFragment()`方法返回一个`PhotoGalleryFragment`实例：
+
+```mermaid
+graph LR
+SingleFragmentActivity--"延伸出子类"-->PhotoGalleryActivity--"createFragment()"-->PhotoGalleryFragment
+```
+
+`PhotoGalleryActivity`的结构如下：
+
+```mermaid
+graph TB
+    subgraph fragment_photo_gallery.xml [fragment_photo_gallery.xml]
+        ViewPager1["androidx.recyclerview.widget.RecyclerView<br/>android:id=&quot;photo_recycler_view&quot;"]
+    end
+    subgraph PhotoGalleryFragment [PhotoGalleryFragment]
+        subgraph newInstanceOfPhotoGalleryFragment ["newInstance()"]
+            newInstanceOfPhotoGalleryFragment1["返回一个PhotoGalleryFragment实例"]
+        end
+        subgraph onCreateOfPhotoGalleryFragment ["onCreate()"]
+            onCreateOfPhotoGalleryFragment1["setRetainInstance(true)<br>在Activity销毁后保留Fragment"]
+        end
+        subgraph onCreateViewOfPhotoGalleryFragment ["onCreateView()"]
+            onCreateViewOfPhotoGalleryFragment1["View v = inflater.inflate(R.layout.fragment_photo_gallery,container,false)"]
+            onCreateViewOfPhotoGalleryFragment2["mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.photo_recycler_view)"]
+            onCreateViewOfPhotoGalleryFragment3["mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(),3))"]
+            onCreateViewOfPhotoGalleryFragment4["返回View实例v"]
+            onCreateViewOfPhotoGalleryFragment1-->onCreateViewOfPhotoGalleryFragment2
+            onCreateViewOfPhotoGalleryFragment2-->onCreateViewOfPhotoGalleryFragment3
+            onCreateViewOfPhotoGalleryFragment3-->onCreateViewOfPhotoGalleryFragment4
+        end
+        onCreateViewOfPhotoGalleryFragment1.->ViewPager1
+        onCreateViewOfPhotoGalleryFragment2.->ViewPager1
+
+    end
 ```
 
 
