@@ -1687,7 +1687,7 @@ public class CrimeListFragment extends Fragment {
 
 ## §1.5 Locatr
 
-Android原生提供了一些列基本地理位置的API，定义于`android.location`库中。过去，为获得定位数据，必须严格手动调用GPS、基站、Wifi、加速感应器、陀螺仪等一系列API。未解决上述问题，Google Play Service提供了Fused Location Provider的定位服务。
+Android原生提供了一些列基本地理位置的API，定义于`android.location`库中。过去，为获得定位数据，必须严格手动调用GPS、基站、Wifi、加速感应器、陀螺仪等一系列API。为解决上述问题，Google Play Service提供了Fused Location Provider的定位服务。
 
 ### §1.5.1 搭建框架
 
@@ -1893,9 +1893,9 @@ graph TB
             onCreateOfPhotoGalleryFragment1["setRetainInstance(true)<br>在Activity销毁后保留Fragment"]
         end
         subgraph onCreateViewOfPhotoGalleryFragment ["onCreateView()"]
-            onCreateViewOfPhotoGalleryFragment1["View v = inflater.inflate(R.layout.fragment_photo_gallery,container,false)"]
-            onCreateViewOfPhotoGalleryFragment2["mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.photo_recycler_view)"]
-            onCreateViewOfPhotoGalleryFragment3["mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(),3))"]
+            onCreateViewOfPhotoGalleryFragment1["View v =<br>inflater.inflate(R.layout.fragment_photo_gallery,container,false)"]
+            onCreateViewOfPhotoGalleryFragment2["mPhotoRecyclerView = <br>(RecyclerView) v.findViewById(R.id.photo_recycler_view)"]
+            onCreateViewOfPhotoGalleryFragment3["mPhotoRecyclerView.setLayoutManager<br>(new GridLayoutManager(getActivity(),3))"]
             onCreateViewOfPhotoGalleryFragment4["返回View实例v"]
             onCreateViewOfPhotoGalleryFragment1-->onCreateViewOfPhotoGalleryFragment2
             onCreateViewOfPhotoGalleryFragment2-->onCreateViewOfPhotoGalleryFragment3
@@ -1903,8 +1903,347 @@ graph TB
         end
         onCreateViewOfPhotoGalleryFragment1.->ViewPager1
         onCreateViewOfPhotoGalleryFragment2.->ViewPager1
-
     end
+```
+
+创建`FlickrFetchr`类，用于获得Flickr网站上的图片：
+
+```java
+package com.example.photogallery;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+public class FlickrFetchr {
+    public byte[] getUrlBytes(String urlSpec) throws IOException{
+        URL url = new URL(urlSpec);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        try {
+            //OutputStream--延伸出-->ByteArrayOutputStream
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            InputStream in = connection.getInputStream();
+            if(connection.getResponseCode() != HttpURLConnection.HTTP_OK){
+                throw new IOException(connection.getResponseMessage()+": with "+urlSpec);
+            }
+            int bytesRead = 0;
+            byte[] buffer = new byte[1024];
+            while((bytesRead=in.read(buffer))>0){
+                out.write(buffer,0,bytesRead);
+            }
+            out.close();
+            return out.toByteArray();
+        }finally {
+            connection.disconnect();
+        }
+    }
+    public String getUrlString(String urlSpec) throws IOException{
+        return new String(getUrlBytes(urlSpec));
+    }
+}
+```
+
+然后在后台线程上调用该网络类：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    private static final String TAG = "PhotoGalleryFragment";
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+        // ...
+        new FetchItemsTask().execute();
+    }
+    private class FetchItemsTask extends AsyncTask<Void,Void,Void>{
+        @Override protected void doInBackground(Void... params){
+            try{
+                String result = new FilckrFetchr().getUrlString("https://bignerdranch")
+            	Log.i(TAG,"Fetched contents of URL:" + result);
+            }catch(IOException ioe){
+                Log.e(TAG,"Failed to fetch URL:"+ioe);
+            }
+            return null;
+        }
+    }
+}
+```
+
+```mermaid
+flowchart TB
+	Input1[/输入URL/]
+    subgraph FlickrFetchr ["FlickrFetchr"]
+        subgraph getUrlString["getUrlString(String urlSpec)"]
+            getUrlString1["返回(String) getUrlBytes(String urlSpec)"]
+        end 
+    end
+    Input1-->getUrlString1
+    getUrlString1-->FlickrFetchr1
+    subgraph PhotoGalleryFragment [PhotoGalleryFragment]
+        subgraph newInstanceOfPhotoGalleryFragment ["newInstance()"]
+            newInstanceOfPhotoGalleryFragment1["返回一个PhotoGalleryFragment实例"]
+        end
+        newInstanceOfPhotoGalleryFragment-->onCreateOfPhotoGalleryFragment
+        subgraph onCreateOfPhotoGalleryFragment ["onCreate()"]
+            onCreateOfPhotoGalleryFragment1["setRetainInstance(true)<br>在Activity销毁后保留Fragment"]
+            onCreateOfPhotoGalleryFragment2["new FetchItemsTask().execute();"]
+        end
+        subgraph FetchItemsTask
+            subgraph doInBackground
+                doInBackground1["String result = new FilckrFetchr()<br>.getUrlString(&quot;https://www.bignerdranch.com&quot;)"]
+            end
+        end
+        onCreateOfPhotoGalleryFragment2-->doInBackground1-->Input1
+    end
+    subgraph FlickrFetchr ["FlickrFetchr"]
+        FlickrFetchr1["URL url = new URL(urlSpec)"]
+        FlickrFetchr2["HttpURLConnection connection = <br>(HttpURLConnection)url.openConnection()"]
+        FlickrFetchr3["InputStream in = connection.getInputStream()"]
+        FlickrFetchr4{connection<br>.getResponseCode}
+        FlickrFetchr5["throw IOExpection()"]
+        FlickrFetchr6["byte[] buffer = new byte[1024]"]
+        FlickrFetchr7["out.write(buffer,0,bytesRead)<br>out.write(buffer,0,bytesRead)<br>out.write(buffer,0,bytesRead)<br>...<br>out.close()"]
+        FlickrFetchr8["conntection.disconnect()"]
+        FlickrFetchr9[/"返回out.toByteArray()"/]
+        FlickrFetchr1-->FlickrFetchr2
+        FlickrFetchr2-->FlickrFetchr3
+        FlickrFetchr3-->FlickrFetchr4
+        FlickrFetchr4--"非200"-->FlickrFetchr5
+        FlickrFetchr4--"200"-->FlickrFetchr6
+        FlickrFetchr6-->FlickrFetchr7
+        FlickrFetchr7-->FlickrFetchr8
+    FlickrFetchr8-->FlickrFetchr9
+    end
+    FlickrFetchr9--"String转换"-->doInBackground1
+```
+
+### §1.5.2 API
+
+申请API_KEY并添加API调用代码：
+
+```java
+public class FlickrFetchr {
+    private static final String API_KEY = "xxxxx";
+    private static final String API_PASSWORD = "xxxxx";
+    private static final String TAG = "FlickrFetchr";
+    public void fetchItems(){
+        try {
+            String url = Uri.parse("https://api.flickr.com/services/rest/")
+                    .buildUpon()
+                    .appendQueryParameter("method","flickr.photos.getRecent")
+                    .appendQueryParameter("api_key",API_KEY)
+                    .appendQueryParameter("format","json")
+                    .appendQueryParameter("nojsoncallback","1")
+                    .appendQueryParameter("extras","url_s")
+                    .build().toString();
+            String jsonString = getUrlString(url);
+            Log.i(TAG,"Received JSON: " + jsonString);
+        }catch (IOException ioException){
+            Log.e(TAG,"Failed to fetch items",ioException);
+        }
+    }
+    // ...
+}
+```
+
+```java
+public class PhotoGalleryFragment extends Fragment{
+    // ...
+    private class FetchItemsTask extends AsyncTask<Void,Void,Void>{
+        @Override protected Void doInBackground(Void... params){
+			new FlickrFetchr().fetchItems();
+            return null;
+        }
+    }
+    // ...
+}
+```
+
+
+
+### §1.5.3 线程与主线程
+
+一般线程中的代码会逐步执行，而Android主线程的代码处于一个无限循环中，不停的等待系统和用户触发APP监听的事件：
+
+```mermaid
+graph LR
+subgraph 一般线程
+	进程入口指针-->代码1[代码]-->代码2[...]-->代码3[代码]-->完成
+end
+subgraph 主线程
+	subgraph &nbsp;
+		监听器1[监听器]-->监听器2[监听器]-->监听器3[监听器]-->监听器1
+	end
+	触发事件1[触发事件].->监听器1
+	触发事件2[触发事件].->监听器2
+	触发事件3[触发事件].->监听器3
+end
+```
+
+Android禁止任何主线程的网络连接行为，如果强行连接则会抛出`NetworkOnMainThreadException`异常。这是因为网络连接需要时间做出相应或下载文件。
+
+### §1.5.4 解析JSON
+
+创建一个模版类`GalleryItem`：
+
+```java
+public class GalleryItem {
+    private String mCaption;
+    private String mId;
+    private String mUrl;
+    @NonNull @Override public String toString(){
+        return mCaption;
+    }
+    public String getCaption() {
+        return mCaption;
+    }
+    public void setCaption(String caption) {
+        mCaption = caption;
+    }
+    public String getUrl() {
+        return mUrl;
+    }
+    public void setUrl(String url) {
+        mUrl = url;
+    }
+    public String getId() {
+        return mId;
+    }
+    public void setId(String id) {
+        mId = id;
+    }
+}
+```
+
+我们使用的Flickr API返回的JSON格式如下：
+
+```json
+{
+    "photos": {
+        "page": 1,
+        "pages": 10,
+        "perpage": 100,
+        "total": 1000,
+        "photo": [
+            {
+                "id": "51844480537",
+                "owner": "170905058@N08",
+                "secret": "235c7ed69c",
+                "server": "65535",
+                "farm": 66,
+                "title": "NZG_6053.jpg",
+                "ispublic": 1,
+                "isfriend": 0,
+                "isfamily": 0
+            },
+            {
+                "id": "51844480987",
+                "owner": "10583065@N06",
+                "secret": "e3d6ed8de4",
+                "server": "65535",
+                "farm": 66,
+                "title": "Doorway to the Soul",
+                "ispublic": 1,
+                "isfriend": 0,
+                "isfamily": 0
+            }
+        ]
+    },
+    "stat": "ok"
+}
+```
+
+其层级树如下：
+
+```mermaid
+graph TB
+	JSON[JSON]
+	photos["&quot;photos&quot;"]
+	stat["&quot;stat&quot;"]
+	page["&quot;page&quot;"]
+	pages["&quot;pages&quot;"]
+	perpage["&quot;perpage&quot;"]
+	total["&quot;total&quot;"]
+	photo["&quot;photo&quot;"]
+	id["&quot;id&quot;"]
+	owner["&quot;owner&quot;"]
+	secret["&quot;secret&quot;"]
+	server["&quot;farm&quot;"]
+	farm["&quot;farm&quot;"]
+	title["&quot;title&quot;"]
+	ispublic["&quot;ispublic&quot;"]
+	isfriend["&quot;isfriend&quot;"]
+	isfamily["&quot;isfamily&quot;"]
+	JSON-->photos
+	JSON-->stat
+	subgraph "&nbsp;"
+		photos-->page
+		photos-->pages
+		photos-->perpage
+		photos-->total
+		photos-->photo
+		subgraph &nbsp;
+			photo-->id
+			photo-->owner
+			photo-->secret
+			photo-->server
+			photo-->farm
+			photo-->title
+			photo-->ispublic
+			photo-->isfriend
+			photo-->isfamily
+		end
+	end
+
+```
+
+我们的解析思路如下：
+
+```mermaid
+graph LR
+	JSON_FILE--"new JSONObject(jsonString)"-->JSONObject1["JSONObject<br>jsonBody"]
+	--"getJSONObject(&qout;photos&qout;)"-->JSONObject2["JSONObject<br>photosJsonObject"]
+	--"getJSONArray(&qout;photo&qout;)"-->JSONArray["JSONArray<br>photoJsonArray"]
+	--"getJSONObject(index)"-->JSONObject3["JSONObject1<br>photoJsonObject"]
+	JSONArray--"getJSONObject(index)"-->JSONObject4["JSONObject1<br>photoJsonObject"]
+	JSONArray--"getJSONObject(index)"-->JSONObject5["JSONObject1<br>photoJsonObject"]
+	JSONArray--"getJSONObject(index)"-->JSONObject6["."]
+```
+
+
+
+`json.org`库提供了一系列用于解析JSON的API，下面在`FlickrFetchr.java`中添加解析：
+
+```java
+public class FlickrFetchr{
+    // ...
+    public void fetchItems(){
+        try{
+            // ...
+            JSONObject jsonBody = new JSONObject(jsonString);
+        }catch (IOException ioException){
+            Log.e(TAG,"Failed to fetch items",ioException);
+        }catch (JSONExcpetion jsonException){
+            Log.e(TAG,"Failed to parse JSON");
+        }
+    }
+    private void parseItems(List<GalleryItem> items, JSONObject jsonBody) throws IOException,JSONException{
+        JSONObject photosJsonObject = jsonBody.getJSONObject("photos");
+        JSONArray photoJsonArray = photosJsonObject.getJSONArray("photo");
+        for (int i=0;i<photoJsonArray.length();i++){
+            JSONObject photoJsonObject = photoJsonArray.getJSONObject(i);
+            GalleryItem item = new GalleryItem();
+            item.setId(photoJsonObject.getString("id"));
+            item.setCaption(photoJsonObject.getString("title"));
+            if(!photoJsonObject.has("url_s")){
+                continue;
+            }else{
+                item.setUrl(photoJsonObject.getString("url_s"));
+            }
+            items.add(item);
+        }
+    }
+    // ...
+}
 ```
 
 
