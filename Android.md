@@ -2209,17 +2209,16 @@ graph LR
 	JSONArray--"getJSONObject(index)"-->JSONObject6["."]
 ```
 
-
-
 `json.org`库提供了一系列用于解析JSON的API，下面在`FlickrFetchr.java`中添加解析：
 
 ```java
 public class FlickrFetchr{
     // ...
-    public void fetchItems(){
+    public List<GalleryItem> fetchItems(){
         try{
             // ...
             JSONObject jsonBody = new JSONObject(jsonString);
+            parseItems(items,jsonBody);
         }catch (IOException ioException){
             Log.e(TAG,"Failed to fetch items",ioException);
         }catch (JSONExcpetion jsonException){
@@ -2240,6 +2239,277 @@ public class FlickrFetchr{
                 item.setUrl(photoJsonObject.getString("url_s"));
             }
             items.add(item);
+        }
+    }
+    // ...
+}
+```
+
+接下来设置`RecyclerView`：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    private class PhotoHolder extends RecyclerView.ViewHolder{
+        private TextView mTitleTextView;
+        public PhotoHolder(View itemView){
+            super(itemView);
+            mTitleTextView = (TextView) itemView;
+        }
+        public void bindGalleryItem(GalleryItem item){
+            mTitleTextView.setText(item.toString());
+        }
+    }
+    private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder>{
+        private List<GalleryItem> mGalleryItems;
+        public PhotoAdapter(List<GalleryItem> galleryItems){
+            mGalleryItems = galleryItems;
+        }
+        @Override public PhotoHolder onCreateViewHolder(ViewGroup viewGroup,int viewType){
+            TextView textView = new TextView(getActivity());
+            return new PhotoHolder(textView);
+        }
+        @Override public void onBindViewHolder(PhotoHolder photoHolder, int position) {
+            GalleryItem galleryItem = mGalleryItems.get(position);
+            photoHolder.bindGalleryItem(galleryItem);
+        }
+        @Override public int getItemCount(){
+            return mGalleryItems.size();
+        }
+    }
+	// ...   
+}
+
+```
+
+```mermaid
+graph TB
+	galleryItems["List&lt;GalleryItem&gt; galleryItems<br>mItems为new ArrayList&lt;GalleryItem&gt;"]
+	itemView["View itemView"]
+	subgraph PhotoAdapter["RecyclerView.Adapterr<br>&rarr;PhotoAdapter"]
+		subgraph onCreateViewHolder ["onCreateViewHolder()"]
+			onCreateViewHolder1["return new PhotoHolder(new TextView(getActivity())"]
+		end
+		subgraph onBindViewHolder ["onBindViewHolder()"]
+			onBindViewHolder1["GalleryItem galleryItem=mGalleryItems.get(position)"]
+			onBindViewHolder2["photoHolder.bindGalleryItem(galleryItem)"]
+			onBindViewHolder1-->onBindViewHolder2
+		end
+		subgraph getItemCount ["getItemCount()"]
+			getItemCount1["return mGalleryItems.size()"]
+		end
+        subgraph onCreate ["onCreate()"]
+            mGalleryItems
+        end
+	end
+	subgraph PhotoHolder
+		subgraph bindGalleryItem ["bindGalleryItem"]
+			bindGalleryItem1["mTitleTextView.setText(item.toString())"]
+		end
+		subgraph PhotoHolderFunc ["PhotoHolder(View itemView)"]
+			PhotoHolderFunc1["mTitleTextView=(TextView)itemView"]
+		end
+	end
+    subgraph setupAdapter ["setupAdapter"]
+        setupAdapter1{"isAdded()"}
+        setupAdapter2["mPhotoRecyclerView.setAdapter<br>(new PhotoAdapter(mItems));"]
+        setupAdapter1--true-->setupAdapter2
+    end
+	itemView.->PhotoHolderFunc1
+    PhotoHolderFunc1.->onCreateViewHolder1
+    onCreateViewHolder1.->onBindViewHolder1
+    galleryItems.->mGalleryItems
+    setupAdapter2.->galleryItems
+```
+
+```java
+public class PhotoGalleryFragment extends Fragment{
+    // ...
+    private List<GalleryItem> mItems = new ArrayList<>();
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        setupAdapter();
+        // ...
+    }
+    // ...
+    private void setupAdapter(){
+        if(isAdded()){
+            mPhotoRecyclerView.setAdapter(new PhotoAdapter(mItems));
+        }
+    }
+    // ...
+}
+```
+
+> 注意：`Fragment`类中定义了`isAdded()`方法，用于判断当前`fragment`实例是否与目标`activity`实例相关联。如果不关联的话，当前`fragment`实例调用的`TextView textView = new TextView(getActivity())`就会失败。
+
+现在获得API返回的数据并解析后，就需要调用`setupAdapter()`，将解析后的`List`传给`PhotoAdapter`类的构造方法生成实例，在将该实例作为`mPhotoRecyclerView`的`Adapter`。那么在哪里调用`setupAdapter()`呢？如果在`doInBackground()`方法中调用的话，内存中的对象会互相踩踏使得APP崩溃。安全起见，Android不允许从后台线程更细UI。我们需要让负责网络的`FlickrFetchr().fetchItems()`和负责UI的`setupAdapter()`互不干扰，而`onPostExecute()`方法就能实现该功能。
+
+`onPostExecute()`是主线程的方法，而且在`doInBackground()`执行完毕后才会运行：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    /* 原方法
+    private class FetchItemsTask extends AsyncTask<Void,Void,Void>{
+        @Override protected Void doInBackground(Void... params) {
+            new FlickrFetchr().fetchItems();
+            return null;
+        }
+    }
+    */
+    private class FetchItemsTask extends AsyncTask<Void,Void,List<GalleryItem>> {
+        @Override protected List<GalleryItem> doInBackground(Void... params){
+            // 将List<GalleryItem>对象传给onPostExecute()
+            return new FlickrFetchr().fetchItems();
+        }
+        @Override protected void onPostExecute(List<GalleryItem> items){
+            mItems = items;
+            setupAdapter();
+        }
+    }
+}
+```
+
+### §1.5.5 清理`AsyncTask`
+
+本例中，我们在创建`PhotoGalleryFragment`时设置了"不随`Activity`销毁"的选项：
+
+```java
+public class PhotoGalleryFragment extends Fragment{
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+		// ...
+        setRetainInstance(true);
+        // ...
+    }
+    // ...
+}
+```
+
+这种方式的好处是，当屏幕旋转使得原有`Activity`重启时，`Fragment`不会随之消失，自然不会重复触发`Fragment`中定义的`private class FetchItemsTask extends Async<Void,Void,List<GalleryItem>>`中调用的网络请求方法。
+
+针对某些复杂场景，我们需要将`AsyncTask`实例赋值给其他实例变量，这样就可以在`onStop(...)`或`onDestroy(...)`中调用`AsyncTask.cancel(boolean)`来随时撤销运行中的`AsyncTask`实例了。`AsyncTask.cancel(boolean)`有以下两种工作模式：
+
+- 温和的
+
+  `AsyncTask.cancel(false)`只是将`isCancelled()`的状态设置为`true`，随后`AsyncTask`检查`isCancelled()`状态，如果为`true`则选择提前结束该实例的运行。
+
+- 粗暴的
+
+  `AsyncTask.cancel(true)`会立即终止`doInBackground(...)`方法所在的线程，应尽量避免这种做法。
+
+### §1.5.6 `AsyncTask`泛型
+
+`AsyncTask`的泛型包含三个参数：
+
+- 第一个参数：要传给`AsyncTask.execute(...)`方法的实参类型
+
+  ```java
+  AsyncTask<String,Void,Void> task = new AsyncTask<String,Void,Void>(){
+      public Void doInBackground(String... params){
+          for(String param : params){
+              Log.i("Received message:",param);
+          }
+      }
+  }
+  task.execute("hello","world","!");
+  ```
+
+- 第二个参数：发送进度更新需要的类型
+
+  ```java
+  final ProgressBar progressBar = /* certain ProgressBar Object */ ;
+  final int ProgressBarMax = /* maximum of the ProgressBar Object */ ;
+  progressBar.setMax(ProgressBarMax);
+  AsyncTask<Void,Integer,Void> trackProgess = new AsyncTask<Void,Integer,Void>(){
+      @Override protected Void doInBackground(Void... params){
+          while(!isfinsished()){
+              publishProgress(getProgress()); // AsyncTask.java中已定义publishProgress()
+          }
+      }
+      @Override protected void onProgressUpdate(Integer... params){
+          int progress = params[0];
+          trackProgress.setProgress(progress); // AsyncTask.java中已定义setProgress()
+      }
+  }
+  trackProgress.execute();
+  ```
+
+- 第三个参数：`AsyncTask.doInBackground(...)`方法返回的数据类型
+
+  ```java
+  public class PhotoGalleryFragment extends Fragment{
+      // ...
+      // 旧版本
+      private class FetchItemsTask extends AsyncTask<Void,Void,Void>{
+          @Override protected Void doInBackground(Void... params){
+              new FlickrFetchr().fetchItems();
+              return null;
+          }
+      }
+      // 新版本
+      private class FetchItemsTask extends AsyncTask<Void,Void,List<GalleryItem>>{
+          @Override protected List<GalleryItem> doInBackground(Void... params){
+              return new FlickrFetchr().fetchItems();
+          }
+          @Override protected void onPostExecute(List<GalleryItem> items){
+              mItems = items;
+              setupAdapter();
+          }
+      }
+  }
+  ```
+
+### §1.5.7 `Looper`/`Handler`/`HandlerThread`
+
+解析JSON数据后，我们需要下载并显示图片。我们需要为`GalleryItem`实例创建相应的XML布局文件：
+
+```xml
+<!-- list_item_gallery.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_image_view"
+    android:layout_width="match_parent"
+    android:layout_height="120dp"
+    android:layout_gravity="center"
+    android:scaleType="centerCrop">
+</ImageView>
+```
+
+`ImageView`实例由`RecyclerView`的`GridLayoutManager`实例负责管理。之前调试时，我们在`PhotoHolder`和`PhotoAdapter`中使用的是`TextView`作为演示，现在应该都改成`ImageView`：
+
+```java
+public class PhotoGalleryFragment extends Fragment{
+    // ...
+    private class PhotoHolder extends RecyclerView.ViewHolder{
+        private ImageView mItemImageView;
+        public PhotoHolder(View itemView){
+            super(itemView);
+            mItemImageView = (ImageView) itemView.findViewById(R.id.item_image_view);
+        }
+        public void bindDrawable(Drawable drawable){
+            mItemImageView.setImageDrawable(drawable);
+        }
+    }
+    private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder>{
+        private List<GalleryItem> mGalleryItems;
+        public PhotoAdapter(List<GalleryItem> galleryItems){
+            mGalleryItems = galleryItems;
+        }
+        @Override public PhotoHolder onCreateViewHolder(ViewGroup viewGroup,int viewType){
+            LayoutInflater inflater = LayoutInflater.from(getActivity());
+            View view = inflater.inflate(R.layout.list_item_gallery,viewGroup,false);
+            return new PhotoHolder(view);
+        }
+        @Override public void onBindViewHolder(PhotoHolder photoHolder, int position) {
+            Drawable placeholder = getResources().getDrawable(R.drawable.bill_up_close);
+            GalleryItem galleryItem = mGalleryItems.get(position);
+            photoHolder.bindDrawable(placeholder);
+        }
+        @Override public int getItemCount(){
+            return mGalleryItems.size();
         }
     }
     // ...
