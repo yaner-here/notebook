@@ -2058,8 +2058,6 @@ public class PhotoGalleryFragment extends Fragment{
 }
 ```
 
-
-
 ### §1.5.3 线程与主线程
 
 一般线程中的代码会逐步执行，而Android主线程的代码处于一个无限循环中，不停的等待系统和用户触发APP监听的事件：
@@ -2504,6 +2502,7 @@ public class PhotoGalleryFragment extends Fragment{
             return new PhotoHolder(view);
         }
         @Override public void onBindViewHolder(PhotoHolder photoHolder, int position) {
+            // placeholder加载固定的图像资源用于演示
             Drawable placeholder = getResources().getDrawable(R.drawable.bill_up_close);
             GalleryItem galleryItem = mGalleryItems.get(position);
             photoHolder.bindDrawable(placeholder);
@@ -2511,6 +2510,261 @@ public class PhotoGalleryFragment extends Fragment{
         @Override public int getItemCount(){
             return mGalleryItems.size();
         }
+    }
+    // ...
+}
+```
+
+目前使用的API一次性能返回100个数据，如果一次性加载100个图片再显示的话，会耗费大量的时间和内存，因此`AsyncTask`在这时就不适用了。为了实现只加载屏幕上显示的图片，我们需要使用`Looper`对象实现对消息队列的操控。
+
+消息循环(Message Loop)由线程和`Looper`实例构成，会不停地检查队列上是否有新消息。主线程就是一个消息循环，因此也有`Looper`实例，用于管理线程的消息队列，而`Looper`类由`HandlerThread`类管理。我们新建一个`HandlerThread`类用于实现消息队列的管理：
+
+```java
+package com.example.photogallery;
+import android.os.HandlerThread;
+import android.util.Log;
+
+public class ThumbnailDownloader<T> extends HandlerThread {
+    private static final String TAG = "ThumbnailDownloader";
+    private Boolean mHasQuit = false;
+    public ThumbnailDownloader(){
+        super(TAG);
+    }
+    public void queueThumbnail(T target,String url){
+        Log.i(TAG,"Received a url: "+url);
+    }
+    @Override public boolean quit(){
+        mHasQuit = true;
+        return super.quit();
+    }
+}
+```
+
+然后在`PhotoGalleryFragment`中调用该类：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
+    // ...
+    @Override public void onCreate(Bundle savedInstaceState){
+        // ...
+        new FetchItemsTask().execute();
+        mThumbnailDownloader = new ThumbnailDownloader<>();
+        mThumbnailDownloader.start();
+        ThumbnailDownloader.getLooper();
+        Log.i(TAG,"Background thread started.")
+    }
+    @Override public void onDestroy(){
+        super.onDestroy();
+        mThumbnailDownloader.quit();
+        Log.i(TAG,"Background thread destroyed.")
+    }
+    // ...
+    private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder>{
+        // ...
+        @Override public void onBindViewHolder(PhotoHolder photoHolder,int position){
+            Drawable placeholder = getResource().getDrawable(R.drawable.bill_up_close);
+            GalleryItem galleryItem = mGalleryItems.get(position);
+            photoHolder.bindDrawable(placeHolder);
+            mThumbnailDownloader.QueueThumbnail(photoHolder,galleryItem.getUrl());
+        }
+        // ...
+    }
+    // ...
+}
+```
+
+后台线程已经建立，接下来要使用`Message`的实例（也就是消息）来实现线程间的通信。
+
+`Message`实例包含以下必须定义的实例字段：
+
+- `int what`：代表消息种类的消息代码
+- `Object obj`：随消息一同发送的对象
+- `Handler target`：用于处理消息的`Handler`实例
+
+```mermaid
+flowchart TB
+	HandlerThread["HandlerThread"]
+	Looper["Looper"]
+	subgraph MessageQueue ["MessageQueue"]
+		message1["Message<br/>what<br/>obj<br/>target<br/>"]
+		message2["Message<br/>what<br/>obj<br/>target<br/>"]
+		message3["(new)Message<br/>what<br/>obj<br/>target<br/>"]
+		MessageQueueObj["MessageQueue实例"]
+	end
+	newMessage["(new)Message"]-->Handler-->message3
+	Handler["Handler"]
+	message1-->Handler
+	message2-->Handler
+	message3-->Handler
+	Handler-->Looper
+	HandlerThread-->Looper
+	Looper-->MessageQueueObj
+```
+
+一般情况下，我们不会去手动为`Message.target`指定`Handler`实例，而是通过`Handler.obtain-Message(Message)`来自动设置`Handler`实例。为避免重复添加已有的`Message`对象，`Handler.obtainMessage(...)`方法慧聪公共回收池中获取消息。取得`Message`实例后，可以调用`Message.sendToTarget()`方法将该实例传给发送它的`Handler`，`Handler`将其放在`Looper`消息队列的尾部：
+
+```java
+public class ThumbnailDownloader<T> extends HandlerThread {
+    private static final int MESSAGE_DOWNLOAD = 0;
+    private Handler mRequestHandler;
+    private ConcurrentMap<T,String> mRequsetMap = new ConcurrentHashMap<>();
+	// ...
+    public void queueThumbnail(T target,String url){
+        Log.i(TAG,"Received a url: "+url);
+        if(url == null){
+            mRequsetMap.remove(target);
+        }else{
+            mRequsetMap.put(target,url);
+            mRequestHandler.obtainMessage(MESSAGE_DOWNLOAD,target).sendToTarget();
+        }
+    }
+    // ...
+}
+```
+
+解码数据流：
+
+```java
+public class ThumbnailDownloader<T> extends HandlerThread {
+    // ...
+    private void handleRequest(final T target){
+        try {
+            final String url = mRequsetMap.get(target);
+            if(url == null){
+                return;
+            }else{
+                byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
+                final Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapBytes,0, bitmapBytes.length);
+                Log.i(TAG,"Bitmap created.");
+            }
+        } catch (IOException ioException) {
+            Log.e(TAG,"Error downloading image",ioException);
+        }
+    }
+    @Override protected void onLooperPrepared(){
+        mRequestHandler = new Handler(){
+            @Override public void handleMessage(Message msg){
+                if(msg.what == MESSAGE_DOWNLOAD){
+                    T target = (T) msg.obj;
+                    Log.i(TAG,"Got a request for URL: " + mRequsetMap.get(target));
+                    handleRequest(target);
+                }
+            }
+        };
+    }
+    // ...
+}
+```
+
+```mermaid
+flowchart LR
+	subgraph ThumbnailDownloader ["ThumbnailDownloader"]
+		subgraph Variable ["类字段/实例字段"]
+			mRequestMap["ConcurrentMap&lt;T,String&gt; mRequest"]
+			mHasQuit["Boolean mHasQuit = false"]
+			mRequestHandler["Handler mRequestHandler"]
+		end
+		subgraph handleRequest ["void handleRequest(final T target)"]
+			handleRequest1{"mRequestMap<br>.get(target)"}
+			handleRequest2["return"]
+			handleRequest3["byte[] bitmapBytes = new FlickrFetchr.getUrlBytes(url)"]
+			handleRequest4["Bitmap bitmap = BitmapFactory<br/>.decodeByteArray(bitmapBytes,0,bitmapBytes.length)"]
+			handleRequest1--"null"-->handleRequest2
+			handleRequest1--"非null"-->handleRequest3
+			handleRequest3-->handleRequest4
+			handleRequest4-->handleRequest2
+			mRequestMap.->handleRequest1
+		end
+		subgraph onLooperPrepared ["void onLooperPrepared()"]
+			subgraph onLooperPrepared0 ["mRequestHandler = new Handler()<br/>{@Override handleMessage(Message msg)}"]
+				onLooperPrepared1{"msg.what"}
+				onLooperPrepared2["return"]
+				onLooperPrepared3["T target - (T) target"]
+				onLooperPrepared4["handleRequest(target)"]
+			end
+			mRequestHandler.->onLooperPrepared1
+			onLooperPrepared1--"非0"-->onLooperPrepared2
+			onLooperPrepared1--"0"-->onLooperPrepared3
+			onLooperPrepared3-->onLooperPrepared4
+			onLooperPrepared4-->onLooperPrepared2
+			handleRequest2.->onLooperPrepared4
+		end
+		subgraph queueThumbnail ["void queueThumbnail(T target,String url)"]
+			queueThumbnail1{"url==null?"}
+			queueThumbnail2["mRequestMap.remove(target)"]
+			queueThumbnail3["mRequestMap.put(target,url)"]
+			queueThumbnail4["mRequestHandler<br/>.obtainMessage(0,target)<br/>.sendToTarget()"]
+			queueThumbnail1--"url==null"-->queueThumbnail2
+			queueThumbnail1--"url!=null"-->queueThumbnail3-->queueThumbnail4
+			queueThumbnail4.->mRequestMap
+		end
+	end
+```
+
+然后用`Handler`向主线程发送请求：
+
+```mermaid
+flowchart LR
+	subgraph PhotoGalleryFragment ["PhotoGalleryFragment"]
+		PhotoGalleryFragmentThread["主线程"]
+		PhotoGalleryFragmentHandler["Handler"]
+	end
+	subgraph ThumbnailDownloader ["ThumbnailDownloader"]
+		ThumbnailDownloaderThread["下载管理线程"]
+		ThumbnailDownloaderHandler["Handler"]
+	end
+	subgraph FlickrFetchr ["FlickrFetchr"]
+		FlickrFetchrThread["网络线程"]
+	end
+	PhotoGalleryFragmentThread--"下载图片"-->ThumbnailDownloaderThread
+	ThumbnailDownloaderThread--"下载图片"-->FlickrFetchrThread
+	FlickrFetchrThread--"返回图片数据流byte[]"-->ThumbnailDownloaderThread
+	ThumbnailDownloaderThread=="mRequestHandler<br/>存储Bitmap到HashMap"==>ThumbnailDownloaderHandler
+	ThumbnailDownloaderThread=="mResponseHandler"==>PhotoGalleryFragmentHandler
+```
+
+```java
+public class ThumbnailDownloader<T> extends HandlerThread {
+    // ...
+    private Handler mRequestHandler;
+    private Handler mResponseHandler;
+    private ThumbnailDownloadListener<T> mThumbnailDownloadListener;
+	// ...
+    public interface ThumbnailDownloadListener<T>{
+        void onThumbnailDownloaded(T target,Bitmap thumbnail);
+    }
+    public void setThumbnailDownloadListener(ThumbnailDownloadListener<T> listener){
+        mThumbnailDownloadListener = listener;
+    }
+    public ThumbnailDownloader(Handler responseHandler){
+        super(TAG);
+        mResponseHandler = responseHandler;
+    }
+}
+```
+
+现在当创建`ThumbnailDownloader`实例时，必须给构造方法提供`Handler responseHandler`实例（至于`Handler requestHandler`则由其内部的`@Override onLooperPrepared(...)`方法来创建），所以需要更新`PhotoGalleryFragment.java`中的创建`ThumbnailDownloader`实例相关的代码：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setRetainInstance(true);
+        new FetchItemsTask().execute();
+        
+        Handler responseHandler = new Handler();
+        mThumbnailDownloader = new ThumbnailDownloader<>(responseHandler);
+        mTHumbnailDOwnloader.setThumbnailDownloadListener(
+        	new ThumbnailDownloader.ThumbnailDownloadListener<PhotoHolder>(){
+                @Override public void onThumbnailDownloaded(PhotoHolder photoHolder,Bitmap bitmap){
+                    Drawable drawable = new BitmapDrawable(getResources(),bitmap);
+                    photoHolder.bindDrawable(drawable);
+                }
+            }
+        );
     }
     // ...
 }
