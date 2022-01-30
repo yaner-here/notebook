@@ -2765,6 +2765,311 @@ public class PhotoGalleryFragment extends Fragment {
                 }
             }
         );
+        mThumbnailDownloader.start();
+        mThumbnailDownloader.getLooper();
+        Log.i(TAG,"Background thread started.");
+    }
+    // ...
+}
+```
+
+这里定义的`mResponseHandler`是在主线程的`onCreate(...)`方法中创建的，所以会自动关联到主线程的`Looper`上。`Handler.post(Runnable)`可用于发布`Message`：
+
+```java
+public class ThumbnailDownloader<T> extends HandlerThread {
+    // ...
+    private void handleRequest(final T target){
+        try{
+            final String url = mRequestMap.get(target);
+            if(url == null){
+                return;
+            }else{
+                byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
+                final Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapBytes,0,bitmapBytes.length);
+                
+                mResponseHandler.post(new Runnable{
+                    @Override public void run(){
+                        if(mRequestMap.get(target) != url || mHasQuit){
+                            return;
+                        }else{
+                            mRequestMap.remove(target);
+                            mThumbnailDownloadListener.onThumbnailDownloaded(target,bitmap);
+                        }
+                    }
+                });
+            }
+        }catch(IOException ioException){
+            Log.e(TAG,"Error downloading image",ioException);
+        }
+    }
+    // ...
+}
+```
+
+再新建一个方法，用于清除队列中的所有请求：
+
+```java
+public class ThumbnailDownloader<T> extends HandlerThread {
+    // ...
+    public void clearQueue(){
+        mRequestHandler.removeMessaged(MESSAGE_DOWNLOADED);
+        mRequestMap.clear();
+    }
+    // ...
+}
+```
+
+然后在`PhotoGalleryFragment`类中调用该方法：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onDestroyView(){
+        super.onDestroyView();
+        mThumbnailDownloader.clearQueue();
+    }
+    // ...
+}
+```
+
+### §1.5.8 SearchView
+
+`SreachView`是Android SDK自带的组件，可以实现搜索功能。
+
+搜索功能自然会涉及到API，我们先重构一下API：
+
+```java
+public class FlickrFetchr {
+    // ...
+    private static final String FETCH_RECENTS_METHOD = "flickr.photos.getRecent";
+	private static final String SEARCH_METHOD = "flickr.photos.search";
+    private static final Uri ENDPOINT = Uri.parse("https://api.flickr.com/services/rest")
+        .buildUpon()
+        .appendQueryParameter("api_key",API_KEY)
+        .appendQueryParameter("format","json")
+        .appendQueryParameter("nojsoncallback","1")
+        .appendQueryParameter("extras","url_s")
+        .build();
+}
+```
+
+重写`FlickrFetchr`中的`fetchItems()`方法：
+
+```java
+public class FlickrFetchr {
+    // ...
+    public List<GalleryItem> downloadGalleryItems(String url){
+        List<GalleryItem> items = new ArrayList<>();
+        try {
+            String jsonString = getUrlString(url);
+            Log.i(TAG,"Received JSON: " + jsonString);
+            JSONObject jsonBody = new JSONObject(jsonString);
+            parseItems(items,jsonBody);
+        }catch (IOException ioException){
+            Log.e(TAG,"Failed to fetch items",ioException);
+        }catch (JSONException jsonException){
+            Log.e(TAG,"Failed to parse JSON");
+        }
+        return items;
+    }
+    public String buildUrl(String method,String query){
+        Uri.Builder uriBuilder = ENDPOINT.buildUpon()
+                .appendQueryParameter("method",method);
+        if(method.equals(SEARCH_METHOD)){
+            uriBuilder.appendQueryParameter("text",query);
+        }
+        return uriBuilder.build().toString();
+    }
+    public List<GalleryItem> fetchRecentPhotos() {
+        String url = buildUrl(FETCH_RECENTS_METHOD,null);
+        return downloadGalleryItems(url);
+    }
+    public List<GalleryItem> fetchPhotos(String query) {
+        String url = buildUrl(SEARCH_METHOD,query);
+        return downloadGalleryItems(url);
+    }
+    // ...
+}
+```
+
+接着更改`PhotoGalleryFragment`中相应的调用方法：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    private class FetchItemsTask extends AsyncTask<Void,Void,List<GalleryItem>> {
+        @Override protected List<GalleryItem> doInBackground(Void... params) {
+        	//硬编码用于测试
+            String query = "robot";
+            if(query == null){
+                return new FlickrFetchr().fetchRecentPhotos();
+            }else{
+                return new FlickrFetchr.searchPhotos(query);
+            }
+        }
+        // ...
+    }
+    // ...
+}
+```
+
+搜索功能已经完成，现在需要创建相应的搜索界面：
+
+```xml
+<!-- string.xml -->
+<resources>
+	<!-- ... -->
+    <string name="search">Search</string>
+    <string name="clear_search">Clear Search</string>
+    <!-- ... -->
+</resources>
+```
+
+```xml
+<!-- res/menu/fragment_photo_gallery.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/menu_item_search"
+        android:title="@string/search"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/menu_item_clear"
+        android:title="@string/clear_search"
+        app:showAsAction="never" />
+</menu>
+```
+
+在`PhotoGalleryFragment`类中启用菜单：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setRetainInstance(true);
+        setHasOptionsMenu(true);
+        updateItems();
+        // ...
+    }
+    // ...
+    @Override void onCreateOptionsMenu(Menu menu, MenuInflater menuInflater){
+        super.onCreateOptionsMenu(menu,menuInflater);
+        menuInflater.inflate(R.menu.fragment_photo_gallery,menu);
+    	MenuItem searchItem = menu.findItem(R.id.menu_item_search);
+        final SearchView searchView = (searchView) searchItem.getActionView();
+    	searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener(){
+            @Override public boolean onQueryTextSubmit(String query) {
+                Log.d(TAG,"QueryTextSubmit: " + query);
+                updateItems();
+                return true;
+            }
+            @Override public boolean onQueryTextChange(String newText) {
+                Log.d(TAG,"QueryTextChange: " + newText);
+                return false;
+            };
+        });
+    }
+    private void updateItems(){
+        new FetchItemsTask().execute();
+    }
+    // ...
+}
+```
+
+`onCreateOptionsMenu(...)`方法先将整个菜单实例化成`MenuItem`实例并存储于`searchItem`字段中，然后利用`(SearchView) MenuItem.getActionView()`得到相应的`SearchView`实例`searchView`，并为其设置监听器`setOnQueryTextListener()`。
+
+为了保存和查询搜索历史记录，新建一个`QueryPreferences`类，通过`Shared Preferences`这一机制来实现该功能：
+
+```java
+package com.example.photogallery;
+
+import android.content.Context;
+import android.preference.PreferenceManager;
+
+public class QueryPreferences {
+    private static final String PREF_SEARCH_QUERY = "searchQuery";
+    public static String getStoredQuery(Context context){
+        return PreferenceManager.getDefaultSharedPreferences(context)
+                .getString(PREF_SEARCH_QUERY,null);
+    }
+    public static void setStoredQuery(Context context,String query){
+        PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putString(PREF_SEARCH_QUERY,query)
+                .apply();
+    }
+}
+```
+
+然后在`PhotoGalleryFragment`中调用该类：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onCreateOptionsMenu(Menu menu,MenuInflater menuInflater) {
+        // ...
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener(){
+            @Override public boolean onQueryTextSubmit(String query){
+                QueryPreferences.setStoredQuery(getActivity(),query);
+                // ...
+            }
+            // ...
+        });
+        // ...
+    }
+    @Override public boolean onOptionsItemSelected(MenuItem item){
+        switch(item.getItemId()){
+            case R.id.menu_item_clear:
+                QueryPreferences.setStoredQuery(getActivity,null);
+                updateItems();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+}
+```
+
+最后更新`FetchItemsTask`，查询字符串不再使用硬编码以供调试：
+
+```java
+public class PhotoGalleryFragment extends Fragment{
+    // ...
+    private void updateItems(){
+        String query = QueryPreferences.getStoredQuery(getActivity());
+        new FetchItemsTask(query).execute();
+    }
+    private class FetchItemsTask extends AsyncTask<Void,Void,List<GalleryItem>>{
+        private String mQuery;
+        public FetchItemsTask(String query){
+            mQuery = query;
+        }
+        @Override protected List<GalleryItem> doInBackground(Void... params){
+            if(mQuery == null)
+                // ...
+        }
+        // ...
+    }
+}
+```
+
+当点击搜索按钮时，文本框应该显示保存的字符串：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onCreateOptionsMenu(Menu menu,MenuInflater menuInflater){
+        // ...
+        searchView.setOnSearchClickListener(new View.OnClickListener(){
+        	@Override public void onClick(View v){
+                String query = QueryPreferences.getStoredQuery(getActivity());
+                searchView.setQuery(query,fa)
+            } 
+        });
+        // ...
     }
     // ...
 }
