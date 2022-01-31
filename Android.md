@@ -3066,10 +3066,341 @@ public class PhotoGalleryFragment extends Fragment {
         searchView.setOnSearchClickListener(new View.OnClickListener(){
         	@Override public void onClick(View v){
                 String query = QueryPreferences.getStoredQuery(getActivity());
-                searchView.setQuery(query,fa)
+                searchView.setQuery(query,false);
             } 
         });
         // ...
+    }
+    // ...
+}
+```
+
+### §1.5.9 `IntentService`
+
+目前为止，我们开发的所有应用都离不开`Activity`。如果不给用户提供界面，例如在后在下载图片，则可以使用`IntentService`来创建相应的服务。下面新建一个`IntentService`的子类`PollService`：
+
+```java
+public class PollService extends IntentService {
+    private static final String TAG = "PollService";
+    public static Intent newIntent(Context context){
+        return new Intent(context,PollService.class);
+    }
+    public PollService(){
+        super(TAG);
+    }
+    @Override protected void onHandleIntent(Intent intent){
+        Log.i(TAG,"Received an intent: " + intent);
+    }
+}
+
+```
+
+这是一个最基本的`IntentService`。首先，这是一个`Context`的子类`ContextWrapper`的子类`Service`的子类。然后，这个子类中自带`onHandleIntent(Intent)`，意味着该子类能够响应`Intent`实例。该方法将传入的`Intent`实例放入执行队列，依次执行相应的`onHandleIntent(Intent)`方法，执行完毕以后对应的`Intent`实例就被销毁，当执行队列中的所有`Intent`实例均被销毁后，`IntentService`也会随之销毁。
+
+创建的服务必须在`AndroidManifest.xml`中声明：
+
+```xml
+<manifest>
+	<!-- ... -->
+    <application>
+    	<!-- ... -->
+        <service android:name=".PollService"/>
+    </application>
+</manifest>
+```
+
+添加服务启动代码：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+        // ...
+        Intent i = PollService.newIntent(getActivity());
+        getActivity().startService(i);
+    }
+}
+```
+
+此时运行APP，可以在Logcat中看到服务创建成功的日志：
+
+```logcat
+2022-01-30 23:24:41.298 3895-3944/com.example.photogallery I/PollService: Received an intent: Intent { cmp=com.example.photogallery/.PollService }
+```
+
+为保证后台网络连接的安全性，我们需要使用`ConnectivityManager`类来确定网络连接是否可用：
+
+```java
+public class PollService extends IntentService {
+    // ...
+    @Override protected void onHandleIntent(Intent intent){
+        if(!isNetworkAvailableAndConnected()){
+            return;
+        }else{
+            Log.i(TAG,"Received an intent: " + intent);
+        }
+    }
+    private boolean isNetworkAvailableAndConnected(){
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        boolean isNetworkConnected =
+                (connectivityManager.getActiveNetworkInfo() != null) && (connectivityManager.getActiveNetworkInfo().isConnected());
+        return isNetworkConnected;
+    }
+}
+```
+
+与此同时还要在`AndroidManifest.xml`中申请`ACCESS_NETWORK_STATE`权限：
+
+```xml
+<manifest>
+	<!-- ... -->
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+	<!-- ... -->
+</manifest>
+```
+
+将后台服务最近一次的查询结果保存在Shared Preferences中：
+
+```java
+public class QueryPreferences {
+    // ...
+    private static final String PREF_LAST_RESULT_ID = "lastResultId";
+    // ...
+    public static String getLastResultId(Context context){
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getString(PREF_LAST_RESULT_ID,null);
+    }
+    public static void setLastResultId(Context context,String lastResultId){
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putString(PREF_LAST_RESULT_ID,lastResultId)
+            .apply();
+    }
+}
+```
+
+后台服务需要实现以下功能：
+
+- 从默认Shared Preferences中获取当前查询结果和上一次查询结果ID
+- 调用FlickrFetchr类获取最新查询结果
+- 如果有结果返回，则抓取第一条结果
+- 确认是否不同于上一次结果ID
+- 将第一条结果存入Shared Preferences
+
+代码如下：
+
+```java
+public class PollService extends IntentService {
+    // ...
+    @Override protected void onHandleIntent(Intent intent){
+        // ...
+        Log.i(TAG,"Received an intent: " + intent);
+        String query = QueryPreferences.getStoredQuery(this);
+        String lastResultId = QueryPreferences.getLastResultId(this);
+        List<GalleryItem> items;
+        if(query == null)
+        	{items = new FlickrFetchr().fetchRecentPhotos();}
+        else
+        	{items = new FlickrFetchr().searchPhotos(query);}
+        if(items.size() == 0)
+        	{return;}
+        else
+        	{
+            	String resultId = items.get(0).getId();
+            	if(resultId.equals(lastResultId))
+                	{Log.i(TAG,"Got an old result: " + resultId);}
+            	else
+                	{Log.i(TAG,"Got a new result: " + resultId);}
+            	QueryPreferences.setLastResultId(this,resultId);
+        	}
+    }
+    // ...
+}
+```
+
+### §1.5.10 `AlarmManager`
+
+现在我们的服务已经初具雏形，但是仍然不具备“后台”这个特点。因为要运行`PollService`服务，就必须保证`PhotoGalleryFragment.onCreate(...)`方法被调用，即必须存在一个`PhotoGalleryFragment`实例，而该实例只能由`PhotoGalleryActivity`创建——总而言之，当前的服务必须依赖于`Activity`的存在才能存在。
+
+如何在没有`Activity`运行的情况下，实现真正的“后台”服务呢？
+
+- 在`Handler.sendMessageDelayed(...)`或`Handler.postDelayed(...)`中调用
+
+  这种方法的缺点是，服务仍然没有摆脱对`Activity`的依赖。因为用户离开当前应用时，主进程就会停止，其附着的一系列`Handler`也会随之销毁，相当于`IntentService`以来`Handler`，`Handler`依赖`Activity`，相当于`IntentService`仍然依赖着`Activity`。
+
+- 调用`AlarmManager`
+
+  `AlarmManager`是系统服务，用于发送由`PendingIntent`的打包的`Intent`。
+
+```java
+public class PollService extends IntentService {
+    // ...
+    private static final long POLL_INTERVAL_MS =
+        TimeUnit.MINUTES.toMillis(1);
+    // ...
+    public static void setServiceAlarm(Context context,boolean isOn){
+        Intent intent = PollService.newIntent(context);
+        PendingIntent pendingIntent = PendingIntent.getService(
+            context,
+            0,
+            intent,
+            0);
+        
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if(isOn){
+            alarmManager.setRepeating(
+                    AlarmManager.ELAPSED_REALTIME,
+                    SystemClock.elapsedRealtime(),
+                    POLL_INTERVAL_MS,
+                    pendingIntent);
+        }else{
+            alarmManager.cancel(pendingIntent);
+            pendingIntent.cancel();
+        }
+    }
+    // ...
+}
+```
+
+`PendingIntent.getSerivce(...)`返回一个`PendingIntent`实例。在本例中，该实例用于启动`PollService`。该方法有四个参数：
+
+- `Context context`：将传入的`Context`实例进行打包，打包到这个`PendingIntent`实例中
+- `int requestCode`：用于标识`PendingIntent`实例来源
+- `@NonNull Intent intent`：待发送的`Intent`对象
+- `@Flags int flags`：指定创建`PendingIntent`使用的方法标志符
+
+设置定时器可调用`AlarmManager.setRepeating(...)`方法，该方法同样包括四个参数：
+
+- `@AlarmType int type`：指定定时器时间基准的常量
+
+  本例中我们使用的是`AlarmManager.ELAPSED_REALTIME`，即定时器使用的时间基准是由`SystemClock.elapsedRealtime()`方法走过的时间确定的。
+
+- `long triggerAtMillis`：定时器启动的时间
+
+- `long intervalMillis`：定时器循环的时间间隔
+
+- `PendingIntent operation`：到时要发送的`PendingIntent`实例
+
+取消定时器可调用`AlarmManager.cancel(PendingIntent)`方法。
+
+现在我们终于可以删除依赖于`Activity`的服务代码，转而使用依赖于系统服务`AlarmManager`的后台服务了：
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+        // ...
+        updateItems();
+        
+        PollService.setServiceAlarm(getActivity(),true);
+        
+        Handler responseHandler = new Handler();
+        // ...
+    }
+    // ...
+}
+```
+
+`AlarmManager`是系统服务，如果一个恶意服务：
+
+- 寄存于`AlarmManager`
+- 永不调用`alarmManager.cancel(pendingIntent)`和`pendingIntent.cancel()`以销毁服务
+- 设置定时器定期启动服务（即使服务已经启动）
+
+这个恶意服务将永远运行下去，从而造成极大的电量消耗和流量开支。除此之外，每一次启动服务都会导致设备被唤醒。要彻底清除这种定时自动启动的服务，只能卸载相应的APP。
+
+因此，我们需要限制服务启动的频度。现有的解决方案有：
+
+- 非精准重复
+
+  在本例中，我们调用`AlarmManager.setRepeating(...)`调用`AlarmManager.ELAPSED_REALTIME`常量设置了一个精确的一分钟计时器。如果该Android系统上运行着$10$个类似的不同时间启动的服务，那么一个小时内设备就会被唤醒$600$次，这是一个非常恐怖的频率。事实上，该方法也可以设置一个非精准的重复值，使得这些服务即使不是在同一时间启动的，也能保证屏幕一小时内只被唤醒`60`次。
+
+  - `AlarmManager.ELAPSED_REALTIME`使用最近一次屏幕被亮起的时间开始计时
+  - `AlarmManager.RTC`使用UTC时间，但是没有考虑失去的影响
+
+  以上的常量有一个特性：如果屏幕处于黑屏状态，那么即使已经到时间了，定时器也不会被触发。以下的常量没有该限制：
+
+  - `AlarmManager.ELAPSED_REALTIME_WAKEUP`
+  - `AlarmManager.RTC_WAKEUP`
+
+### §1.5.11 再探`PendingIntent`
+
+我们已经知道，`AlarmManager`是系统服务，用于发送由`PendingIntent`的打包的`Intent`。实质上，`PendingIntent`是从`Object`直接延伸出的子类。
+
+`PendingIntent.getService(...)`方法返回一个`PendingIntent`实例。值得注意的是,该`Intent`实例对应的`PendingIntent`实例是由Android主线程创建的，APP中同一个`Intent`中得到的实例只是该实例的一个指针副本。因此可以借此测试某个`Intent`是否创建过`PendingIntent`，或者将其撤销。撤销时首先调用`AlarmManager.cancel(PendingIntent)`撤销该`PendingIntent`实例的计时器，然后再销毁该`PendingIntent`实例。一个`PendingIntent`只能登记一个定时器。
+
+综上所述，我们可以通过检测`PendingIntent`实例是否存在，来推断定时器是否激活：
+
+```java
+public class PollService extends IntentService {
+    // ...
+    public static boolean isServiceAlarmOn(Context context){
+        Intent intent = PollService.newIntent(context);
+        PendingIntent pendingIntent = PendingIntent.getService(
+        	context,
+        	0,
+        	intent
+        	PendingIntent.FLAG_NO_CREATE);
+        return pendingIntent != null;
+    }
+    // ...
+}
+```
+
+既然现在可以通过销毁`PendingIntent`实例来停止计时器，也可以通过`PendingIntent`实例的指针引用特性来判断计时器是否运行，我们就可以不用非得在`PhotoHalleryFragment.onCreate(...)`中强制启动后台服务，而是在图形界面里控制定时器的开关：
+
+```xml
+<!-- res/values/strings.xml -->
+<resources>
+	<!-- ... -->
+    <string name="start_polling">Start Polling</string>
+    <string name="stop_polling">Stop Polling</string>
+    <string name="new_pictures_title">New PhotoGallery Pictures</string>
+    <string name="new_pictures_text">You have new pictures in PhotoGallery.</string>
+</resources>
+```
+
+```xml
+<!-- menu/fragment_photo_gallery.xml -->
+<menu>
+	<!-- ... -->
+    <item
+        android:id="@+id/menu_item_toggle_polling"
+        android:title="@string/start_polling"
+        app:showAsAction="ifRoom"/>
+</menu>
+```
+
+```java
+public class PhotoGalleryFragment extends Fragment {
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+        // ...
+        updateItems();
+        // 删除PollService.setServiceAlarm(getActivity(),true);
+        Handler responseHandler = new Handler();
+        // ...
+    }
+    @Override public void onOptionsItemSelected(MenuItem item){
+        switch (item.getItemId()){
+            case R.id.menu_item_clear:
+                // ...
+            case R.id.menu_item_toggle_polling:
+                boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
+                PollService.setServiceAlarm(getActivity(),shouldStartAlarm);
+                return true;
+            default:
+                // ...
+        }
+    }
+    @Override public void onCreateOptionsMenu(Menu menu,MenuInflater menuInflater){
+        // ...
+        MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
+        if(PollService.isServiceAlarmOn(getActivity())){
+            toggleItem.setTitle(R.string.stop_polling);
+        }else{
+            toggleItem.setTitle(R.string.start_polling);
+        }
     }
     // ...
 }
