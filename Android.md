@@ -3406,6 +3406,332 @@ public class PhotoGalleryFragment extends Fragment {
 }
 ```
 
+还有一个问题，我们点击Start Polling按钮时，按钮的文字并没有向我们预期的那样变成Stop Polling，这是因为菜单不像其他组件那样可以自动更新UI。因此，我们需要手动调用更新方法：
+
+```java
+public class PhotoGalleryFragement extends Fragment {
+    // ...
+    @Override public boolean onOptionsItemSelected(MenuItem item){
+        switch(item.getItemId()){
+            case R.id.menu_item_clear:
+                // ...
+            case R.id.menu_item_toggle_polling:
+                //...
+                getActivity().invalidateOptionsMenu();
+                return true;
+            default:
+                // ...
+        }
+    }
+    // ...
+}
+```
+
+### §1.5.12 `Notification`
+
+我们知道，XML布局文件中的组件通过`Fragment`和`Activity`与用户进行交互，同理`IntentService`也可以通过`Notification`与用户进行交互。一个完整的`Notification`对象包括以下内容：
+
+- Lollopop之前的设备在状态栏上显示的`ticker text`
+- 在状态栏上显示的图标
+- 通信信息自身的视图
+- 等待用于点击通知以触发的`PendingIntent`
+
+首先添加一个方法，返回一个用于启动`PhotoGalleryActivity`的`Intent`实例：
+
+```java
+public class PhotoGalleryActivity extends SingleFragmentActivity{
+    public static Intent newIntent(Context context){
+        return new Intent(context,PhotoGalleryActivity.class);
+    }
+    // ...
+}
+```
+
+```java
+public class PollService extends IntentService {
+    // ...
+    @Override protected void onHandleIntent(Intent intent){
+        // ...
+        if(items.size() == 0){
+            return;
+        }else{
+            String resultId = items.get(0).getId();
+            if(resultId.equals(lastResultId)){
+                Log.i(TAG,"Got an old result: " + resultId);
+            }else{
+                Log.i(TAG,"Got a new result: " + resultId);
+                Resources resources = getResources();
+                Intent newIntent = PhotoGalleryActivity.newIntent(this);
+                PendingIntent pendingIntent = PendingIntent.getActivity(this,0,newIntent,0);
+                Notification notification = new NotificationCompat.Builder(this)
+                    // 设置ticker text
+                    .setTicker(resources.getString(R.string.new_pictures_title))
+                    // 设置小图标,使用Android Framework自带的资源
+                    .setSmallIcon(android.R.drawable.ic_menu_report_image)
+                    // 设置标题
+                    .setContentTitle(resources.getString(R.string.new_pictures_text))
+                    // 设置内容
+                    .setContentText(resources.getText(R.string.new_pictures_text))
+                    // 点击时触发的PendingIntent实例
+                    .setContentIntent(pendingIntent)
+                    // 点击该通知后自动从消息抽屉中删除
+                    .setAutoCancel(true)
+                    .build();
+                // 从当前Context实例中取出NotificationManagerCompat实例
+                NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+                // 贴出消息
+                notificationManager.notify(0,notification);
+            }
+            // ...
+        }
+    }
+    // ...
+}
+```
+
+> 注意：`NotificationManager.notify(@Nullable String tag,int id,@NonNull Notification notification)`中的参数`id`用于唯一地标识通知。如果重复调用相同语句两次，则第一次产生的通知就会被第二次产生的通知替换掉。在实际开发中，常常利用这种方法实现通知栏的动态视觉效果。
+
+服务的生命周期之间有以下回调方法：
+
+- `onCreate(...)`：创建服务时调用
+- `onStartCommand(Intent,int,int)`：组件通过`startService(Intent)`方法启动服务时调用。第一个`int`标识符用来表示`intent`的发送状态（重新发送/从未成功过的发送），第二个`int`启动ID用于区分不同的命令
+- `onDestroy(...)`：删除服务时调用
+
+### §1.5.13 `BroadcastIntentReceiver`
+
+除了自定义发送的`Intent`，Android系统也会发送`Intent`。例如WIFI切换、电话接听、短信收发、软件装卸，都会产生对应的事件，并向系统广播对应的`BroadcastIntent`实例。
+
+```mermaid
+flowchart TB
+	subgraph Intent ["Intent"]
+		PhotoGalleryOfIntent[PhotoGallery创建的组件]
+		AndroidOfIntent[Android的ActivityManager]
+		OtherApp[其他应用的任意组件]
+		PhotoGalleryOfIntent-->AndroidOfIntent-->OtherApp
+	end
+	subgraph BroadcastIntent ["BroadcastIntent"]
+		PhotoGalleryOfBroadcastIntent[PhotoGallery创建的组件]
+		AndroidOfBroadcastIntent[Android的ActivityManager]
+		OtherApp1[其他应用的任意组件]
+		OtherApp2[其他应用的任意组件]
+		OtherApp3[其他应用的任意组件]
+		OtherApp4[......]
+		PhotoGalleryOfBroadcastIntent-->AndroidOfBroadcastIntent
+		AndroidOfBroadcastIntent-->OtherApp1
+		AndroidOfBroadcastIntent-->OtherApp2
+		AndroidOfBroadcastIntent-->OtherApp3
+		AndroidOfBroadcastIntent-->OtherApp4
+	end
+```
+
+为了实现开启自动启动，我们需要在`AndroidManifest.xml`中添加用于监测BOOT是否完成的权限：
+
+```xml
+<manifest>
+	<!-- ... -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <application>
+    	<!-- .. -->
+        <receiver android:name=".StartupReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
+```
+
+创建一个BroadcastReceiver类：
+
+```java
+public class StartupReceiver extends BroadcastReceiver {
+    private static final String TAG = "StartupReceiver";
+    @Override public void onReceive(Context context, Intent intent){
+        Log.i(TAG,"Received broadcast intent: " + intent.getAction());
+    }
+}
+```
+
+现在`android.intent.action.BOOT_COMPLETED`已经绑定到了`.StartupService`这一`Receiver`。Android一旦产生`BOOT_COMPLETE`事件，就会调用`StartupReceiver.onReceive(...)`方法。
+
+`Receiver`需要知道定时器的启停状态，可以存储在`QueryPreferences`类中：
+
+```java
+public class QueryPreferences {
+    // ...
+    private static final String PREF_IS_ALARM_ON = "isAlarmOn";
+    // ...
+    public static boolean isAlarmOn(Context context){
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getBoolean(PREF_IS_ALARM_ON,false);
+    }
+    public static void setAlarmOn(Context context,boolean isOn){
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putBoolean(PREF_IS_ALARM_ON,isOn)
+            .apply();
+    }
+}
+```
+
+在`PollSerivce`服务中调用`QueryPreferences`类中新添的方法：
+
+```java
+public class PollService extends IntentService {
+    // ...
+    public static void serServiceAlarm(Context context,boolean isOn){
+        // ...
+        QueryPreferences.setAlarmOn(context,isOn);
+    }
+    // ...
+}
+```
+
+在`StartupReceiver`中启动定时器：
+
+```java
+public class StartupReceiver extends BroadcastReceiver{
+    // ...
+    @Override public void onReceive(Context context,Intent intent){
+        // ...
+        boolean isOn = QueryPreferences.isAlarmOn(context);
+        PollService.setServiceAlarm(context,ison);
+    }
+}
+```
+
+现在通知功能可以运作了，但是在APP前台也会运作，我们需要解决这个BUG：
+
+```java
+public class PollService extends IntentService {
+    // ...
+	private static final String ACTION_SHOW_NOTIFICATION = "com.example.photogallery.SHOW_NOTIFICATION";
+	// ...
+    @Override protected void onHandleIntent(Intent intent){
+        if(items.size() == 0){
+            return;
+        }else{
+            // ...
+            if(resultId.equals(lastResultId)){
+                // ...
+            }else{
+            	// ...
+                sendBroadcast(new Intent(ACTION_SHOW_NOTIFICATION));
+            }
+            // ...
+        }
+    }
+    // ...
+}
+```
+
+新建一个抽象类`VisibleFragment`：
+
+```java
+public abstract class VisibleFragment extends Fragment {
+    private BroadcastReceiver mOnShowNotification = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            Toast.makeText(
+                getActivity(),
+                "Got a broadcast:" + intent.getAction(),
+                Toast.LENGTH_LONG
+            ).show();
+        }
+    };
+    private static final String TAG = "VisibleFragment";
+    @Override public void onStart(){
+        super.onStart();
+        IntentFilter filter = new IntentFilter(PollService.ACTION_SHOW_NOTIFICATION);
+        getActivity().registerReceiver(mOnShowNotification,filter);
+
+    }
+    @Override public void onStop(){
+        super.onStop();
+        getActivity().unregisterReceiver(mOnShowNotification);
+    }
+}
+```
+
+接下来修改`PhotoGalleryFragment`类，使其继承与刚才新建的抽象类：
+
+```java
+public class PhotoGalleryFragment extends VisibleFragment {
+    // ...
+}
+```
+
+为了让其他APP不能监听并触发自己的`Receiver`，有以下两种方法：
+
+- 在`AndroidManifest.xml`中声明`<receiver>`的属性`android:exported`为`false`
+
+  ```xml
+  <resource>
+  	<!-- ... -->
+      <activity>
+      	<!-- ... -->
+          <receiver android:name=".StartupReceivver"
+                    android:exported="false">
+          	<!-- ... -->
+          </receiver>
+      </activity>
+  </resource>
+  ```
+
+- 在`AndroidManifest.xml`中声明私有权限
+
+  ```xml
+  <resource>
+  	<permission android:name="com.example.photogallery.PRIVATE"
+                  android:protectionLevel="signature"/>
+      <!-- ... -->
+      <uses-permission android:name="com.example.photogallery.PRIVATE"/>
+  	<!-- ... -->
+  </resource>
+  ```
+
+发送带有权限的`Broadcast`：
+
+```java
+public class PollService extends IntentService {
+    // ...
+    public static final String PREM_PRIVATE = "com.example.photogallery.PRIVATE";
+    // ...
+    @Override protected void onHandleIntent(Intent intent){
+        // ...
+        if(item.size() == 0){
+            return;
+        }else{
+            String resultId = items.get(0).getId();
+            if(resultId.equals(lastResultId)){
+                // ...
+            }else{
+                // ...
+                sendBroadcast(new Intent(ACTION_SHOW_NOTIFICATION),PERM_PRIVATE);
+            }
+        }
+    }
+    // ...
+}
+```
+
+接受带权限的`Broadcast`：
+
+```java
+public abstract class VisibleFragment extends Fragment {
+    // ...
+    @Override public void onStart(){
+        // ...
+        getActivity().registerReceiver(
+            mOnShowNotification,
+            filter,
+            PollService.PERM_PRIVATE,
+            null
+        );
+    }
+    // ...
+}
+```
+
 
 
 # §3 日志与调试
