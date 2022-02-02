@@ -3688,6 +3688,15 @@ public class PhotoGalleryFragment extends VisibleFragment {
   	<!-- ... -->
   </resource>
   ```
+  
+  > 要自定义权限，就必须指定`android:protectionLevel`指定安全级别。该属性有可选值如下：
+  >
+  > | `android:protectionLevel`可选值 | 用法                                                         |
+  > | ------------------------------- | ------------------------------------------------------------ |
+  > | `normal`                        | 用于阻止应用执行危险操作（访问个人隐私数据、位置信息、发送短信等），单用户不会被明确要求给予授权。 |
+  > | `dangerous`                     | 用于除`normal`之外的其他所有危险操作，从`Marshmallow`开始，从`Marshmallow`该版本开始，该安全等级的权限都需要调用`requestPermission(...)`方法明确要求用户授权。 |
+  > | `signature`                     | 只有当应用签署了与被声明应用一致的安全证书时，才授予在被声明应用中的相应权限，反之则拒绝，整个过程不会明确提示用户授权成功或失败的信息。 |
+  > | `signatureOrSystem`             | 只有当应用签署了与被声明应用一致的安全证书时，才授予在Android系统镜像涵盖的所有包中的所有权限，反之则拒绝，整个过程不会明确提示用户授权成功或失败的信息。 |
 
 发送带有权限的`Broadcast`：
 
@@ -3732,7 +3741,290 @@ public abstract class VisibleFragment extends Fragment {
 }
 ```
 
+我们知道，主线程是线性运行的，这就导致了一个被发送的`BroadcastIntent`不可能同时被多个`Receiver`接受，我们无法预测到底哪个`Receiver`会首先做出响应，这种过程被称为无序`BroadcastIntent`通信。虽然不能在理论上实现并行，但是我们可以使用有序`BroadcastIntent`双向通信来规定`Receiver`接受的顺序，从而在一定程度上解决该弊端。
 
+修改`VisibleFragment`类，告诉`SHOW_NOTIFICATION`的发送方如何处置该通知消息：
+
+```java
+public abstract class VisibleFragment extends Fragment {
+    // ...
+    private BroadcaseReceiver = mOnShowNotification = new BroadcastReceiver(){
+        @Override public void onReceive(Context context,Intent intent){
+            Log.i(TAG,"Cancel notification.");
+            setResultCode(Activity.RESULT_CANCELED);
+        }
+    }
+	// ...
+}
+```
+
+在`PollService`服务中有序发送`BroadcastIntent`：
+
+```java
+public class PollService extends IntentService {
+    // ...
+    public static final String REQUEST_CODE = "REQUEST_CODE";
+    public static final String NOTIFICATION = "NOTIFICATION";
+    // ...
+    @Override protected void onHandleIntent(Intent intent){
+        // ..
+        if(items.size() == 0){
+            return;
+        }else{
+            String resultId = items.get(0).getId();
+            if(resultId.equals(lastResultId)){
+                // ...
+            }else{
+                // ...
+                Notification notification = new NotificationCompat.Builder(this)
+                        .setTicker(resources.getString(R.string.new_pictures_title))
+                        .setSmallIcon(android.R.drawable.ic_menu_report_image)
+                        .setContentTitle(resources.getString(R.string.new_pictures_text))
+                        .setContentText(resources.getText(R.string.new_pictures_text))
+                        .setContentIntent(pendingIntent)
+                        .setAutoCancel(true)
+                        .build();
+                showBackgroundNotification(0,notification);
+            }
+            QueryPreferences.setLastResultId(this,resultId);
+        }
+    }
+    private void showBackgroundNotification(int requestCode,Notification notification){
+        Intent intent = new Intent(ACTION_SHOW_NOTIFICATION);
+        intent.putExtra(REQUEST_CODE,requestCode).putExtra(NOTIFICATION,notification);
+        sendOrderedBroadcast(
+                intent, // sendBroadcast(Intent)
+                PERM_PRIVATE, //sendBroadcast(String)
+                null, // result receiver
+                null, // 支持result receiver和Handler
+                Activity.RESULT_OK, // 结果代码初始值
+                null, // 结果数据
+                null // 有序broadcast的结果附加内容
+        );
+    }
+    // ...
+}
+```
+
+创建一个用于接收的类：
+
+```java
+public class NotificationReceiver extends BroadcastReceiver {
+    private static final String TAG = "NotificationReceiver";
+    @Override public void onReceive(Context context, Intent intent){
+        Log.i(TAG,"received result: " + getResultCode());
+        if (getResultCode() != Activity.RESULT_OK){
+            // A foreground activity cancelled the broadcast
+            return;
+        }
+        int requestCode = intent.getIntExtra(PollService.REQUEST_CODE,0);
+        Notification notification = (Notification) intent.getParcelableExtra(PollService.NOTIFICATION);
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+        notificationManager.notify(requestCode,notification);
+    }
+}
+```
+
+```xml
+<!-- AndroidManifest.xml -->
+<manifest>
+	<!-- ... -->
+    <application>
+    	<!-- ... -->
+        <receiver android:name=".NotificationReceiver"
+                  android:exported:"false">
+        	<intent-filter android:priority="-999">
+            	<action android:name="com.example.photogallery.SHOW_NOTIFICATION"/>
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
+```
+
+### §1.5.14 `WebView`
+
+下面通过`WebView`实现点击图片跳转至对应页面的效果。
+
+注意到API返回的JSON结果中并没有直接给出链接，这需要我们手动生成链接：
+
+```java
+public class GalleryItem{
+    // ...
+    private String mOwner;
+    // ...
+    public String getOwner(){
+        return mOwner;
+    }
+    public void setOwner(String owner){
+        mOwner = owner
+    }
+    public Uri getPhotoPageUri(){
+        return Uri.parse("http://www.flickr.com/photos")
+            .buildUpon()
+            .appendPath(mOwner)
+            .appendPath(mId)
+            .build();
+    }
+}
+```
+
+```java
+public class FlickrFetchr {
+    // ...
+    private void parseItems(List<GalleryItem> items,JSONObject jsonBody) throws IOException,JSONException{
+        // ...
+        for(int i=0;i<photoJsonArray.length();i++){
+            // ...
+            if(!photoJsonObject.has("url_s")){
+                continue;
+            }else{
+                item.setUrl(photoJsonObject.getString("url_s"));
+                item.setOwner(photoJsonObject.getString("owner"));
+            }
+            items.add(item);
+        }
+    }
+    // ...
+}
+```
+
+```java
+public class PhotoGalleryFragment extends VisibleFragment {
+    // ...
+    private class PhotoHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+        // ...
+        private GalleryItem mGalleryItem;
+        public PhotoHolder(View itemView){
+            super(itemView);
+            mItemImageView = (ImageView) itemView.findViewById(R.id.item_image_view);
+            itemView.setOnClickListener(this);
+        }
+        // ...
+        public void bindGalleryItem(GalleryItem galleryItem){
+            mGalleryItem = galleryItem;
+        }
+        @Override public void onClick(View v){
+            Intent intent = new Intent(Intent.ACTION_VIEW,mGalleryItem.getPhotoPageUri());
+            startActivity(intent);
+        }
+    }
+    public class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder>{
+        // ...
+        @Override public void onBindViewHolder(PhotoHolder photoHolder,int position){
+            photoHolder.bindGalleryItem(galleryItem);
+            // ...
+        }
+        // ...
+    }
+    // ...
+}
+```
+
+这种弹出浏览器的方式虽然简单，但是操作体验不好，接下来我们用`WebView`实现内嵌网页。
+
+新建包含`WebView`的XML布局文件：
+
+```xml
+<!-- fragment_photo_page.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <WebView
+        android:id="@+id/web_view"
+        android:layout_width="409dp"
+        android:layout_height="729dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
+添加对应的`PhotoPageActivity`类和`PhotoPageFragment`类：
+
+```java
+public class PhotoPageFragment extends VisibleFragment{
+    private static final String ARG_URI = "photo_page_url";
+    private Uri mUri;
+    private WebView mWebView;
+    public static PhotoPageFragment newInstance(Uri uri){
+        Bundle args = new Bundle();
+        args.putParcelable(ARG_URI,uri);
+        PhotoPageFragment fragment = new PhotoPageFragment();
+        fragment.setArguments(args);
+        return fragment;
+    }
+    @Override public void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+    }
+    @Override public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
+        View v = inflater.inflate(R.layout.fragment_photo_page,container,false);
+        mWebView = (WebView) v.findViewById(R.id.web_view);
+        return v;
+    }
+}
+```
+
+```java
+public class PhotoPageActivity extends SingleFragmentActivity{
+    public static Intent newIntent(Context context, Uri photoPageUri){
+        Intent intent = new Intent(context,PhotoPageActivity.class);
+        intent.setData(photoPageUri);
+        return intent;
+    }
+    @Override protected Fragment createFragment(){
+        return PhotoPageFragment.newInstance(getIntent().getData());
+    }
+}
+```
+
+回到`PhotoGalleryFragment`类，弃用原来的隐式`intent`，改用新建的`Activity`：
+
+```java
+public class PhotoGalleryFragment extends VisibleFragment {
+    // ...
+    private class PhotoHolder extends RecyclerView.ViewHolder implements View.onClickListener{
+        // ...
+        @Override public void onClick(View v){
+            /*  弃用隐式intent
+             *  Intent intnet = new Intent(
+             *  	Intent.ACTION_VIEW,
+             *		mGalleryItem.getPhotoPageUri()
+             *	);
+            */
+            Intent intent = PhotoPageActivity.newIntent(
+            	getActivity(),
+                mGalleryItem.getPhotoPageUri()
+            );
+            startActivity(intent);
+        }
+    }
+    // ...
+}
+```
+
+然后在`AndroidManifest.xml`中声明新建的`Activity`：
+
+```xml
+<manifest>
+	<!-- ... -->
+    <application>
+        <!-- ... -->
+		<activity android:name=".PhotoPageActivity"/>
+        <!-- ... -->
+    </application>
+</manifest>
+```
+
+要让`WebView`正常显示网页，必须满足以下条件：
+
+- 告诉`WebView`要打开的URL
+- 启用`JavaScript`，使用`@SuppressLint("setJavaScriptEnabled")`来忽略Android Lint的警告。
+- 
 
 # §3 日志与调试
 
