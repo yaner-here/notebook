@@ -1612,7 +1612,9 @@ public class CrimePagerActivity extends AppCompatActivity {
         // 设置CrimePagerActivity的XML布局
         setContentView(R.layout.activity_crime_pager);
         // 将XML布局中的根标签<ViewPager>绑定在mViewPager变量上
-        mViewPager = (ViewPager) findViewById(R.id.activity_crime_view_pager);
+        mViewPager = (ViewPager) findViewById(R.id.crime_view_pager);
+        // 获取对应的List<Crime>
+        mCrimes = CrimeLab.get(this).getCrimes();
         // 获取当前Fragment的托管容器的管理器(FragmentManager)
         FragmentManager fragmentManager = getSupportFragmentManager();
         // 将mViewPager绑定一个FragmentStatePagerAdapter实例
@@ -1655,7 +1657,9 @@ public class CrimeListFragment extends Fragment {
     private class CrimeHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
         // ...
         @Override public void onClick(View view){
-            Intent intent = CrimePagerActivity.newIntent(getActivity(),mCime.getId());
+            // Intent intent = CrimeActivity.newIntent(getActivity(),mCrime.getId());
+        	Intent intent = CrimePagerActivity.newIntent(getActivity(),mCrime.getId());
+        	startActivity(intent);
         }
         // ...
     }
@@ -1677,11 +1681,253 @@ public class CrimeListFragment extends Fragment {
 </manifest>
 ```
 
-再删除`CrimeP`
+再删除`CrimePagerActivity`中启动的`Intent`实例：
 
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    private class CrimeHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+    	// ...
+    	@Override public void onClick(View view){
+            // Intent intent = CrimeActivity.newIntent(getActivity(),mCrime.getId());
+        	Intent intent = CrimePagerActivity.newIntent(getActivity(),mCrime.getId());
+        	startActivity(intent);
+        }
+    	// ...
+	}
+    // ...
+}
+```
 
+`ViewPager`默认只显示第一个`crime`的明细，因此点击任意项都会跳转到第一个`crime`的明细页面，所以我们需要利用`ViewPager.setCurrentItem()`方法来进一步指定是哪个`crime`：
 
+```java
+public class CrimePagerActivity extends AppCompatActivity{
+    // ...
+    @Override protected void onCreate(Bundle savedInstanceState){
+        // ...
+        for(int i=0;i<mCrimes.size();i++){
+            if(mCrimes.get(i).getId().equals(crimeId)){
+                mViewPager.setCurrentItem(i);
+                break;
+            }
+        }
+    }
+    // ...
+}
+```
 
+### §1.2.7 对话框
+
+引入字符串资源：
+
+```xml
+<resources>
+	<!-- ... -->
+    <string name="date_picker_title">犯罪日期</string>
+</resources>
+```
+
+创建用于选择日期的新类`DatePickerFragment`：
+
+```java
+public class DatePickerFragment extends DialogFragment {
+    @Override public Dialog onCreateDialog(Bundle savedInstanceState){
+        		// 根据传入的Context创建一个AlertDialog.Builder实例
+        return new AlertDialog.Builder(getActivity())
+            	// 设置标题
+                .setTitle(R.string.date_picker_title)
+                // 设置确定按钮的监听器(现为null,待实现)
+            	.setPositiveButton(android.R.string.ok,null)
+                // 返回配置完成的AlertDialog实例
+            	.create();
+    }
+}
+```
+
+在`CrimeFragment`中进行调用：
+
+```java
+public class CrimeFragment extends Fragment {
+    // ...
+    private static final String DIALOG_DATE = "DialogDate";
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        // mDateButton.setEnabled(false);
+        mDateButton.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(View v){
+                FragmentManager manager = getFragmentManager();
+                DatePickerFragment dialog = new DatePickerFragment();
+                dialog.show(manager,DIALOG_DATE);
+            }
+        })
+    }
+    // ...
+}
+```
+
+给对话框创建视图：
+
+```xml
+<!-- dialog_date.xml -->
+<DatePicker xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:id="@+id/dialog_date_picker"
+    android:calendarViewShown="false">
+</DatePicker>
+```
+
+给对话框绑定视图：
+
+```java
+public class DatePickerFragment extends DialogFragment {
+    @Override public Dialog onCreateDialog(Bundle savedInstanceState){
+        View v = LayoutInflater.from(getActivity()).inflate(R.layout.dialog_date,null);
+        return new AlertDialog.Builder(getActivity())
+                .setView(v)
+				// ...
+    }
+}
+```
+
+### §1.2.8 `Fragment`之间的数据传递
+
+```mermaid
+flowchart LR
+	CrimeFragment--"显示的日期"-->DatePickerFragment
+	DatePickerFragment--"用户所选日期"-->CrimeFragment
+```
+
+```mermaid
+sequenceDiagram
+	Crime->>CrimeFragment:mCrime.getDate()
+	CrimeFragment->>DatePickerFragment:newInstance(Date)
+	DatePickerFragment->>CrimeFragment:onActivityResult(...)
+	CrimeFragment->>Crime:mCrimes.setDate(...)
+```
+
+在`DatePickerFragment`中创建用于传递数据的`Bundle`：
+
+```java
+public class DatePickerFragment extends DialogFragment{
+    private static final String ARG_DATE = "date";
+    private DatePicker mDatePicker;
+    public static DatePickerFragment newInstance(Date date){
+        Bundle args = new Bundle();
+        args.putSerializable(ARG_DATE,date);
+        DatePickerFragment datePickerFragment = new DatePickerFragment();
+        datePickerFragment.setArguments(args);
+        return datePickerFragment;
+    }
+    // ...
+}
+```
+
+在`CrimeFragment`中使用刚才定义的新方法来返回`DatePickerFragment`实例：
+
+```java
+public class CrimeFragment extends Fragment {
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        mDateButton.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(View v){
+                FragmentManager manager = getFragmentManager();
+                // DatePickerFragment dialog = new DatePickerFragment();
+                DatePickerFragment dialog = DatePickerFragment.newInstance(mCrime.getDate());
+            }
+        });
+        // ...
+    }
+    // ...
+}
+```
+
+`DatePickerFragment`根据传入的`Date`对象来初始化，我们还需要获得其具体的年月日：
+
+```java
+public class DatePickerFragment extends DialogFragment {
+    // ...
+    @Override public Dialog onCreateDialog(Bundle savedInstanceState){
+        Date date = (Date) getArguments().getSerializable(ARG_DATE);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+        View v = LayoutInflater.from(getActivity()).inflate(R.layout.dialog_date,null);
+        mDatePicker = (DatePicker) v.findViewById(R.id.dialog_date_picker);
+        mDatePicker.init(year,month,day,null);
+    }
+}
+```
+
+现在我们实现了`CrimeFragment`向`DatePickerFragment`的数据传递，接下来实现`DatePickerFragment`向`CrimeFragment`的数据传递：
+
+```java
+public class CrimeFragment extends Fragment{
+	// ...
+    private static final int REQUEST_DATE = 0;
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        mDateButton.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(View v){
+                // ...
+                dialog.setTargetFragment(CrimeFragment.this,REQUEST_DATE);
+        		dialog.show(manager,DIALOG_DATE);
+            }
+        })
+    }
+    // ...
+}
+```
+
+`Activity.onActivityResult(...)`方法是`ActivityManager`在子`Activity`销毁后调用的父`Activity`方法。在父`Activity`接受到该方法后，其`FragmentManager`会调用对应的`Fragment`内的`Fragment.onActivityResult(...)`方法。
+
+```java
+public class DatePickerFragment extends DialogFragment{
+    // ...
+    public static final String EXTRA_DATE = "com.example.criminalintent.date";
+    // ...
+    private void sendResult(int resultCode,Date date){
+        if(getTargetFragment() == null){
+            return;
+        }
+        Intent intent = new Intent();
+        intent.putExtra(EXTRA_DATE,date);
+        getTargetFragment().onActivityResult(getTargetRequestCode(),resultCode,intent);
+    }
+}
+```
+
+更改日期确定按钮的监听器：
+
+```java
+public class DatePickerFragment extends DialogFragment{
+    // ...
+    @Override Dialog onCreateDialog(Bundle savedInstanceState){
+        // ...
+        return new AlertDialog(Bundle savedInstanceState)
+            .setView(v)
+			.setTitle(R.string.date_picker_title)
+            // .setPositiveButton(android.R.string.ok,null);
+            .setPositiveButton(
+            	android.R.string.ok,
+            	new DialogInterface.OnClickListener(){
+                    int year = mDatePicker.getYear();
+                    int month = mDatePicker.getMonth();
+                    int day = mDatePicker.getDayOfMonth();
+                    Date date = new GregorianCalendar(year,month,day).getTime();
+                    sendResult(Activity.RESULT_OK,)
+                }
+        	);
+    }
+}
+```
 
 
 
@@ -3859,7 +4105,7 @@ public class GalleryItem{
         mOwner = owner
     }
     public Uri getPhotoPageUri(){
-        return Uri.parse("http://www.flickr.com/photos")
+        return Uri.parse("https://www.flickr.com/photos")
             .buildUpon()
             .appendPath(mOwner)
             .appendPath(mId)
@@ -3960,6 +4206,7 @@ public class PhotoPageFragment extends VisibleFragment{
     }
     @Override public void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
+        mUri = getArguments().getParcelable(ARG_URI);
     }
     @Override public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
         View v = inflater.inflate(R.layout.fragment_photo_page,container,false);
@@ -4024,7 +4271,87 @@ public class PhotoGalleryFragment extends VisibleFragment {
 
 - 告诉`WebView`要打开的URL
 - 启用`JavaScript`，使用`@SuppressLint("setJavaScriptEnabled")`来忽略Android Lint的警告。
-- 
+
+```java
+public class PhotoPageFragment extends VisibleFragment {
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        View v = inflater.inflate(R.layout.fragment_photo_page,container,false);
+        mWebView = (WebView) v.findViewById(R.id.web_view);
+        mWebView.getSettings().setJavaScriptEnabled(true);
+        mWebView.setWebViewClient(new WebViewClient());
+        mWebView.loadUrl(mUri.toString());
+        return v;
+    }
+}
+```
+
+接着对`WebView`进行美化，设置加载进度条样式：
+
+```java
+public class PhotoPageFragment extends VisibleFragment {
+    // ...
+    private ProgressBar mProgressBar;
+    // ...
+    @Override public View onCreateView(LayputInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        mProgressBar = (Progress) v.findViewById(R.id.progress_bar);
+        mProgressBar.setMax(100);
+        mWebView.setWebChromeClient(new WebChromeClient(){
+            public void onProgressChanged(WebView webView,int newProgress){
+                if (newProgress == 100){
+                    mProgressBar.setVisibility(View.GONE);
+                }else{
+                    mProgressBar.setVisibility(View.VISIBLE);
+                    mProgressBar.setProgress(newProgress);
+                }
+            }
+            public void onReceivedTitle(WebView webView,String title){
+                AppCompatActivity appCompatActivity = (AppCompatActivity) getActivity();
+                appCompatActivity.getSupportActionBar().setSubtitle(title);
+            }
+        })
+    }
+}
+```
+
+旋转屏幕时，`PhotoPageFragment`会销毁重建，导致该视图结构中的`WebView`会刷新加载。Android文档推荐让`Activity`自己处理设备配置变更，只需要在`AndroidManifest.xml`中添加如下配置信息：
+
+```xml
+<manifest>
+	<!-- ... -->
+    <application>
+    	<!-- ... -->
+        <activity
+                  android:name=".PhotoPageActivity"
+                  android:configChanges="keyboardHidden|orientation|screenSize"/>
+        <!-- ... -->
+    </application>
+</manifest>
+```
+
+### §1.5.15 注入JavaScript
+
+`WebView`可以使用以下方法向页面注入JavaScript对象：
+
+```java
+mWebView.addJavascriptInterface(
+    new Object(){
+        @JavascriptInterface public void TestFunction(String message){
+            Log.i(TAG,"Received message from JavaScript: " + message);
+        }
+    },
+    "TestObject"
+);
+```
+
+在HTML中可以调用：
+
+```html
+<script type="text/javascript">
+	TestObject.TestFunction("Hello World!");
+</script>
+```
 
 # §3 日志与调试
 
