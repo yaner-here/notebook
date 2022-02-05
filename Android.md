@@ -1922,11 +1922,337 @@ public class DatePickerFragment extends DialogFragment{
                     int month = mDatePicker.getMonth();
                     int day = mDatePicker.getDayOfMonth();
                     Date date = new GregorianCalendar(year,month,day).getTime();
-                    sendResult(Activity.RESULT_OK,)
+                    sendResult(Activity.RESULT_OK,date);
                 }
         	);
     }
 }
+```
+
+`CrimeFragment`对返回的数据做出响应：
+
+```java
+public class CrimeFragment extends Fragment {
+    // ...
+    @Override public void onActivityResult(int requestCode,int resultCode,Intent data){
+        if(resultCode != Activity.RESULT_OK){
+            return;
+        }
+        if(requestCode == REQUEST_DATE){
+            Date date == (Date) data.getSerializableExtra(DatePickerFragment.EXTRA_DATE);
+            mCrime.setDate(date);
+            mDateButton.setText(mCrime.getDate().toString());
+        }
+    }
+}
+```
+
+### §1.2.9 菜单栏
+
+`AppCompat`自带各种主题，可在`AndroidManifest.xml`设置：
+
+```xml
+<manifest>
+	<application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.CriminalIntent">
+    <!-- ... -->
+    </application>
+</manifest>
+```
+
+现在我们使用的是`@style/Theme.CriminalIntent`自定义主题，该XML文件一般如下所示：
+
+```XML
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.CriminalIntent" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/teal_200</item>
+        <item name="colorSecondaryVariant">@color/teal_700</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+        <!-- Customize your theme here. -->
+    </style>
+</resources>
+```
+
+可以看到该样式继承于`Theme.MaterialComponents.DayNight.DarkActionBar`，我们将其修改为`Theme.AppCompat.Light.DarkActionBar`。
+
+添加字符串资源：
+
+```xml
+<resources>
+	<!-- ... -->
+    <string name="new_crime">新建罪行</string>
+    <string name="show_subtitle">显示详情</string>
+    <string name="hide_subtitle">隐藏详情</string>
+</resources>
+```
+
+菜单是一种类似于布局的资源，定义并保存在`res/menu`目录下。这里我们新建一个菜单XML布局文件`fragment_crime_list.xml`：
+
+```xml
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/new_crime"
+        android:icon="@android:drawable/ic_menu_add"
+        android:title="@string/new_crime"
+        app:showAsAction="ifRoom|withText"/>
+    <!--app:showAsAction指定该选项在菜单中的位置
+		always:永远显示在菜单栏上
+		never:永远隐藏在折叠菜单中
+		ifRoom:如果有空间的话就显示在菜单上
+		withText:若空间足够就显示文字,如空间不够就显示图标
+</menu>
+```
+
+这里我们使用的图标不是项目资源图标，而是系统图标。在Android SDK中，这些系统图标存储在目录`%AndroidSDKInstallPath%\platforms\android-%APILevel%\data\res\drawable-%Resolution%`中。
+
+事实上，Android Studio内置了Configure Image Asset的功能，右键`res/drawable` ，在弹出的菜单中选择`New->Image Asset`，就能方便地从系统图标创建不同分辨率的项目资源图表。
+
+实例化菜单：
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    @Override public void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+    }
+    @Override public void onCreateOptionsMenu(Menu menu,MenuInflater inflater){
+        super.onCreateOptionsMenu(menu,inflater);
+        inflater.inflate(R.menu.fragment_crime_list,menu);
+    }
+    // ...
+}
+```
+
+实现新建罪行的功能：
+
+```java
+public class CrimeLab{
+    // ...
+    public void addCrime(Crime crime){
+        mCrimes.add(crime);
+    }
+    // ...
+    private CrimeLab(Context context){
+        mCrimes = new ArrayList<>();
+        // testCrimeLab();
+    }
+    // ...
+    /* 取消测试生成的数据集
+    public void testCrimeLab(){
+        for(int i=0;i<1--;i++){
+            Crime crime = new Crime();
+            crime.setTitle("Crime #" + i);
+            crime.setSolved(i % 2 == 0);
+            mCrimes.add(crime);
+        }
+    }
+    */
+}
+```
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    @Override public boolean onOptionsItemSelected(MenuItem item){
+        switch (item.getItemId()){
+            case R.id.new_crime:
+                Crime crime = new Crime();
+                CrimeLab.get(getActivity()).addCrime(crime);
+                Intent intent = CrimePagerActivity.newIntent(getActivity(),crime.getId());
+                startActivity(intent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+    // ...
+}
+```
+
+启用后退按钮：
+
+```xml
+<!-- AndroidManifest.xml -->
+<manifest>
+	<application>
+        <!-- ... -->
+    	<activity
+                  android:name=".CrimePagerActivity"
+                  android:parentActivityName=".CrimeListActivity"/>
+    </application>
+</manifest>
+```
+
+更改菜单布局，添加显示/隐藏子标题的选项：
+
+```xml
+<menu>
+	<!-- ... -->
+    <item
+          android:id="@+id/show_subtitle"
+          android:title="@string/show_subtitle"
+          app:showAsAction="ifRoom"/>
+</menu>
+```
+
+设置工具栏子标题：
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    private boolean mSubtitleVisible;
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        updateSubtitle(); // 否则新建Crime后子标题的Crime总数不变
+    	return view;
+    }
+    @Override public void onResume(){
+        // ...
+        updateSubtitle(); // 否则新建Crime后子标题的Crime总数不变
+    }
+    @Override public void onCreateOptionsMenu(Menu menu,MenuInflater inflater){
+        super.onCreateOptionsMenu(menu,inflater);
+        inflater.inflate(R.menu.fragment_crime_list,menu);
+        MenuItem subtitleItem = menu.findItem(R.id.show_subtitle);
+        if(mSubtitleItem){
+            subtitleItem.setTitle(R.string.hide_subtitle);
+        }else{
+            subtitleItem.setTitle(R.string.show_subtitle);
+        }
+    }
+    @Override public boolean onOptionsItemSelected(MenuItem item){
+        switch (item.getItemId()){
+            case R.id.new_crime:
+                // ...
+            case R.id.show_subtitle:
+                updateSubtitle();
+                mSubtitleVisible = !mSubtitleVisible;
+                getActivity().invalidateOptionsMenu();
+                return true;
+            default:
+                // ...
+        }
+    }
+    private void updateSubtitle(){
+        CrimeLab crimelab = CrimeLab.get(getActivity());
+        int crimeCount = crimeLab.getCrimes().size();
+        Strign subtitle = getString(R.string.subtitle_format,crimeCount);
+        AppCompatActivity activity = (AppCompatActivity) getActivity();
+        activity.getSupportActionBar().setSubtitle(subtitle);
+    }
+    // ...
+}
+```
+
+`getString(int resId,Object... formatArgs)`方法接受字符串资源中占位符的替换值，生成子标题字符串。
+
+解决旋转屏幕造成子标题消失：
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    private static final String SAVED_SUBTITLE_VISIBLE = "subtitle";
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        if(savedInstanceState != null){
+            mSubtitleVisible = savedInstanceState.getBoolean(SAVED_SUBTITLE_VISIBLE);
+        }
+        updateUI();
+        updateSubtitle();
+        return view;
+    }
+    // ...
+    @Override public void onSaveInstanceState(Bundle outState){
+        super.onSavedInstanceState(outState);
+        outState.putBoolean(SAVED_SUBTITLE_VISIBL,mSubtitleVisible);
+    }
+    // ...
+}
+```
+
+### §1.2.10 SQLite
+
+新建`CrimeDbSchema`类和`CrimeBaseHelper`类，用于创建数据库模型：
+
+```java
+public class CrimeDbSchema {
+    public static final class CrimeTable{
+        public static final String NAME = "crimes";
+
+        public static final class Columns{
+            public static final String UUID = "uuid";
+            public static final String TITLE = "title";
+            public static final String DATE = "date";
+            public static final String SOLVED = "solved";
+        }
+    }
+}
+```
+
+```java
+public class CrimeBaseHelper extends SQLiteOpenHelper {
+    private static final int VERSION = 1;
+    private static final String DATABASE_NAME = "crimeBase.db";
+
+    public CrimeBaseHelper(Context context){
+        super(context,DATABASE_NAME,null,VERSION);
+    }
+    @Override public void onCreate(SQLiteDatabase db) {
+
+    }
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+
+    }
+}
+```
+
+在模型层添加SQLite调用：
+
+```java
+public class CrimeLab{
+    // ...
+    private Context mContext;
+    private SQLiteDatabase mDatabase;
+	// ...
+    pribate CrimeLab(Context context){
+        mContext = context.getApplicationContext();
+        mDatebase = new CrimeBaseHelper(mContext).getWritableDatabase();
+    }
+}
+```
+
+```mermaid
+graph TB
+	context-->CrimeLabBuildingMethod2
+	subgraph CrimeLab
+		subgraph 实例变量
+			mCrimes["private List&lt;Crime&gt; mCrimes"]
+			mContext["private Context mContext"]
+			mDatabase["private SQLiteDatabase mDatabase"]
+		end
+		subgraph CrimeLabBuildingMethod
+			mCrimes-->CrimeLabBuildingMethod1["mCrimes=new ArrayList&lt;&gt;()"]
+			mContext-->CrimeLabBuildingMethod2["mContext=context.getApplicationContext()"]
+			CrimeLabBuildingMethod1-->CrimeLabBuildingMethod2-->CrimeLabBuildingMethod3["mDataBase=new CrimeBaseHelper(mContext).getWritableDatabase()"]
+		end
+	end
 ```
 
 
