@@ -2242,7 +2242,7 @@ public class CrimeLab{
 graph TB
 	context-->CrimeLabBuildingMethod2
 	subgraph CrimeLab
-		subgraph 实例变量
+		subgraph CrimeLabInstanceVariable ["实例变量"]
 			mCrimes["private List&lt;Crime&gt; mCrimes"]
 			mContext["private Context mContext"]
 			mDatabase["private SQLiteDatabase mDatabase"]
@@ -2253,6 +2253,367 @@ graph TB
 			CrimeLabBuildingMethod1-->CrimeLabBuildingMethod2-->CrimeLabBuildingMethod3["mDataBase=new CrimeBaseHelper(mContext).getWritableDatabase()"]
 		end
 	end
+	subgraph CrimeBaseHelper extends SQLiteOpenHelper
+		subgraph CrimeBaseHelperInstanceVariable
+			
+		end
+		subgraph CrimeBaseHelperBuildingMethod
+			
+		end
+	end
+```
+
+创建数据库时引入数据库名称常量，避免多次重复这么长的索引路径：
+
+```java
+import static com.example.criminalintent.CrimeDbSchema.CrimeTable;
+public class CrimeBaseHelper extends SQLiteOpenHelper{
+    // ...
+    @Override public void onCreate(SQLiteDatabase db){
+     // db.execSQL("create table " + CrimeDbSchema.CrimeTable.NAME);
+        String command = "create table " + CrimeTable.NAME +
+                "( _id integer primary key autoincrement, " +
+                CrimeTable.Columns.UUID + ", " +
+                CrimeTable.Columns.TITLE + ", " +
+                CrimeTable.Columns.DATE + ", " +
+                CrimeTable.Columns.SOLVED + ")";
+        db.execSQL(command);
+    }
+    // ...
+}
+```
+
+数据库文件将会被储存在`/data/data/com.example.criminalintent/databases`目录下。
+
+出于节省内存的目的，我们再次更改模型层`CrimeLab`，删除其中的`List<Crime> mCrimes`实例，转而只使用`SQLiteDatabase mDatabase`实例：
+
+```java
+public class CrimeLab {
+    // ...
+    // private List<Crime> mCrimes;
+    // ...
+    private CrimeLab(Context context){
+        mContext = context.getApplicationContext();
+        mDatabase = new CrimeBaseHelper(mContext).getWritableDatabase();
+        // mCrimes = new ArrayList<>();
+    }
+    public void addCrime(Crime C){
+        // TODO
+    }
+    public void updateCrime(Crime crime){
+        String uuidString = crime.getId().toString();
+        ContentValues values = getContentValues(crime);
+        mDatabase.update(
+            CrimeDbSchema.CrimeTable.NAME,
+            values,
+            CrimeDbSchema.CrimeTable.Columns.UUID + " = ?",
+            new String[] {uuidString}
+        );
+    }
+    public List<Crime> getCrimes(){
+        // TODO
+        return new ArrayList<>();
+    }
+    public Crime getCrime(UUID id){
+        // TODO
+        return null;
+    }
+    private static ContentValues getContentValues(Crime crime){
+        ContentValues values = new ContentValues();
+        values.put(CrimeDbSchema.CrimeTable.Columns.UUID,crime.getId().toString());
+        values.put(CrimeDbSchema.CrimeTable.Columns.TITLE,crime.getTitle());
+        values.put(CrimeDbSchema.CrimeTable.Columns.DATE,crime.getDate().getTime());
+        values.put(CrimeDbSchema.CrimeTable.Columns.SOLVED,crime.isSolved()?1:0);
+        return values;
+    }
+    private Cursor queryCrimes(String whereClause,String[] whereArgs){
+        Cursor cursor = mDatabase.query(
+            CrimeDbSchema.CrimeTable.NAME,
+            null, // 选择所有列
+            whereClause,
+            whereArgs,
+            null, // groupBy
+            null, // having
+            null // orderBy
+        );
+        return cursor;
+    }
+}
+```
+
+- 增：`Long SQLiteDatabase.insert(String table,String nullColumnHack,ContentValues values)`，返回新插入行的ID
+
+  - `String table`：指定数据库名称
+  - `String nullColumnHack`：`values`中缺失了`table`中指定的名为`nullColumnHack`的列的数据，则传入`null`值
+  - `ContentValues values`：单行数据集，通过`ContentValues.put(Key,Value)`以创建键值对
+
+- 查：`Cursor SQLiteDatabase.query(String table,String[] columns,String where,String[] whereArgs,String groupBy,String having,String orderby,String limit)`，返回一个存储查询结果的`Cursor`实例
+
+  - `String table`：指定数据库的名称
+  - `String[] columns`：要返回的列，`null`代表返回全部列
+  - `String where`：where子句的格式化字符串
+  - `String[] whereArgs`：where子句的参数列表
+  - `String groupBy`：groupBy子句
+  - `String having`：having子句
+  - `String orderBy`：orderBy子句
+  - `String limit`：limit子句
+
+- 改：`int SQLiteDatabase.update(String table,ContentValues values,String whereClause,String[] whereArgs)`，返回更新了多少行
+
+  - `String table`：指定数据库名称
+  - `ContentValues values`：更新完成后预期的单行数据集
+  - `String whereClause`：指定where子句格式化字符串用于筛选
+  - `String[] whereArgs`：`whereClause`格式化字符串的参数表
+
+  > 注意：如果将`whereArgs`的参数直接放入`whereClause`子句中进行构造的话，就会引起SQL注入的风险，而使用`whereArgs`能100%规避这种风险。
+
+`Cursor`是Android自带的数据处理类，定义于`android.database`包中。不假思索地，我们可以写出如下代码从搜索结果`Cursor`中得到所需键值对：
+
+```java
+String uuidString = cursor.getString(cursor.getColumnIndex(CrimeTable.Columns.UUID));
+String title = cursor.getString(cursor.get)
+long date = cursor.getLong(cursor.getColumnIndex(CrimeTable.Columns.DATE));
+int isSolved = cursor.getInt(cursor.getColumnIndex(CrimeTable.Columns.SOLVED));
+```
+
+这种方法非常的麻烦，在此我们选择`CursorWrapper`类来管理`Cursor`实例：
+
+```java
+public class CrimeCursorWrapper extends CursorWrapper{
+    public CrimeCursorWrapper(Cursor cursor){
+        super(cursor);
+    }
+    public Crime getCrime(){
+        String uuidString = getString(getColumnIndex(CrimeDbSchema.CrimeTable.Columns.UUID));
+        String title = getString(getColumnIndex(CrimeDbSchema.CrimeTable.Columns.TITLE));
+        long date = getLong(getColumnIndex(CrimeDbSchema.CrimeTable.Columns.DATE));
+        int isSolved = getInt(getColumnIndex(CrimeDbSchema.CrimeTable.Columns.SOLVED));
+        
+        Crime crime = new Crime(UUID.fromString(uuidString));
+        crime.setTitle(title);
+        crime.setDate(new Date(date));
+        crime.setSolved(isSolved != 0);
+        
+        return crime;
+    }
+}
+```
+
+退出编辑页面时更新数据库：
+
+```java
+public class CrimeFragment extends Fragment {
+    // ...
+    @Override public void onPause(){
+        super.onPause();
+        Crimelab.get(getActivity()).updateCrime(mCrime);
+    }
+    // ...
+}
+```
+
+重载`Crime`构造方法，便于从数据库中创建之前保存过的`Crime`实例：
+
+```java
+public class Crime{
+    // ...
+    public Crime(){
+        mId = UUID.randomUUID();
+        mDate = new Date();
+    }
+    public Crime(UUID id){
+        mId = id;
+        mDate = new Date();
+    }
+    // ...
+}
+```
+
+更新用于查询结果的函数：
+
+```java
+public class CrimeLab {
+    // ...
+    public List<Crime> getCrimes(){
+        List<Crime> crimes = new ArrayList<>();
+        CrimeCursorWrapper cursorWrapper = queryCrimes(null,null);
+        try{
+            cursorWrapper.moveToFirst();
+            while(!cursorWrapper.isAfterLast()){
+                crimes.add(cursorWrapper.getCrime());
+                cursorWrapper.moveToNext();
+            }
+        }finally {
+            cursorWrapper.close();
+        }
+        // return mCrimes;
+        return crimes;
+    }
+    public Crime getCrime(UUID id){
+        CrimeCursorWrapper cursorWrapper = queryCrimes(
+            CrimeDbSchema.CrimeTable.Columns.UUID + " = ?",
+            new String[]{id.toString()}
+        );
+        try {
+            if(cursorWrapper.getCount() == 0){
+                return null;
+            }
+            cursorWrapper.moveToFirst();
+            return cursorWrapper.getCrime();
+        }finally {
+            cursorWrapper.close();
+        }
+        /*
+        for(Crime crime : mCrimes){
+            if (crime.getId().equals(id)){
+                return crime;
+            }
+        }
+        return null;
+    	*/
+    }
+    // ...
+    /*
+    private Cursor queryCrimes(String whereClause,String[] whereArgs){
+        // ...
+    }
+    */
+    private CrimeCursorWrapper queryCrimes(String whereClause,String[] whereArgs){
+        Cursor cursor = mDatabase.query(
+                CrimeDbSchema.CrimeTable.NAME,
+                null, // 选择所有列
+                whereClause,
+                whereArgs,
+                null,
+                null,
+                null
+        );
+        return new CrimeCursorWrapper(cursor);
+    }
+}
+```
+
+最后将详情页的数据同步到列表页：
+
+```java
+public class CrimeListFragment extends Fragment {
+    // ...
+    private class CrimeAdapter extends RecyclerView.Adapter<CrimeHolder>{
+        // ...
+        public void setCrimes(List<Crime> crimes){
+            mCrimes = crimes; // 实时更新
+        }
+    }
+    private void updateUI(){
+        // ...
+        if(mAdapter == null){
+            // ...
+        }else{
+            mAdapter.setCrimes(crimes); // 调用用于实时更新的方法
+            mAdapter.notifyDataSetChanged();
+        }
+    }
+}
+```
+
+### §1.2.11 隐式`Intent`
+
+Android允许利用隐式`Intent`的方法实现从当前应用的`Activity`启动到另一个功能的`Activity`。在该项目中我们要实现分享到其他应用的功能。
+
+添加两个分享按钮：
+
+```xml
+<!-- strings.xml -->
+<resources>
+	<!-- ... -->
+    <string name="crime_suspect_text">选择嫌疑人</string>
+    <string name="crime_report_text">分享到信息</string>
+</resources>
+```
+
+```xml
+<!-- fragment_crime.xml -->
+<LinearLayout>
+	<!-- ... -->
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/crime_suspect"
+        android:text="@string/crime_suspect_text"/>
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/crime_report"
+        android:text="@string/crime_report_text"/>
+</LinearLayout>
+```
+
+更改模型层：
+
+```java
+public class Crime{
+    // ...
+    private String mSuspect;
+    // ...
+    public String getSuspect(){
+        return mSuspect;
+    }
+    public void setSuspect(String suspect){
+        mSuspect = suspect;
+    }
+}
+```
+
+```java
+public class CrimeLab{
+    // ...
+    private static ContentValues getContentValues(Crime crime){
+        // ...
+        values.put(CrimeDbSchema.CrimeTable.Columns.SUSPECT,crime.getSuspect());
+    	return values;
+    }
+    // ...
+}
+```
+
+```java
+public class CrimeCursorWrapper extends CursorWrapper{
+    // ...
+    public Crime getCrime(){
+        // ...
+        String suspect = getString(getColumnIndex(CrimeDbSchema.CrimeTable.Columns.SUSPECT));
+    	//...
+        crime.setSuspect(suspect);
+        
+    }
+}
+```
+
+在数据库中添加字段：
+
+```java
+pubic class CrimeDbSchema{
+    public static final class CrimeTable{
+        public static final String NAME = "crimes";
+        public static final class Columns{
+            // ...
+            public static final String SUSPECT = "suspect";
+        }
+    }
+}
+```
+
+```java
+public class CrimeBaseHelper extends SQLiteOpenHelper{
+    // ...
+    @Override public void onCreate(SQLiteDatabase db){
+        String command = //...
+            // ...
+            CrimeTable.Columns.Suspect + ")";
+        db.execSQL(command);
+    }
+    // ...
+}
 ```
 
 
