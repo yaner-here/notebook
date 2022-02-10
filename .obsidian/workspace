@@ -1,0 +1,100 @@
+{
+  "main": {
+    "id": "2945e1374d31aa76",
+    "type": "split",
+    "children": [
+      {
+        "id": "6429a0b07d800f08",
+        "type": "leaf",
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "Docker.md",
+            "mode": "source",
+            "source": true
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "903eb799d1e76259",
+    "type": "split",
+    "children": [
+      {
+        "id": "78bc9d06b4ff2dd7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2a2d6c543141df71",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "7d613ea7bc7181d6",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "right": {
+    "id": "1b8548f88ba38df7",
+    "type": "split",
+    "children": [
+      {
+        "id": "a32224efe50a0020",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5aa36df4a9e9a899",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Docker.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "active": "6429a0b07d800f08",
+  "lastOpenFiles": [
+    "Docker.md",
+    "Java.md",
+    "CTF.md",
+    "网络安全.md",
+    "千峰网络安全.md",
+    "同义替换.md"
+  ]
+}

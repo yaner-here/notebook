@@ -1784,8 +1784,36 @@ public boolean equals(Object anObject) {
             return StringLatin1.equals(value, aString.value);
         }
     }
-       return false;
+    return false;
+}
+```
+
+### §3.1.3 `Object.hashCode()`
+
+`Object.hashcode()`基于对象的身份，而非对象的相等性，返回该对象的哈希码。只要覆盖了`Object.equals(Object)`，就必须覆盖`Object.hashcode()`。
+
+### §3.1.4 `Comparable::compareTo(Object)`
+
+ `Comparable::compareTo(Object)`返回一个`int`，当传入的对象大于原来的对象时，应返回一个负数；当传入的对象小于原来的对象时，应返回一个整数；相等时返回0。实现了`Comparable`的接口可以使用排序，其判断大小的标准要和`Object.equals(Object)`一致。
+
+### §3.1.5 `Object.clone()`
+
+由于`Object`有`Cloneable`接口并定义了`.clone()`方法，因此可以使用该方法获得一份原对象的副本。
+
+如果想克隆`Object`衍生出的类的实例，则必须给子类内部添加`implements Cloneable`接口，并在子类顶部重载`.clone()`方法。
+
+```java
+
+public class Example implements Cloneable{
+    // ...
+    @Override public Object clone(){
+        try{
+            return super.clone();
+        }catch(CloneNotSupportedException e){
+            throw new AssertionError(e);
+        }
     }
+}
 ```
 
 

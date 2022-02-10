@@ -2528,6 +2528,13 @@ Android允许利用隐式`Intent`的方法实现从当前应用的`Activity`启�
 	<!-- ... -->
     <string name="crime_suspect_text">选择嫌疑人</string>
     <string name="crime_report_text">分享到信息</string>
+    <string name="crime_report">%1$s! 该罪行于%2$s %3$s %4$s</string>
+    <string name="crime_report_solved">该举报已被解决</string>
+    <string name="crime_report_unsolved">该举报未被解决</string>
+    <string name="crime_report_no_suspect">未添加嫌疑人</string>
+    <string name="crime_report_suspect">嫌疑人为%s</string>
+    <string name="crime_report_subject">CriminalIntent Crime Report</string>
+    <string name="send_report">通过…发送报告</string>
 </resources>
 ```
 
@@ -2611,6 +2618,189 @@ public class CrimeBaseHelper extends SQLiteOpenHelper{
             // ...
             CrimeTable.Columns.Suspect + ")";
         db.execSQL(command);
+    }
+    // ...
+}
+```
+
+添加方法：
+
+```java
+public class CrimeFragment extends Fragment{
+    // ...
+    private String getCrimeReport(){
+        String solvedString = null;
+        if (mCrime.isSolved()) {
+            solvedString = getString(R.string.crime_report_solved);
+        } else {
+            solvedString = getString(R.string.crime_report_unsolved);
+        }
+        String dateFormat = "EEE, MMM dd";
+        String dateString = DateFormat.format(dateFormat, mCrime.getDate()).toString();
+        String suspect = mCrime.getSuspect();
+        if (suspect==null){
+            suspect = getString(R.string.crime_report_no_suspect);
+        }else {
+            suspect = getString(R.string.crime_report_suspect);
+        }
+        String report = getString(R.string.crime_report,mCrime.getTitle(),dateString,solvedString,suspect);
+        return report;
+    }
+    // ...
+}
+```
+
+之前我们多次利用显式`Intent`实现跳转，其语法大致如下所示：
+
+```java
+Intent intent = new Intent(getActivity(),CrimePagerActivity.class);
+intent.putExtra(EXTRA_CRIME_ID,crimeId);
+startActivity(intent);
+```
+
+由此可见显式`Intent`结构非常的简单，相比之下隐式`Intent`就比较复杂了，它的组成部分有：
+
+- 要执行的操作
+
+  通常以`Intent`类中定义的类常量来表示，详见[Android SDK 开发者文档](https://developer.android.com/reference/android/content/Intent#summary)
+
+- 待访问数据的位置
+
+  例如URL，文件路径等
+
+- 操作涉及的数据类型
+
+  用[MINE形式](https://en.wikipedia.org/wiki/Media_type)指代数据类型，由互联网号码分配机构（IANA）负责[公示和更新](https://en.wikipedia.org/wiki/Media_type)
+
+- 可选类别
+
+  描述操作的具体启动方式，详见[`Android SDK 开发者文档`](https://developer.android.com/reference/android/content/Intent#CATEGORY_APP_BROWSER)
+
+可以在`AndroidManifest.xml`中声明此应用的某一个`Activity`能够执行的操作：
+
+```xml
+<activity
+          android:name=".BrowserActivity"
+          android:label="@string/xxx">
+	<intent-filter>
+    	<action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:scheme="http"
+              android:host="www.google.com"/>
+    </intent-filter>
+</activity>
+```
+
+添加创建隐式`Intent`的方法：
+
+```java
+public class CrimeFragment extends Fragment {
+    // ...
+    private Button mReportButton;
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        mReportButton = (Button) v.findViewById(R.id.crime_report);
+        mReportButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Intent intent = new Intent(Intent.ACTION_SEND);
+                intent.setType("text/plain");
+                intent.putExtra(Intent.EXTRA_TEXT,getCrimeReport());
+                intent.putExtra(Intent.EXTRA_SUBJECT,getString(R.string.crime_report_subject));
+                startActivity(intent);
+            }
+        });
+    }
+    // ...
+}
+```
+
+用户在选择发送方式时可能会"选择默认应用"，如果要强制让用户每次都选择应用列表的话，可以使用选择器：
+
+```java
+Intent intnet = new Intent(Intent.ACTION_SEND);
+// ...
+intent = Intent.createChooser(intent,getString(R.string.send_report));
+startActivity(intent);
+```
+
+接着创建另一个隐式`Intent`用于获取联系人信息：
+
+```java
+public class CrimeFragment extends Fragment{
+    // ...
+    private Button mSuspectButton;
+	// ...
+    private static final int REQUEST_CONTACT = 1;
+    // ...
+	@Override public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstanceState){
+        // ...
+        final Intent pickContact = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
+        mSuspectButton = (Button) v.findViewById(R.id.crime_suspect);
+        mSuspectButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                startActivityForResult(pickContact,REQUEST_CONTACT);
+            }
+        });
+        return v;
+    }
+}
+```
+
+为了处理联系人信息，Android SDK的[`ContentProvider`](developer.android.com/guide/topics/providers/contacts-provider.html)类提供了一系列API用于封装联系人数据并给其他应用使用，我们需要通过`ContentResolver`来访问`ContentProvider`：
+
+```java
+public class CrimeFragment extends Fragment{
+    // ...
+    @Override public void onActivityResult(int requestCode,int resultCode,Intent data){
+        if(resultCode != Activity.RESULT_OK){
+            return;
+        }
+        if(requestCode == REQUEST_DATE){
+            Date date = (Date) data.getSerializableExtra(DataPickerFragment.EXTRA_DATE);
+            mCrime.setDate(date);
+            updateDate();
+        }else if(requestCode == REQUEST.CONTACT && data != null){
+            Uri contactUri = data.getData();
+            String[] queryFields = new String[]{
+                    ContactsContract.Contacts.DISPLAY_NAME
+            };
+            Cursor cursor = getActivity().getContentResolver().query(
+                    contactUri,
+                    queryFields,
+                    null,
+                    null,
+                    null
+            );
+            try {
+                if (cursor.getCount() == 0){
+                    return;
+                }
+                cursor.moveToFirst();
+                String suspect = cursor.getString(0);
+                mCrime.setSuspect(suspect);
+                mSuspectButton.setText(suspect);
+            }finally {
+                cursor.close();
+            }
+        }
+    }
+    // ...
+}
+```
+
+如果手机上没有与联系人相关的应用，那么APP就找不到匹配的`Activity`，应用就会崩毁。为了避免这个问题，首先使用`PackageManager`类进行自检：
+
+```java
+public class CrimeFragment extends Fragment{
+    // ...
+    @Override public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState){
+        // ...
+        PackageManager packageManager = getActivity().getPackageManager();
+        if(packageManager.resolveActivity(pickContact,PackageManager.MATCH_DEFAULT_ONLY)==null){
+            mSuspectButton.setEnabled(false);
+        }
+        return v;
     }
     // ...
 }
@@ -3130,7 +3320,7 @@ graph TB
 我们的解析思路如下：
 
 ```mermaid
-graph LR
+graph TB
 	JSON_FILE--"new JSONObject(jsonString)"-->JSONObject1["JSONObject<br>jsonBody"]
 	--"getJSONObject(&qout;photos&qout;)"-->JSONObject2["JSONObject<br>photosJsonObject"]
 	--"getJSONArray(&qout;photo&qout;)"-->JSONArray["JSONArray<br>photoJsonArray"]
@@ -3148,7 +3338,7 @@ public class FlickrFetchr{
     public List<GalleryItem> fetchItems(){
         try{
             // ...
-            JSONObject jsonBody = new JSONObject(jsonString);
+            JSONObjeR ct jsonBody = new JSONObject(jsonString);
             parseItems(items,jsonBody);
         }catch (IOException ioException){
             Log.e(TAG,"Failed to fetch items",ioException);
