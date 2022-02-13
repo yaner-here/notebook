@@ -129,11 +129,148 @@ graph TB
 > RUN ssh 127.0.0.1:22 # Ubuntu自带ssh客户端,尝试连接自己
 > ```
 >
-> 执行完第二句命令时会产生一个新的镜像，而我们知道镜像不是快照，不能保存进程信息，所以SSH服务端进程一定被杀死了，等到开始执行第三条命令时，SSH客户端自然发现本地的22端口没有SSH服务端进程驻守，因此一定会抛出连接错误。
+> 这是因为执行完第二句命令时会产生一个新的镜像，而我们知道镜像不是快照，不能保存进程信息，所以SSH服务端进程一定被杀死了，等到开始执行第三条命令时，SSH客户端自然发现本地的22端口没有SSH服务端进程驻守，因此一定会抛出连接错误。
 >
-> 为了启动容器时，保证这些进程和服务可以持续运行，我们可以另辟蹊径使用`ENTRYPOINT`脚本，详见<a href="#ENTRYPOINT">`dockerfile`的`ENTRYPOINT`脚本</a>。
+> 为了启动容器时，保证这些进程和服务可以持续运行，我们可以另辟蹊径使用`ENTRYPOINT`脚本，详见`dockerfile`的<a href="#ENTRYPOINT">`ENTRYPOINT`脚本</a>。
 
+这里我们以`MongoDB`为例，使用`docker history IMAGE`命令来查看该镜像的镜像层：
 
+```shell
+C:/> docker pull mongo
+# ...
+C:/> docker history mongo:latest
+IMAGE          CREATED       CREATED BY                                      SIZE      COMMENT
+5285cb69ea55   10 days ago   /bin/sh -c #(nop)  CMD ["mongod"]               0B
+<missing>      10 days ago   /bin/sh -c #(nop)  EXPOSE 27017                 0B
+<missing>      10 days ago   /bin/sh -c #(nop)  ENTRYPOINT ["docker-entry…   0B
+<missing>      10 days ago   /bin/sh -c #(nop) COPY file:ff519c7454e20e6f…   14.1kB
+<missing>      10 days ago   /bin/sh -c #(nop)  VOLUME [/data/db /data/co…   0B
+<missing>      10 days ago   /bin/sh -c mkdir -p /data/db /data/configdb …   0B
+<missing>      10 days ago   /bin/sh -c set -x  && export DEBIAN_FRONTEND…   602MB
+<missing>      10 days ago   /bin/sh -c #(nop)  ENV MONGO_VERSION=5.0.6      0B
+<missing>      10 days ago   /bin/sh -c echo "deb http://$MONGO_REPO/apt/…   72B
+<missing>      10 days ago   /bin/sh -c #(nop)  ENV MONGO_MAJOR=5.0          0B
+<missing>      10 days ago   /bin/sh -c #(nop)  ENV MONGO_PACKAGE=mongodb…   0B
+<missing>      10 days ago   /bin/sh -c #(nop)  ARG MONGO_REPO=repo.mongo…   0B
+<missing>      10 days ago   /bin/sh -c #(nop)  ARG MONGO_PACKAGE=mongodb…   0B
+<missing>      10 days ago   /bin/sh -c set -ex;  export GNUPGHOME="$(mkt…   1.16kB
+<missing>      10 days ago   /bin/sh -c mkdir /docker-entrypoint-initdb.d    0B
+<missing>      10 days ago   /bin/sh -c set -ex;   savedAptMark="$(apt-ma…   15.1MB
+<missing>      10 days ago   /bin/sh -c #(nop)  ENV JSYAML_VERSION=3.13.1    0B
+<missing>      10 days ago   /bin/sh -c #(nop)  ENV GOSU_VERSION=1.12        0B
+<missing>      10 days ago   /bin/sh -c set -eux;  apt-get update;  apt-g…   7.77MB
+<missing>      10 days ago   /bin/sh -c groupadd -r mongodb && useradd -r…   329kB
+<missing>      10 days ago   /bin/sh -c #(nop)  CMD ["bash"]                 0B
+<missing>      10 days ago   /bin/sh -c #(nop) ADD file:3ccf747d646089ed7…   72.8MB
+```
+
+如果构建失败，用户可以启动失败时的镜像层以供调试：
+
+```dockerfile
+# dockerfile
+FROM busybox:latest
+RUN /bin/sh -c echo "Could find default linux sh shell."
+RUN /bin/bash -c echo "Can't find bash shell so far."
+RUN /bin/fish -c echo "Can't find fish shell so far"
+```
+
+```shell
+$ docker build -t .
+	Sending build context to Docker daemon 2.048 kB
+	Step 0 : FROM busybox:latest
+    	--> 4986bf8c1536
+    Step 1 : RUN /bin/sh -c echo "Could find default linux sh shell."
+    	--> Running in f63045cc086b # 临时容器的ID
+    	Could find default linux sh shell.
+    	--> 85b49a851fcc # 该容器建立的镜像的ID
+    	Removing intermediate container f63045cc086b # 删除临时容器
+    Step 2 : RUN /bin/bash -c echo "Can't find bash shell so far"
+    	--> Running in e4b31d0550cd
+    	/bin/sh: /bin/bash: not found
+    	The command '/bin/sh -c /bin/bash -c echo "Can't find bash shell so far"' returned a non-zero
+    	code: 127
+$ docker run -it 85b49a851fcc # 最后一层镜像的ID
+/# /bin/bash -c "echo hmm"
+/bin/sh: /bin/bash: not found
+/# ls /bin
+root@7fff8796b58f:/# ls /bin # busybox真的没有安装bash shell
+bash   df             findmnt   lsblk          pidof      sleep     uname         zfgrep
+cat    dir            grep      mkdir          pwd        stty      uncompress    zforce
+chgrp  dmesg          gunzip    mknod          rbash      su        vdir          zgrep
+chmod  dnsdomainname  gzexe     mktemp         readlink   sync      wdctl         zless
+chown  domainname     gzip      more           rm         tar       ypdomainname  zmore
+cp     echo           hostname  mount          rmdir      tempfile  zcat          znew
+dash   egrep          ln        mountpoint     run-parts  touch     zcmp
+date   false          login     mv             sed        true      zdiff
+dd     fgrep          ls        nisdomainname  sh         umount    zegrep
+```
+
+> 注意：实测Docker Desktop默认情况下不会显示最后一次的镜像层(Immediate Container)的ID，而是如下所示：
+>
+> ```shell
+> C:/> docker build -t echotest .
+> [+] Building 13.6s (6/7)
+>  => [internal] load build definition from Dockerfile                                        0.0s
+>  => => transferring dockerfile: 239B                                                        0.0s
+>  => [internal] load .dockerignore                                                           0.0s
+>  => => transferring context: 2B                                                             0.0s
+>  => [internal] load metadata for docker.io/library/busybox:latest                          12.6s
+>  => CACHED [1/4] FROM docker.io/library/busybox:latest@sha256:afcc7f1ac1b49db317a7196c902e  0.0s
+>  => [2/4] RUN /bin/sh -c echo "Could find default linux sh shell."                          0.4s
+>  => ERROR [3/4] RUN /bin/bash -c echo "Can't find bash shell so far."                       0.5s
+> ------
+>  > [3/4] RUN /bin/bash -c echo "Can't find bash shell so far.":
+> #5 0.489 /bin/sh: /bin/bash: not found
+> ------
+> executor failed running [/bin/sh -c /bin/bash -c echo "Can't find bash shell so far."]: exit code: 127
+> ```
+>
+> 根据[StackOverflow](https://stackoverflow.com/questions/65614378/getting-docker-build-to-show-ids-of-intermediate-containers)上的解释，要显示容器ID有以下两种方法：
+>
+> - 永久更改：更改`~/.docker/daemon.json`配置文件中的`buildkit`项为`false`。
+>
+>   ```json
+>   {
+>       "experimental": true
+>       "features": {
+>       	"buildkit": false
+>   	}
+>   }
+>   ```
+>
+> - 临时更改：
+>
+>   ```shell
+>   # powershell
+>   (base) PS C:/> $env:DOCKER_BUILDKIT=0; docker build .
+>     
+>   # linux
+>   $ DOCKER_BUILDKIT=0 docker build .
+>     
+>   # command prompt
+>   C:/> set DOCKER_BUILDKIT=0& docker build .
+>   ```
+
+为了提高构建镜像的速度，`Docker`可以缓存每一个镜像层，但是缓存对`dockerfile`中的指令的要求非常苛刻：
+
+1. 上一个指令能在缓存中找到
+2. 存在一个缓存镜像层，用户输入的指令与其储存的指令一模一样，两者输出也一模一样，且用户之前输入的指令与其之前储存的指令一模一样，两者输出也一模一样（即使多了空格也会被判定为不一样）
+
+这些苛刻的条件使得缓存的加速效果不仅非常有限，而且会占用大量的储存空间，**尤其是对于那些相同指令可能会输出不同结果的指令**：
+
+- `date`每次输出的当前时间不同
+- `apt-get install`使用的镜像源和网络状况可能不同（例2.2 MB/S）
+- `/usr/games/fortune`输出随机的名人名言
+- ......
+
+如果要禁止`Docker`生成缓存镜像层，可以使用`docker build --no-cache`参数。
+
+如果只是要禁止`Docker`使用缓存镜像层，可以故意向`dockerfile`中插入无实际用途的变量：
+
+```dockerfile
+# 基于时间的干扰变量
+ENV UPDATED_ON "2022 February 13th 10:48:13"
+```
 
 
 
@@ -272,13 +409,15 @@ root
 
 `docker run`附带了多种参数：
 
-| 参数                                             | 作用                                                         | 补充说明                                                  |
-| ------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------- |
-| `-d`/`--detach`                                  | 在后台运行容器，并输出容器ID                                 | 可用[`docker logs`](#§2.5 `docker logs`)查看CLI输出的内容 |
-| `--link LIST(CONTAINER:DOMAIN)`                  | 将容器与旧容器`CONTAINER`相关联，并在新容器中更改`/etc/hosts`使得`DOMAIN`指向`CONTAINER`的IP地址 |                                                           |
-| `--rm`                                           | 退出容器时自动将其销毁                                       |                                                           |
-| `-v`/`--volume LIST([HOST_PATH:]CONTAINER_PATH)` | 在容器的`CONTAINER_PATH`目录下挂载数据卷，并使数据卷存储在主机的`HOST_PATH`目录下 | `HOST_PATH`缺省时为`/var/lib/docker`                      |
-| `--volume-from LIST(CONTAINER)`                  | 从指定的`CONTAINER`进行挂载数据卷                            |                                                           |
+| 参数                                             | 作用                                                         | 补充说明                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `-d`/`--detach`                                  | 在后台运行容器，并输出容器ID                                 | 可用[`docker logs`](#§2.5 `docker logs`)查看CLI输出的内容    |
+| `--link LIST(CONTAINER:DOMAIN)`                  | 将容器与旧容器`CONTAINER`相关联，并在新容器中更改`/etc/hosts`使得`DOMAIN`指向`CONTAINER`的IP地址 |                                                              |
+| `-p HOST_PORT:CONTAINER_PORT`                    | 将容器内的`CONTAINER_PORT`端口转发至主机`localhost`的`HOST_PORT`端口上 |                                                              |
+| `-P`                                             |                                                              | 可以在Linux内执行`$ ID=$(docker run -d -P nginx:latest)`和`docker port $ID 80`让Linux自动分配主机上的一个空闲端口 |
+| `--rm`                                           | 退出容器时自动将其销毁                                       |                                                              |
+| `-v`/`--volume LIST([HOST_PATH:]CONTAINER_PATH)` | 在容器的`CONTAINER_PATH`目录下挂载数据卷，并使数据卷存储在主机的`HOST_PATH`目录下 | `HOST_PATH`缺省时为`/var/lib/docker`                         |
+| `--volume-from LIST(CONTAINER)`                  | 从指定的`CONTAINER`进行挂载数据卷                            |                                                              |
 
 
 
@@ -624,13 +763,23 @@ $ docker run test/cowsay-dockerfile /usr/games/cowsay "Moo"
 > - 根据[CSDN博客](https://bbs.csdn.net/topics/395826457?ivk_sa=1024320u)，`wheezy`早已于2018年停止安全更新，官方不再提供任何服务和维护。该说法可以解释为什么2015年出版的书出现该错误，但不能解释为何只安装镜像后在Shell内可以正常连接。
 > - 根据[StacksOverflow](https://stackoverflow.com/questions/41680990/docker-from-debianwheezy-cannot-build)，安装Debian时使用的内核级配置文件默认关闭了一系列选项。但该帖子于2017年发布，无法解释2018年才停止维护的时间差。
 
-DockerFile支持众多参数：
+DockerFile支持众多指令：
+
+- `ADD`：从构建环境的上下文或远程URL复制文件只容器内。特殊的，如果该文件是本地路径下的压缩包，那么`Docker`会自动尝试将其解压。实际应用时，由于该指令功能过多，不易记忆，所以最好使用`COPY`指令对本地文件进行复制，利用`RUN`搭配`wget`或`curl`下载远程文件。
+
+- `CMD`：当容器启动时执行指定的指令。如果还定义了`ENTRYPOINT`，则该指令将被解释为`ENTRYPOINT`的参数。
 
 - `COPY [LOCAL_DIRECTORY] [CONTAINER_DIRECTORY]`：将主机操作系统的某个文件或目录`[LOCAL_DIRECTORY]`复制到容器内操作系统的`[CONTAINER_DIRECTORY]`目录下。
 
   ```shell
   COPY ./somefiles /usr/temp/documents
   ```
+
+  > 注意：
+  >
+  > - 当文件路径内含有空格时，必须使用`COPY ["Program Files","/usr/temp"]`这种JSON格式。
+  > - 不能指定上下文以外的路径，例如`../bin/`。
+  > - 文件路径允许使用通配符同时指定多个文件或目录
 
 - <span name="ENTRYPOINT">`ENDPOINT [COMMAND]`</span>：执行`docker run`时自动为命令补充`ENDPOINT`指定的前缀。
 
@@ -667,6 +816,29 @@ DockerFile支持众多参数：
   $ chmod +x entrypoint.sh # 赋予执行权限
   $ docker build -t test_repository/cowsay-dockerfile .
   ```
+  
+- `ENV`：设置镜像内的环境变量，可以被随后的指令引入。
+
+  ```dockerfile
+  ENV MIN_VERSION 1.1
+  RUN apt-get install -y you-get=$MIN_VERSION
+  ```
+
+- `EXPOSE`：申请一个容器内进行可以监听的端口，常用于连接容器。也可以使用`docker run -p PORT`来在运行时指定端口。
+
+- `FROM`：设置`dockerfile`使用的基础镜像，随后的指令都执行于该景象之上，如果使用的话必须将该命令放在`dockerfile`的第一行。
+
+- `MAINTAINER`：在镜像的元数据内设置“作者”的值。也可使用`docker inspect -f {{.Author}} IMAGE`查看作者信息。
+
+- `ONBUILD`：当前镜像被用作为另一个镜像的基础镜像时执行的命令。
+
+- `RUN`：在容器内执行命令，并将输出结果保存到镜像中。
+
+- `USER`：设置后续的`RUN`、`CMD`、`ENTRYPOINT`执行指令时的用户身份
+
+- `VOLUME`：指定数据卷进行挂载，详见[§3.2 数据卷与备份](#§3.2 数据卷与备份)一节。
+
+- `WORKDIR`：设置后续的`RUN`、`CMD`、`ENTRYPOINT`、`ADD`、`COPY`的工作目录，可以反复多次使用，支持相对路径。
 
 ## §2.10 `DockerHub`
 
@@ -897,3 +1069,85 @@ MountPoint1--"cp<br/>/data/dump.rdb<br/>/backup/"-->MountPoint2
 MountPoint2--"-v<br/>C:/backup:/backup"-->NewFile
 ```
 
+初始化数据卷一共有三种方法：
+
+- 在启动`Docker`容器时，指定`-v`选项
+
+  ```shell
+  $ docker run -it -v /mountFolder alpine:latest
+  / # ls /
+  bin      home     mnt          proc     sbin     tmp
+  dev      lib      mountFolder  root     srv      usr
+  etc      media    opt          run      sys      var
+  / # ls /mountFolder/
+  ```
+
+  这时数据卷被挂载到了容器内的`/mountFolder`路径下。此时在主机上另开一个终端，使用`docker inspect`命令查看该数据卷在WSL下的位置：
+
+  ```shell
+  C:\> docker inspect awesome_chebyshev
+  [
+      {
+      	# ...
+          "Mounts": [
+              {
+                  "Type": "volume",
+                  "Name": "0807ce48a09b9a1a9fa44ad189a4c45d7c442390344eaf3deeaf25be2151de70",
+                  "Source": "/var/lib/docker/volumes/0807ce48a09b9a1a9fa44ad189a4c45d7c442390344eaf3deeaf25be2151de70/_data",
+                  "Destination": "/mountFolder",
+                  "Driver": "local",
+                  "Mode": "",
+                  "RW": true,
+                  "Propagation": ""
+              }
+          ],
+          # ...
+      }
+  ]
+  ```
+
+  我们知道，WSL是Windows的一个子系统。`docker inspect`返回的只是WSL下的路径，不是Windows下的真实路径。其真实路径由Windows的默认变量`wsl$`给定，可以在Windows资源管理器的地址栏中通过`\\wsl$`进行访问，根据[StackOverflow](https://stackoverflow.com/questions/61083772/where-are-docker-volumes-located-when-running-wsl-using-docker-desktop)的说法，一般位于`\\wsl$\docker-desktop-data\version-pack-data\community\docker\volumes`和`C:\Users\[USERNAME]\AppData\Local\Docker\wsl\data`。如果将该网络位置映射为驱动器并分配盘符，则资源管理器会将C盘和新盘视为两个属性(例总空间、剩余空间等)完全相同的盘。
+
+  在Windows下访问`\\wsl$\docker-desktop-data\version-pack-data\community\docker\volumes\[VOLUME_ID]\_data`，在里面创建一个新文件，然后返回到之前的终端，再次查看挂载目录，就能看到在主机创建的文件：
+
+  ```
+  root@5bbf85d0da43 /# ls /mountFolder/
+  HelloWorld.txt
+  ```
+
+  ```mermaid
+  graph TB
+      subgraph Hosting ["主机(Windows)"]
+          subgraph HostingFileSystem ["文件系统"]
+              subgraph HostingDisk ["主机硬盘"]
+                  VirtualDisk["虚拟磁盘/数据卷<br/>C:\Users\[USERNAME]\AppData\Local\Docker\wsl\data"]
+                  HostingDiskC["C盘"]
+                  HostingDiskD["D盘"]
+                  HostingDiskOther["..."]
+              end
+              VirtualNetworkDisk["虚拟网络位置<br/>\\wsl$\docker-desktop-data<br/>\version-pack-data\community<br/>\docker\volumes\[VOLUME_ID]\_data"]
+              VirtualDisk--"WSL"-->VirtualNetworkDisk
+              VirtualNetworkDisk--"WSL Shell<br/>/tmp/docker-desktop-root<br/>/mnt/host/c"-->HostingDiskC
+              VirtualNetworkDisk--"WSL Shell<br/>/tmp/docker-desktop-root<br/>/mnt/host/d"-->HostingDiskD
+              VirtualNetworkDisk--"WSL Shell<br/>/tmp/docker-desktop-root<br/>/mnt/host/..."-->HostingDiskOther
+              HostingDiskC-->VirtualDisk
+          end
+          subgraph Docker
+              subgraph Container["容器"]
+                  subgraph ContainerFileSystem ["文件系统"]
+                      ContainerMountFolder["/MountPoint"]
+                  end
+                  ContainerApp["程序"]--"交互"-->ContainerMountFolder
+              end
+          end
+          VirtualNetworkDisk--"挂载"-->ContainerMountFolder
+      end
+  ```
+
+- 在`dockerfile`内使用`VOLUME`指令
+
+  ```dockerfile
+  
+  ```
+
+  
