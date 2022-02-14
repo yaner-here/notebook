@@ -136,9 +136,9 @@ graph TB
 这里我们以`MongoDB`为例，使用`docker history IMAGE`命令来查看该镜像的镜像层：
 
 ```shell
-C:/> docker pull mongo
+C:\> docker pull mongo
 # ...
-C:/> docker history mongo:latest
+C:\> docker history mongo:latest
 IMAGE          CREATED       CREATED BY                                      SIZE      COMMENT
 5285cb69ea55   10 days ago   /bin/sh -c #(nop)  CMD ["mongod"]               0B
 <missing>      10 days ago   /bin/sh -c #(nop)  EXPOSE 27017                 0B
@@ -208,7 +208,7 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 > 注意：实测Docker Desktop默认情况下不会显示最后一次的镜像层(Immediate Container)的ID，而是如下所示：
 >
 > ```shell
-> C:/> docker build -t echotest .
+> C:\> docker build -t echotest .
 > [+] Building 13.6s (6/7)
 >  => [internal] load build definition from Dockerfile                                        0.0s
 >  => => transferring dockerfile: 239B                                                        0.0s
@@ -242,13 +242,13 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >
 >   ```shell
 >   # powershell
->   (base) PS C:/> $env:DOCKER_BUILDKIT=0; docker build .
->     
+>   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
+>           
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->     
+>           
 >   # command prompt
->   C:/> set DOCKER_BUILDKIT=0& docker build .
+>   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
 
 为了提高构建镜像的速度，`Docker`可以缓存每一个镜像层，但是缓存对`dockerfile`中的指令的要求非常苛刻：
@@ -271,8 +271,6 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 # 基于时间的干扰变量
 ENV UPDATED_ON "2022 February 13th 10:48:13"
 ```
-
-
 
 # §2 基本操作
 
@@ -341,12 +339,23 @@ Server: Docker Engine - Community
   GitCommit:        de40ad0
 ```
 
+`Docker`所有的网络访问都默认不走系统代理，而是尝试直连。为了提高国内的访问速度，可以在Windows平台下向`~\.docker\daemon.json`添加镜像源：
+
+```json
+{
+	// ...
+	"registry-mirrors": [
+        "https://9cpn8tt6.mirror.aliyuncs.com" // 阿里云镜像源
+    ]
+}
+```
+
 ## §2.1 `docker run`
 
 `Docker`官方在云端提供了一个精简版Debian镜像，可以使用下列命令进行安装：
 
 ```shell
-C:/> docker run debian echo "Hello World"
+C:\> docker run debian echo "Hello World"
 Unable to find image 'debian:latest' locally
 latest: Pulling from library/debian
 0c6b8ff8c37e: Pull complete
@@ -357,19 +366,19 @@ Hello World
 
 此时Docker Desktop的Containers/Apps一栏出现了刚才安装的镜像，下面我们逐行分析`Docker`输出的日志：
 
-- `C:/> docker run debian echo "Hello World"`
+- `C:\> docker run debian echo "Hello World"`
 
   `docker run`的功能是启动容器，`debian`是我们想启动的镜像的名称。`docker help`对该指令的作用和使用方法进行了详细的说明：
 
   ```shell
-  C:/> docker help
+  C:\> docker help
   
   Usage:  docker [OPTIONS] COMMAND
   # ...
     run         Run a command in a new container
   # ...
   
-  C:/> docker help run
+  C:\> docker help run
   
   Usage:  docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
   Run a command in a new container
@@ -411,13 +420,25 @@ root
 
 | 参数                                             | 作用                                                         | 补充说明                                                     |
 | ------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| `-d`/`--detach`                                  | 在后台运行容器，并输出容器ID                                 | 可用[`docker logs`](#§2.5 `docker logs`)查看CLI输出的内容    |
+| `-a`/`--attach`                                  | 将指定的数据流(例`STDOUT`)连接至终端(缺省为`stdout`和`stderr`) | 不指定该选项时，默认以`-i`启动                               |
+| `-d`/`--detach`                                  | 使得容器不占用当前主机的Shell，(如果指定)而是在后台运行容器，并输出容器ID | 要保持其持续在后台运行，需要同时指定`-t`参数<br />可用[`docker logs`](#§2.5 `docker logs`)查看CLI输出的内容<br />不能和`-rm`共用 |
+| `--entrypoint`                                   | 覆盖`dockerfile`中的`ENTRYPOINT`指令                         |                                                              |
+| `-e`/`--env`+`VARIABLE=VALUE`                    | 设置容器内的环境变量                                         | 其参数不能为列表形式，如需批量设置环境变量可以多用几个`-e`，例`docker run -e var1=1 -e var2=2` |
+| `--expose`                                       | 与`dockerfile`中的`EXPOSE`指令一样，向主机申请端口或端口范围 | 单纯使用该命令只是占用端口而非开放端口，需要与`-P`共同使用   |
+| `-h`/`--hostname`+`NAME`                         | 设置容器内`Linux`系统的主机名为`NAME`                        |                                                              |
+| `-i`/`--interactive`                             | 保持`stdin`始终打开，即使没有任何终端向`stdin`写入数据流     | 常与`-t`搭配使用，或直接使用`-it`，用于与容器内的shell进行交互 |
 | `--link LIST(CONTAINER:DOMAIN)`                  | 将容器与旧容器`CONTAINER`相关联，并在新容器中更改`/etc/hosts`使得`DOMAIN`指向`CONTAINER`的IP地址 |                                                              |
-| `-p HOST_PORT:CONTAINER_PORT`                    | 将容器内的`CONTAINER_PORT`端口转发至主机`localhost`的`HOST_PORT`端口上 |                                                              |
-| `-P`                                             |                                                              | 可以在Linux内执行`$ ID=$(docker run -d -P nginx:latest)`和`docker port $ID 80`让Linux自动分配主机上的一个空闲端口 |
-| `--rm`                                           | 退出容器时自动将其销毁                                       |                                                              |
+| `--name NAME`                                    | 指定容器的名称                                               |                                                              |
+| `-p`/`--publish`+ `HOST_PORT:CONTAINER_PORT`     | 将容器内的`CONTAINER_PORT`端口转发至主机`localhost`的`HOST_PORT`端口上 | 可使用`docker port CONTAINER`查看主机为容器分配了哪些端口    |
+| ``--publish-all``                                | 发布所有已经被指定为开放状态的容器端口(`dockerfile`中的`EXPOSE`或`docker run --expose`)，主机会挨个分配主机端口用于转发 |                                                              |
+| `-P`                                             | 发布容器制定的端口，使主机能够访问                           | 可以在Linux内执行`$ ID=$(docker run -d -P nginx:latest)`和`docker port $ID 80`让Linux自动分配主机上的一个空闲端口 |
+| `--restart STRING`                               | 设置容器停止运行时的重启策略：<br />`always`：无论退出代码是什么，永远尝试重新启动<br />`no`：永远不尝试重新启动<br />`on-failure[:MAX_TRY]`：当退出代码不为0时才尝试重启，最多尝试`MAX_TRY`次 |                                                              |
+| `--rm`                                           | 退出容器时自动将其销毁                                       | 不能与`-d`同时使用                                           |
+| `-t`/`--tty`                                     | 分配一个虚拟的终端设备，从而连接到容器的shell                | 常与`-i`搭配使用，或直接使用`-it`，用于与容器内的shell进行交互 |
+| `-u`/`--user`                                    | 指定容器内`Linux`系统的用户名或UID，这将会覆盖掉`dockerfile`中的`USER`指令 |                                                              |
 | `-v`/`--volume LIST([HOST_PATH:]CONTAINER_PATH)` | 在容器的`CONTAINER_PATH`目录下挂载数据卷，并使数据卷存储在主机的`HOST_PATH`目录下 | `HOST_PATH`缺省时为`/var/lib/docker`                         |
 | `--volume-from LIST(CONTAINER)`                  | 从指定的`CONTAINER`进行挂载数据卷                            |                                                              |
+| `-w`/`--workdir`+`FILE_PATH`                     | 切换到容器内的`FILE_PATH`作为工作目录，这将会覆盖`dockerfile`中的`WORKDIR`指令 |                                                              |
 
 
 
@@ -438,7 +459,7 @@ f3a8c675a965   debian    "/bin/bash"   About a minute ago   Up About a minute   
 值得注意的是，`NAMES`虽然是`Docker`动生成的，但是该名称也和ID一样可以唯一定位到该容器。如果要查看某个镜像的详细信息，需要执行`docker inspect [NAME]`命令。该命令会返回一个列表，该列表内只有一个字典，存储着该镜像的所有信息：
 
 ```shell
-C:/> docker inspect infallible_spence
+C:\> docker inspect infallible_spence
 [
     {
         "Id": "f3a8c675a965fff6eea6f5eadd20235a0588bce5a824b8c7e534caae42c84e2c",
@@ -590,7 +611,7 @@ C:/> docker inspect infallible_spence
 > 注意：`Docker`为容器生成的名称并非毫无规律，都是由一个随机的形容词加上一个著名的科学家/工程师/黑客的名字构成的。当然，用户也可指定`--name`参数来自定义名称：
 >
 > ```shell
-> C:/> docker run --name customize_name debian echo "Hello World"
+> C:\> docker run --name customize_name debian echo "Hello World"
 > ```
 
 ## §2.4 `docker diff`
@@ -598,7 +619,7 @@ C:/> docker inspect infallible_spence
 在终端内执行`docker diff [NAME]`指令，可以得到相较于刚开始运行时哪些目录和文件发生了变化：
 
 ```shell
-C:/> docker diff infallible_spence
+C:\> docker diff infallible_spence
 C /var # C代表Change
 C /var/lib
 C /var/lib/apt
@@ -614,7 +635,7 @@ A /root/.bash_history
 执行`docker logs [NAME]`，就能得到该容器中一切发生过的事件的日志：
 
 ```shell
-C:/> docker logs infallible_spence
+C:\> docker logs infallible_spence
 root@CONTAINER:/# whoami
 root
 root@CONTAINER:/# ls
@@ -631,7 +652,7 @@ boot  etc  lib   media  opt  root  sbin  sys  usr
 执行`docker rm [NAME]`，可以删除指定名称的容器。
 
 ```shell
-C:/> docker rm infallible_spence
+C:\> docker rm infallible_spence
 infallible_spence
 ```
 
@@ -951,7 +972,7 @@ https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 > 注意：实测Windows平台下Docker Desktop配置的Proxy无法应用于命令行，无论是在其设置界面的`Proxy`只填写Http服务器，还是手动编辑`~\.docker\config.json`，命令行均抛出超时错误：
 >
 > ```shell
-> C:/> docker login
+> C:\> docker login
 > Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.
 > Username: *USERNAME*
 > Password:
@@ -971,7 +992,7 @@ https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 `docker pull [USERNAME/]IMAGENAME`能从`DockerHub`搜索指定用户上传的镜像，并将其下载到本地。对于一些非常有名的软件打包而成的镜像，例如`MySQL`、`Redis`等，`DockerHub`提供了官方仓库以保证镜像的质量和来源的可靠性。下载官方仓库的镜像时可以不指定`[USERNAME]`参数，`Docker`会自动将其补全为`library`，并尝试下载带有`latest`标签的镜像：
 
 ```shell
-C:/> docker pull redis
+C:\> docker pull redis
 Using default tag: latest # 默认指定latest标签的镜像
 latest: Pulling from library/redis # [USERNAME]参数缺省为library
 5eb5b503b376: Pull complete
@@ -985,6 +1006,181 @@ Status: Downloaded newer image for redis:latest
 docker.io/library/redis:latest
 ```
 
+## §2.11 `docker attach`
+
+`docker attach CONTAINER`允许用户与指定的容器进行交互或查看主进程的输出：
+
+- 当容器主进程空闲时，可以与容器进行交互
+
+  ```shell
+  C:\> docker run -d --name IdleContainer alpine:latest
+  	e7da963632251ba35d6369445bdcf4cdf58022c08a71f53916afced0a0bd31ea
+  C:\> docker attach IdleContainer
+  	/ # echo "This is a container with an idle main thread."
+  		This is a container with an idle main thread.
+  ```
+
+- 当容器主进程繁忙时，可以查看主线程的输出：
+
+  ```shell
+  # cmd使用^实现换行输入命令
+  # powershell使用`实现换行输入命令
+  # linux使用\实现换行输入命令
+  C:\> docker run -d --name BusyContainer alpine:latest `
+  sh -c "`
+  	while true;`
+  		do echo 'This is a container with a busy main thread.';`
+  		sleep 1;`
+  	done;"
+  	fefdd05b948fa1c8f6eb8c91a4408b704e4a52d79d644c02adb546d3cff9bc07
+  C:\> docker attach BusyContainer
+  	This is a container with a busy main thread.
+  	This is a container with a busy main thread.
+  	This is a container with a busy main thread.
+  	# ...
+  ```
+
+## §2.12 `docker create`
+
+`docker create`从镜像创建容器，但不启动它。其用法和参数与`docker run`大致相同。可以用`docker start`命令来启动容器。
+
+```shell
+C:\> docker create --name test alpine:latest
+	48c6b5549a7d8dcf708da74c72b35d4222e9d46a053d0e1a83082add8e0c5b57
+C:\> docker ps
+	CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+C:\> docker ps -a
+	CONTAINER ID   IMAGE           COMMAND     CREATED          STATUS    PORTS     NAMES
+	48c6b5549a7d   alpine:latest   "/bin/sh"   43 seconds ago   Created             test
+```
+
+## §2.13 `docker cp`
+
+`docker cp CONTAINER:SOURCE_PATH DEST_PATH`在主机和容器之间复制文件和目录。
+
+```shell
+# Terminal A
+C:\> docker run -it--name TestContainer alpine:latest
+# Terminal B
+C:\> tree C:\MountFolder /F
+	Folder PATH listing for volume OS
+	Volume serial number is 7ACC-FF86
+	C:\MOUNTFOLDER
+	│   Document.txt
+	│   Picture.psd
+	└───SubFolder
+    	└───Sheet.xlsx
+C:\> docker cp C:\MountFolder\ TestContainer:/MountFolder
+# Terminal A
+	/ # ls /
+		MountFolder  etc   media  proc  sbin  tmp
+		bin          home  mnt    oot   srv   usr
+		dev          lib   opt    run   sys   var
+	/ # apk add tree
+		fetch https://dl-cdn.alpinelinux.org/alpine/v3.15/main/x86_64/APKINDEX.tar.gz
+		fetch https://dl-cdn.alpinelinux.org/alpine/v3.15/community/x86_64/APKINDEX.tar.gz
+		(1/1) Installing tree (1.8.0-r0)
+		Executing busybox-1.34.1-r3.trigger
+		OK: 6 MiB in 15 packages
+	/ # tree /MountFolder/
+		/MountFolder/
+		├── Document.txt
+		├── Picture.psd
+		└── SubFolder
+		    └── Sheet.xlsx
+		1 directory, 3 files
+```
+
+## §2.14 `docker exec`
+
+`docker exec CONTAINER COMMAND`在运行的容器内运行一个命令。
+
+```shell
+C:\> docker run -d --name test alpine:latest
+	58d869f2faa930dd8523cb2c31d0a28f7def447fc455e822e9ca6c54fba50b9c
+C:\> docker exec test echo "Hello world"
+	Hello world
+```
+
+## §2.15 `docker start`
+
+`docker start [-i] CONTAINER [CONTAINER...]`可以启动当前停止运行的容器。
+
+```shell
+C:\> docker run -it --name TestContainer alpine
+	/ # exit
+C:\> docker ps
+	CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+C:\> docker ps -a
+	CONTAINER ID   IMAGE     COMMAND     CREATED          STATUS                      PORTS     NAMES
+	f106c6704b01   alpine    "/bin/sh"   14 seconds ago   Exited (0) 11 seconds ago             TestContainer
+C:\> docker start -i TestContainer
+	/ #
+```
+
+## §2.16 `docker kill`
+
+`docker kill [-s/--signal STRING] CONTAINER [CONTAINER...]`用于向容器内的主进程(`PID`=1)发送`SIGKILL`信号(可由`-s/--signal STRING`指定，默认为`KILL`)，使得容器立刻停止运行，并返回容器的ID。
+
+```shell
+# Terminal A
+C:\> docker run -it --name TestContainer alpine
+	/ #
+# Terminal B
+C:\> docker kill TestContainer
+	TestContainer
+```
+
+## §2.17 `docker pause`
+
+`docker pause CONTAINER [CONTAINER...]`将正在运行的`CONTAINER`变为暂停状态，可以再用`docker unpause`恢复运行状态。
+
+```shell
+
+```
+
+## §2.18 `docker restart`
+
+`docker restart [-t/--time INTEGER] CONTAINER [CONTAINER...]`使指定的`CONTAINER`在`INTEGER`秒(缺省为0秒)后重启。
+
+```shell
+
+```
+
+## §2.19 `docker unpause`
+
+`docker unpause CONTAINER [CONTAINER...]`能将暂停状态的`CONTAINER`恢复至运行状态。
+
+```shell
+
+```
+
+## §2.20 `docker info`
+
+
+
+## §2.21 `docker help`
+
+
+
+## §2.22 `docker help`
+
+
+
+## §2.23 `docker version`
+
+
+
+## §2.24 `docker events`
+
+
+
+## §2.25 `docker port`
+
+
+
+## §2.26 `docker top`
+
 # §3 进阶
 
 ## §3.1 `Redis`互联
@@ -992,9 +1188,9 @@ docker.io/library/redis:latest
 我们将创建一个`Redis`容器和`Redis-cli`容器，并实现这两者之间的网络访问：
 
 ```shell
-C:/> docker run --name myredis -d redis
+C:\> docker run --name myredis -d redis
 	f854769ddecdb632ef309c40bf9135f81e01e2e6ac58cfabf103b1ea922b086c
-C:/> docker run --rm -it --link myredis:redis redis /bin/bash
+C:\> docker run --rm -it --link myredis:redis redis /bin/bash
 	root@9bf7cb6945fe:/data# redis-cli -h redis -p 6379
 		redis:6379> ping # 检测连通性
 			PONG
@@ -1011,7 +1207,7 @@ C:/> docker run --rm -it --link myredis:redis redis /bin/bash
 
 我们先在后台启用了一个`Redis`容器。终点在于第二条命令的`--link myredis:redis`：这条命令告知``Docker``，把将要创建的`Redis`容器与现存的`myredis`容器关联起来，并且在新容器的`/etc/hosts`文件里让字符串`redis`指向旧容器的IP地址，这样就能在新容器中直接以`redis`为主机名。
 
-## §3.2 数据卷与备份
+## §3.2 数据卷
 
 在[联合文件系统](#§1.2 联合文件系统)一节中，我们知道``Docker``支持一系列的联合文件系统格式，然而这些格式不能让容器与主机和其它容器之间自由地共享数据，只能通过TCP/IP等高级协议实现共享。为此`Docker`提供了数据卷（Volume）这一方式。
 
@@ -1033,7 +1229,7 @@ C:/> docker run --rm -it --link myredis:redis redis /bin/bash
 接下来我们用数据卷对`Redis`进行备份：
 
 ```shell
-C:/> docker run --rm -it --link myredis:redis redis /bin/bash
+C:\> docker run --rm -it --link myredis:redis redis /bin/bash
 	root@6fb385af206b:/data# redis-cli -h redis -p 6379
 		redis:6379> get Message
 			"Hello World!"
@@ -1041,8 +1237,8 @@ C:/> docker run --rm -it --link myredis:redis redis /bin/bash
 			OK
 		redis:6379> exit
 	root@6fb385af206b:/data# exit
-C:/> docker run --rm --volumes-from myredis -v C:/backup:/backup debian cp /data/dump.rdb /backup/
-C:/> ls backup
+C:\> docker run --rm --volumes-from myredis -v C:/backup:/backup debian cp /data/dump.rdb /backup/
+C:\> ls backup
 	Mode                LastWriteTime         Length Name
 	----                -------------         ------ ----
 	-a----        2022/2/12     14:00            119 dump.rdb
@@ -1069,9 +1265,9 @@ MountPoint1--"cp<br/>/data/dump.rdb<br/>/backup/"-->MountPoint2
 MountPoint2--"-v<br/>C:/backup:/backup"-->NewFile
 ```
 
-初始化数据卷一共有三种方法：
+挂载数据卷一共有三种方法：
 
-- 在启动`Docker`容器时，指定`-v`选项
+- 在启动`Docker`容器时，指定`-v`选项初始化数据卷
 
   ```shell
   $ docker run -it -v /mountFolder alpine:latest
@@ -1144,10 +1340,101 @@ MountPoint2--"-v<br/>C:/backup:/backup"-->NewFile
       end
   ```
 
-- 在`dockerfile`内使用`VOLUME`指令
+- 在`dockerfile`内使用`VOLUME`指令初始化数据卷
 
   ```dockerfile
+  FROM alpine:latest
+  VOLUME /MountFolder
+  ```
   
+  ```shell
+  C:\> docker build -t alpint:customize
+  C:\> docker run -it alpine:customize
+  	/ # ls /
+  		MountFolder etc     media   proc    sbin    tmp
+  		bin         home    mnt     root    srv     usr
+  		dev         lib     opt     run     sys     var
+  ```
+  
+- 在启动`Docker`容器时，指定`-v HOST_PATH:CONTAINER:PATH`选项挂载现存目录作为数据卷，这种方法一般被称为绑定挂载(Bind Mounting)
+
+  ```shell
+  C:\> tree C:\MountFolder /F
+  	Folder PATH listing for volume OS
+  	Volume serial number is 7ACC-FF86
+  	C:\MOUNTFOLDER
+  	│   Document.txt
+  	│   Picture.psd
+  	└───SubFolder
+      	└───Sheet.xlsx
+  C:\> docker run -it -v C:\MountFolder:/MountFolder alpine:latest
+  	/ # ls /
+  		MountFolder  etc    media  proc   sbin   tmp
+  		bin          home   mnt    root   srv    usr
+  		dev          lib    opt    run    sys    var
+  	/ # apk add tree
+  		fetch https://dl-cdn.alpinelinux.org/alpine/v3.15/main/x86_64/APKINDEX.tar.gz
+  		fetch https://dl-cdn.alpinelinux.org/alpine/v3.15/community/x86_64/APKINDEX.tar.gz
+  		(1/1) Installing tree (1.8.0-r0)
+  		Executing busybox-1.34.1-r3.trigger
+  		OK: 6 MiB in 15 packages
+  	/ # tree /MountFolder/
+  		/MountFolder/
+  		├── Document.txt
+  		├── Picture.psd
+  		└── SubFolder
+      		└── Sheet.xlsx
+  		1 directory, 3 files
   ```
 
-  
+> 注意：很多情况下我们需要设置数据卷的所有者及其权限。在进行配置时，要尤其警惕`dockerfile`中的**`VOLUME`指令后不能再对数据卷进行操作**(原因见[§1.4 镜像生成](#§1.4 镜像生成))，如下例所示：
+>
+> ```dockerfile
+> FROM alpine:latest
+> RUN useradd customizeUser # 添加用户
+> VOLUME /MountFolder # 先自行挂载文件夹
+> RUN mkdir /MountFolder/CustomizeFolder # 尝试更改数据卷,提示该路径不存在
+> RUN chown -R customizeUser:customizeUser /MountFolder/Customize
+> ```
+>
+> 既然不能在`VOLUME`指令后对数据卷进行操作，那么我们可以把操作移至前面，如下所示：
+>
+> ```dockerfile
+> FROM alpine:latest
+> RUN useradd customizeUser # 添加用户
+> RUN mkdir /MountFolder # 先自行创建文件夹
+> RUN chown -R customizeUser:customizeUser /data
+> VOLUME /MountFolder # 最后再挂载文件夹,旗下文件和目录继承权限属性
+> ```
+
+## §3.3 数据容器
+
+顾名思义，数据容器就是只用于提供和分享数据的容器。得益于`docker run --volumes-from CONTAINER`，现在任何容器都可以与数据容器`CONTAINER`共享同一个虚拟磁盘：
+
+```shell
+C:\> docker run -it --name Database -v /MountFolder alpine:latest
+	/ # ls /
+		MountFolder  etc   media  proc  sbin  tmp
+		bin          home  mnt    root  srv   usr
+		dev          lib   opt    run   sys   var
+	/ # cd /MountFolder/
+	/MountFolder # mkdir HelloWorld
+	/MountFolder # ls
+		HelloWorld
+	/MountFolder # exit
+C:\> docker run -it --name Application --volumes-from Database alpine:latest
+	/ # ls /
+		MountFolder  etc   media  proc  sbin  tmp
+		bin          home  mnt    root  srv   usr
+		dev          lib   opt    run   sys   var
+	/ # ls /MountFolder/
+		HelloWorld
+```
+
+数据卷在满足下列条件之一时会被删除：
+
+- 使用`docker rm -v VOLUME`删除指定数据卷
+- 使用`docker run --rm`在容器停止运行时实现数据卷的自毁
+- 该数据卷没有被指定主机目录(即`docker run -v HOST_PATH:CONTAINER:PATH`)，类似于自毁命令
+- **当前没有任何容器与该数据卷关联**
+
