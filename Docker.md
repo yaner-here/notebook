@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->           
+>             
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->           
+>             
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -1006,6 +1006,58 @@ Status: Downloaded newer image for redis:latest
 docker.io/library/redis:latest
 ```
 
+### §2.10.5 `docker export`
+
+`docker export CONTAINER`将容器内文件系统的内容(不包括元数据，例映射端口、`ENTRYPOINT`等)以`.tar`的格式导出，并输出到`STDOUT`(也可以指定`-o`/`--output string`参数输出到文件)，可以再通过`docker import`导入。
+
+```shell
+C:\> docker run -d -t --name TestContainer nginx:latest
+C:\> docker export TestContainer -o C:\Users\[USERNAME]\Desktop\file
+C:\> dir C:\Users\[USERNAME]\Desktop\
+    Directory: C:\Users\[USERNAME]\Desktop
+	Mode                 LastWriteTime         Length Name
+	----                 -------------         ------ ----
+	# ...
+	-a---           2022/2/15    12:18      144046592 file
+	# ...
+```
+
+### §2.10.6 `docker import`
+
+`docker import file|URL`能将归档文件导入新镜像的文件系统中。
+
+```shell
+C:\> dir C:\Users\[USERNAME]\Desktop\
+    Directory: C:\Users\[USERNAME]\Desktop
+	Mode                 LastWriteTime         Length Name
+	----                 -------------         ------ ----
+	# ...
+	-a---           2022/2/15    12:18      144046592 file
+	# ...
+C:\> docker import file
+	sha256:43fc59c6b760425065dceeb554ec9fc6099fd56f6c591b057676b90b6a10ad2a
+C:\> docker images
+	REPOSITORY   TAG       IMAGE ID       CREATED              SIZE
+	<none>       <none>    43fc59c6b760   About a minute ago   140MB
+	# ...
+```
+
+### §2.10.7 `docker load`
+
+
+
+### §2.10.8 `docker rmi`
+
+
+
+### §2.10.9 `docker save`
+
+
+
+### §2.10.10 `docker t`
+
+
+
 ## §2.11 `docker attach`
 
 `docker attach CONTAINER`允许用户与指定的容器进行交互或查看主进程的输出：
@@ -1152,34 +1204,265 @@ C:\> docker kill TestContainer
 `docker unpause CONTAINER [CONTAINER...]`能将暂停状态的`CONTAINER`恢复至运行状态。
 
 ```shell
-
+C:\> docker run -d -t --name TestContainer debian:latest /bin/bash
+	6c26eab371448caf5d095ce6028579d30ef7cc9537145dc39ff668e3f5b2e294
+C:\> docker pause TestContainer
+	TestContainer
+C:\> docker ps
+	CONTAINER ID   IMAGE           COMMAND       CREATED          STATUS                   PORTS     NAMES
+	6c26eab37144   debian:latest   "/bin/bash"   13 minutes ago   Up 13 minutes (Paused)             TestContainer
+C:\> docker unpause TestContainer
+	TestContainer
+C:\> docker ps
+	CONTAINER ID   IMAGE           COMMAND       CREATED          STATUS          PORTS     NAMES
+	6c26eab37144   debian:latest   "/bin/bash"   14 minutes ago   Up 14 minutes             TestContainer
 ```
 
 ## §2.20 `docker info`
 
+`docker info`输出`Docker`系统和主机的各类信息：
 
+```shell
+C:\> docker info
+	Client:
+		Context:    default
+		Debug Mode: false
+		Plugins:
+			buildx: Docker Buildx (Docker Inc., v0.7.1)
+			compose: Docker Compose (Docker Inc., v2.2.3)
+			scan: Docker Scan (Docker Inc., v0.16.0)
+	Server:
+ 		Containers: 1
+			Running: 1
+			Paused: 0
+			Stopped: 0
+		Images: 5
+		Server Version: 20.10.12
+		Storage Driver: overlay2
+			Backing Filesystem: extfs
+			Supports d_type: true
+			Native Overlay Diff: true
+			userxattr: false
+		Logging Driver: json-file
+		Cgroup Driver: cgroupfs
+		Cgroup Version: 1
+		Plugins:
+			Volume: local
+			Network: bridge host ipvlan macvlan null overlay
+			Log: awslogs fluentd gcplogs gelf journald json-file local logentries splunk syslog
+		Swarm: inactive
+		Runtimes: io.containerd.runc.v2 io.containerd.runtime.v1.linux runc
+		Default Runtime: runc
+		Init Binary: docker-init
+ 		containerd version: 7b11cfaabd73bb80907dd23182b9347b4245eb5d
+ 		runc version: v1.0.2-0-g52b36a2
+ 		init version: de40ad0
+		Security Options:
+			seccomp
+				Profile: default
+			Kernel Version: 5.10.16.3-microsoft-standard-WSL2
+			Operating System: Docker Desktop
+			OSType: linux
+			Architecture: x86_64
+			CPUs: 12
+			Total Memory: 24.87GiB
+			Name: docker-desktop
+			ID: MS2H:CFS2:G7HA:7NB5:OWNV:P75A:TY46:QBJQ:23M4:K5UD:4NNP:EEDB
+			Docker Root Dir: /var/lib/docker
+			Debug Mode: false
+			Registry: https://index.docker.io/v1/
+			Labels:
+			Experimental: false
+			Insecure Registries:
+				127.0.0.0/8
+			Registry Mirrors:
+				https://9cpn8tt6.mirror.aliyuncs.com/
+			Live Restore Enabled: false
+
+	WARNING: No blkio throttle.read_bps_device support
+	WARNING: No blkio throttle.write_bps_device support
+	WARNING: No blkio throttle.read_iops_device support
+	WARNING: No blkio throttle.write_iops_device support
+```
 
 ## §2.21 `docker help`
 
+`docker help COMMAND`输出`Docker`各类指令`COMMAND`的帮助文档，效果等价于`docker COMMAND --help`：
+
+```shell
+C:\> docker help help # 我 查 我 自 己
+	Usage:  docker help [command]
+	Help about the command
+C:\> docker help --help
+	Usage:  docker help [command]
+	Help about the command
+```
+
+## §2.22 `docker version`
+
+`docker version`输出`Docker`的客户端/服务器版本，以及编译时使用的`Go`语言版本：
+
+```shell
+C:\> docker version
+    Client:
+        Cloud integration: v1.0.22
+        Version:           20.10.12
+        API version:       1.41
+        Go version:        go1.16.12
+        Git commit:        e91ed57
+        Built:             Mon Dec 13 11:44:07 2021
+        Context:           default
+        Experimental:      true
+    
+    Server: Docker Engine - Community
+        Engine:
+            Version:          20.10.12
+            API version:      1.41 (minimum version 1.12)
+            Go version:       go1.16.12
+            Git commit:       459d0df
+            Built:            Mon Dec 13 11:43:56 2021
+            OS/Arch:          linux/amd64
+            Experimental:     false
+        containerd:
+            Version:          1.4.12
+            GitCommit:        7b11cfaabd73bb80907dd23182b9347b4245eb5d
+        runc:
+            Version:          1.0.2
+            GitCommit:        v1.0.2-0-g52b36a2
+        docker-init:
+            Version:          0.19.0
+            GitCommit:        de40ad0
+```
+
+## §2.23 `docker events`
+
+输出`Docker`守护进程的实时发生的事件。
+
+```shell
+# Terminal A
+C:\> docker events
+# Terminal B
+C:\> docker run -it --name TestContainer alpine:latest
+	/ #
+# Terminal A
+2022-02-15T09:06:35.046689400+08:00 container create fe634c57af83d1e76290015f13310cffc1e9bebdc0bd5e49a7117f56ff640553 (image=alpine:latest, name=TestContainer)
+2022-02-15T09:06:35.049090600+08:00 container attach fe634c57af83d1e76290015f13310cffc1e9bebdc0bd5e49a7117f56ff640553 (image=alpine:latest, name=TestContainer)
+2022-02-15T09:06:35.100708700+08:00 network connect 58927da88aeab89f4437b664445a4b3deaae6216c8d44aa9ecb39a78a2408b94 (container=fe634c57af83d1e76290015f13310cffc1e9bebdc0bd5e49a7117f56ff640553, name=bridge, type=bridge)
+2022-02-15T09:06:35.446101600+08:00 container start fe634c57af83d1e76290015f13310cffc1e9bebdc0bd5e49a7117f56ff640553 (image=alpine:latest, name=TestContainer)
+2022-02-15T09:06:35.449104200+08:00 container resize fe634c57af83d1e76290015f13310cffc1e9bebdc0bd5e49a7117f56ff640553 (height=24, image=alpine:latest, name=TestContainer, width=102)
+```
+
+## §2.24 `docker port`
+
+`docker port CONTAINER`输出`CONTAINER`占用的端口信息。
+
+```shell
+C:\> docker run -d -t --name TestContainer -p 1234:80 nginx:latest
+	5adf42798a2da2c4c5ad7a618830e047c0ef971a846513db36442fe4d7a86dc0
+C:\> curl localhost:1234
+<!DOCTYPE html>
+	<html>
+		<head>
+			<title>Welcome to nginx!</title>
+		<style>
+			html { color-scheme: light dark; }
+			body { width: 35em; margin: 0 auto;
+			font-family: Tahoma, Verdana, Arial, sans-serif; }
+		</style>
+	</head>
+	<body>
+		<h1>Welcome to nginx!</h1>
+		<p>If you see this page, the nginx web server is successfully installed and working. Further configuration is required.</p>
+		<p>For online documentation and support please refer to
+			<a href="http://nginx.org/">nginx.org</a>.<br/>
+			Commercial support is available at
+			<a href="http://nginx.com/">nginx.com</a>.
+		</p>
+		<p><em>Thank you for using nginx.</em></p>
+	</body>
+</html>
+C:\> docker port TestContainer
+	80/tcp -> 0.0.0.0:1234
+```
+
+## §2.25 `docker top`
+
+`docker top CONTAINER`输出指定`CONTAINER`内的进程信息。
+
+```shell
+C:\> docker run -d -t --name TestContainer nginx:latest
+C:\> docker top TestContainer
+UID    PID   PPID  C  STIME  TTY  TIME      CMD
+root   1297  1277  0  03:53  ?    00:00:00  nginx: master process nginx -g daemon off;
+uuidd  1359  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1360  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1361  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1362  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1363  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1364  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1365  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1366  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1367  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1368  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1369  1297  0  03:53  ?    00:00:00  nginx: worker process
+uuidd  1370  1297  0  03:53  ?    00:00:00  nginx: worker process
+```
+
+## §2.26 `docker history`
+
+`docker history IMAGE`输出`IMAGE`每个镜像层的信息，详见[§1.4 镜像生成](#§1.4 镜像生成)一节。
+
+## §2.27 `docker images`
+
+列出所有本地镜像及其信息(默认情况下不包括中间的镜像层)，有多种参数可以选择：
+
+- 默认情况：显示所有本地镜像，但不包括中间镜像层
+
+  ```shell
+  C:\> docker images
+  	REPOSITORY   TAG       IMAGE ID       CREATED        SIZE
+  	redis        latest    f1b6973564e9   2 weeks ago    113MB
+  	nginx        latest    c316d5a335a5   2 weeks ago    142MB
+  	debian       latest    04fbdaf87a6a   2 weeks ago    124MB
+  	alpine       latest    c059bfaa849c   2 months ago   5.59MB
+  ```
+
+- `-a`/`-all`：显示所有镜像，包括中间层镜像(Intermediate Images)
+
+  ```shell
+  C:\> docker images -a
+  	REPOSITORY   TAG       IMAGE ID       CREATED        SIZE
+  	redis        latest    f1b6973564e9   2 weeks ago    113MB
+  	nginx        latest    c316d5a335a5   2 weeks ago    142MB
+  	debian       latest    04fbdaf87a6a   2 weeks ago    124MB
+  	alpine       latest    c059bfaa849c   2 months ago   5.59MB
+  	<none>       <none>    10fcec6d95c4   2 years ago    88.3MB
+  ```
+
+- `--digests`：显示所有镜像及其哈希值和ID，不包括中间层镜像
+
+  ```
+  C:\> docker images --digests
+  	REPOSITORY   TAG       DIGEST                                                                    IMAGE ID       CREATED        SIZE
+  	redis        latest    sha256:0d9c9aed1eb385336db0bc9b976b6b49774aee3d2b9c2788a0d0d9e239986cb3   f1b6973564e9   2 weeks ago    113MB
+  	nginx        latest    sha256:2834dc507516af02784808c5f48b7cbe38b8ed5d0f4837f16e78d00deb7e7767   c316d5a335a5   2 weeks ago    142MB
+  	debian       latest    sha256:fb45fd4e25abe55a656ca69a7bef70e62099b8bb42a279a5e0ea4ae1ab410e0d   04fbdaf87a6a   2 weeks ago    124MB
+  	alpine       latest    sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300   c059bfaa849c   2 months ago   5.59MB
+  ```
+
+- `-q`/`--quiet`：显示所有镜像及其ID，不包括中间层镜像
+
+  ```shell
+  C:\> docker images -q
+  	f1b6973564e9
+  	c316d5a335a5
+  	04fbdaf87a6a
+  	c059bfaa849c
+  ```
+
+  
 
 
-## §2.22 `docker help`
-
-
-
-## §2.23 `docker version`
-
-
-
-## §2.24 `docker events`
-
-
-
-## §2.25 `docker port`
-
-
-
-## §2.26 `docker top`
 
 # §3 进阶
 
