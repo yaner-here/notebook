@@ -117,7 +117,7 @@ graph TB
 > file_?.txt	排除根目录下以file_开头的txt文件
 > ```
 >
-> 该书与2015年出版，直到2022年的今天，[官方文档](https://docs.docker.com/engine/reference/builder/#dockerignore-file)显示依然不支持完整的正则表达式语法.
+> 该书于2015年出版，直到2022年的今天，[官方文档](https://docs.docker.com/engine/reference/builder/#dockerignore-file)显示依然不支持完整的正则表达式语法.
 
 `dockerfile`中的每个指令在执行后，都会在上一层镜像启动容器的基础上产生一个新的镜像层，而这些镜像层都可以用来启动容器，最后所有指令执行完毕后就得到了最终的镜像，中间的生成和使用过的所有容器都会被删除（除非指定了`docker build --rm-false`参数）。
 
@@ -205,7 +205,7 @@ date   false          login     mv             sed        true      zdiff
 dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 ```
 
-> 注意：实测Docker Desktop默认情况下不会显示最后一次的镜像层(Immediate Container)的ID，而是如下所示：
+> 勘误：实测Docker Desktop默认情况下不会显示最后一次的镜像层(Immediate Container)的ID，而是如下所示：
 >
 > ```shell
 > C:\> docker build -t echotest .
@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->             
+>                       
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->             
+>                       
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -271,6 +271,26 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 # 基于时间的干扰变量
 ENV UPDATED_ON "2022 February 13th 10:48:13"
 ```
+
+## §1.5 `Docker`版本
+
+Docker是一个非常复杂的体系，每个部分都有自己独特的版本，使用`docker version`就能查看这些版本(详见[§2.22 `docker version`](#§2.22 `docker version`)一节)。
+
+日常交流时所说的"Docker版本"，一般情况下指的是`Docker Engine`的`Version`(不是`API Version`)。该版本的命名方式曾经经历了一次非常大的变化，使得版本号之间发生了巨大的断层，详情参考[Docker Engine官方文档](https://docs.docker.com/engine/release-notes/prior-releases/#010-2013-03-23)。
+
+| `Docker Engine Version`(下称`Docker`版本) |      |
+| ----------------------------------------- | ---- |
+| 0.1.0                                     |      |
+| 0.2.0                                     |      |
+| ...                                       |      |
+| 1.13.0                                    |      |
+| 1.13.1                                    |      |
+|                                           |      |
+|                                           |      |
+|                                           |      |
+|                                           |      |
+
+
 
 # §2 基本操作
 
@@ -765,7 +785,7 @@ Successfully built dd66dc5a99bd
 $ docker run test/cowsay-dockerfile /usr/games/cowsay "Moo"
 ```
 
-> 注意：该书[英文原版](https://www.goodreads.com/book/show/25484101-using-docker)于2015年出版，引入国内汉化时为2017年。实测在2022年的今天，该`DockerFile`已经失效，运行时会出现网络连接错误（即使挂了全局代理）：
+> 勘误：该书[英文原版](https://www.goodreads.com/book/show/25484101-using-docker)于2015年出版，引入国内汉化时为2017年。实测在2022年的今天，该`DockerFile`已经失效，运行时会出现网络连接错误（即使挂了全局代理）：
 >
 > ```shell
 > $ docker build -t test_repository/cowsay-dockerfile .
@@ -782,7 +802,7 @@ $ docker run test/cowsay-dockerfile /usr/games/cowsay "Moo"
 > 出现该错误有以下原因，总之很难绷得住😅：
 >
 > - 根据[CSDN博客](https://bbs.csdn.net/topics/395826457?ivk_sa=1024320u)，`wheezy`早已于2018年停止安全更新，官方不再提供任何服务和维护。该说法可以解释为什么2015年出版的书出现该错误，但不能解释为何只安装镜像后在Shell内可以正常连接。
-> - 根据[StacksOverflow](https://stackoverflow.com/questions/41680990/docker-from-debianwheezy-cannot-build)，安装Debian时使用的内核级配置文件默认关闭了一系列选项。但该帖子于2017年发布，无法解释2018年才停止维护的时间差。
+> - 根据[StacksOverflow](https://stackoverflow.com/questions/41680990/docker-from-debianwheezy-cannot-build)，安装Debian时使用的内核级配置文件默认关闭了一系列选项，导致禁用了代理。但该帖子于2017年发布，无法解释2018年才停止维护的时间差。
 
 DockerFile支持众多指令：
 
@@ -969,7 +989,7 @@ Configure a credential helper to remove this warning. See
 https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 ```
 
-> 注意：实测Windows平台下Docker Desktop配置的Proxy无法应用于命令行，无论是在其设置界面的`Proxy`只填写Http服务器，还是手动编辑`~\.docker\config.json`，命令行均抛出超时错误：
+> 勘误：实测Windows平台下Docker Desktop配置的Proxy无法应用于命令行，无论是在其设置界面的`Proxy`只填写Http服务器，还是手动编辑`~\.docker\config.json`，命令行均抛出超时错误：
 >
 > ```shell
 > C:\> docker login
@@ -983,7 +1003,7 @@ https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 >
 > Docker Desktop你代理你马呢😅
 
-### §2.10.3 私有仓库TODO:😅
+### §2.10.3 `docker push`私有仓库TODO:😅
 
 
 
@@ -1042,21 +1062,140 @@ C:\> docker images
 	# ...
 ```
 
+### §2.10.7 `docker save`
+
+`docker save IMAGE [IMAGE...]`将指定的`IMAGE`保存在`.tar`归档文件中，并默认输出到`STDOUT`(也可以指定`-o`/`--output FILEPATH`输出到文件)，其中`IMAGE`可以用ID或`REPOSITORY[:TAG]`的方式进行指定，`[TAG]`缺省时默认打包整个`REPOSITORY`内的镜像。
+
+```shell
+C:\> docker save alpine
+C:\> dir C:\
+    Directory: C:\
+    Mode        LastWriteTime    Length Name
+    -a---  2022/2/15    15:11   5875712 docker_save_image
+```
+
 ### §2.10.7 `docker load`
 
+`TAR_FILE | docker save`加载`docker save`创建的仓库`TAR_FILE`，仓库以`.tar`归档文件的形式从`STDIN`读入(也可指定`-i`/`--input FILE_PATH`从文件读入)。仓库可以包含若干个镜像和标签，可以包含元数据，这是`docker load`与`docker export`最大的不同。
 
+```shell
+C:\> docker load -i C:\busybox.tar.gz
+	Loaded image: busybox:latest
+C:\> docker images
+	REPOSITORY   TAG       IMAGE ID       CREATED        SIZE
+	# ...
+	alpine       latest    c059bfaa849c   2 months ago   5.59MB
+	# ...
+```
+
+> 勘误：对于`STDIN`而言，只有Linux才能使用这种方式：
+>
+> ```shell
+> $ docker load < busybox.tar.gz
+> 	Loaded image: busybox:latest
+> $ docker images
+> 	REPOSITORY  TAG     IMAGE ID      CREATED      SIZE
+> 	busybox     latest  769b9341d937  7 weeks ago  2.489 MB
+> ```
+>
+> 在Windows中，实测任何方式都不能向`STDIN`输入`.tar`文件流：
+>
+> ```shell
+> C:\> docker load < .\busybox.tar.gz
+> 	ParserError:
+> 	Line |
+> 	   1 |  docker load < .\busybox.tar.gz
+> 	     |              ~
+> 	     | The '<' operator is reserved for future use.
+> C:\> docker load > .\busybox.tar.gz
+> 	requested load from stdin, but stdin is empty
+> C:\> .\busybox.tar.gz < docker load
+> 	ParserError:
+> 	Line |
+> 	   1 |  .\busybox.tar.gz < docker load
+> 	     |                      ~
+> 	     | The '<' operator is reserved for future use.
+> C:\> .\busybox.tar.gz > docker load
+> 	ResourceUnavailable: Program 'busybox.tar.gz' failed to run: An error occurred trying to start process 'C:\busybox.tar.gz' with working directory 'C:\'. 没有应用程序与此操作的指定文件有关联。At line:1 char:1
+> 	+ .\busybox.tar.gz > docker load
+> 	+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
+> C:\> .\busybox.tar.gz | docker load
+> 	InvalidOperation: Cannot run a document in the middle of a pipeline: C:\busybox.tar.gz.
+> C:\> docker load | .\busybox.tar.gz
+> 	InvalidOperation: Cannot run a document in the middle of a pipeline: C:\busybox.tar.gz.
+> 	requested load from stdin, but stdin is empty
+> ```
 
 ### §2.10.8 `docker rmi`
 
+`docker rmi IMAGE [IMAGE...]`删除指定的镜像文件。`IMAGE`既可以用ID表示，也可以用`REPOSITORY[:TAG]`表示，其中`TAG`缺省为`latest`。如果要删除存在于多个仓库的镜像，那么只能分别用每一个仓库中的指定镜像的`ID`进行指代，**同时使用`-f`参数表示强制删除**。
 
+```shell
+C:\> docker pull alpine:3.12.2
+	3.12.2: Pulling from library/alpine
+	05e7bc50f07f: Pull complete
+	Digest: sha256:a126728cb7db157f0deb377bcba3c5e473e612d7bafc27f6bb4e5e083f9f08c2
+	Status: Downloaded newer image for alpine:3.12.2
+	docker.io/library/alpine:3.12.2
+C:\> docker images
+	REPOSITORY   TAG       IMAGE ID       CREATED         SIZE
+	# ...
+	alpine       latest    c059bfaa849c   2 months ago    5.59MB
+	alpine       3.12.2    b14afc6dfb98   14 months ago   5.57MB
+C:\> docker rmi b14afc6dfb98
+	Untagged: alpine:3.12.2
+	Untagged: alpine@sha256:a126728cb7db157f0deb377bcba3c5e473e612d7bafc27f6bb4e5e083f9f08c2
+	Deleted: sha256:b14afc6dfb98a401691d5625cd08aa8459c847cd809101c4802907916a1e4da5
+	Deleted: sha256:f4666769fca7a1db532e3de298ca87f7e3124f74d17e1937d1127cb17058fead
+PS C:\> docker images
+	REPOSITORY   TAG       IMAGE ID       CREATED        SIZE
+	# ...
+	alpine       latest    c059bfaa849c   2 months ago   5.59MB
+```
 
-### §2.10.9 `docker save`
+### §2.10.10 `docker tag`
 
+`docker tag SOURCE_IMAGE[:TAG] TARGET_[:TAG]`将镜像与一个仓库和标签名相关联。景象可以通过ID或仓库加标签的方式指定(缺省标签时默认为`latest`)。
 
+```shell
+C:\> docker images redis
+	REPOSITORY   TAG       IMAGE ID       CREATED       SIZE
+	redis        latest    f1b6973564e9   2 weeks ago   113MB
+```
 
-### §2.10.10 `docker t`
+- `docker tag SOURCE_IMAGE TARGET_REPO`：将镜像`SOURCE_IMAGE`复制一份到仓库`TARGET_REPO`中。由于没有指定`SOURCE_TAG`，故缺省为`latest`(下面举例同理)：
 
+  ```shell
+  C:\> docker tag f1b6973564e9 new_repo
+  C:\> docker images
+  	REPOSITORY   TAG       IMAGE ID       CREATED        SIZE
+  	new_repo     latest    f1b6973564e9   2 weeks ago    113MB
+  	redis        latest    f1b6973564e9   2 weeks ago    113MB
+  ```
 
+- `docker tag SOURCE_IAMGE:TAG TARGET_REPO(用户名/仓库):TAG`
+
+  ```shell
+  C:\> docker tag new_repo:latest user/another_repo
+  C:\> docker images
+  	REPOSITORY          TAG       IMAGE ID       CREATED        SIZE
+  	new_repo            latest    f1b6973564e9   2 weeks ago    113MB
+  	redis               latest    f1b6973564e9   2 weeks ago    113MB
+  	user/another_repo   latest    f1b6973564e9   2 weeks ago    113MB
+  ```
+
+- `docker tag SOURCE_IMAGE:TAG REGISTRY_SITE/TARGET_REPO:TAG`，等价于使用`docker pull`且将镜像上传至托管仓库
+
+  ```shell
+  # 仅举例,网站不一定真实存在
+  C:\> docker tag new_repo:latest hub.docker.com:80/user/repo
+  ```
+
+### §2.10.11 `docker logout`
+
+`docker logout [SERVER]`从指定的寄存服务`SERVER`退出账户(缺省为`DockerHub`托管平台)。
+
+## 
 
 ## §2.11 `docker attach`
 
@@ -1460,11 +1599,8 @@ uuidd  1370  1297  0  03:53  ?    00:00:00  nginx: worker process
   	c059bfaa849c
   ```
 
-  
 
-
-
-# §3 进阶
+# §3 容器数据共享
 
 ## §3.1 `Redis`互联
 
@@ -1721,3 +1857,116 @@ C:\> docker run -it --name Application --volumes-from Database alpine:latest
 - 该数据卷没有被指定主机目录(即`docker run -v HOST_PATH:CONTAINER:PATH`)，类似于自毁命令
 - **当前没有任何容器与该数据卷关联**
 
+# §4 Docker项目开发
+
+`Docker`的容器特性决定了其天生适合采用微服务和并发集群的方式，常用于在一天之内安全地多次更新生产环境，即持续部署(Continuous Deployment)技术，本章将讲解一系列相关的实战项目。
+
+## §4.1 Python服务器
+
+首先在主机创建工作目录，并编写一个简单的Python程序：
+
+```shell
+C:\> mkdir PythonServer
+    Directory: C:\
+	Mode   LastWriteTime       Length Name
+	----   -------------       ------ ----
+	d----  2022/2/15    18:33  PythonServer
+C:\> cd PythonServer
+C:\PythonServer> mkdir app
+    Directory: C:\PythonServer
+	Mode   LastWriteTime       Length Name
+	----   -------------       ------ ----
+	d----  2022/2/15    19:14  app
+C:\PythonServer> cd app
+C:\PythonServer\app> vim identidock.py
+C:\PythonServer\app> vim ../dockerfile
+```
+
+```python
+from flask import Flask
+app = Flask(__name__) # 对Flask进行初始化,得到一个Flask实例
+@app.route('/') # 创建一个与URL相关的路由，每当URL收到请求时就调用hello_world()
+def hello_world():
+    return 'Hello World!\n'
+
+if __name__ == '__main__':
+    app.run(debug=True,host='0.0.0.0') # 并非localhost/127.0.0.1，因为要广播到主机，否则只有容器内部能访问
+```
+
+```dockerfile
+FROM python:3.4
+
+RUN pip install Flask==0.10.1 -i http://pypi.douban.com/simple --trusted-host pypi.douban.com
+WORKDIR /app
+COPY app /app
+
+CMD ["python","identidock.py"]
+```
+
+```shell
+C:\PythonServer> docker build -t PythonServer .
+	[+] Building 0.1s (9/9) FINISHED
+	 => [internal] load build definition from Dockerfile                                             0.0s
+	 => => transferring dockerfile: 32B                                                              0.0s
+	 => [internal] load .dockerignore                                                                0.0s
+	 => => transferring context: 2B                                                                  0.0s
+	 => [internal] load metadata for docker.io/library/python:3.4                                    0.0s
+	 => [1/4] FROM docker.io/library/python:3.4                                                      0.0s
+	 => [internal] load build context                                                                0.0s
+	 => => transferring context: 62B                                                                 0.0s
+	 => CACHED [2/4] RUN pip install -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.c  0.0s
+	 => CACHED [3/4] WORKDIR /app                                                                    0.0s
+	 => CACHED [4/4] COPY app /app                                                                   0.0s
+	 => exporting to image                                                                           0.0s
+	 => => exporting layers                                                                          0.0s
+	 => => writing image sha256:a18cd6c0cb5abd72c8e37f05a1cf2953c69722ca7bd293f6d646a222ba077f27     0.0s
+	 => => naming to docker.io/library/identidock                                                    0.0s
+	Use 'docker scan' to run Snyk tests against images to find vulnerabilities and learn how to fix them
+C:\PythonServer> docker images pythonserver
+	REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+	PythonServer  latest    a18cd6c0cb5a   14 hours ago   934MB
+C:\PythonServer> docker run -d -p 5000:5000 --name pythonserver pythonserver
+	98b756bd81095fb301d39bd40c21ee61d75c7d1246fcd16a582db43fea99db00
+C:\PythonServer> curl localhost:5000
+	Hello World!
+```
+
+> 勘误：`docker-machine`是一款运行在`MAC`/`Windows`平台上的`Docker`虚拟机，类似于`Python`中的`virtualenv`库共用同一个`python kernel`。
+>
+> 如果使用的是`docker-machine`，则应注意无法通过`localhost:port`直接将请求转发至访问容器内的端口，**必须使用`docker port`展示的容器局域网地址**才能访问。
+>
+> 该书[英文原版](https://www.goodreads.com/book/show/25484101-using-docker)于2015年出版，引入国内汉化时为2017年。2019年9月2日，`docker-machine`迎来了[GitHub](https://github.com/docker/machine/commit/b170508bf44c3405e079e26d5fdffe35a64c6972)上的最后一次更新，随后就[被官方抛弃](https://docs.docker.com/machine/)了，取而代之的是`Docker Desktop`这一新宠，`docker-machine`正式退出了历史舞台。
+
+`Python`内服务器竞争激烈，百花齐放，其中`uWSGI`库就是其中之一，是一个兼容性极强的生产环境服务器，还可以部署在`nginx`后层，相比于`Flask`轻量级框架有着更稳定的优势。这里我们使用`uWSGI`替换掉`Flask`自带的服务器：
+
+```dockerfile
+FROM python:3.4
+
+RUN pip install Flask==0.10.1 uWSGI==2.0.8 # 安装uWSGI
+WORKDIR /app
+COPY app /app
+
+CMD["uwsgi","--http","0.0.0.0:9090","--wsgi-file", \ # 监听9090作为服务器
+	"/app/identidock.py","--callable","app", \ # 运行identidock.py
+	"--stats","0.0.0.0:9191"] # 绑定9191端口输出统计信息
+```
+
+除此以外，我们还可以指定运行服务器的用户：
+
+```dockerfile
+FROM python:3.4
+
+RUN groupadd -r uwsgi && useradd -r -g uwsgi uwsgi # 创建用户组和用户
+RUN pip install Flask==0.10.1 uWSGI==2.0.8 # 安装uWSGI
+WORKDIR /app
+COPY app /app
+
+EXPOSE 9090 9191 # 开放端口
+USER uwsgi # 切换用户身份
+
+CMD["uwsgi","--http","0.0.0.0:9090","--wsgi-file", \
+	"/app/identidock.py","--callable","app", \
+	"--stats","0.0.0.0:9191"]
+```
+
+> 注意：`Docker`和虚拟机还有一点不同，就是`Linux`内核使用`UID`和`GID`来识别用户并配置访问权限。因为`UID`和`GID`映射到标识符的过程发生在主机操作系统的
