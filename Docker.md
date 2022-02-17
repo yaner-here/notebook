@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->                       
+>                                 
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->                       
+>                                 
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -278,19 +278,29 @@ Docker是一个非常复杂的体系，每个部分都有自己独特的版本�
 
 日常交流时所说的"Docker版本"，一般情况下指的是`Docker Engine`的`Version`(不是`API Version`)。该版本的命名方式曾经经历了一次非常大的变化，使得版本号之间发生了巨大的断层，详情参考[Docker Engine官方文档](https://docs.docker.com/engine/release-notes/prior-releases/#010-2013-03-23)。
 
-| `Docker Engine Version`(下称`Docker`版本) |      |
-| ----------------------------------------- | ---- |
-| 0.1.0                                     |      |
-| 0.2.0                                     |      |
-| ...                                       |      |
-| 1.13.0                                    |      |
-| 1.13.1                                    |      |
-|                                           |      |
-|                                           |      |
-|                                           |      |
-|                                           |      |
-
-
+| `Docker Engine Version`    | 发行日期               |
+| -------------------------- | ---------------------- |
+| 0.1.0                      | 2013.3.23              |
+| 0.2.0                      | 2013.3.31              |
+| ...                        | ...                    |
+| 1.13.0                     | 2017.1.18              |
+| 1.13.1                     | 2017.2.8               |
+| 版本号计数方式发生变化     | 以日期为依据指定版本号 |
+| 17.03.0-ce                 | 2017.3.1               |
+| 17.03.1-ce                 | 2017.3.27              |
+| ...                        | ...                    |
+| 18.06.0-ce                 | 2018.7.18              |
+| 18.06.1-ce                 | 2018.8.21              |
+| 18.06.2(第一次不用ce)      | 2019.2.11              |
+| 18.06.3-ce(最后一次出现ce) | 2019.2.19              |
+| 19.03.0                    | 2019.7.22              |
+| 19.03.1                    | 2019.7.25              |
+| ...                        | ...                    |
+| 19.03.14                   | 2020.12.01             |
+| 19.03.15                   | 2021.2.1               |
+| ...                        | ...                    |
+| 20.10.11                   | 2021.11.17             |
+| 20.10.12                   | 2021.12.13             |
 
 # §2 基本操作
 
@@ -1896,7 +1906,7 @@ if __name__ == '__main__':
 ```dockerfile
 FROM python:3.4
 
-RUN pip install Flask==0.10.1 -i http://pypi.douban.com/simple --trusted-host pypi.douban.com
+RUN pip install Flask==0.10.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
 WORKDIR /app
 COPY app /app
 
@@ -1969,4 +1979,227 @@ CMD["uwsgi","--http","0.0.0.0:9090","--wsgi-file", \
 	"--stats","0.0.0.0:9191"]
 ```
 
-> 注意：`Docker`和虚拟机还有一点不同，就是`Linux`内核使用`UID`和`GID`来识别用户并配置访问权限。因为`UID`和`GID`映射到标识符的过程发生在主机操作系统的
+> 注意：`Docker`和虚拟机还有一点不同，就是`Linux`内核使用`UID`和`GID`来识别用户并配置访问权限，其中`UID`和`GID`映射到标识符的过程是发生在主机操作系统的。
+>
+> 在`Docker 1.9`及之前的版本中，容器和主机的`UID`是共享的，因此如果攻击者拿到了容器内`root`权限的`shell`，就等同于拿下了主机`root`权限的`shell`。
+>
+> `Docker 1.10`可以将容器内的`root`用户映射为主机的一个普通用户，但不是默认行为。
+
+配合BASH脚本我们可以实现更灵活的调试功能：
+
+```bash
+# ./PythonServer/cmd.sh #
+#!/bin/bash
+set -e
+if[ "$ENV" = 'DEV' ]; then
+	echo "Running Development Server"
+	exec python "identidock.py"
+else
+	echo "Running Production Server"
+	exec uwsgi --http 0.0.0.0:9090 --wsgi-file /app/identidock.py \
+		--callable app --stats 0.0.0.0:9191
+fi
+```
+
+```dockerfile
+FROM python:3.4
+
+RUN groupadd -r uwsgi && useradd -r -g uwsgi uwsgi
+RUN pip install Flask==0.10.1 uWSGI==2.0.8
+WORKDIR /app
+COPY cmd.sh / # 导入脚本
+
+EXPOSE 9090 9191
+USER uwsgi
+
+CMD ["/cmd.sh"] # 运行脚本
+```
+
+## §4.2 `docker-compose`
+
+`docker-compose`是一种`.yaml`格式的文件，其中包括了`dockerfile`、容器内`bash`脚本、容器外`docker`脚本等一系列配置过程，旨在迅速建立和运行打包好的`docker`环境。
+
+建立工作目录：
+
+```
+C:\PythonServer> tree
+C:\PYTHONSERVER
+├─docker-compose.yml
+├─dockerfile
+└─app
+  └─identidock.py
+```
+
+```yaml
+services:
+ identidock: # 声明容器名称
+  build: . # 指定用于docker build的dockerfile
+  ports: # 等价于docker run -p
+   - "5000:5000" # 最好带着引号,否则59:59会被解析成60进制数字
+  environment: # 等价于docker run -e
+   ENV:DEV
+  volumes: # 等价于docker run -v
+   - ./app:/app
+```
+
+TODO:😅??????????????????????????????？？？？？？？？？？？？
+
+```
+C:\PythonServer> docker-compose up
+[+] Building 127.6s (10/10) FINISHED
+ => [internal] load build definition from dockerfile                                             0.0s
+ => => transferring dockerfile: 278B                                                             0.0s
+ => [internal] load .dockerignore                                                                0.0s
+ => => transferring context: 2B                                                                  0.0s
+ => [internal] load metadata for docker.io/library/python:3.7                                   16.1s
+ => [1/5] FROM docker.io/library/python:3.7@sha256:d9abbc0737ff8d23a546859c85903f1b8235a1495a4  93.2s
+ => => resolve docker.io/library/python:3.7@sha256:d9abbc0737ff8d23a546859c85903f1b8235a1495a40  0.0s
+ => => sha256:d9abbc0737ff8d23a546859c85903f1b8235a1495a405d5a47cbc55747f27b20 1.86kB / 1.86kB   0.0s
+ => => sha256:3908249ce6b2d28284e3610b07bf406c3035bc2e3ce328711a2b42e1c5a75fc1 2.22kB / 2.22kB   0.0s
+ => => sha256:0e29546d541cdbd309281d21a73a9d1db78665c1b95b74f32b009e0b77a6e1 54.92MB / 54.92MB  11.1s
+ => => sha256:9b829c73b52b92b97d5c07a54fb0f3e921995a296c714b53a32ae67d19231fcd 5.15MB / 5.15MB  18.1s
+ => => sha256:ad37de9b03eff4c2f802e41fbb81e8568cb6c38349912adb3445fa0a00e62d80 9.28kB / 9.28kB   0.0s
+ => => sha256:cb5b7ae361722f070eca53f35823ed21baa85d61d5d95cd5a95ab53d740cdd 10.87MB / 10.87MB  17.1s
+ => => extracting sha256:0e29546d541cdbd309281d21a73a9d1db78665c1b95b74f32b009e0b77a6e1e3        2.0s
+ => => sha256:6494e4811622b31c027ccac322ca463937fd805f569a93e6f15c01aade7187 54.57MB / 54.57MB  25.6s
+ => => sha256:6f9f74896dfa93fe0172f594faba85e0b4e8a0481a0fefd9112efc7e4d3c 196.51MB / 196.51MB  85.0s
+ => => sha256:fcb6d5f7c98604476fda91fe5f61be5b56fdc398814fb15f7ea998f53023e774 6.29MB / 6.29MB  30.3s
+ => => extracting sha256:9b829c73b52b92b97d5c07a54fb0f3e921995a296c714b53a32ae67d19231fcd        0.2s
+ => => extracting sha256:cb5b7ae361722f070eca53f35823ed21baa85d61d5d95cd5a95ab53d740cdd56        0.2s
+ => => sha256:7a72d131c1967a6365f6748307908b3c71cae14251780077dcaf57d83633ef 14.86MB / 14.86MB  31.7s
+ => => extracting sha256:6494e4811622b31c027ccac322ca463937fd805f569a93e6f15c01aade718793        2.2s
+ => => sha256:c4221d178521fc8af5d1261d87c15f60ca6447c80e324a181a27cef271e189d9 233B / 233B      30.8s
+ => => sha256:71d5c5b5a91f6e4797fcd5c90b74ee5277099d04d1aa4e5b62ccc0ffd2d26621 2.35MB / 2.35MB  33.3s
+ => => extracting sha256:6f9f74896dfa93fe0172f594faba85e0b4e8a0481a0fefd9112efc7e4d3c78f7        6.5s
+ => => extracting sha256:fcb6d5f7c98604476fda91fe5f61be5b56fdc398814fb15f7ea998f53023e774        0.3s
+ => => extracting sha256:7a72d131c1967a6365f6748307908b3c71cae14251780077dcaf57d83633ef10        0.6s
+ => => extracting sha256:c4221d178521fc8af5d1261d87c15f60ca6447c80e324a181a27cef271e189d9        0.0s
+ => => extracting sha256:71d5c5b5a91f6e4797fcd5c90b74ee5277099d04d1aa4e5b62ccc0ffd2d26621        0.2s
+ => [internal] load build context                                                                0.0s
+ => => transferring context: 318B                                                                0.0s
+ => [2/5] RUN groupadd -r uwsgi && useradd -r -g uwsgi uwsgi                                     1.3s
+ => [3/5] RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple Flask uWSGI               16.6s
+ => [4/5] WORKDIR /app                                                                           0.0s
+ => [5/5] COPY cmd.sh /                                                                          0.1s
+ => exporting to image                                                                           0.2s
+ => => exporting layers                                                                          0.2s
+ => => writing image sha256:2ceed1d6de347d0d8f41f0720a606557ca4639bff86e7333ab921b1a335f21e4     0.0s
+ => => naming to docker.io/library/pythonserver_identidock                                       0.0s
+
+Use 'docker scan' to run Snyk tests against images to find vulnerabilities and learn how to fix them
+[+] Running 2/2
+ - Network pythonserver_default         Created                                                  0.8s
+ - Container pythonserver-identidock-1  Created                                                  0.1s
+Attaching to pythonserver-identidock-1
+pythonserver-identidock-1  | standard_init_linux.go:228: exec user process caused: no such file or directory
+pythonserver-identidock-1 exited with code 1
+```
+
+> 勘误：实测在2022年的今天，上述代码有两处会引起错误：
+>
+> 1. `docker-compose.yaml`更正
+>
+>    现在的`docker-compose`必须将这种持续运行的容器标记为`services`，在`docker-compose.yaml`中表现为第一行用`services:`进行声明：
+>
+>    ```yaml
+>    services: # 新加了这一行
+>     identidock:
+>       build: . 
+>       ports:
+>        - "5000:5000"
+>       environment:
+>         ENV: DEV 
+>       volumes:
+>         - ./app:/app
+>    ```
+>
+>    否则会出现下述问题：
+>
+>    - `Windows`
+>
+>      ```
+>      C:\> docker-compose up
+>      (root) Additional property identidock is not allowed
+>      ```
+>
+>    - `Linux`
+>
+>      ```shell
+>      root@iZ2vc9lbf9c4ac8quabtc6Z ~/PythonServer [1]# docker-compose up
+>      Starting pythonserver_identidock_1 ...
+>      
+>      ERROR: for pythonserver_identidock_1  a bytes-like object is required, not 'str'
+>      
+>      ERROR: for identidock  a bytes-like object is required, not 'str'
+>      Traceback (most recent call last):
+>        File "/usr/lib/python3/dist-packages/docker/api/client.py", line 261, in _raise_for_status
+>          response.raise_for_status()
+>        File "/usr/local/lib/python3.8/dist-packages/requests/models.py", line 941, in raise_for_status
+>          raise HTTPError(http_error_msg, response=self)
+>      requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: http+docker://localhost/v1.21/containers/0332a1a0b581189cc121406a675bdcf0a0985b384cdda2f4b2b1a9209c83ec66/start
+>      
+>      During handling of the above exception, another exception occurred:
+>      
+>      Traceback (most recent call last):
+>        File "/usr/lib/python3/dist-packages/compose/service.py", line 625, in start_container
+>          container.start()
+>        File "/usr/lib/python3/dist-packages/compose/container.py", line 241, in start
+>          return self.client.start(self.id, **options)
+>        File "/usr/lib/python3/dist-packages/docker/utils/decorators.py", line 19, in wrapped
+>          return f(self, resource_id, *args, **kwargs)
+>        File "/usr/lib/python3/dist-packages/docker/api/container.py", line 1095, in start
+>          self._raise_for_status(res)
+>        File "/usr/lib/python3/dist-packages/docker/api/client.py", line 263, in _raise_for_status
+>          raise create_api_error_from_http_exception(e)
+>        File "/usr/lib/python3/dist-packages/docker/errors.py", line 31, in create_api_error_from_http_exception
+>          raise cls(e, response=response, explanation=explanation)
+>      docker.errors.APIError: 400 Client Error: Bad Request ("b'failed to create shim: OCI runtime create failed: container_linux.go:380: starting container process caused: exec: "/cmd.sh": permission denied: unknown'")
+>      
+>      During handling of the above exception, another exception occurred:
+>      
+>      Traceback (most recent call last):
+>        File "/usr/bin/docker-compose", line 11, in <module>
+>          load_entry_point('docker-compose==1.25.0', 'console_scripts', 'docker-compose')()
+>        File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 72, in main
+>          command()
+>        File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 128, in perform_command
+>          handler(command, command_options)
+>        File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 1107, in up
+>          to_attach = up(False)
+>        File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 1088, in up
+>          return self.project.up(
+>        File "/usr/lib/python3/dist-packages/compose/project.py", line 565, in up
+>          results, errors = parallel.parallel_execute(
+>        File "/usr/lib/python3/dist-packages/compose/parallel.py", line 112, in parallel_execute
+>          raise error_to_reraise
+>        File "/usr/lib/python3/dist-packages/compose/parallel.py", line 210, in producer
+>          result = func(obj)
+>        File "/usr/lib/python3/dist-packages/compose/project.py", line 548, in do
+>          return service.execute_convergence_plan(
+>        File "/usr/lib/python3/dist-packages/compose/service.py", line 567, in execute_convergence_plan
+>          return self._execute_convergence_start(
+>        File "/usr/lib/python3/dist-packages/compose/service.py", line 506, in _execute_convergence_start
+>          _, errors = parallel_execute(
+>        File "/usr/lib/python3/dist-packages/compose/parallel.py", line 112, in parallel_execute
+>          raise error_to_reraise
+>        File "/usr/lib/python3/dist-packages/compose/parallel.py", line 210, in producer
+>          result = func(obj)
+>        File "/usr/lib/python3/dist-packages/compose/service.py", line 508, in <lambda>
+>          lambda c: self.start_container_if_stopped(c, attach_logs=not detached, quiet=True),
+>        File "/usr/lib/python3/dist-packages/compose/service.py", line 620, in start_container_if_stopped
+>          return self.start_container(container)
+>        File "/usr/lib/python3/dist-packages/compose/service.py", line 627, in start_container
+>          if "driver failed programming external connectivity" in ex.explanation:
+>      TypeError: a bytes-like object is required, not 'str'
+>      ```
+>
+>    
+
+# §5 部署
+
+克隆本章需要用到的配置文件：
+
+```
+C:\> git clone -b v0 https://github.com/using-docker/deploying-containers/
+```
+
