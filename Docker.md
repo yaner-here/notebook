@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->                                 
+>                                   
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->                                 
+>                                   
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -1871,7 +1871,7 @@ C:\> docker run -it --name Application --volumes-from Database alpine:latest
 
 `Docker`的容器特性决定了其天生适合采用微服务和并发集群的方式，常用于在一天之内安全地多次更新生产环境，即持续部署(Continuous Deployment)技术，本章将讲解一系列相关的实战项目。
 
-## §4.1 Python服务器
+## §4.1 Hello World Web
 
 首先在主机创建工作目录，并编写一个简单的Python程序：
 
@@ -2042,8 +2042,6 @@ services:
    - ./app:/app
 ```
 
-TODO:😅??????????????????????????????？？？？？？？？？？？？
-
 ```
 C:\PythonServer> docker-compose up
 [+] Building 127.6s (10/10) FINISHED
@@ -2192,10 +2190,298 @@ pythonserver-identidock-1 exited with code 1
 >          if "driver failed programming external connectivity" in ex.explanation:
 >      TypeError: a bytes-like object is required, not 'str'
 >      ```
->
 >    
+> 2. `exec user process caused: no such file or directory`
+>
+>    经过排查发现，该指令是因为`uWSGI`没有导入环境变量中。即使清空`cmd.sh`并`dokcer exec pip install uWSGI`，`uWSGI`也没有导入环境变量中。
+>
+>    奇怪的是，如果从`ubuntu`开始手动配置环境，或弃用`docker-compose.yml`就能导入环境变量，捏麻麻滴电脑真是太奇妙啦😅
+>
 
-# §5 部署
+`docker-compose`的常用指令如下：
+
+- `up`：启动所有在`docker-compose.yml`中定义的容器，并且把它们的日志信息汇集到一起
+- `build`：构建`dockerfile`中定义的镜像
+- `ps`：获取由`docker-compose`管理的容器的状态信息
+- `run`：启动容器
+- `logs`：输出`docker-compose`管理的容器的日志
+- `stop`：停止容器的运行
+- `rm`：删除容器
+
+## §4.3 `identicon`
+
+`identicon`由`identify`和`icon`两个词复合而成，能基于用户的某些特征值(例IP地址、用户名哈希值等)，生成一个独一无二的图像，从而实现用户的个性化视觉表达需求。`identicon`的概念可以追溯到[2007年](https://github.com/donpark/identicon)，现在被网站广泛用于生成用户初始头像，例如`GitHub`和`StackOverflow`。
+
+本节我们将尝试使用**微服务架构**来复现该功能。由于`docker-compose`的种种问题，这里我们只使用`dockerfile`。
+
+```
+C:\PythonServer> tree /F
+	C:\PYTHONSERVER
+	├─dockerfile
+	└─app
+	  └─identidock.py
+```
+
+```python
+# identidock.py
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def hello_world():
+	return 'Hello Docker!!\n'
+
+if __name__ == '__main__':
+	app.run(debug=True,host='0.0.0.0')
+```
+
+```dockerfile
+# dockerfile
+FROM python:3.7
+
+RUN groupadd -r uwsgi && useradd -r -g uwsgi uwsgi
+RUN pip install Flask
+RUN pip install uWSGI
+WORKDIR /app
+COPY app /app
+EXPOSE 9090 9191
+USER uwsgi
+
+CMD ["uwsgi","--http","0.0.0.0:9090","--wsgi-file","/app/identidock.py","--callable","app","--stats","0.0.0.0:9191"]
+```
+
+然后构建镜像和启动容器：
+
+```shell
+C:/> docker build . -t identiconserver
+	[+] Building 0.2s (11/11) FINISHED
+	 => [internal] load build definition from Dockerfile                            0.0s 
+	 # ...
+	 => => exporting layers                                                         0.0s 
+	 => => writing image sha256:e575cbf92289f296f29cfd6dd1e6d85a130b93a4f904daad8c  0.0s 
+	 => => naming to docker.io/library/identiconserver                       		0.0s
+C:\PythonServer> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app identiconserver
+	ee3e585a48795e605f6ec27780333f9fa111c0a614e2f9f67c91375f3579e65a
+```
+
+这里我们使用`-v`实现了重载。原本`dockerfile`已经完成了复制操作，将文件复制到了容器内的`/app`目录内，使用`-v`进行强行挂载后，`/app`内原本的文件会被删除，与主机目录完全同步，这样我们就能在更改`identidock.py`的同时实时查看更改的效果了。
+
+下面继续完善`identidock.py`：
+
+```python
+# identidock.py
+from flask import Flask
+app = Flask(__name__)
+
+username_test = 'Mike'
+
+@app.route('/')
+def hello_world():
+	username = username_test
+	html = '''
+		<html>
+		    <head>
+		        <title>Identidock</title>
+		    </head>
+		    <body>
+		        <form method="post">
+		            Hello!
+		            <input type="text" name="username" value="{}"/>
+		            <input type="submit" value="submit"/>
+		        </form>
+		        <p>You look like a</p>
+		        <img src="/monster/monster.png"/>
+		    </body>
+		</html>
+	'''.format(username)
+	return html
+
+if __name__ == '__main__':
+	app.run(debug=True,host='0.0.0.0')
+```
+
+重启容器可以看到：
+
+```shell
+C:/> curl localhost:9090
+<html>
+    <head>
+        <title>Identidock</title>
+    </head>
+    <body>
+        <form method="post">
+            Hello!
+            <input type="text" name="username" value="Mike"/>
+            <input type="submit" value="submit"/>
+        </form>
+        <p>You look like a</p>
+        <img src="/monster/monster.png"/>
+    </body>
+</html>
+```
+
+`DockerHub`提供了一个现成的镜像`dnmonster`用于根据字符串生成图像，我们将利用这个镜像实现该功能：
+
+```dockerfile
+# ...
+RUN pip install Flask uWSGI requests
+# ...
+```
+
+```python
+# identidock.py
+from flask import Flask, Response
+import requests
+	# ...
+@app.route('/monster/<name>')
+def get_identicon(name):
+    request = requests.get('http://dnmonster:8080/monster'+name+'?size=80')
+    image = request.content
+    return Response(image,mimetype='image/png')
+	# ...
+```
+
+```shell
+C:/> docker run -d --name dnmonster amouat/dnmonster:latest
+	Unable to find image 'amouat/dnmonster:latest' locally
+	latest: Pulling from amouat/dnmonster
+	75a822cd7888: Pull complete
+	57de64c72267: Pull complete
+	4306be1e8943: Pull complete
+	# ...
+	Digest: sha256:41e1d211cfb11502e4713eda67859d3d8d21e4f70dc94be399ae12a332e2cdc5
+	Status: Downloaded newer image for amouat/dnmonster:latest56dd27330d7106be4678fa397dfcf1ce908478e7ae2e0c7bd5958a0a8f4ada45
+C:/> docker build . -t identiconserver
+C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --link dnmonster:dnmonster identiconserver
+	976c3a6149da93aa27a88eb8e87948eab2a60de53087db0824951d2d204c430c
+```
+
+打开`localhost:9090`就能看到相应的图片。
+
+现在开始处理表单数据：
+
+```python
+# identidock.py
+from flask import Flask, Response, request
+    # ...
+@app.route('/',methods=['GET','POST'])
+def hello_world():
+	username = username_test
+	print(request.method)
+	if(request.method == 'POST' or request.method == 'post'):
+		username = request.form['username']
+	html = '''
+		<html>
+		    <head>
+		        <title>Identidock</title>
+		    </head>
+		    <body>
+		        <form method="post">
+		            Hello!
+		            <input type="text" name="username" value="{}"/>
+		            <input type="submit" value="submit"/>
+		        </form>
+		        <p>You look like a</p>
+		        <img src="/monster/{}"/>
+		    </body>
+		</html>
+	'''.format(username,username)
+	return html
+
+@app.route('/monster/<name>')
+def get_identicon(name):
+    request = requests.get('http://dnmonster:8080/monster/'+name+'?size=80')
+    image = request.content
+    return Response(image,mimetype='image/png')
+```
+
+接下来导入和使用`Redis`缓存图像：
+
+```dockerfile
+# dockerfile
+# ...
+RUN pip install redis
+# ...
+```
+
+```python
+# identidock.py
+	# ...
+import redis
+app = Flask(__name__)
+cache = redis.StrictRedis(host='redis',port=6379,db=0)
+	# ...
+@app.route('/monster/<name>')
+def get_identicon(name):
+    image = cache.get(name)
+    if image is None:
+        print("Cache miss")
+        image = requests.get('http://dnmonster:8080/monster/'+name+'?size=80').content
+        cache.set(name,image)
+    return Response(image,mimetype='image/png')
+	# ...
+```
+
+```shell
+C:/> docker pull redis
+	Using default tag: latest
+	latest: Pulling from library/redis
+	a2abf6c4d29d: Pull complete
+	c7a4e4382001: Pull complete
+	4044b9ba67c9: Pull complete
+	# ...
+	Digest: sha256:db485f2e245b5b3329fdc7eff4eb00f913e09d8feb9ca720788059fdc2ed8339
+	Status: Downloaded newer image for redis:latest
+	docker.io/library/redis:latest
+C:/> docker run -d --name redis redis:latest
+	cc2e016ed48bf743e6de36f316617a12559466fa440973fc0c6eb1f43124a2b6
+C:/PythonServer> docker build . -t identiconserver
+	[+] Building 4.8s (12/12) FINISHED
+	 => [internal] load build definition from Dockerfil  0.0s 
+	 => => transferring dockerfile: 365B                 0.0s 
+	 => [internal] load .dockerignore                    0.0s 
+	 => => transferring context: 2B                      0.0s 
+	 => [internal] load metadata for docker.io/library/  0.0s 
+	 => [1/7] FROM docker.io/library/python:3.7          0.0s 
+	 => [internal] load build context                    0.0s 
+	 => => transferring context: 99B                     0.0s 
+	 => CACHED [2/7] RUN groupadd -r uwsgi && useradd -  0.0s 
+	 => CACHED [3/7] RUN pip install Flask               0.0s 
+	 => CACHED [4/7] RUN pip install uWSGI requests      0.0s 
+	 => [5/7] RUN pip install redis                      4.5s 
+	 => [6/7] WORKDIR /app                               0.1s 
+	 => [7/7] COPY app /app                              0.1s 
+	 => exporting to image                               0.1s 
+	 => => exporting layers                              0.1s 
+	 => => writing image sha256:4dd7ef9e42adbb0a42c2bf6  0.0s 
+	 => => naming to docker.io/library/identicon         0.0s 
+C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --link dnmonster:dnmonster --link redis:redis identiconserver
+	ec3c9d5e660a7df534ba0383528d84535dc3979df6d40762ae994ed4c88266f1
+```
+
+至此，`identicon`项目开发完成。
+
+# §5 镜像分发
+
+在之前的[§2.10 `DockerHub`](#§2.10 `DockerHub`)一节中，我们简短地介绍了`DockerHub`这一平台及简单的操作。本章将深入介绍该平台提供的更多功能，详细介绍命名规范、持续集成、单元测试、托管方案等内容。
+
+## §5.1 镜像命名方式
+
+
+
+相比于大多数编程语言的标识符规则，`Docker`对于`TAG`的要求并没有那么严厉：
+
+- `TAG`只能包含大小写字母、数字、**小数点`.`、连字符`-`**这四种私服构成
+- `TAG`只能以大小写字母或**数字**开头
+- `TAG`的长度限定在$[0,128]$范围内
+
+> 注意：我们知道一个镜像的名称可以表示为`repo/user:tag`的形式，其中`tag`缺省为`latest`。虽然很多仓库会把这一标签视为“稳定版镜像”的意思，但是大多数个人性质的仓库并不会注意这一点。
+>
+> 更关键的是，`tag`是不会自动更新的，这意味着假如你之前上传了`latest`标签的镜像，当你再次上传更新版本的镜像时，原有镜像的`latest`标签并不会自动消失。因此，当你遇到这种仓库时，千万不能无脑`docker pull IMAGE`，觉得`DockerHub`会返回给你最后一次上传的`latest`标签镜像，而是要`docker pull IMAGE:xxx`指定标签下载。
+
+
+
+
 
 克隆本章需要用到的配置文件：
 
