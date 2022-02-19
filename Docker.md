@@ -1,4 +1,4 @@
-# Docker
+# [Docker]()
 # §1 基础知识
 ## §1.1 容器和虚拟机的区别
 ```mermaid
@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->                                   
+>                                           
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->                                   
+>                                           
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -1013,9 +1013,9 @@ https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 >
 > Docker Desktop你代理你马呢😅
 
-### §2.10.3 `docker push`私有仓库TODO:😅
+### §2.10.3 `docker push`
 
-
+详见[§5.1 镜像命名方式](#§5.1 镜像命名方式)一节。
 
 ### §2.10.4 `docker pull`
 
@@ -2125,9 +2125,9 @@ pythonserver-identidock-1 exited with code 1
 >      ```shell
 >      root@iZ2vc9lbf9c4ac8quabtc6Z ~/PythonServer [1]# docker-compose up
 >      Starting pythonserver_identidock_1 ...
->      
+>              
 >      ERROR: for pythonserver_identidock_1  a bytes-like object is required, not 'str'
->      
+>              
 >      ERROR: for identidock  a bytes-like object is required, not 'str'
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/docker/api/client.py", line 261, in _raise_for_status
@@ -2135,9 +2135,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/local/lib/python3.8/dist-packages/requests/models.py", line 941, in raise_for_status
 >          raise HTTPError(http_error_msg, response=self)
 >      requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: http+docker://localhost/v1.21/containers/0332a1a0b581189cc121406a675bdcf0a0985b384cdda2f4b2b1a9209c83ec66/start
->      
+>              
 >      During handling of the above exception, another exception occurred:
->      
+>              
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/compose/service.py", line 625, in start_container
 >          container.start()
@@ -2152,9 +2152,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/lib/python3/dist-packages/docker/errors.py", line 31, in create_api_error_from_http_exception
 >          raise cls(e, response=response, explanation=explanation)
 >      docker.errors.APIError: 400 Client Error: Bad Request ("b'failed to create shim: OCI runtime create failed: container_linux.go:380: starting container process caused: exec: "/cmd.sh": permission denied: unknown'")
->      
+>              
 >      During handling of the above exception, another exception occurred:
->      
+>              
 >      Traceback (most recent call last):
 >        File "/usr/bin/docker-compose", line 11, in <module>
 >          load_entry_point('docker-compose==1.25.0', 'console_scripts', 'docker-compose')()
@@ -2467,11 +2467,11 @@ C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --
 
 ## §5.1 镜像命名方式
 
-
+指定镜像的名称和标签有两种方式，分别是前面介绍过的`docker run --name`和`docker tag`。
 
 相比于大多数编程语言的标识符规则，`Docker`对于`TAG`的要求并没有那么严厉：
 
-- `TAG`只能包含大小写字母、数字、**小数点`.`、连字符`-`**这四种私服构成
+- `TAG`只能包含大小写字母、数字、**小数点`.`、连字符`-`**这四种字符构成
 - `TAG`只能以大小写字母或**数字**开头
 - `TAG`的长度限定在$[0,128]$范围内
 
@@ -2479,13 +2479,352 @@ C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --
 >
 > 更关键的是，`tag`是不会自动更新的，这意味着假如你之前上传了`latest`标签的镜像，当你再次上传更新版本的镜像时，原有镜像的`latest`标签并不会自动消失。因此，当你遇到这种仓库时，千万不能无脑`docker pull IMAGE`，觉得`DockerHub`会返回给你最后一次上传的`latest`标签镜像，而是要`docker pull IMAGE:xxx`指定标签下载。
 
+将镜像上传至自己的账户：
 
+```shell
+# 首次登录
+PS C:\PythonServer> docker login
+	Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.
+	Username: *USERNAME*
+	Password:
+	Login Succeeded
 
+# 非首次登录且未注销
+C:\PythonServer> docker login
+	Authenticating with existing credentials...
+	Login Succeeded
+	Logging in with your password grants your terminal complete access to your account.
+	For better security, log in with a limited-privilege personal access token. Learn more at https://docs.docker.com/go/access-tokens/
 
-
-克隆本章需要用到的配置文件：
-
+C:\PythonServer> docker tag identiconserver:latest myyaner/identidock:0.1
+C:\PythonServer> docker push myyaner/identidock:0.1
+	The push refers to repository [docker.io/myyaner/identidock]
+	a84ec5a1bdf4: Pushed
+	4bc0c60c9066: Pushed
+	be2ce015bd47: Pushed
+	# ...
+    11088eb5307c: Mounted from library/python
+	d86f8b9fa813: Mounted from library/python
+	86c81640d929: Mounted from library/python
+	# ...
+	0.1: digest: sha256:ffba087387c8f20750ff3b881e91a642bcecee431926041252ddbced4e3a5915 size: 3474
+C:/> curl https://hub.docker.com/u/myyaner
+	# ...
+	<div class="...list_item...">
+		<div class="...icon...">
+			<!-- icon -->
+		</div>
+		<div class="...stars_counter...">
+			<!-- stars_counter -->
+		</div>
+		<div class="styles__productInfo___3t6gm">
+			<div class="...">
+				<div>
+					<div class="...author...">myyaner/identidock</div>
+					<div class="...author_and_update_time...">
+						<span>
+							By&nbsp;
+							<a href="/u/myyaner">myyaner</a>
+						</span>
+						<span class="tertiaryContent">Updated 6 minutes ago</span>
+					</div>
+				</div>
+			</div>
+		<div class="...">
+			<div class="..."
+				Container
+			</div>
+		</div>
+	</div>
+</div>
 ```
-C:\> git clone -b v0 https://github.com/using-docker/deploying-containers/
+
+## §5.2 自动构建
+
+在本地开发时，我们使用`docker run -v`的方式，将主机目录重载到容器目录，从而实现内外文件同步的效果，当我们给`.py`脚本提交更改时，容器内程序的执行结果也会受到影响。同理，我们也可以给`.py`脚本提交更改时，让`DockerHub`自动重建镜像，这种功能被成为自动构建(Automated Build)。
+
+> 注意：根据[官方文档](https://docs.docker.com/docker-hub/builds/)，该功能需要订阅，只能向Docker Pro/Team/Business用户提供，目前收费标准如下：
+>
+> | 订阅等级       | Personal | Pro       | Team      | Business    |
+> | -------------- | -------- | --------- | --------- | ----------- |
+> | 收费标准/人/月 | $0       | $5→¥31.64 | $5→¥44.29 | $21→¥132.87 |
+
+?????????????？？？？？？？？？TODO:😅
+
+## §5.3 私有分发
+
+我们知道除了`DockerHub`之外，有许多厂商也为`Docker`提供寄存服务，本节我们将详细讲解。
+
+### §5.3.1 本地寄存服务
+
+虽然`DockerHub`集成了寄存服务相关的API，但`DockerHub`是一个商业闭源的远程服务，并且还对账户管理、统计数据、网页界面进行了扩展。相比之下，本地寄存服务就没有那么有好的界面。
+
+`DockerHub`官方提供了本地寄存服务的镜像，用户可自行下载并搭建自己的寄存服务。这里我们选择安全性、可靠性、效率都占有优势的版本2：
+
+```shell
+C:/> docker run -d -p 5000:5000 --name localregistry registry:2
+	Unable to find image 'registry:2' locally
+	2: Pulling from library/registry
+	79e9f2f55bf5: Pull complete
+	0d96da54f60b: Pull complete
+	5b27040df4a2: Pull complete
+	e2ead8259a04: Pull complete
+	3790aef225b9: Pull complete
+	Digest: sha256:169211e20e2f2d5d115674681eb79d21a217b296b43374b8e39f97fcf866b375
+	Status: Downloaded newer image for registry:2
+	df7b4b2ba0991a3c5b878c54314ad9b3e55e785f2b9eb7cc3af0dd084456a635
+```
+
+用户可以将本地镜像上传至本地寄存服务：
+
+```shell
+C:/> docker pull alpine:latest
+	59bf1c3509f3: Already exists
+	Digest: sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300
+	Status: Downloaded newer image for alpine:latest
+	docker.io/library/alpine:latest
+C:/> docker tag alpine:latest localhost:5000/alpine:initial
+C:/> docker push localhost:5000/alpine:initial
+	The push refers to repository [localhost:5000/alpine]
+	8d3ac3489996: Pushed
+	initial: digest: sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3 size: 528
+```
+
+也可以从本地寄存服务下载镜像：
+
+```shell
+# 删除本地镜像
+C:/> docker images
+	REPOSITORY              TAG       IMAGE ID       CREATED        SIZE
+	alpine                  latest    c059bfaa849c   2 months ago   5.59MB
+	localhost:5000/alpine   initial   c059bfaa849c   2 months ago   5.59MB
+C:/> docker rmi alpine:latest
+	Untagged: alpine:latest
+	Untagged: alpine@sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300
+C:/> docker images
+	REPOSITORY              TAG       IMAGE ID       CREATED        SIZE
+	localhost:5000/alpine   initial   c059bfaa849c   2 months ago   5.59MB
+C:/> docker pull localhost:5000/alpine:latest
+	initial: Pulling from alpine
+	Digest: sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3
+	Status: Image is up to date for localhost:5000/alpine:initial
+	localhost:5000/alpine:initial
+C:/> docker images
+	REPOSITORY              TAG       IMAGE ID       CREATED        SIZE
+	alpine                  latest    c059bfaa849c   2 months ago   5.59MB
+	localhost:5000/alpine   initial   c059bfaa849c   2 months ago   5.59MB
+```
+
+我们知道，某个镜像除了可以通过`REPO/USER:TAG`唯一确定以外，也可以通过`Docker`生成的哈希值(SHA-256)唯一确定：
+
+```shell
+C:/> docker push localhost:5000/alpine:initial
+	The push refers to repository [localhost:5000/alpine]
+	8d3ac3489996: Pushed
+	initial: digest: sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3 size: 528
+C:/> docker images
+	REPOSITORY              TAG       IMAGE ID       CREATED        SIZE
+	alpine                  latest    c059bfaa849c   2 months ago   5.59MB
+	localhost:5000/alpine   initial   c059bfaa849c   2 months ago   5.59MB
+C:/> docker rmi alpine:latest
+	Untagged: alpine:latest
+	Untagged: alpine@sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300
+C:/> docker pull localhost:5000/alpine@sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3
+	localhost:5000/alpine@sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3: Pulling from alpine
+	59bf1c3509f3: Already exists
+	Digest: sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3
+	Status: Downloaded newer image for localhost:5000/alpine@sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3
+	localhost:5000/alpine@sha256:e7d88de73db3d3fd9b2d63aa7f447a10fd0220b7cbf39803c803f2af9ba256b3
+```
+
+Docker守护进程默认只允许本机(`localhost`/`127.0.0.1`)访问，不允许外部机器通过局域网、端口穿透等方式访问：
+
+- 路由器局域网(失败)
+
+  ```shell
+  C:/> ipconfig
+  	# ...
+  	Wireless LAN adapter WLAN:
+  	   IPv4 Address. . . . . . . . . . . : 192.168.31.2
+  	   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+  	   Default Gateway . . . . . . . . . : 192.168.31.1
+  	# ...
+  C:/> pint 192.168.31.2
+  	Pinging 192.168.31.2 with 32 bytes of data:
+  		Reply from 192.168.31.2: bytes=32 time<1ms TTL=128
+  		Reply from 192.168.31.2: bytes=32 time<1ms TTL=128
+  		Reply from 192.168.31.2: bytes=32 time<1ms TTL=128
+  		Reply from 192.168.31.2: bytes=32 time<1ms TTL=128
+  	Ping statistics for 192.168.31.2:
+      	Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+  	Approximate round trip times in milli-seconds:
+      	Minimum = 0ms, Maximum = 0ms, Average = 0ms
+  C:/> docker pull 192.168.31.2:5000/identidock:0.1
+  	Error response from daemon: Get "https://192.168.31.2:5000/v2/": http: server gave HTTP response to HTTPS client
+  ```
+
+- 主机WSL内局域网(失败)
+
+  ```shell
+  C:/> docker inspect localregistry
+  	# ...
+  	"Gateway": "172.17.0.1",
+  	"IPAddress": "172.17.0.4",
+  	# ...
+  C:/> ping 172.17.0.4
+  	Pinging 172.17.0.4 with 32 bytes of data:
+  		Request timed out.
+  		Request timed out.
+  		Request timed out.
+  		Request timed out.
+  	Ping statistics for 172.17.0.4:
+      	Packets: Sent = 4, Received = 0, Lost = 4 (100% loss),
+  C:/> docker pull 172.17.0.4:5000/identidock:0.1
+  	Error response from daemon: Get "https://172.17.0.4:5000/v2/": http: server gave HTTP response to HTTPS client
+  ```
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## §5.3 单元测试
+
+添加单元测试文件：
+
+```python
+# ~/app/tests.py
+import unittest
+import identidock
+
+class TestCase(unittest.TestCase):
+    
+    def setUp(self):
+        identidock.app.config["TESTING"] = True
+        self.app = identidock.app.test_client() 
+    # 测试网页状态
+    def test_get_mainpage(self):
+        page = self.app.post("/",data=dict(username="Mody Dock"))
+        assert page.status_code == 200
+        assert 'Hello' in str(page.data)
+        assert 'Mody Dock' in str(page.data)
+    # 测试XSS
+    def test_html_escaping(self):
+        page = self.app.post("/",data=dict(username='"><b>TEST</b><!--'))
+        assert '<b>' not in str(page.data)
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+```shell
+C:/> docker build -t identiconserver .
+C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --link dnmonster:dnmonster --link redis:redis identiconserver python tests.py
+```
+
+```logs
+======================================================================
+FAIL: test_html_escaping (__main__.TestCase)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests.py", line 18, in test_html_escaping
+    assert '<b>' not in str(page.data)
+AssertionError
+----------------------------------------------------------------------
+Ran 2 tests in 0.007s
+FAILED (failures=1)
+```
+
+测试结果显示，我们的网站存在XSS问题，需要对用户输入进行转义：
+
+```python
+# identidock.py
+	# ...
+import html
+	# ...
+@app.route('/',methods=['GET','POST'])
+def hello_world():
+	# ...
+	if(request.method == 'POST' or request.method == 'post'):
+		# username = request.form['username']
+		username = html.escape(request.form['username'],quote=True)
+    # ...
+@app.route('/monster/<name>')
+def get_identicon(name):
+    name = html.escape(name,quote=True)
+    # ...
+```
+
+## §5.4 `Jenkins`容器
+
+[`Jetkins`](https://www.jenkins.io/zh/)是一个开源的持续集成服务器。当源码被修改并推送到`identicon`项目时，`Jetkins`可以自动检测到这些变化并自动构建新镜像，同时执行单元测试并生成测试报告。
+
+`Jetkins`提供多种平台的版本可供下载，囊括了`Ubundu`系、`Debian`系、`CentOS`系、`Fedora`系、`RedHat`系、`Windows`、`FreeBSD`系、`MacOS`，最重要的是兼容`Docker`平台。为了让`Jetkins`容器能自动构建镜像，我们有以下两种方法：
+
+1. `Docker`套接字挂载
+
+   `Docker`套接字是客户端与守护进程之间用于通信的端点，默认情况下位于`Linux`系统的`/var/run/docker.sock`路径。
+
+2. `Docker-in-Docker`/`DinD`
+
+```mermaid
+flowchart TB
+	subgraph DockerMount ["挂载套接字"]
+		DockerMountEngine["Docker引擎"]
+		subgraph DockerMountContainer1 ["容器"]
+			DockerMountClient["Docker客户端"]
+		end
+		DockerMountEngine-->DockerMountContainer1
+		DockerMountEngine-->DockerMountContainer2["容器"]
+		DockerMountEngine-->DockerMountContainer3["容器"]
+		DockerMountClient--"挂载"-->DockerMountEngine
+	end
+	subgraph DockerInDocker ["Docker In Docker"]
+		DockerInDockerEngine["Docker引擎"]
+		DockerInDockerEngine-->DockerInDockerContainer1["容器"]
+		subgraph DockerInDockerContainer2 ["容器"]
+			DockerInDockerInsideEngine["Docker引擎"]
+		end
+		DockerInDockerEngine-->DockerInDockerContainer2
+		DockerInDockerInsideEngine-->DockerInDockerInsideContainer1["容器"]
+		DockerInDockerInsideEngine-->DockerInDockerInsideContainer2["容器"]
+	end
 ```
 
