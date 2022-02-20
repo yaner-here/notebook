@@ -2821,3 +2821,219 @@ C:/> docker images
 	alpine        latest    c059bfaa849c   2 months ago     5.59MB
 ```
 
+## §5.5 内容信任
+
+在没有可信任第三方的去中心化网络中，以公钥密码学为基础的电子签名机制既可以鉴别数据的完整性，又可以鉴别数据的不可抵赖性。`Docker`官方引入了电子签名，并称这一机制为[**内容信任**](https://docs.docker.com/engine/security/trust/)(DCT,Docker Content Trust)。
+
+生成公私钥对，默认存储于`~/.docker/trust`(Windows)或`/home/ubuntu/Documents/mytrustdir/*USERNAME*.pub`(Ubuntu)目录下：
+
+```shell
+# 指定作者名称,此处设为normaluser
+C:/> docker trust key generate normaluser
+	Generating key for normaluser...
+	# 指定私钥并加盐(Docker随机生成的7为小写+数字字符串)
+	Enter passphrase for new normaluser key with ID *SALT*: *dockersignature*
+	Repeat passphrase for new normaluser key with ID *SALT*: *dockersignature*
+	# 输出公钥文件到shell当前目录
+	Successfully generated and loaded private key. Corresponding public key available: C:\normaluser.pub
+# 查看私钥文件
+C:/> ls C:\Users\[USERNAME]\.docker\trust\private
+    Directory: C:\Users\[USERNAME]\.docker\trust\private
+
+Mode         LastWriteTime    Length Name
+----         -------------    ------ ----
+-a---   2022/2/19    20:44       422 *SHA-256*.key
+```
+
+公私钥文件分别如下所示：
+
+```
+# 私钥 *SHA256*.key 会被Windows识别为注册表文件
+-----BEGIN ENCRYPTED PRIVATE KEY-----
+role: normaluser
+# 324位大小写+数字+等于号的私钥
+-----END ENCRYPTED PRIVATE KEY-----
+```
+
+```
+# 公钥 normaluser.pub 会被Microsoft Office Publisher识别为图书排版文件
+-----BEGIN PUBLIC KEY-----
+role: normaluser
+# 124位大小写+数字+等于号的公钥
+-----END PUBLIC KEY-----
+```
+
+也可以导入现成的私钥文件：
+
+```shell
+# 第三方提供的数字证书文件
+C:/> docker trust key load xxx.pem --name normaluser
+	Adding signer "normaluser" to registry.example.com/admin/demo...
+	Enter passphrase for new repository key with ID 10b5e94:
+```
+
+接下来我们需要对寄存服务托管的远程仓库进行身份认证：
+
+```shell
+C:/> docker trust signer add --key 公钥文件 normaluser myyaner/identidock
+	Adding signer "normaluser" to myyaner/identidock...
+	Initializing signed repository for myyaner/identidock...
+	你即将创建一个新的根钥密码(注:即Offline Key,保存在本地, )。该密码将会被用于保护你的签名系统中最敏感的密钥。
+	请选择一个足够长、复杂的密码，并且妥善处理保存和备份该密码，并保证它的安全。
+	强烈推荐你使用密码管理器来生成并妥善保存该密码。
+	没有任何方式能恢复该密钥。你可以在你的配置目录中找到该密钥。
+	Enter passphrase for new root key with ID *SALT*: *dockersignature*
+	Repeat passphrase for new root key with ID *SALT*: *dockersignature*
+	Enter passphrase for new repository key with ID *SALT*: *dockersignature*
+	Repeat passphrase for new repository key with ID *SALT*: *dockersignature*
+	Successfully initialized "myyaner/identidock"
+	Successfully added signer: normaluser to myyaner/identidock
+```
+
+现在我们可以给远程仓库的镜像进行签名了：
+
+```shell
+C:/> docker trust sign myyaner/alpine:latest
+
+```
+
+？？？？？？？？？？？？？？TODO:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## §5.3 单元测试
+
+添加单元测试文件：
+
+```python
+# ~/app/tests.py
+import unittest
+import identidock
+
+class TestCase(unittest.TestCase):
+    
+    def setUp(self):
+        identidock.app.config["TESTING"] = True
+        self.app = identidock.app.test_client() 
+    # 测试网页状态
+    def test_get_mainpage(self):
+        page = self.app.post("/",data=dict(username="Mody Dock"))
+        assert page.status_code == 200
+        assert 'Hello' in str(page.data)
+        assert 'Mody Dock' in str(page.data)
+    # 测试XSS
+    def test_html_escaping(self):
+        page = self.app.post("/",data=dict(username='"><b>TEST</b><!--'))
+        assert '<b>' not in str(page.data)
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+```shell
+C:/> docker build -t identiconserver .
+C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --link dnmonster:dnmonster --link redis:redis identiconserver python tests.py
+```
+
+```logs
+======================================================================
+FAIL: test_html_escaping (__main__.TestCase)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests.py", line 18, in test_html_escaping
+    assert '<b>' not in str(page.data)
+AssertionError
+----------------------------------------------------------------------
+Ran 2 tests in 0.007s
+FAILED (failures=1)
+```
+
+测试结果显示，我们的网站存在XSS问题，需要对用户输入进行转义：
+
+```python
+# identidock.py
+	# ...
+import html
+	# ...
+@app.route('/',methods=['GET','POST'])
+def hello_world():
+	# ...
+	if(request.method == 'POST' or request.method == 'post'):
+		# username = request.form['username']
+		username = html.escape(request.form['username'],quote=True)
+    # ...
+@app.route('/monster/<name>')
+def get_identicon(name):
+    name = html.escape(name,quote=True)
+    # ...
+```
+
+## §5.4 `Jenkins`容器
+
+[`Jetkins`](https://www.jenkins.io/zh/)是一个开源的持续集成服务器。当源码被修改并推送到`identicon`项目时，`Jetkins`可以自动检测到这些变化并自动构建新镜像，同时执行单元测试并生成测试报告。
+
+`Jetkins`提供多种平台的版本可供下载，囊括了`Ubundu`系、`Debian`系、`CentOS`系、`Fedora`系、`RedHat`系、`Windows`、`FreeBSD`系、`MacOS`，最重要的是兼容`Docker`平台。为了让`Jetkins`容器能自动构建镜像，我们有以下两种方法：
+
+1. `Docker`套接字挂载
+
+   `Docker`套接字是客户端与守护进程之间用于通信的端点，默认情况下位于`Linux`系统的`/var/run/docker.sock`路径。
+
+2. `Docker-in-Docker`/`DinD`
+
+   在`Docker`容器中运行`Docker`自己。程序员Jérôme在他的[`GitHub`仓库](https://github.com/jpetazzo/dind)和[`DockerHub`仓库](https://hub.docker.com/r/jpetazzo/dind)提供了现成的镜像，我们无需手动在容器中再走一遍安装`Docker`的流程了。
+
+```mermaid
+flowchart TB
+	subgraph DockerMount ["挂载套接字"]
+		DockerMountEngine["Docker引擎"]
+		subgraph DockerMountContainer1 ["容器"]
+			DockerMountClient["Docker客户端"]
+		end
+		DockerMountEngine-->DockerMountContainer1
+		DockerMountEngine-->DockerMountContainer2["容器"]
+		DockerMountEngine-->DockerMountContainer3["容器"]
+		DockerMountClient--"挂载"-->DockerMountEngine
+	end
+	subgraph DockerInDocker ["Docker In Docker"]
+		DockerInDockerEngine["Docker引擎"]
+		DockerInDockerEngine-->DockerInDockerContainer1["容器"]
+		subgraph DockerInDockerContainer2 ["容器"]
+			DockerInDockerInsideEngine["Docker引擎"]
+		end
+		DockerInDockerEngine-->DockerInDockerContainer2
+		DockerInDockerInsideEngine-->DockerInDockerInsideContainer1["容器"]
+		DockerInDockerInsideEngine-->DockerInDockerInsideContainer2["容器"]
+	end
+```
+
+```shell
+C:\> docker pull docker:dind
+	dind: Pulling from library/docker
+	59bf1c3509f3: Already exists
+	1ea03e1895df: Pull complete
+	1ff98835b055: Pull complete
+	# ...
+	Digest: sha256:1f50d3a86f7035805843779f803e81e8f4ce96b62ed68fc70cdcf4922f43470b
+	Status: Downloaded newer image for docker:dind
+	docker.io/library/docker:dind
+
+```
+
