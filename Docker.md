@@ -3000,6 +3000,9 @@ def get_identicon(name):
 
    在`Docker`容器中运行`Docker`自己。程序员Jérôme在他的[`GitHub`仓库](https://github.com/jpetazzo/dind)和[`DockerHub`仓库](https://hub.docker.com/r/jpetazzo/dind)提供了现成的镜像，我们无需手动在容器中再走一遍安装`Docker`的流程了。
 
+   - `DinD`创建的容器与主机的容器相互隔绝，不能共享同一份镜像层缓存，所以构建镜像时会浪费大量的时间和流量用于重新下载镜像。针对这一问题，我们可以使用本地寄存服务或复制镜像来解决，但不能挂载主机上的镜像层缓存，否则两个`Docker`引擎实例同时使用同一个缓存时会发生冲突。
+   - `DinD`使用`Docker`内的`/var/lib/docker`数据卷。根据[§3.3 数据容器](#§3.3 数据容器)
+
 ```mermaid
 flowchart TB
 	subgraph DockerMount ["挂载套接字"]
@@ -3034,6 +3037,43 @@ C:\> docker pull docker:dind
 	Digest: sha256:1f50d3a86f7035805843779f803e81e8f4ce96b62ed68fc70cdcf4922f43470b
 	Status: Downloaded newer image for docker:dind
 	docker.io/library/docker:dind
+C:\> docker run --rm --privileged -t -i -e LOG=file docker:dind
+    # ...
+    INFO[*UTC*] Default bridge (docker0) is assigned with an IP address 172.18.0.0/16. Daemon option --bip can be used to set a preferred IP address
+    INFO[*UTC*] Loading containers: done.
+    INFO[*UTC*] Docker daemon  commit=459d0df graphdriver(s)=overlay2 version=20.10.12
+    INFO[*UTC*] Daemon has completed initialization
+    INFO[*UTC*] API listen on /var/run/docker.sock
+    INFO[*UTC*] API listen on [::]:2376
+```
+
+
+
+
 
 ```
+C:/> docker pull jpetazzo/dind
+	Using default tag: latest
+	latest: Pulling from jpetazzo/dind
+	28bfaceaff9b: Pull complete
+	ac540055f2f8: Pull complete
+	2965585ef8b8: Pull complete
+	# ...
+	Digest: sha256:f48a1bbf379afdb7a7685abd0130ccd2f214662b086eb7320c296ee83fc6448e
+	Status: Downloaded newer image for jpetazzo/dind:latest
+	docker.io/jpetazzo/dind:latest
+C:/> docker run --rm --privileged -t -i -e LOG=file jpetazzo/dind
+	ln: failed to create symbolic link '/sys/fs/cgroup/systemd/name=systemd': Operation not permitted
+	root@660e1c614f3e:/# docker run busybox echo "I'm in Docker-in-Docker!"
+		Unable to find image 'busybox:latest' locally
+		latest: Pulling from library/busybox
+		009932687766: Pull complete
+		Digest: sha256:afcc7f1ac1b49db317a7196c902e61c6c3c4607d63599ee1a82d702d249a0ccb
+		Status: Downloaded newer image for busybox:latest
+		I'm in Docker-in-Docker!
+```
+
+
+
+
 
