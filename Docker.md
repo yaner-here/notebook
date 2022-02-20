@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->                                           
+>                                             
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->                                           
+>                                             
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -2125,9 +2125,9 @@ pythonserver-identidock-1 exited with code 1
 >      ```shell
 >      root@iZ2vc9lbf9c4ac8quabtc6Z ~/PythonServer [1]# docker-compose up
 >      Starting pythonserver_identidock_1 ...
->              
+>                
 >      ERROR: for pythonserver_identidock_1  a bytes-like object is required, not 'str'
->              
+>                
 >      ERROR: for identidock  a bytes-like object is required, not 'str'
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/docker/api/client.py", line 261, in _raise_for_status
@@ -2135,9 +2135,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/local/lib/python3.8/dist-packages/requests/models.py", line 941, in raise_for_status
 >          raise HTTPError(http_error_msg, response=self)
 >      requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: http+docker://localhost/v1.21/containers/0332a1a0b581189cc121406a675bdcf0a0985b384cdda2f4b2b1a9209c83ec66/start
->              
+>                
 >      During handling of the above exception, another exception occurred:
->              
+>                
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/compose/service.py", line 625, in start_container
 >          container.start()
@@ -2152,9 +2152,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/lib/python3/dist-packages/docker/errors.py", line 31, in create_api_error_from_http_exception
 >          raise cls(e, response=response, explanation=explanation)
 >      docker.errors.APIError: 400 Client Error: Bad Request ("b'failed to create shim: OCI runtime create failed: container_linux.go:380: starting container process caused: exec: "/cmd.sh": permission denied: unknown'")
->              
+>                
 >      During handling of the above exception, another exception occurred:
->              
+>                
 >      Traceback (most recent call last):
 >        File "/usr/bin/docker-compose", line 11, in <module>
 >          load_entry_point('docker-compose==1.25.0', 'console_scripts', 'docker-compose')()
@@ -2683,148 +2683,141 @@ Docker守护进程默认只允许本机(`localhost`/`127.0.0.1`)访问，不允�
   	Error response from daemon: Get "https://172.17.0.4:5000/v2/": http: server gave HTTP response to HTTPS client
   ```
 
-  
+??????????TODO:😅需要两台设备
 
+### §5.3.2 商业寄存服务
 
+现在业内比较成熟的商业解决方案有[Docker-Trusted-Registry](https://dockerlabs.collabnix.com/beginners/dockertrustedregistry.html)(集成于Docker Enterprise)和[Quay container registry](https://cloud.redhat.com/products/quay)(原CoreOS Enterprise Registry，现在收录至`RedHat`旗下)，支持防火墙、权限控制、GUI界面等高级功能。
 
+国内常使用阿里云的[ACR(Aliyun Container Registry)](https://www.aliyun.com/product/acr)(使用方法参考[官方文档](https://help.aliyun.com/document_detail/60743.html))。
 
+## §5.4 缩简镜像
 
+虽然有镜像层概念的提出，但是普通的`Docker`镜像仍然动辄上百兆。镜像层的结果将直接决定着镜像的大小，所以缩简镜像必须从镜像层入手。
 
+我们从下面的`dockerfile`中：
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## §5.3 单元测试
-
-添加单元测试文件：
-
-```python
-# ~/app/tests.py
-import unittest
-import identidock
-
-class TestCase(unittest.TestCase):
-    
-    def setUp(self):
-        identidock.app.config["TESTING"] = True
-        self.app = identidock.app.test_client() 
-    # 测试网页状态
-    def test_get_mainpage(self):
-        page = self.app.post("/",data=dict(username="Mody Dock"))
-        assert page.status_code == 200
-        assert 'Hello' in str(page.data)
-        assert 'Mody Dock' in str(page.data)
-    # 测试XSS
-    def test_html_escaping(self):
-        page = self.app.post("/",data=dict(username='"><b>TEST</b><!--'))
-        assert '<b>' not in str(page.data)
-
-if __name__ == '__main__':
-    unittest.main()
+```dockerfile
+FROM alpine:latest
+RUN dd if=/dev/zero of=/bigfile count=1 bs=300MB # 创建全零填充的文件
+RUN rm /bigfile
 ```
 
 ```shell
-C:/> docker build -t identiconserver .
-C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --link dnmonster:dnmonster --link redis:redis identiconserver python tests.py
+C:/> docker pull alpine:latest
+	latest: Pulling from library/alpine
+	59bf1c3509f3: Already exists
+	Digest: sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300
+	Status: Downloaded newer image for alpine:latest
+	docker.io/library/alpine:latest
+C:/> docker build . -t big_image
+	[+] Building 0.1s (7/7) FINISHED
+	 => [internal] load build definition from Dockerfile                                             0.0s
+	 => => transferring dockerfile: 31B                                                              0.0s
+	 => [internal] load .dockerignore                                                                0.0s
+	 => => transferring context: 2B                                                                  0.0s
+	 => [internal] load metadata for docker.io/library/alpine:latest                                 0.0s
+	 => [1/3] FROM docker.io/library/alpine:latest                                                   0.0s
+	 => CACHED [2/3] RUN dd if=/dev/zero of=/bigfile count=1 bs=300MB                                0.0s
+	 => CACHED [3/3] RUN rm /bigfile                                                                 0.0s
+	 => exporting to image                                                                           0.0s
+	 => => exporting layers                                                                          0.0s
+	 => => writing image sha256:15d3bfcb5b5cbdb04c622028c649f041d2de41307a4e28d45194255b5c4d38af     0.0s
+	 => => naming to docker.io/library/big_image                                                     0.0s
+C:/> docker images
+	REPOSITORY   TAG       IMAGE ID       CREATED          SIZE
+	big_image    latest    15d3bfcb5b5c   13 minutes ago   306MB
+	alpine       latest    c059bfaa849c   2 months ago     5.59MB
+C:/> docker history big_image
+	IMAGE          CREATED          CREATED BY                                      SIZE      COMMENT
+	15d3bfcb5b5c   19 minutes ago   RUN /bin/sh -c rm /bigfile # buildkit           0B        buildkit.dockerfile.v0
+	<missing>      19 minutes ago   RUN /bin/sh -c dd if=/dev/zero of=/bigfile c…   300MB     buildkit.dockerfile.v0
+	<missing>      2 months ago     /bin/sh -c #(nop)  CMD ["/bin/sh"]              0B
+	<missing>      2 months ago     /bin/sh -c #(nop) ADD file:9233f6f2237d79659…   5.59MB
 ```
 
-```logs
-======================================================================
-FAIL: test_html_escaping (__main__.TestCase)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "tests.py", line 18, in test_html_escaping
-    assert '<b>' not in str(page.data)
-AssertionError
-----------------------------------------------------------------------
-Ran 2 tests in 0.007s
-FAILED (failures=1)
+我们看到，新镜像比原镜像恰好多出300M，造成这300M的罪魁祸首——第三层镜像层并没有被第四层的`rm`指令删除，而是永远留在了这些镜像层之中。现在，我们这样更改`dockerfile`：
+
+```dockerfile
+FROM alpine:latest
+RUN dd if=/dev/zero of=/bigfile count=1 bs=50MB && rm /bigfile
 ```
 
-测试结果显示，我们的网站存在XSS问题，需要对用户输入进行转义：
-
-```python
-# identidock.py
-	# ...
-import html
-	# ...
-@app.route('/',methods=['GET','POST'])
-def hello_world():
-	# ...
-	if(request.method == 'POST' or request.method == 'post'):
-		# username = request.form['username']
-		username = html.escape(request.form['username'],quote=True)
-    # ...
-@app.route('/monster/<name>')
-def get_identicon(name):
-    name = html.escape(name,quote=True)
-    # ...
+```shell
+C:/> docker build . -t small_image
+	[+] Building 0.7s (6/6) FINISHED
+	 => [internal] load build definition from Dockerfile                                             0.0s
+	 => => transferring dockerfile: 120B                                                             0.0s
+	 => [internal] load .dockerignore                                                                0.0s
+	 => => transferring context: 2B                                                                  0.0s
+	 => [internal] load metadata for docker.io/library/alpine:latest                                 0.0s
+	 => CACHED [1/2] FROM docker.io/library/alpine:latest                                            0.0s
+	 => [2/2] RUN dd if=/dev/zero of=/bigfile count=1 bs=300MB && rm /bigfile                        0.6s
+	 => exporting to image                                                                           0.0s
+	 => => exporting layers                                                                          0.0s
+	 => => writing image sha256:cf47c01c7e8ed435d132a67b1fc407693c81a35429e0bce605818ce974fd43ee     0.0s
+	 => => naming to docker.io/library/small_image                                                   0.0s
+C:/> docker images
+	REPOSITORY    TAG       IMAGE ID       CREATED              SIZE
+	small_image   latest    cf47c01c7e8e   About a minute ago   5.59MB
+	big_image     latest    15d3bfcb5b5c   23 minutes ago       306MB
+	alpine        latest    c059bfaa849c   2 months ago         5.59MB
+C:/> docker history small_image
+	IMAGE          CREATED              CREATED BY                                      SIZE      COMMENT
+	cf47c01c7e8e   About a minute ago   RUN /bin/sh -c dd if=/dev/zero of=/bigfile c…   0B        buildkit.dockerfile.v0
+	<missing>      2 months ago         /bin/sh -c #(nop)  CMD ["/bin/sh"]              0B
+	<missing>      2 months ago         /bin/sh -c #(nop) ADD file:9233f6f2237d79659…   5.59MB
 ```
 
-## §5.4 `Jenkins`容器
+优秀的开源项目中经常可以看到这种"把所有命令压到同一行"的操作，从而避免储存安装包/临时文件而造成的空间浪费。这个技巧常用于以下场景：
 
-[`Jetkins`](https://www.jenkins.io/zh/)是一个开源的持续集成服务器。当源码被修改并推送到`identicon`项目时，`Jetkins`可以自动检测到这些变化并自动构建新镜像，同时执行单元测试并生成测试报告。
+- `MongoDB`官方镜像构建时的安装过程：
 
-`Jetkins`提供多种平台的版本可供下载，囊括了`Ubundu`系、`Debian`系、`CentOS`系、`Fedora`系、`RedHat`系、`Windows`、`FreeBSD`系、`MacOS`，最重要的是兼容`Docker`平台。为了让`Jetkins`容器能自动构建镜像，我们有以下两种方法：
+  ```shell
+  # ...
+  RUN curl -SL "https://$MONGO_VERSION.tgz" -o mongo.tgz \
+  	# ↓ 下载安装包 ↓
+  	&& curl -SL "https://$MONGO_VERSION.tgz.sig" -o mongo.tgz.sig \
+  	&& gpg --verify mongo.tgz.sig \
+  	&& tar -xvf mongo.tgz -C /usr/local --strip-components=1 \
+  	&& rm mongo.tgz*
+  	# ↑ 删除安装包 ↑
+  # ...
+  ```
 
-1. `Docker`套接字挂载
+- `apt`安装依赖项时清空更新的依赖项列表
 
-   `Docker`套接字是客户端与守护进程之间用于通信的端点，默认情况下位于`Linux`系统的`/var/run/docker.sock`路径。
+  ```dockerfile
+  # ...
+  RUN apt-get update \
+  	&& apt-get install -y curl numactl \
+  	&& rm -rf /var/lib/apt/lists/*
+  # ...
+  ```
 
-2. `Docker-in-Docker`/`DinD`
+如果不在意版本管理、问题追溯、重启处理`EXPOSE`/`CMD`/`PORTS`等指令、丢失元数据、不能与其他同源镜像共享镜像层的话，还可以使用`docker export`和`docker import`只保留镜像层的最后一层：
 
-```mermaid
-flowchart TB
-	subgraph DockerMount ["挂载套接字"]
-		DockerMountEngine["Docker引擎"]
-		subgraph DockerMountContainer1 ["容器"]
-			DockerMountClient["Docker客户端"]
-		end
-		DockerMountEngine-->DockerMountContainer1
-		DockerMountEngine-->DockerMountContainer2["容器"]
-		DockerMountEngine-->DockerMountContainer3["容器"]
-		DockerMountClient--"挂载"-->DockerMountEngine
-	end
-	subgraph DockerInDocker ["Docker In Docker"]
-		DockerInDockerEngine["Docker引擎"]
-		DockerInDockerEngine-->DockerInDockerContainer1["容器"]
-		subgraph DockerInDockerContainer2 ["容器"]
-			DockerInDockerInsideEngine["Docker引擎"]
-		end
-		DockerInDockerEngine-->DockerInDockerContainer2
-		DockerInDockerInsideEngine-->DockerInDockerInsideContainer1["容器"]
-		DockerInDockerInsideEngine-->DockerInDockerInsideContainer2["容器"]
-	end
+```shell
+C:/> docker images
+	REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+	big_image     latest    15d3bfcb5b5c   49 minutes ago   306MB
+	alpine        latest    c059bfaa849c   2 months ago     5.59MB
+C:/> docker create --name temp_container big_image
+	b2baabbe7112becae263692537e33f0d69785caf23dcacd7bbab2192c1505f4a
+C:/> docker export temp_container -o C:\simplified_image
+C:/> ls C:\
+    Directory: C:\
+	Mode    LastWriteTime      Length    Name
+	----    ---------------    ------    ----
+	# ...
+	-a---   2022/2/19 19:56    5868032   simplified_image
+	# ...
+C:/> docker import C:\simplified_image small_image
+	sha256:039581536b2b7ef5ce7cd9141f1193dbcc0d40d8670c793b18bc5aba3b74a4fa
+C:/> docker images
+	REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+	small_image   latest    039581536b2b   30 seconds ago   5.59MB
+	big_image     latest    15d3bfcb5b5c   59 minutes ago   306MB
+	alpine        latest    c059bfaa849c   2 months ago     5.59MB
 ```
 
