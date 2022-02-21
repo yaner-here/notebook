@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->                                             
+>                                                     
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->                                             
+>                                                     
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -2125,9 +2125,9 @@ pythonserver-identidock-1 exited with code 1
 >      ```shell
 >      root@iZ2vc9lbf9c4ac8quabtc6Z ~/PythonServer [1]# docker-compose up
 >      Starting pythonserver_identidock_1 ...
->                
+>                        
 >      ERROR: for pythonserver_identidock_1  a bytes-like object is required, not 'str'
->                
+>                        
 >      ERROR: for identidock  a bytes-like object is required, not 'str'
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/docker/api/client.py", line 261, in _raise_for_status
@@ -2135,9 +2135,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/local/lib/python3.8/dist-packages/requests/models.py", line 941, in raise_for_status
 >          raise HTTPError(http_error_msg, response=self)
 >      requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: http+docker://localhost/v1.21/containers/0332a1a0b581189cc121406a675bdcf0a0985b384cdda2f4b2b1a9209c83ec66/start
->                
+>                        
 >      During handling of the above exception, another exception occurred:
->                
+>                        
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/compose/service.py", line 625, in start_container
 >          container.start()
@@ -2152,9 +2152,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/lib/python3/dist-packages/docker/errors.py", line 31, in create_api_error_from_http_exception
 >          raise cls(e, response=response, explanation=explanation)
 >      docker.errors.APIError: 400 Client Error: Bad Request ("b'failed to create shim: OCI runtime create failed: container_linux.go:380: starting container process caused: exec: "/cmd.sh": permission denied: unknown'")
->                
+>                        
 >      During handling of the above exception, another exception occurred:
->                
+>                        
 >      Traceback (most recent call last):
 >        File "/usr/bin/docker-compose", line 11, in <module>
 >          load_entry_point('docker-compose==1.25.0', 'console_scripts', 'docker-compose')()
@@ -2461,7 +2461,7 @@ C:/> docker run -d -p 9090:9090 --name identicon -v C:\PythonServer\app\:/app --
 
 至此，`identicon`项目开发完成。
 
-# §5 镜像分发
+# §5 镜像分发与部署
 
 在之前的[§2.10 `DockerHub`](#§2.10 `DockerHub`)一节中，我们简短地介绍了`DockerHub`这一平台及简单的操作。本章将深入介绍该平台提供的更多功能，详细介绍命名规范、持续集成、单元测试、托管方案等内容。
 
@@ -2919,7 +2919,7 @@ C:/> docker trust sign myyaner/alpine:latest
 
 
 
-## §5.3 单元测试
+## §5.6 单元测试
 
 添加单元测试文件：
 
@@ -2986,22 +2986,11 @@ def get_identicon(name):
     # ...
 ```
 
-## §5.4 `Jenkins`容器
+## §5.7 `Jenkins`容器
 
-[`Jetkins`](https://www.jenkins.io/zh/)是一个开源的持续集成服务器。当源码被修改并推送到`identicon`项目时，`Jetkins`可以自动检测到这些变化并自动构建新镜像，同时执行单元测试并生成测试报告。
+[`Jenkins`](https://www.jenkins.io/zh/)是一个开源的持续集成服务器。当源码被修改并推送到`identicon`项目时，`Jenkins`可以自动检测到这些变化并自动构建新镜像，同时执行单元测试并生成测试报告。
 
-`Jetkins`提供多种平台的版本可供下载，囊括了`Ubundu`系、`Debian`系、`CentOS`系、`Fedora`系、`RedHat`系、`Windows`、`FreeBSD`系、`MacOS`，最重要的是兼容`Docker`平台。为了让`Jetkins`容器能自动构建镜像，我们有以下两种方法：
-
-1. `Docker`套接字挂载
-
-   `Docker`套接字是客户端与守护进程之间用于通信的端点，默认情况下位于`Linux`系统的`/var/run/docker.sock`路径。
-
-2. `Docker-in-Docker`/`DinD`
-
-   在`Docker`容器中运行`Docker`自己。程序员Jérôme在他的[`GitHub`仓库](https://github.com/jpetazzo/dind)和[`DockerHub`仓库](https://hub.docker.com/r/jpetazzo/dind)提供了现成的镜像，我们无需手动在容器中再走一遍安装`Docker`的流程了。
-
-   - `DinD`创建的容器与主机的容器相互隔绝，不能共享同一份镜像层缓存，所以构建镜像时会浪费大量的时间和流量用于重新下载镜像。针对这一问题，我们可以使用本地寄存服务或复制镜像来解决，但不能挂载主机上的镜像层缓存，否则两个`Docker`引擎实例同时使用同一个缓存时会发生冲突。
-   - `DinD`使用`Docker`内的`/var/lib/docker`数据卷。根据[§3.3 数据容器](#§3.3 数据容器)
+`Jenkins`提供多种平台的版本可供下载，囊括了`Ubundu`系、`Debian`系、`CentOS`系、`Fedora`系、`RedHat`系、`Windows`、`FreeBSD`系、`MacOS`，最重要的是兼容`Docker`平台。为了让`Jenkins`容器能自动构建镜像，我们有两种方法——`Docker`套接字挂载和`Docker-In-Docker`。
 
 ```mermaid
 flowchart TB
@@ -3027,6 +3016,161 @@ flowchart TB
 	end
 ```
 
+### §5.7.1 `Docker`套接字挂载
+
+`Docker`套接字是客户端与守护进程之间用于通信的端点，默认情况下位于`Linux`系统的`/var/run/docker.sock`路径。
+
+创建`dockerfile`：
+
+```dockerfile
+FROM jenkins:latest
+USER root
+RUN echo "deb http://apt.dockerproject.org/repo debian-jessie main" > /etc/apt/sources.list.d/docker.list
+RUN apt-get update 
+RUN apt-get install -y apt-transport-https 
+RUN apt-get install -y sudo 
+RUN apt-get install -y docker
+RUN rm -rf /var/lib/apt/lists/*
+RUN echo "jenkins ALL=NOPASSWD: ALL" >> /etc/sudoers
+USER jenkins
+```
+
+构建镜像：
+
+```shell
+C:\> docker build . -t jenkinsimage
+    [+] Building 15.5s (12/12) FINISHED
+     => [internal] load build definition from Dockerfile                                             0.0s
+     => => transferring dockerfile: 32B                                                              0.0s
+     => [internal] load .dockerignore                                                                0.0s
+     => => transferring context: 2B                                                                  0.0s
+     => [internal] load metadata for docker.io/library/jenkins:latest                               15.3s
+     => [1/8] FROM docker.io/library/jenkins:latest@sha256:eeb4850eb65f2d92500e421b430ed1ec58a7ac90  0.0s
+     => CACHED [2/8] RUN echo "deb http://apt.dockerproject.org/repo debian-jessie main" > /etc/apt  0.0s
+     => CACHED [3/8] RUN apt-get update                                                              0.0s
+     => CACHED [4/8] RUN apt-get install -y apt-transport-https                                      0.0s
+     => CACHED [5/8] RUN apt-get install -y sudo                                                     0.0s
+     => CACHED [6/8] RUN apt-get install -y docker                                                   0.0s
+     => CACHED [7/8] RUN rm -rf /var/lib/apt/lists/*                                                 0.0s
+     => CACHED [8/8] RUN echo "jenkins ALL=NOPASSWD: ALL" >> /etc/sudoers                            0.0s
+     => exporting to image                                                                           0.1s
+     => => exporting layers                                                                          0.0s
+     => => writing image sha256:c0410c096093037d783bd7841a214783fcaed47d062a2b9bdf66bb43cc0b5a70     0.0s
+     => => naming to docker.io/library/test                                                          0.0s
+C:/> docker run -v /var/run/docker.sock:/var/run/docker.sock jenkinsimage
+	Running from: /usr/share/jenkins/jenkins.war
+	webroot: EnvVars.masterEnvVars.get("JENKINS_HOME")
+	Feb 21, 2022 3:15:40 AM org.eclipse.jetty.util.log.JavaUtilLog info
+	INFO: Logging initialized @356ms
+	# ...
+	Feb 21, 2022 3:15:43 AM org.springframework.beans.factory.support.DefaultListableBeanFactory preInstantiateSingletons
+	INFO: Pre-instantiating singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@784281c3: defining beans [filter,legacy]; root of factory hierarchy
+	*************************************************************
+	Jenkins initial setup is required. An admin user has been created and a password generated.
+	Please use the following password to proceed to installation:
+	d8f687e198694757b4ca3fca8dea8b81
+	This may also be found at: /var/jenkins_home/secrets/initialAdminPassword
+	*************************************************************
+
+```
+
+TODO:??????????????
+
+### §5.7.2 `Docker-in-Docker`/`DinD`
+
+在`Docker`容器中运行`Docker`自己。程序员Jérôme在他的[`GitHub`仓库](https://github.com/jpetazzo/dind)和[`DockerHub`仓库](https://hub.docker.com/r/jpetazzo/dind)提供了现成的镜像，我们无需手动在容器中再走一遍安装`Docker`的流程了。
+
+> 注意：`DinD`使用`Docker`内的`/var/lib/docker`数据卷。[§3.3 数据容器](#§3.3 数据容器)一节中提到了数据卷自动删除的四种情况。然而这些规则对于`DinD`而言完全不适用，是一个特例。如果移除`DinD`容器是忘记删除`/var/lib/docker`挂载的数据卷，那么该数据卷不会被自动删除，而是一直占据主机的磁盘空间。
+>
+> ```shell
+> # 灵 异 现 象
+> C:\> docker images
+> 	REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+> C:\> docker ps -a
+> 	CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+> C:/> docker volume ls
+> 	DRIVER    VOLUME NAME
+> 	local     *SHA-256*
+> 	local     *SHA-256*
+> 	local     *SHA-256*
+> 	local     *SHA-256*
+> ```
+
+```shell
+C:/> docker pull jpetazzo/dind
+	Using default tag: latest
+	latest: Pulling from jpetazzo/dind
+	28bfaceaff9b: Pull complete
+	# ...
+	Digest: sha256:f48a1bbf379afdb7a7685abd0130ccd2f214662b086eb7320c296ee83fc6448e
+	Status: Downloaded newer image for jpetazzo/dind:latest
+	docker.io/jpetazzo/dind:latest
+C:/> docker run --rm --privileged -t -i -e LOG=file jpetazzo/dind
+	ln: failed to create symbolic link '/sys/fs/cgroup/systemd/name=systemd': Operation not permitted
+	root@660e1c614f3e:/# docker run busybox echo "I'm in Docker-in-Docker!"
+		Unable to find image 'busybox:latest' locally
+		latest: Pulling from library/busybox
+		009932687766: Pull complete
+		Digest: sha256:afcc7f1ac1b49db317a7196c902e61c6c3c4607d63599ee1a82d702d249a0ccb
+		Status: Downloaded newer image for busybox:latest
+		I'm in Docker-in-Docker!
+```
+
+> 注意：Jérôme曾发布过[一篇文章](http://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/)，警告人们不要用`DinD`来运行`Jenkins`以实现持续集成(CI,Continuous integration)，以下是这篇文章的概要。
+>
+> 作者开发`DinD`是为了简化`Docker`的开发流程：
+>
+> ```mermaid
+> graph LR
+> subgraph TypicalDevelopment ["传统开发模式"]
+> 	TypicalDevelopmentCoding{"写代码"}-->
+> 	TypicalDevelopmentBuild["编译"]-->
+> 	TypicalDevelopmentStopOldDocker["终止原Docker"]-->
+> 	TypicalDevelopmentRunNewDocker["运行新Docker"]-->
+> 	TypicalDevelopmentUnitTest["单元测试"]--"重复"-->TypicalDevelopmentCoding
+> end
+> subgraph DockerDevelopment ["Docker开发模式"]
+> 	DockerDevelopmentCoding{"写代码"}-->
+> 	DockerDevelopmentEnsureRunnindOldDocker["确保原Docker运行"]-->
+> 	DockerDevelopmentBuildWithOldDocker["原Docker编译"]-->
+> 	DockerDevelopmentStopOldDocker["终止原Docker"]-->
+> 	DockerDevelopmentRunNewDocker["运行新Docker"]-->
+> 	DockerDevelopmentUnitTest["单元测试"]-->DockerDevelopmentStopNewDocker
+> 	subgraph DockerDevelopmentRepeat ["重复"]
+> 		DockerDevelopmentStopNewDocker["终止新Docker"]
+> 	end
+> 	DockerDevelopmentStopNewDocker-->DockerDevelopmentCoding
+> end
+> subgraph DockerInDockerDevelopment ["Docker-In-Docker开发模式"]
+> 	DockerInDockerDevelopmentCoding{"写代码"}-->
+> 	DockerInDockerDevelopmentBuildAndRun["编译并运行Docker"]-->
+> 	DockerInDockerDevelopmentUnitTest["单元测试"]--"重复"-->DockerInDockerDevelopmentCoding
+> end
+> ```
+>
+> 然而`DinD`出现了许多问题：
+>
+> 1. 权限冲突
+>
+>    我们在启动`DinD`容器的时候指定了`--privileged`参数。如果宿主机安装了LSM(Linux Security Modules)，例如`AppArmor`、`SELinux`等，那么`DinD`容器内运行的`Docker`尝试更改安全配置文件时，就会和宿主机内运行的`Docker`发生冲突。
+>
+>    对于`SELinux`，我们可以使用宽容(permissive)模式重启`SELinux`，详见[§2.0 安装与配置](#§2.0 安装与配置)一节。
+>
+> 2. 联合文件系统不兼容
+>
+>    我们知道，`Docker`在存储空间上的虚拟化全部依赖于联合文件系统，详见[§1.2 联合文件系统](#§1.2 联合文件系统)一节。在`Docker-In-Docker`中，我们需要让一种联合文件系统运行于另一种文件系统之上，然而并不是所有组合都能顺利运行。
+>
+>    - 例如主机的联合文件系统是`AUFS`，那么就不能在此基础之上再运行一个`AUFS`的联合文件系统；
+>    - 例如`BTRFS`运行在`BTRFS`之上时，将父数据卷旗下的子数据卷直接挂载到主机时，就不能移除父数据卷了；
+>
+>    - 例如`Device Mapper`没有指定命名空间，所以当多个`Docker`实例同时运行在一台宿主机上时，这些实例能互相访问和更改其他实例的镜像与容器，从而使隔离性和安全性大打折扣，可以直接在主机上把挂载`/var/lib/docker`到`Docker`内部从而解决该问题。
+>
+> 3. 镜像层缓存不共享
+>
+>    `DinD`创建的容器与主机的容器相互隔绝，不能共享同一份镜像层缓存，所以构建镜像时会浪费大量的时间和流量用于重新下载镜像。针对这一问题，我们可以使用本地寄存服务或复制镜像来解决，但不能挂载主机上的镜像层缓存，否则两个`Docker`引擎实例同时使用同一个缓存时会发生冲突。
+>
+> 该文章最早发布于2015年，正值作者撰写此书之时，最后更新于2020年7月。在文章的最后，作者介绍了`Docker`套接字挂载方法，还推荐了`DinD`的替代方案：[sysbox](https://github.com/nestybox/sysbox)。2018年6月28日，`DinD`仓库迎来了最后一次更新，然后就惨遭`archived`，正式退出了历史舞台。
+
 ```shell
 C:\> docker pull docker:dind
 	dind: Pulling from library/docker
@@ -3049,31 +3193,98 @@ C:\> docker run --rm --privileged -t -i -e LOG=file docker:dind
 
 
 
+TODO：？？？？？？？？？？？？?????????
 
+## §5.8 微服务测试
 
+`Docker`天生适合微服务架构的应用。对微服务架构进程测试的方法可分为以下几种：
+
+开发环境测试：
+
+- 单元测试
+
+  单元测试只测试一小块独立的功能，是所占比例最高的一种测试，因此在设计测试时应尽量减少测试运行时所需的时间，避免把时间花在等待测试返回结果上。
+
+- 组件测试
+
+  组件测试针对各个服务的外部接口或一组服务的子系统。这种测试往往依赖于其他模块，需要将这些模块替换为测试替身。
+
+- 端到端测试(End-To-End Test)
+
+  端到端测试确保整个系统正常运作，执行成本相当高，甚至由于敏感原因根本不可能测试，只是将整个系统从头到尾运行一遍，无法发现所有的问题。
+
+- 使用方契约测试(Consumer-Contract Test)
+
+  使用方契约测试由服务的使用方负责编写、定义系统的预期输入和输出、可能出现的副作用、预期的性能。这种测试有利于使用方的工作人员知晓该系统的相关风险与应急措施，失效时也能让使用方与开发者准确的描述问题。
+
+- 集成测试
+
+  集成测试确保每个组件之间的通信渠道均运行正确，复杂程度随组建数量呈$O(A_n^2\sim n^2)$增长。一般情况下不推荐使用，而是使用组件测试和端到端测试进行全覆盖。
+
+- 定时任务
+
+  将测试任务安排在凌晨等业务使用量较低的时间段。
+
+生产环境测试：
+
+- 蓝/绿部署(Blue/Green Deployment)
+
+  将正在运行的服务版本记为蓝色版本，更新之后的服务版本记为绿色版本。在蓝色版本运行的同时，启用绿色版本，并将所有网络通信全部转发到绿色版本，监控是否有异常发生(例错误率、网络延迟、丢包率)。若正常则关闭蓝色版本，若异常则立即切换到蓝色版本并关闭绿色版本。
+
+- A/B测试
+
+  同时运行新旧两个版本，用户将会被随机分配到其中一个。系统会收集两个系统内的统计数据，最终根据统计结果决定保留其中的一个。
+
+- 多变量测试(MVT,Multivariate Testing)
+
+  众多版本之间肯定存在多处不同的地方，设$m$个版本有$n$个不同之处，就可以生成$\overset{n个}{\overbrace{C_m^1\times C_m^1\times...\times C_m^1}}$种不同的排列组合。系统随机生成一个分配给用户，统计多个变量的各项性能。该测试方法灵活性强、效率高、但需要大量的统计数据才能获得稳定准确的结果。
+
+- 渐增式部署(Ramped Deployment)
+
+  新版本只会像一小部分用户开放，如果这些用户没有发现问题，那么就扩大新版本的开放范围，直到所有用户都使用新版本为止。
+
+- 阴影测试(Shadowing)
+
+  新旧版本同时对请求进行处理，但是只向用户返回旧版本的输出结果。开发人员在后台比对新旧版本的输出结果，若发现相同则正式启用新版本。
+
+## §5.9 日志记录和监控
+
+### §5.9.1 `Docker`默认`stdout`
+
+`Docker`自带的日志记录方案之一，是将日志输出到`STDOUT`和`STDERR`，然后用`docker logs`指令来查看日志：
+
+```shell
+C:/> docker run --name logtest debian sh -c 'echo "stdout"; echo "stderr" >&2'
+stderr
+stdout
+C:/> docker logs logtest
+stdout
+stderr
 ```
-C:/> docker pull jpetazzo/dind
-	Using default tag: latest
-	latest: Pulling from jpetazzo/dind
-	28bfaceaff9b: Pull complete
-	ac540055f2f8: Pull complete
-	2965585ef8b8: Pull complete
-	# ...
-	Digest: sha256:f48a1bbf379afdb7a7685abd0130ccd2f214662b086eb7320c296ee83fc6448e
-	Status: Downloaded newer image for jpetazzo/dind:latest
-	docker.io/jpetazzo/dind:latest
-C:/> docker run --rm --privileged -t -i -e LOG=file jpetazzo/dind
-	ln: failed to create symbolic link '/sys/fs/cgroup/systemd/name=systemd': Operation not permitted
-	root@660e1c614f3e:/# docker run busybox echo "I'm in Docker-in-Docker!"
-		Unable to find image 'busybox:latest' locally
-		latest: Pulling from library/busybox
-		009932687766: Pull complete
-		Digest: sha256:afcc7f1ac1b49db317a7196c902e61c6c3c4607d63599ee1a82d702d249a0ccb
-		Status: Downloaded newer image for busybox:latest
-		I'm in Docker-in-Docker!
-```
 
+在执行`docker run`指令时，可以指定`--log-driver`参数选择日志记录方法：
 
+- `json-file`：缺省值
+- `syslog`：使用`syslog`系统日志驱动
+- `journald`：使用`systemd`的`journal`日志
+- `gelf`：使用Gray Extended Log Format(GELF)驱动
+- `fluentd`：将日志信息转发到[fluentd](http://www.fluentd.org/)之类的第三方日志托管平台
+- `none`：关闭日志记录
 
+对于多容器、主机集群的情况，这种以容器为单位的日志就会产生隔离，我们想让所有的日志都汇总到一个地方，有以下几种方法：
 
+- 在容器内运行日志进程
 
+  在所有的容器内多运行一个日志进程，用于把日志转发到汇总服务的代理。该汇总服务既可以运行在容器内，也可以运行在主机集群内。这种方法会浪费大量的内存资源，同时使镜像变得臃肿。
+
+- `Docker API`
+
+  `Docker`除了输出到`STDOUT`和`STDERR`之外，也提供了一系列用于交互的API。但是`API`运行的是`HTTP`协议，会产生大量的网络资源开销。
+
+- `syslog`转发
+
+  如果系统支持系统日志驱动`syslog`，就可以使用该驱动实现日志转发。
+
+- `Docker`日志归档
+
+  `Docker`会自动保存容器内的日志到`Docker`的安装目录中，可以通过挂载/映射/局域网共享等方式，直接读取该文件，以实现日志共享。
