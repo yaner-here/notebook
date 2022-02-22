@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->                                                     
+>                                                       
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->                                                     
+>                                                       
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -2125,9 +2125,9 @@ pythonserver-identidock-1 exited with code 1
 >      ```shell
 >      root@iZ2vc9lbf9c4ac8quabtc6Z ~/PythonServer [1]# docker-compose up
 >      Starting pythonserver_identidock_1 ...
->                        
+>                          
 >      ERROR: for pythonserver_identidock_1  a bytes-like object is required, not 'str'
->                        
+>                          
 >      ERROR: for identidock  a bytes-like object is required, not 'str'
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/docker/api/client.py", line 261, in _raise_for_status
@@ -2135,9 +2135,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/local/lib/python3.8/dist-packages/requests/models.py", line 941, in raise_for_status
 >          raise HTTPError(http_error_msg, response=self)
 >      requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: http+docker://localhost/v1.21/containers/0332a1a0b581189cc121406a675bdcf0a0985b384cdda2f4b2b1a9209c83ec66/start
->                        
+>                          
 >      During handling of the above exception, another exception occurred:
->                        
+>                          
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/compose/service.py", line 625, in start_container
 >          container.start()
@@ -2152,9 +2152,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/lib/python3/dist-packages/docker/errors.py", line 31, in create_api_error_from_http_exception
 >          raise cls(e, response=response, explanation=explanation)
 >      docker.errors.APIError: 400 Client Error: Bad Request ("b'failed to create shim: OCI runtime create failed: container_linux.go:380: starting container process caused: exec: "/cmd.sh": permission denied: unknown'")
->                        
+>                          
 >      During handling of the above exception, another exception occurred:
->                        
+>                          
 >      Traceback (most recent call last):
 >        File "/usr/bin/docker-compose", line 11, in <module>
 >          load_entry_point('docker-compose==1.25.0', 'console_scripts', 'docker-compose')()
@@ -2547,7 +2547,104 @@ C:/> curl https://hub.docker.com/u/myyaner
 >
 > | 订阅等级       | Personal | Pro       | Team      | Business    |
 > | -------------- | -------- | --------- | --------- | ----------- |
-> | 收费标准/人/月 | $0       | $5→¥31.64 | $5→¥44.29 | $21→¥132.87 |
+> | 收费标准/人/月(年付) | 0 | $5→¥44.29$5→¥31.64 |$21→¥132.87||
+> | 收费标准/人/月(月费) | 0 | $7→¥44.29 |||
+>
+> (人家`GitHub`免费版本基本没什么限制，只是不允许私有仓库使用高级功能，更何况Pro版本才$4/月，你`Docker`本质上就是个自带版本管理的网盘，论空间容量不如百度网盘，论速度不如阿里云盘，连公开Repo都限制，你怎么不直接去抢😅)
+
+除了`DockerHub Automated Build`这类商业付费的自动构建服务外，我们也可以搭建一个本地的自动构建服务。这里我们参考[十分钟配置Docker镜像自动构建](https://zhuanlan.zhihu.com/p/24896056)这篇文章。
+
+1. 配置`Git`环境
+
+   `Git`的寄存服务有`GitHub`、`GitLab`、`Gogs`等。这里我们以`Gogs`为例：
+
+   ```dockerfile
+   C:/automated_building> docker pull gogs/gogs
+   	Using default tag: latest
+   	latest: Pulling from gogs/gogs
+   	97518928ae5f: Pull complete
+   	d20a5437c0b4: Pull complete
+   	# ...
+   	Digest: sha256:fbae7c126411d3fa3f8fdca17a65b196887ab23e3b7375f682a13daf5806bb19
+   	Status: Downloaded newer image for gogs/gogs:latest
+   	docker.io/gogs/gogs:latest
+   C:/automated_building> docker run -it --name gogscontainer -p 10000:3000 gogs/gogs
+   	usermod: no changes
+   	Feb 21 13:40:59 syslogd started: BusyBox v1.33.1
+   	2022/02/21 13:40:59 [ WARN] Custom config "/data/gogs/conf/app.ini" not found. Ignore this warning if you're running for the first time
+   	2022/02/21 13:40:59 [TRACE] Log mode: Console (Trace)
+   	2022/02/21 13:40:59 [ INFO] Gogs 0.13.0+dev
+   	2022/02/21 13:40:59 [TRACE] Work directory: /app/gogs
+   	2022/02/21 13:40:59 [TRACE] Custom path: /data/gogs
+   	2022/02/21 13:40:59 [TRACE] Custom config: /data/gogs/conf/app.ini
+   	2022/02/21 13:40:59 [TRACE] Log path: /app/gogs/log
+   	2022/02/21 13:40:59 [TRACE] Build time: 2022-01-05 02:04:04 UTC
+   	2022/02/21 13:40:59 [TRACE] Build commit: a9be4de5a568b15384e1dec11f008d844c8e9c05
+   	2022/02/21 13:40:59 [ INFO] Run mode: Development
+   	2022/02/21 13:40:59 [ INFO] Listen on http://0.0.0.0:3000
+   	Feb 21 13:40:59 sshd[66]: Server listening on :: port 22.
+   	Feb 21 13:40:59 sshd[66]: Server listening on 0.0.0.0 port 22.
+   C:/automated_building> curl localhost:10000
+   	<a href="/install">Found</a>.
+   C:/automated_building> curl localhost:10000/install
+   	<!DOCTYPE html>
+   	<html>
+   		<head data-suburl="">
+           	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+       # ...
+   ```
+
+   在主机上打开浏览器访问`localhost:10000`，按照提示安装`Gogs`。安装向导支持的数据库有`PostgreSQL`、`MySQL`、`SQLite3`这三类。为方便起见，我们选择无需与其他数据库交互的、即装即用的`SQLite3`。
+
+2. 安装`Drone`服务器端
+
+   `Drone`是一个开源持续集成系统(Continuous Delivery System)，支持`GitHub`、`GitHub Enterprise`、`Gitea`、`Gitee`、`GitLab`、`Gogs`、`Bitbucket Cloud`、`Bitbucket Server`这八种`Git`寄存服务，这里我们选择`Gogs`。
+   
+   根据官方的[`Gogs`配置文档](https://docs.drone.io/server/provider/gogs/)，启动`Drone`服务器端时需要指定以下环境变量：
+   
+   ```shell
+   $ docker run \
+     --volume=/var/lib/drone:/data \
+     --env=DRONE_AGENTS_ENABLED=true \
+     # String,Gogs服务器地址
+     --env=DRONE_GOGS_SERVER=https://gogs.company.com \
+     # String,用于身份认证的secret
+     --env=DRONE_RPC_SECRET=super-duper-secret \
+     # String,客户端WAN口的IP或域名
+     --env=DRONE_SERVER_HOST=drone.company.com \
+     # String,服务端使用的协议
+     --env=DRONE_SERVER_PROTO=https \
+     --publish=80:80 \
+     --publish=443:443 \
+     --restart=always \
+     --detach=true \
+     --name=drone \
+     drone/drone:2
+   	{"interval":"30m0s","level":"info","msg":"starting the cron scheduler","time":"2022-02-22T03:49:15Z"}
+   	{"interval":"24h0m0s","level":"info","msg":"starting the zombie build reaper","time":"2022-02-22T03:49:15Z"}
+   	{"acme":false,"host":"drone.company.com","level":"info","msg":"starting the http server","port":":80","proto":"https","time":"2022-02-22T03:49:15Z","url":"https://drone.company.com"}
+   ```
+   
+3. 安装`Drone`客户端(Runner)
+
+   根据[官方文档](https://docs.drone.io/runner/docker/installation/windows/)，启动`Drone`客户端时需要指定以下环境变量：
+
+   ```shell
+   $ docker run --detach \
+     --volume=//./pipe/docker_engine://./pipe/docker_engine \
+     # String,服务端使用的协议
+     --env=DRONE_RPC_PROTO=https \
+     # String,Gogs服务器地址
+     --env=DRONE_RPC_HOST=drone.company.com \
+     # String,用于身份认证的secret
+     --env=DRONE_RPC_SECRET=super-duper-secret \
+     --env=DRONE_RUNNER_CAPACITY=2 \
+     --env=DRONE_RUNNER_NAME=my-first-runner \
+     --publish=3000:3000 \
+     --restart=always \
+     --name=runner \
+     drone/drone-runner-docker:1
+   ```
 
 ?????????????？？？？？？？？？TODO:😅
 
@@ -2986,6 +3083,8 @@ def get_identicon(name):
     # ...
 ```
 
+测试替身(Test Double)通常是一个桩(stub)，只返回一个固定的值，替代了真正提供服务的程序部分。现在市面上已经有众多的测试替身模块可供选择，例如[Python替身模块](https://docs.python.org/3/library/unittest.mock.html)、Ruby语言写的HTTP替身模块[Pact](https://github.com/pact-foundation/pact-ruby)、JavaScript语言写的HTTP替身模块[Mountebank](https://github.com/bbyars/mountebank)、[hoverfly](https://github.com/SpectoLabs/hoverfly)(原[Mirage](https://mirage.readthedocs.io/en/latest/#))等。
+
 ## §5.7 `Jenkins`容器
 
 [`Jenkins`](https://www.jenkins.io/zh/)是一个开源的持续集成服务器。当源码被修改并推送到`identicon`项目时，`Jenkins`可以自动检测到这些变化并自动构建新镜像，同时执行单元测试并生成测试报告。
@@ -3288,3 +3387,141 @@ stderr
 - `Docker`日志归档
 
   `Docker`会自动保存容器内的日志到`Docker`的安装目录中，可以通过挂载/映射/局域网共享等方式，直接读取该文件，以实现日志共享。
+
+### §5.9.2 `ELK`
+
+`ELK`是以下三个应用程序的缩写：
+
+- [Elasticsearch](https://github.com/elastic/elasticsearch)：高性能文本搜索引擎，效率高到接近实时搜索
+- [Logstash](https://github.com/elastic/elasticsearch)：对原始日志进行解析和过滤，将结果发送至索引服务或存储服务
+- [Kibana](https://github.com/elastic/elasticsearch)：基于`JavaScript`的`Elasticsearch`图形界面
+
+```mermaid
+graph LR
+	Container1["Flask容器"]--"日志"-->Logspout
+	Container2["dnmonster容器"]--"日志"-->Logspout
+	Container3["uWSGI容器"]--"日志"-->Logspout
+	Logspout["Logspout"]--"JSON日志"-->Logstash["Logstash"]--"解析和过滤的日志"-->Elasticsearch["ElasticSearch"]-->Kibana["Kibana"]
+```
+
+???????????????TODO
+
+
+
+
+
+```mermaid
+flowchart TB
+	DockerCreate[/"docker create"/]
+	DockerRun[/"docker run"/]
+	DockerRm[/"docker rm"/]
+	DockerKill[/"docker kill"/]
+	DockerRestart[/"docker restart"/]
+	DockerPause[/"docker pause"/]
+	DockerStop[/"docker stop"/]
+	DockerUnpause[/"docker unpause"/]
+	
+	StatusStop{"已停止"}
+	StatusRun{"运行中"}
+	StatusDestory{"已删除"}
+	StatusPause{"已暂停"}
+	
+	RestartRegistry["重启策略"]
+
+	DockerCreate--"create事件"-->StatusStop
+	DockerRun--"create事件"-->StatusStop--"start事件"-->StatusRun
+	StatusStop-->DockerRm--"destory事件"-->StatusDestory
+	StatusRun-->DockerKill--"先die事件<br>后kill事件"-->StatusStop
+	subgraph RestartRegistrySubgraph ["重启流程"]
+		StatusRun--"因为OOM<br>而触发die事件"-->RestartRegistry
+	end
+	RestartRegistry--"应该不重启"-->StatusStop
+	RestartRegistry--"应该重启<br>start事件"-->StatusRun
+	StatusRun--"容器进程退出<br>die事件"-->RestartRegistry
+	StatusRun-->DockerStop
+	DockerStop--"先dir事件<br>再stop事件"-->StatusStop
+	StatusRun-->DockerRestart--"先die事件<br>再start事件<br>最后restart事件"-->StatusRun
+	StatusRun-->DockerPause--"pause事件"-->StatusPause-->DockerUnpause--"unpause事件"-->StatusRun
+```
+
+# §6 集群管理
+
+服务发现指的是为客户端提供服务器端IP和端口的过程，而网络注重的是将容器连接起来，可以是物理一台网线的链接，也可以是单台主机之内的端口穿透。总的来说，服务发现能找到服务器，网络能连接服务器。
+
+在单个容器中，各种进程相对都是静态的，“服务发现”和“联网”之间的界限非常模糊。但是在主机集群中，问题就复杂多了：一个服务往往对应多个实例，每个实例也不能保证永存存在，更何况动态生成和销毁实例的情况。
+
+## §6.1 大使容器(Ambassador)
+
+大使容器是一类只负责接受并转发请求的容器的统称。
+
+
+
+```mermaid
+flowchart TB
+
+    subgraph OriginalDevelopmentEnvironment ["传统开发环境"]
+        subgraph OriginalDevelopmentDevHost ["开发者主机"]
+            OriginalDevelopmentDevTool["IDE"]
+            OriginalDevelopmentDevDatabase["数据库"]
+            OriginalDevelopmentDevTool-->OriginalDevelopmentDevDatabase
+        end
+    end
+
+    subgraph DockerDevelopmentWithSoloAmbassadorEnvironment ["Docker+Ambassador开发环境"]
+        subgraph DockerDevelopmentWithSoloAmbassadorDevHost ["开发者主机"]
+            DockerDevelopmentWithSoloAmbassadorDevTool["IDE"]
+            DockerDevelopmentWithSoloAmbassadorDevAmabassador["大使容器"]
+        end
+        subgraph DockerDevelopmentWithSoloAmbassadorProHosts ["机房集群"]
+            DockerDevelopmentWithSoloAmbassadorProHost1["HTTP服务器"]
+            DockerDevelopmentWithSoloAmbassadorProHost2["HTTP服务器"]
+            DockerDevelopmentWithSoloAmbassadorProHost3["..."]
+            DockerDevelopmentWithSoloAmbassadorProDatabase1["数据库服务器"]
+            DockerDevelopmentWithSoloAmbassadorProDatabase2["数据库服务器"]
+            DockerDevelopmentWithSoloAmbassadorProDatabase3["..."]
+            DockerDevelopmentWithSoloAmbassadorProHost1-->DockerDevelopmentWithSoloAmbassadorProDatabase1
+            DockerDevelopmentWithSoloAmbassadorProHost1-->DockerDevelopmentWithSoloAmbassadorProDatabase2
+            DockerDevelopmentWithSoloAmbassadorProHost1-->DockerDevelopmentWithSoloAmbassadorProDatabase3
+            DockerDevelopmentWithSoloAmbassadorProHost2-->DockerDevelopmentWithSoloAmbassadorProDatabase1
+            DockerDevelopmentWithSoloAmbassadorProHost2-->DockerDevelopmentWithSoloAmbassadorProDatabase2
+            DockerDevelopmentWithSoloAmbassadorProHost2-->DockerDevelopmentWithSoloAmbassadorProDatabase3
+            DockerDevelopmentWithSoloAmbassadorProHost3-->DockerDevelopmentWithSoloAmbassadorProDatabase1
+            DockerDevelopmentWithSoloAmbassadorProHost3-->DockerDevelopmentWithSoloAmbassadorProDatabase2
+            DockerDevelopmentWithSoloAmbassadorProHost3-->DockerDevelopmentWithSoloAmbassadorProDatabase3
+        end
+        DockerDevelopmentWithSoloAmbassadorDevTool-->DockerDevelopmentWithSoloAmbassadorDevAmabassador
+        DockerDevelopmentWithSoloAmbassadorDevAmabassador-->DockerDevelopmentWithSoloAmbassadorProHost1
+        DockerDevelopmentWithSoloAmbassadorDevAmabassador-->DockerDevelopmentWithSoloAmbassadorProHost2
+        DockerDevelopmentWithSoloAmbassadorDevAmabassador-->DockerDevelopmentWithSoloAmbassadorProHost3
+    end
+
+    subgraph DockerDevelopmentWithDuetAmbassadorEnvironment ["Docker+Ambassador开发环境"]
+        subgraph DockerDevelopmentWithDuetAmbassadorDevHost ["开发者主机"]
+            DockerDevelopmentWithDuetAmbassadorDevTool["IDE"]
+            DockerDevelopmentWithDuetAmbassadorDevAmabassador["大使容器"]
+        end
+        subgraph DockerDevelopmentWithDuetAmbassadorProHosts ["机房集群"]
+            DockerDevelopmentWithDuetAmbassadorProAmbassador["大使容器"] 
+            DockerDevelopmentWithDuetAmbassadorProHost1["HTTP服务器"]
+            DockerDevelopmentWithDuetAmbassadorProHost2["HTTP服务器"]
+            DockerDevelopmentWithDuetAmbassadorProHost3["..."]
+            DockerDevelopmentWithDuetAmbassadorProDatabase1["数据库服务器"]
+            DockerDevelopmentWithDuetAmbassadorProDatabase2["数据库服务器"]
+            DockerDevelopmentWithDuetAmbassadorProDatabase3["..."]
+            DockerDevelopmentWithDuetAmbassadorProHost1-->DockerDevelopmentWithDuetAmbassadorProDatabase1
+            DockerDevelopmentWithDuetAmbassadorProHost1-->DockerDevelopmentWithDuetAmbassadorProDatabase2
+            DockerDevelopmentWithDuetAmbassadorProHost1-->DockerDevelopmentWithDuetAmbassadorProDatabase3
+            DockerDevelopmentWithDuetAmbassadorProHost2-->DockerDevelopmentWithDuetAmbassadorProDatabase1
+            DockerDevelopmentWithDuetAmbassadorProHost2-->DockerDevelopmentWithDuetAmbassadorProDatabase2
+            DockerDevelopmentWithDuetAmbassadorProHost2-->DockerDevelopmentWithDuetAmbassadorProDatabase3
+            DockerDevelopmentWithDuetAmbassadorProHost3-->DockerDevelopmentWithDuetAmbassadorProDatabase1
+            DockerDevelopmentWithDuetAmbassadorProHost3-->DockerDevelopmentWithDuetAmbassadorProDatabase2
+            DockerDevelopmentWithDuetAmbassadorProHost3-->DockerDevelopmentWithDuetAmbassadorProDatabase3
+        end
+        DockerDevelopmentWithDuetAmbassadorDevTool-->DockerDevelopmentWithDuetAmbassadorDevAmabassador-->DockerDevelopmentWithDuetAmbassadorProAmbassador
+        DockerDevelopmentWithDuetAmbassadorProAmbassador-->DockerDevelopmentWithDuetAmbassadorProHost1
+        DockerDevelopmentWithDuetAmbassadorProAmbassador-->DockerDevelopmentWithDuetAmbassadorProHost2
+        DockerDevelopmentWithDuetAmbassadorProAmbassador-->DockerDevelopmentWithDuetAmbassadorProHost3
+    end
+```
+
