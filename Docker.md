@@ -243,10 +243,10 @@ dd     fgrep          ls        nisdomainname  sh         umount    zegrep
 >   ```shell
 >   # powershell
 >   (base) PS C:\> $env:DOCKER_BUILDKIT=0; docker build .
->                                                       
+>                                                                 
 >   # linux
 >   $ DOCKER_BUILDKIT=0 docker build .
->                                                       
+>                                                                 
 >   # command prompt
 >   C:\> set DOCKER_BUILDKIT=0& docker build .
 >   ```
@@ -2125,9 +2125,9 @@ pythonserver-identidock-1 exited with code 1
 >      ```shell
 >      root@iZ2vc9lbf9c4ac8quabtc6Z ~/PythonServer [1]# docker-compose up
 >      Starting pythonserver_identidock_1 ...
->                          
+>                                    
 >      ERROR: for pythonserver_identidock_1  a bytes-like object is required, not 'str'
->                          
+>                                    
 >      ERROR: for identidock  a bytes-like object is required, not 'str'
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/docker/api/client.py", line 261, in _raise_for_status
@@ -2135,9 +2135,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/local/lib/python3.8/dist-packages/requests/models.py", line 941, in raise_for_status
 >          raise HTTPError(http_error_msg, response=self)
 >      requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: http+docker://localhost/v1.21/containers/0332a1a0b581189cc121406a675bdcf0a0985b384cdda2f4b2b1a9209c83ec66/start
->                          
+>                                    
 >      During handling of the above exception, another exception occurred:
->                          
+>                                    
 >      Traceback (most recent call last):
 >        File "/usr/lib/python3/dist-packages/compose/service.py", line 625, in start_container
 >          container.start()
@@ -2152,9 +2152,9 @@ pythonserver-identidock-1 exited with code 1
 >        File "/usr/lib/python3/dist-packages/docker/errors.py", line 31, in create_api_error_from_http_exception
 >          raise cls(e, response=response, explanation=explanation)
 >      docker.errors.APIError: 400 Client Error: Bad Request ("b'failed to create shim: OCI runtime create failed: container_linux.go:380: starting container process caused: exec: "/cmd.sh": permission denied: unknown'")
->                          
+>                                    
 >      During handling of the above exception, another exception occurred:
->                          
+>                                    
 >      Traceback (most recent call last):
 >        File "/usr/bin/docker-compose", line 11, in <module>
 >          load_entry_point('docker-compose==1.25.0', 'console_scripts', 'docker-compose')()
@@ -2550,7 +2550,7 @@ C:/> curl https://hub.docker.com/u/myyaner
 > | 收费标准/人/月(年付) | 0 | $5→¥44.29$5→¥31.64 |$21→¥132.87||
 > | 收费标准/人/月(月费) | 0 | $7→¥44.29 |||
 >
-> (人家`GitHub`免费版本基本没什么限制，只是不允许私有仓库使用高级功能，更何况Pro版本才$4/月，你`Docker`本质上就是个自带版本管理的网盘，论空间容量不如百度网盘，论速度不如阿里云盘，连公开Repo都限制，你怎么不直接去抢😅)
+> (人家`GitHub`免费版本基本没什么限制，只是不允许私有仓库使用高级功能，更何况Pro版本才$4/月，你`DockerHub`现在本质上就是个自带版本管理的网盘，论空间容量不如百度网盘，论速度不如阿里云盘，连公开Repo都限制，这么喜欢钱你怎么不直接去抢😅)
 
 除了`DockerHub Automated Build`这类商业付费的自动构建服务外，我们也可以搭建一个本地的自动构建服务。这里我们参考[十分钟配置Docker镜像自动构建](https://zhuanlan.zhihu.com/p/24896056)这篇文章。
 
@@ -2594,7 +2594,7 @@ C:/> curl https://hub.docker.com/u/myyaner
        # ...
    ```
 
-   在主机上打开浏览器访问`localhost:10000`，按照提示安装`Gogs`。安装向导支持的数据库有`PostgreSQL`、`MySQL`、`SQLite3`这三类。为方便起见，我们选择无需与其他数据库交互的、即装即用的`SQLite3`。
+   在主机上打开浏览器访问`localhost:10000`，按照提示安装`Gogs`。安装向导支持的数据库有`PostgreSQL`、`MySQL`、`SQLite3`这三类。为方便起见，我们选择无需与其他数据库交互的、即装即用的`SQLite3`。点击右上角的用户头像打开菜单，进入用户设置→授权应用生成一个40位十六进制字符串的操作令牌并妥善保存,这里我们以`adfa1e69c9122de85c73ab1a37953c2df4206895`为例。
 
 2. 安装`Drone`服务器端
 
@@ -2602,24 +2602,25 @@ C:/> curl https://hub.docker.com/u/myyaner
    
    根据官方的[`Gogs`配置文档](https://docs.drone.io/server/provider/gogs/)，启动`Drone`服务器端时需要指定以下环境变量：
    
+   -   `--env=DRONE_AGENTS_ENABLED=true`
+   -   `--env=DRONE_GOGS_SERVER=$GOGS_PORT_3000_TCP_ADDR:3000`：String,Gogs服务器地址
+   -   `--env=DRONE_RPC_SECRET=super-duper-secret`：String,用于身份认证的secret
+   -   `--env=DRONE_SERVER_HOST=drone.company.com`：String,客户端WAN口的IP或域名
+   -   `--env=DRONE_SERVER_PROTO=https` ：String,服务端使用的协议
+   
    ```shell
-   $ docker run \
-     --volume=/var/lib/drone:/data \
-     --env=DRONE_AGENTS_ENABLED=true \
-     # String,Gogs服务器地址
-     --env=DRONE_GOGS_SERVER=https://gogs.company.com \
-     # String,用于身份认证的secret
-     --env=DRONE_RPC_SECRET=super-duper-secret \
-     # String,客户端WAN口的IP或域名
-     --env=DRONE_SERVER_HOST=drone.company.com \
-     # String,服务端使用的协议
-     --env=DRONE_SERVER_PROTO=https \
-     --publish=80:80 \
-     --publish=443:443 \
-     --restart=always \
-     --detach=true \
-     --name=drone \
-     drone/drone:2
+   C:/> docker inspect gogs
+   	# ...
+   	"Networks": {
+       	"bridge": {
+           	# ...
+           	"Gateway": "172.17.0.1",
+           	"IPAddress": "172.17.0.2",
+           	# ...
+       	}
+   	}
+   	# ...
+   C:/> docker run --link gogs:gogs --volume=/var/lib/drone:/data --env=DRONE_AGENTS_ENABLED=true --env=DRONE_GOGS_SERVER=172.17.0.2 --env=DRONE_RPC_SECRET=adfa1e69c9122de85c73ab1a37953c2df4206895 --env=DRONE_SERVER_HOST=172.17.0.2:3000 --env=DRONE_SERVER_PROTO=https --publish=80:80 --publish=443:443 --detach=true --name=drone drone/drone:2
    	{"interval":"30m0s","level":"info","msg":"starting the cron scheduler","time":"2022-02-22T03:49:15Z"}
    	{"interval":"24h0m0s","level":"info","msg":"starting the zombie build reaper","time":"2022-02-22T03:49:15Z"}
    	{"acme":false,"host":"drone.company.com","level":"info","msg":"starting the http server","port":":80","proto":"https","time":"2022-02-22T03:49:15Z","url":"https://drone.company.com"}
@@ -3452,9 +3453,7 @@ flowchart TB
 
 ## §6.1 大使容器(Ambassador)
 
-大使容器是一类只负责接受并转发请求的容器的统称。
-
-
+大使容器是一类只负责接受并转发请求的容器的统称。其优点在于能在无能修改任何代码的情况下，自动将生产环境和开发环境的请求进行分流。用户既可以自己搭建大使容器的镜像，也可以使用其他用户现成的镜像，例如`Docker`官方发布的`docker/ambassador:latest`镜像就基于`alpine`发行版，使用[socat](http://www.dest-unreach.org/socat/)库实现流量转发，大小仅为7.24MB。
 
 ```mermaid
 flowchart TB
@@ -3524,4 +3523,97 @@ flowchart TB
         DockerDevelopmentWithDuetAmbassadorProAmbassador-->DockerDevelopmentWithDuetAmbassadorProHost3
     end
 ```
+
+```shell
+# 创建Redis容器
+C:/> docker run -d --name redis redis
+# 创建ambassador容器，让主机将6379端口的请求转发至主机内6379端口，然后转发至Redis容器的6379端口
+C:/> docker run -d --name redis-ambassador -p 6379:6379 --link redis:redis docker/ambassador
+# 创建identidock镜像
+C:/> docker run -d --name 
+```
+
+TODO:??????????？？？？？？？
+
+## §6.2 服务发现
+
+客户端的应用程序需要得到服务器的地址，这一过程由一系列API实现。
+
+### §6.3.1 `etcd`
+
+`etcd`是一个分布式的键值存储库，基于`Go`语言实现了[Raft Consensus算法](https://raft.github.io/)这一共识(Consensus)机制算法，能在一个无可信任第三方、不保证通信一定可达的恶劣情况下，最大程度的保持集群内各个主机的数据一致性，保证效率的同时具有高度的容错性。
+
+> 注意：“容错能力”与“设备成本+效率”天生就是不可兼得的矛盾体。在分布式键值存储库中，无论是`etcd`库，还是`Consul`库，都建议集群大小为3/5/7。下表为集群数量与容错能力之间的关系：
+>
+> | 服务器数量                       | 1    | 2    | 3    | 4    | 5    | 6    | 7    | ...  |
+> | -------------------------------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+> | 分布式系统<br />要求的最低在线数 | 1    | 2    | 2    | 3    | 3    | 4    | 4    | ...  |
+> | 容错数量                         | 0    | 0    | 1    | 1    | 2    | 2    | 3    | ...  |
+
+```shell
+C:/> docker pull quay.io/coreos/etcd
+	Using default tag: latest
+	latest: Pulling from coreos/etcd
+	ff3a5c916c92: Pull complete
+	96b0e24539ea: Pull complete
+	d1eca4d01894: Pull complete
+	# ...
+	Digest: sha256:5b6691b7225a3f77a5a919a81261bbfb31283804418e187f7116a0a9ef65d21d
+	Status: Downloaded newer image for quay.io/coreos/etcd:latest
+	quay.io/coreos/etcd:latest
+C:/> docker run -d -p 2379:2379 -p 2380:2380 -p 4001:4001 --name etcd quay.io/coreos/etcd
+    *UTC* I | etcdmain: etcd Version: 3.3.8
+    *UTC* I | etcdmain: Git SHA: 33245c6b5
+    *UTC* I | etcdmain: Go Version: go1.9.7
+    *UTC* I | etcdmain: Go OS/Arch: linux/amd64
+    *UTC* I | etcdmain: setting maximum number of CPUs to 12, total number of available CPUs is 12
+    *UTC* W | etcdmain: no data-dir provided, using default data-dir ./default.etcd2022-02-23 07:29:14.413938 I | embed: listening for peers on http://localhost:2380
+    *UTC* I | embed: listening for client requests on localhost:2379
+    *UTC* I | etcdserver: name = default
+    *UTC* I | etcdserver: data dir = default.etcd
+    *UTC* I | etcdserver: member dir = default.etcd/member
+    *UTC* I | etcdserver: heartbeat = 100ms
+    *UTC* I | etcdserver: election = 1000ms
+    *UTC* I | etcdserver: snapshot count = 100000
+    *UTC* I | etcdserver: advertise client URLs = http://localhost:2379
+    *UTC* I | etcdserver: initial advertise peer URLs = http://localhost:2380
+    *UTC* I | etcdserver: initial cluster = default=http://localhost:2380
+    *UTC* I | etcdserver: starting member 8e9e05c52164694d in cluster cdf818194e3a8c32
+    *UTC* I | raft: 8e9e05c52164694d became follower at term 0
+    *UTC* I | raft: newRaft 8e9e05c52164694d [peers: [], term: 0, commit: 0, applied: 0, lastindex: 0, lastterm: 0]
+    *UTC* I | raft: 8e9e05c52164694d became follower at term 1
+    *UTC* W | auth: simple token is not cryptographically signed
+    *UTC* I | etcdserver: starting server... [version: 3.3.8, cluster version: to_be_decided]
+    *UTC* I | etcdserver: 8e9e05c52164694d as single-node; fast-forwarding 9 ticks (election ticks 10)
+    *UTC* I | etcdserver/membership: added member 8e9e05c52164694d [http://localhost:2380] to cluster cdf818194e3a8c32
+    *UTC* I | raft: 8e9e05c52164694d is starting a new election at term 1
+    *UTC* I | raft: 8e9e05c52164694d became candidate at term 2
+    *UTC* I | raft: 8e9e05c52164694d received MsgVoteResp from 8e9e05c52164694d at term 2
+    *UTC* I | raft: 8e9e05c52164694d became leader at term 2
+    *UTC* I | raft: raft.node: 8e9e05c52164694d elected leader 8e9e05c52164694d at term 2
+    *UTC* I | etcdserver: published {Name:default ClientURLs:[http://localhost:2379]} to cluster cdf818194e3a8c32
+    *UTC* I | etcdserver: setting up the initial cluster version to 3.3
+    *UTC* I | embed: ready to serve client requests
+    *UTC* N | embed: serving insecure client requests on 127.0.0.1:2379, this is strongly discouraged!
+    *UTC* N | etcdserver/membership: set the initial cluster version to 3.3
+    *UTC* I | etcdserver/api: enabled capabilities for version 3.3
+```
+
+> 注意：在[§5.3.2 商业寄存服务](#§5.3.2 商业寄存服务)一节中我们提过，`quay.io`现在隶属于`RedHat`旗下。根据2021年2月1日[官网发布的公告](https://access.redhat.com/articles/5925591)，用户需要注册账号才能正常使用，否则下载镜像时会出现如下错误：
+>
+> ```shell
+> C:/> docker pull quay.io/coreos/etcd
+> Using default tag: latest
+> Error response from daemon: unauthorized: access to the requested resource is not authorized
+> ```
+>
+> 根据公告，自2021年8月1日起，`quay.io`将不再支持以`GitHub`为首的任何第三方身份验证服务提供商(类似于国内的"其他账户登录")，
+>
+> 使用`RedHat`账户登录`quay.io`后会有一个通知：`In order to begin pushing and pulling repositories, a password must be set for your account`。这是因为`RedHat`和`quay.io`的密码并不共用。然后点击页面右上角进入个人设置页面，生成一个CLI Password，然后使用改密码登录：
+>
+> ```
+> C:/> docker login --username="*USERNAME*" --password="*PASSWORD*" quay.io
+> 	WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+> 	Login Succeeded
+> ```
 
