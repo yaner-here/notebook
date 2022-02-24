@@ -1861,3 +1861,239 @@ public class Circle implements Comparable<Circle>{
 }
 ```
 
+## §3.2 设计规范
+
+### §3.2.1 共享常量的选择
+
+我们知道，使用`final`修饰的字段就是常量，不使用`final`修饰的字段就是变量。共享常量最常用的方法就是直接访问类、访问接口、`import static`这三种方法。
+
+使用继承共享常量是自由度高，可任意使用其他类中定义的公开常量，缺点是造成大量的代码重复：
+
+```java
+class ConstantClass{
+    public static final String message = "Hello World";
+}
+public class Design {
+    public static void main(String[] args){
+        System.out.println(ConstantClass.message); // Hello World
+    }
+}
+```
+
+使用接口共享常量的优势是逻辑性强，特别适用于不同类使用同一常量的场景。只需要实现该接口，就能访问接口中定义的所有常量，使用起来就像是类中直接定义的一样：
+
+```java
+interface ConstantInterface{
+    public static final String message = "Hello World";
+}
+public class Design implements ConstantInterface{
+    public static void main(String[] args){
+        System.out.println(message); // Hello World
+    }
+}
+```
+
+`import static`结合了以上两种方式的优势，可以有选择性的导入其他类中的公开变量，而且不需要再指定类名了：
+
+```java
+/* com.example.ConstantClass.java */
+package com.example;
+public class ConstantClass {
+    public static final String message1 = "Hello";
+    public static final String message2 = "World";
+}
+```
+
+```java
+/* com.example.DemoClass.java */
+package com.example;
+import static com.example.ConstantClass.message1;
+public class Design {
+    public static void main(String[] args){
+        System.out.println(message1); // Hello
+    }
+}
+```
+
+### §3.2.2 接口和抽象类的选择
+
+Java 8之前，接口只支持API规范，需要实现该接口的类完成API实现，从而造成了大量的代码重复。为了解决这一问题，Java设计者提供的解决方案是将接口和抽象类结合起来使用，让抽象类完成API实现，从而曲线救国地让接口“支持”API实现：
+
+```java
+interface RectangularAPI{
+    void setSize(double width,double height);
+    void setCenter(double centerX,double centerY);
+    double area();
+}
+abstract class AbstractRectangularShape implements RectangularAPI{
+    protected double width,height,centerX,centerY;
+    public void setSize(double width,double height){
+        this.width = width;
+        this.height = height;
+    }
+    public void setCenter(double centerX,double centerY){
+        this.centerX = centerX;
+        this.centerY = centerY;
+    }
+    public double area(){
+        return this.width*this.height;
+    }
+}
+class RectangularShape extends AbstractRectangularShape{
+    public RectangularShape(double width, double height){
+        this.width = width;
+        this.height = height;
+    }
+    public RectangularShape(double width,double height,double centerX,double centerY){
+        this.width = width;
+        this.height = height;
+        this.centerX = centerX;
+        this.centerY = centerY;
+    }
+}
+public class Demo{
+    public static void main(String[] args){
+        RectangularShape a = new RectangularShape(1.0,2.5);
+        a.setSize(1.14,5.14);
+        System.out.println(a.area());
+    }
+}
+```
+
+Java 8在此基础上给默认方法(`default`修饰的方法，详见[§2.9.3 默认方法](#§2.9.3 默认方法)一节)引入了API实现，从根本上改变了Java体系中的面向对象编程模型：
+
+```java
+interface RectangularAPI{
+    default double area(double width, double height){
+        return width*height;
+    }
+}
+class Rectangular implements RectangularAPI{
+    public double width,height;
+    public Rectangular(double width,double height){
+        this.width = width;
+        this.height = height;
+    }
+    public double getArea(){
+        return area(width,height);
+    }
+}
+public class Demo{
+    public static void main(String[] args){
+        Rectangular i = new Rectangular(1.14,5.14);
+        System.out.println(i.getArea());
+    }
+}
+```
+
+接口和抽象类作用相近，但是在兼容性方面有较大区别。如果我们要升级的是接口，在其中新添一些方法，那么实现了该接口的类必须全部实现新添的方法，否则就会产生编译错误`java.lang.UnsupportedOperationException`；如果我们要升级的是抽象类，就可以放心添加非抽象方法，不用顾及该抽象类的子类。
+
+### §3.2.3 实例方法和类方法的选择
+
+实例方法和类方法地位完全相同，具体选择哪个要由项目整体的设计方式决定。
+
+```java
+class Circle{
+    double radius;
+    public Circle(double radius){
+        this.radius = radius;
+    }
+    public static String describeWhichIsBigger(Circle a,Circle b){
+        return "The bigger circle is whose radius equals to " +
+                String.valueOf((a.radius>b.radius ? a : b).radius);
+    }
+    public String describeWhichIsBigger(Circle that){
+        return "The bigger circle is whose radius equals to " +
+                String.valueOf((this.radius>that.radius ? this : that).radius);
+    }
+}
+public class Demo {
+    public static void main(String[] args){
+        Circle a = new Circle(1);
+        Circle b = new Circle(2);
+        System.out.println(a.describeWhichIsBigger(b));
+        System.out.println(Circle.describeWhichIsBigger(a,b));
+    }
+}
+```
+
+以我们最熟悉的`System.out.println()`为例，`System`是一个类，其中定义了`java.io.PrintStream`类型的`out`类字段，而`java.io.PrintStream`对象中定义了`println()`这一实例方法。
+
+### §3.2.4 合成和继承/委托和修饰模式的选择
+
+合成(Composition)是指一个大型概念单元由已有多个小型组件组成：
+
+```java
+class WorkFlow{
+    public static void work(Employee staff,String task){
+        // Working
+    }
+}
+class Employee{
+    public void work(){
+        WorkFlow.work(this,"Work");
+    }
+}
+class Manager extends Employee{
+    @Override public void work(){
+        WorkFlow.work(this,"Manage");
+    }
+}
+```
+
+继承/委托(Delegation)是保存一个特定类型对象的引用，将操作都交给这个对象完成：
+
+```java
+interface Employee{
+    default void work(){
+        // Working
+    }
+}
+class Programmer implements Employee{
+    private Employee staff;
+    public Programmer(Employee staff){
+        this.staff = staff;
+    }
+    public void work(){
+        staff.work();
+    }
+}
+class Manager implements Employee{
+    private Employee staff;
+    public Manager(Employee staff){
+        this.staff = staff;
+    }
+    public void work(){
+        staff.work();
+    }
+}
+```
+
+修饰模式(Decorator Pattern)具有在运行时也能链式扩展对象的能力：
+
+```java
+interface Priceable{
+    double getPrice();
+}
+public class Humberger implements Priceable{
+    private static final double price = 12.99;
+    public double getPrice(){
+        return price;
+    }
+}
+abstract class HumbergerOptionalExtra implements priceable{
+    private final Humberger humberger;
+    private final double extraPrice;
+    protected HumbergerOptionalExtra(Humberger humberger,double extraPrice){
+        this.humberger = humberger;
+        this.extraPrice = this.extraPrice;
+    }
+    public final double getPrice(){
+        return humberger.getPrice()+extraPrice
+    }
+}
+```
+
+
+
+### §3.2.5 字段继承和访问器的选择
