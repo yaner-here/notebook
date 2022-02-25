@@ -2072,28 +2072,231 @@ class Manager implements Employee{
 修饰模式(Decorator Pattern)具有在运行时也能链式扩展对象的能力：
 
 ```java
-interface Priceable{
-    double getPrice();
+package com.example;
+
+interface Shape{
+    void draw();
 }
-public class Humberger implements Priceable{
-    private static final double price = 12.99;
-    public double getPrice(){
-        return price;
+class Circle implements Shape{
+    @Override public void draw(){
+        System.out.println("Shape:Circle");
     }
 }
-abstract class HumbergerOptionalExtra implements priceable{
-    private final Humberger humberger;
-    private final double extraPrice;
-    protected HumbergerOptionalExtra(Humberger humberger,double extraPrice){
-        this.humberger = humberger;
-        this.extraPrice = this.extraPrice;
+abstract class ShapeDecorator implements Shape{
+    protected Shape decoratedShape;
+    public ShapeDecorator(Shape decoratedShape){
+        this.decoratedShape = decoratedShape;
     }
-    public final double getPrice(){
-        return humberger.getPrice()+extraPrice
+    public void draw(){
+        decoratedShape.draw();
+    }
+}
+class RedShapeDecorator extends ShapeDecorator{
+    public RedShapeDecorator(Shape decoratedShape){
+        super(decoratedShape);
+    }
+    @Override public void draw(){
+        decoratedShape.draw();
+        setRedBorder(decoratedShape);
+    }
+    private void setRedBorder(Shape decoratedShape){
+        System.out.println("Border Color:Red");
+    }
+}
+public class Demo {
+    public static void main(String[] args){
+        Shape circle = new Circle();
+        Shape redCircle = new RedShapeDecorator(new Circle());
     }
 }
 ```
 
-
+在本例中的`main()`函数中，新建的`new Circle()`实例作为参数参与了`RedShapeDecorator`类的构造方法中。构造方法接受这个参数后，由`super()`传给了`ShapeDecorator`类的构造方法，将这个圆实例储存在了`Shape decoratedShape`实例字段中。[§2.9 接口](#§2.9 接口)一节中提到。接口不能实例化，但是可以将实现该接口的类进行实例化，然后将得到的对象校正为接口的实例。这一特性使得`RedShapeDecorator`类的实例能转化为`Shape`接口的实例。
 
 ### §3.2.5 字段继承和访问器的选择
+
+为了让子类能够访问超类中定义的字段，我们既可以使用字段继承的方法，把超类中的相关字段全部用`protected`修饰，也可以用访问器的方法，在超类中编写类似于`getVariable(...)`的方法，返回相应字段的值：
+
+```java
+class Circle{
+    protected double radius;
+    public Circle(double radius){
+        this.radius = radius;
+    }
+    public double getRedius(){
+        return this.radius;
+    }
+    public void setRedius(double radius){
+        this.radius = radius;
+    }
+}
+class PlaneCircle extends Circle{
+    private double centerX,centerY;
+    public PlaneCircle(double radius,double centerX,double centerY){
+        super(radius); // 超类方法
+        this.radius = radius; // 字段继承
+        this.setRedius(redius); // 访问器
+        this.centerX = centerX;
+        this.centerY = centerY;
+    }
+}
+```
+
+考虑到安全性，`protected`的作用域范围是子类和同一个包中的类，任何人都可以把自己编写的恶意类添加到指定的包，因此字段继承的方法存在缺陷。因此，子类最好使用超类提供的访问器方法，并将超类的字段用`private`修饰。
+
+### §3.2.6 单例模式
+
+单例模式(Singleton Pattern)可以拜托构造方法的局限性，以更灵活的方式创建类的实例：
+
+```java
+class Singleton{
+    private final static Singleton instance = new Singleton();
+    private static boolean initialized = false;
+    private Singleton(){
+        super();
+    }
+    private void init(){
+        // Initializing
+    }
+    public static synchronized Singleton getInstance(){
+        if(initialized){
+            return instance;
+        }else{
+            instance.init();
+            initialized = true;
+            return instance;
+        }
+    }
+}
+public class Demo {
+    private static void main(String[] args){
+        Singleton i = Singleton.getInstance();
+    }
+}
+```
+
+单例模式虽然灵活性强，但是经常被滥用。它难以测试，难以与其他类区分开，多线程极容易出现问题。所以尽量在管理配置时才使用，在其它情况下尽量少使用。
+
+## §3.3 异常和异常处理
+
+在Java中，异常是一种`java.lang.Throwable`对象或其子类对象。`Throwable`类有两个标准子类，用于更具体的描述异常的类型，它们分别是`java.lang.Error`和`java.lang.Exception`。
+
+`java.lang.Error`及其子类侧重于表示发生的异常不可恢复，例如虚拟机内存耗尽、文件系统损坏而无法读取。通常情况下很少处理这种异常，也就是将其列为未检异常。
+
+`java.lang.Exception`机器子类侧重于表示发生的异常没有那么严重，可以捕获并处理，甚至发生的根本不是异常，例如`java.io.EOFException`常用于判断是否到达文件末尾：
+
+```
+try{
+	// 读下一行
+}catch(java.io.EOFException eofException){
+	// 处理完毕
+}
+```
+
+`Throwable`的所有子类都包含一个`String`字段，用于描述发生的异常状况，也可以直接调用访问器方法`Throwable.getMessage()`从异常对象中获取该字符串。
+
+自定义异常对象时应考虑以下几点问题：
+
+- 在异常对象中储存哪些出错时的额外状态
+- `Exception`类有四个公开的构造方法，如何在这四个之中做取舍
+- 尽可能减少自定义异常的细分程度。`java.io`库初期使用了大量的自定义精细分类的异常，例如`IOException`表示单纯的IO异常，而`InterruptedIOException`表示IO时发生中断的异常，两者涵盖的范围相互重叠，导致处理异常时要写好多`catch()`，饱受诟病。
+
+我们都不希望程序出现异常，但是异常反而也可以为我们所用，例如下面的两种反模式：
+
+- 忽略一切异常
+
+  ```java
+  try{
+      function(...);
+  }catch(Exception e){ // 捕获一切异常
+      // 然后什么也不处理,照常运行下面的程序
+  }
+  ```
+
+- 记录报错日志再抛异常
+
+  ```java
+  try{
+      function(...);
+  }catch(SpecificException e){
+      log(e);
+      handleError(...);
+      throw(e);
+  }
+  ```
+
+## §3.4 安全性
+
+如果一门编程语言能正确的识别数据的类型，那么我们称这门编程语言是类型安全的。Java的类型系统是静态的，一定程度上能够在编译时就发现数据类型不兼容的问题。然而Java的类型安全并不完美，如果在赋值时强行使用显示校正，那么这种不兼容问题就只有在运行时才能抛出`ClassCastException`异常了。
+
+为了确保程序的安全性，我们需要注意以下事项：
+
+- 所有对象在创建后都必须处于一种合法状态，否则这个对象就不应该被创建，同时抛出异常提醒用户“无法创建合法对象”。
+- 暴露在类外部的方法返回的数据类型必须在合法状态之间转换。
+- 暴露在类外部的方法绝对不能返回状态不一致的对象。
+- 弃用当前对象之前，必须将该对象恢复到合法状态。
+
+```mermaid
+flowchart LR
+  subgraph Creater ["创建器"]
+    InitialState["初始化状态"]
+  end
+  subgraph LivingPeriod ["生存期"]
+    LivingState1["生存状态"]
+    LivingState2["生存状态"]
+    LivingState3["生存状态"]
+    LivingState4["生存状态"]
+    LivingState1-->LivingState2
+    LivingState1-->LivingState3
+    LivingState1-->LivingState4
+    LivingState2-->LivingState1
+    LivingState3-->LivingState1
+    LivingState4-->LivingState1
+  end
+    InitialState-->LivingState1
+  subgraph DiedPeriod ["死亡期"]
+    DiedState["死亡状态"]
+    LivingState1-->DiedState
+    LivingState2-->DiedState
+    LivingState3-->DiedState
+    LivingState4-->DiedState
+  end
+```
+
+# §4 内存管理与并发
+
+## §4.1 垃圾回收/自动内存管理
+
+在C或C++中，我们必须手动调用`free()`或`delete`才能回收内存，而在Java中，对象占用的内存在不需要使用对象时会自动回收，这一机制通常被成为**垃圾回收** 或**自动内存管理**。不同的虚拟机使用的垃圾回收方式也不同，况且现在也没有相应的规范来强制要求垃圾回收的标准。`HotSpot JVM`时最常用的`JVM`之一，广泛应用于服务器环境。本节将以`HotSpot JVM`为例介绍内存回收机制。
+
+### §4.1.1 内存泄漏
+
+分配的内存没有回收会导致内存泄露。虽然Java支持垃圾回收，但是如果这个不再使用的对象存在至少一个有效的引用，那么依然会发生内存泄露，如下例所示
+
+```java
+public class Demo{
+    public addAll(int[] array){
+        int result = 0;
+        for(int i : array){
+            result = result + i;
+        }
+        return result;
+    }
+    public static void main(String[] args){
+        int bigArray[] = new int[10000]; // 10000×4Byte≈39.1KB
+        int result = addAll(bigArray);
+        // ...
+    }
+}
+```
+
+在上例中，我们给`new int[10000]`分配了一块空间，并且使用`addAll()`方法计算各数之和。计算完毕后，我们期望`new int[10000]`能够被自动销毁，从而释放39.1KB的空间。然而，该对象的地址已经被赋给局部变量`bigArray`了，于是`new int[10000]`始终存在着这一合法的引用，于是造成了内存泄漏，我们需要解除这一引用，垃圾回收机制才能生效：
+
+```java
+int bigArray[] = new int[10000]; // 10000×4Byte≈39.1KB
+int result = addAll(bigArray);
+bigArray = null; // 解除引用,这时new int[10000]就会 
+// ...
+
+```
+
