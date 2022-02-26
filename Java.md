@@ -1713,6 +1713,133 @@ String[] filelist = dir.list(
 MyObject::myFunction
 ```
 
+## §2.14 集合
+
+集合是Java支持的基本数据结构之一，本质上是一系列泛型接口，作为很多编程方式的抽象，囊括了绝大多数基本程序包。
+
+Java集合定义了两种基本的数据结构：`Collection`和`Map`。`Collection`表示一组对象的集合，`Map`表示对象间一些列映射与关联的关系。
+
+Java集合的基本架构如图所示：
+
+```mermaid
+flowchart LR
+	subgraph Java集合
+		Map>Map]
+		SortedMap>SortedMap]
+		Collection>Collection]
+		List>List]
+		Set>Set]
+		SortedSet>SortedSet]
+		
+		WeakHashMap["WeakHashMap"]
+		HashTable["HashTable"]
+		HashMap["HashMap"]
+		AbstractList["AbstractList"]
+		LinkedList["LinkedList"]
+		ArrayList["ArrayList"]
+		Vector["Vector"]
+		HashSet["HashSet"]
+		TreeSet["TreeSet"]
+
+		Map-->SortedMap.->TreeMap
+		Map.->WeakHashMap
+		Map.->HashTable
+		Map.->HashMap
+
+		Collection-->List.->AbstractList
+		AbstractList-->LinkedList
+		AbstractList-->ArrayList
+		AbstractList-->Vector
+		Collection-->Set
+		Set.->HashSet
+		Set-->SortedSet.->TreeSet
+	end
+	subgraph 图例
+		SolidLine["——:扩展"]
+		DottedLine["······:实现"]
+	end
+```
+
+### §2.14.1 `Collection`接口
+
+`Collection<E>`是参数化接口，表示由泛型E对象组成的集合。这个接口定义了一些列使用的方法，包括添加对象到集合中、从集合中删除对象、检测对象是否在集合中、遍历集合中的所有对象、返回集合中的对象数量等。`Collection`集合可以允许元素重复，也可以手动设置禁止重复；可以允许无序排列，也可以强制按特定的顺序排列。
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        // 三种创建Collection实例的方法
+        Collection<String> a = new HashSet<>();
+        Collection<String> b = Arrays.asList("one","two");
+        Collection<String> c = Collections.singleton("three");
+		
+        a.add("zero"); // 向集合中添加对象,a=["zero"]
+        a.addAll(b); // 向集合中批量添加对象,a=["zero","one","two"]
+
+        // 可以将集合直接传入构造方法生成新集合,copy=["zero","one","two"]
+        Collection<String> copy = new ArrayList<String>(a);
+
+        a.remove("zero"); // 从集合中删除对象,a=["one","two"]
+        a.removeAll(c); // 从集合中批量删除对象,a←a-b,a=["one","two"]
+        a.retainAll(b); // 两者取交集,a←a∩b,a=["one","two"]
+        a.clear(); // 清空集合,a=[]
+
+        boolean isEmpty = a.isEmpty(); // 判断集合是否为空,isEmpty=true
+        int count = a.size(); // 返回集合中的对象数量,count=0
+
+        a.addAll(copy); // a=["zero","one","two"]
+
+        boolean isContain = a.contains("zero"); // 判断元素是否在集合内
+        boolean isContainAll = a.containsAll(b); // 批量判断元素是否都在集合内
+		System.out.println(c); // Collection自带toString()方法
+        
+        Object[] elements = a.toArray(); // Collection可转换为Array
+
+        String[] strings = a.toArray(new String[a.size()]); // Collection<String>可转换为Array<String>
+        strings = a.toArray(new String[0]); // 或者传入一个长度为0的空String数组,让toArray()自动分配空间
+    }
+}
+```
+
+### §2.14.2 `Set`接口
+
+集(Set)是无重复对象组成的集合，也就是说集内不能存在两个引用指向同一个对象(规定只有一个`null`对象，所以也不能同时指向`null`)。集的`contains()`方法无论是在常数时间还是对数时间方面，运行效率都很高。
+
+`Set`接口扩展于`Collection`接口，因此实现了`Collection`接口的所有方法。但是受制于`Set`元素的不可重复性，`add()`和`addAll()`必须也遵守无重复原则。除此之外，`Set`接口本身并没有再定义自己独有的新方法。
+
+
+
+
+
+|       类       |      `HashSet`       | `LinkedHashSet` |       `EnumSet`        |                     `TreeSet`                      |       `CopyOnWriteArraySet`        |
+| :------------: | :------------------: | :-------------: | :--------------------: | :------------------------------------------------: | :--------------------------------: |
+|    内部表示    |        哈希表        |    哈希链表     |          位域          |                       红黑树                       |                数组                |
+| 首次出现的版本 |       Java 1.2       |    Java 1.2     |        Java 5.0        |                      Java 1.2                      |              Java 5.0              |
+|    元素顺序    |          无          |   插入的顺序    |        枚举声明        |                      升序排列                      |             插入的顺序             |
+|    成员限制    |          无          |       无        |      枚举类型的值      |                       可比较                       |                 无                 |
+|    基本操作    |        $O(1)$        |     $O(1)$      |         $O(1)$         |                    $O(\log n)$                     |               $O(n)$               |
+|    迭代性能    | $O(\text{capacity})$ |     $O(n)$      |         $O(n)$         |                       $O(n)$                       |               $O(n)$               |
+|      备注      |     最佳通用实现     | 保留插入的顺序  | 只能保存非`null`枚举值 | 元素数据类型实现`Comparable`接口或`Comparator`接口 | 即使不使用同步方法也能保证线程安全 |
+
+# 2月27日本应完成8w字.
+
+### §2.14.3 `List`接口
+
+
+
+### §2.14.4 `Map`接口
+
+
+
+### §2.14.5 `Queue`/`BlockingQueue`接口
+
+
+
+### §2.14.6
+
+
+
+### §2.14.7
+
 # §3 面向对象设计
 
 ## §3.1 `java.lang.Object`的方法
@@ -2636,6 +2763,314 @@ C:/> java -javaagent:... -Dfile.encoding=UTF-8 -classpath ...
 	An Object is popped.
 
 	Detecting whether waitingQueue is blank...
-	# 没有exit code，因为进程没有退出，新节点加入之前一直在wait()到
+	# 没有exit code，因为进程没有退出，新节点加入之前一直在wait()
 ```
+
+# §5 注释与文档
+
+## §5.1 文档注释
+
+到目前为止，我们见到的所有注释都是用来说明代码实现细节的。本节我们将使用一种特殊的注释——文档注释(Doc Comment)，用于编写API的文档。
+
+文档注释本质上是将标记语言写在了普通的注释里。文档注释以`/**`开头(不是普通的`/*`)，以`*/`结尾，可以包含简单的HTML标签。正常情况下，编译器会忽略一切注释，但是`javadoc`能提取其中文档注释并自动生成文档。
+
+```java
+/**
+ * @author Yaner
+ * @version 1.0
+ * 复数类
+ */
+class Complex {
+    /**
+     * 保存复数的实部
+     * @see #y
+     */
+    protected double x;
+    
+    /**
+     * 保存复数的虚部
+     * @see #x
+     */
+    protected double y;
+
+    /**
+     * 创建一个形如x+yi的复数实例
+     * @param x 复数的实部
+     * @param y 复数的虚部
+     */
+    public Complex(double x,double y){
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * 计算两个复数之和
+     * @param c1 被加数
+     * @param c2 加数
+     * @return 一个新的复数对象,表示<code>c1</code>与<code>c2</code>之和
+     * @exception java.lang.NullPointerException:其中有一个参数为<code>null</code>
+     */
+    public static Complex add(Complex c1,Complex c2){
+        return new Complex(c1.x+c2.x,c1.y+ c2.y);
+    }
+}
+```
+
+### §5.1.1 HTML标签
+
+- `<i>`：斜体
+- `<code>`：行内代码块
+- `<pre>`：行间代码块
+- `<ul>`+`<li>`：列表
+- ...
+
+> 注意：不能使用HTML主结构标签，例如`<h1>`、`<h3>`、`<hr>`等。因为文档注释会被嵌入大型的HTML帮助文档，这样做会影响整个`*.chm`目录的生成。
+
+> 注意：尽量不要使用`<a href="...">`来添加超链接或交叉引用，后文我们会介绍`javadoc`自带的`@link`文档注释标签。
+
+### §5.1.2 文档注释标签
+
+`javadoc`能识别文档注释中的一些特殊标签，这些标签以`@`字符开头，统称为文档注释标签。
+
+- `@author name`
+
+  添加一个`Author:`条目，用于指定作者的名字`name`。
+
+  - 只能为类和接口指定作者，不能给方法和字段指定。
+  - 如果有多位作者，可以在相邻的几行同时使用`@author`标签，先列出最先的作者。
+  - 如果不知道作者是谁，可以使用单词`unascribed`，意思类似于中文的“佚名”。
+  - 只有在`javadoc`中指定`-author`参数才能输出作者信息。
+
+- `@version text`
+
+  添加一个`Version:`条目，用于指定版本号`text`，常与版本控制系统(如`Git`、`SVN`等)配合使用
+
+  - 只能为类和接口指定版本号，不能给方法和字段指定。
+  - 只有在`javadoc`中指定`-author`参数才能输出版本号。
+
+- `@param parameter-name description`
+
+  添加一个`Parameters:`条目，用于说明指定参数`parameter-name`的具体作用`description`。
+
+  - 只能为方法指定参数说明。
+
+  - 推荐使用空格手动排版对齐：
+
+    - 没有对齐
+
+      ```java
+      /**
+       * 创建一个形如x+yi的复数实例
+       * @param real 复数的实部
+       * @param imagine 复数的虚部
+       */
+      ```
+
+    - 手动对齐
+
+      ```java
+      /**
+       * 创建一个形如x+yi的复数实例
+       * @param real    复数的实部
+       * @param imagine 复数的虚部
+       */
+      ```
+
+- `@return description`
+
+  添加一个`Returns:`条目，用于说明方法的返回值类型。
+
+  - 推荐分类讨论返回值类型：
+
+    ```java
+    /**
+     * @return <code>true</code>  :操作成功
+     *         <code>false</code> :操作失败
+     */
+    ```
+
+- `@exception full-classname description`/`@throws full-classname description`
+
+  添加一个`Throws:`条目，用于说明指定异常`full-classname`的出现原因和处理方式`description`。
+
+  ```java
+  /**
+   * @exception java.io.FileNotFoundException 文件不存在或没有权限访问
+   */
+  ```
+
+- `@see reference`
+
+  添加一个`See Also:`条目，用于说明引用的材料。
+
+  - 可以出现在任何文档注释中。
+
+- `@deprecated explanation`
+
+  添加一个`Deprecated`条目，用于说明新版本的哪些字段或方法将被弃用，提示其他人应该避免使用。
+
+  ```
+  /**
+   * @deprecated 该方法将于14.0版本后被抛弃.
+   */
+  public static Complex add(Complex c1,Complex c2){
+      return new Complex(c1.x+c2.x,c1.y+ c2.y);
+  }
+  ```
+
+- `@since version`
+
+  用于关于说明类型或成员在哪个版本被加入。
+
+  - 类型初始版本之后所有新加入的成员都应该含有此标签。
+
+- `@serial description`
+
+  如果编写的类可以被序列化，那么就需要该标签来说明序列化的格式。
+
+  - 在实现了`Serializable`接口的类中，组成序列化状态的每个字段都应该使用该标签。
+
+- `@serialField name type description`
+
+  实现`Serializable`接口的类可以声明一个`serialPersistentFields`字段，指向一个储存着`ObjectStreamField`对象的数组，用于定义序列化格式。数组中的每一个元素都需要用`@serialField`说明它自己的名称、类型和作用。
+
+- `@serialData description`
+
+  实现`Serializable`接口的类可以定义一个`writeObject()`方法，代替默认的序列化机制写入方式；实现`Externalizable`接口的类可以定义一个`writeExternal()`方法，把对象的完整状态输出为序列化流。这两个方法应该在`@serializable`标签中详细说明。
+
+### §5.1.3 行内文档注释标签
+
+前面我们介绍了[§5.1.1 HTML标签](#§5.1.1 HTML标签)，可以方便地更改文字样式。除了HTML标签以外，`javadoc`还提供了一系列的行内文档注释标签。为了与HTML标签区分开来，行内文档注释标签需要用花括号`{}`括起来。
+
+- `{@link reference}`
+
+  在行内插入超链接，文本使用的是代码字体。
+
+- `{@linkplain reference}`
+
+  在行内插入超链接，文本使用的是普通字体。
+
+- `{@inheritDoc}`
+
+  如何一个方法覆盖了超类的方法或实现了接口中的方法，那么这个方法的文档就可以继承于超类或接口的文档。
+
+- `{@docRoot}`
+
+  一个运行时常量，表示文档的根目录。
+
+  ```java
+  /**
+   * 效果如图所示:<img src="{@docroot}/images/result.png"></img>
+   */
+  ```
+
+- `{@literal text}`
+
+  按照字面形式显示文本`text`，忽略一切HTML标签和文档注释标签，免除了XSS风险。
+
+- `{@code text}`
+
+  与`{@literal}`类似，但是以代码字体显示文本`text`。
+
+- `{@value}`
+
+  常使用于`static final`修饰的字段，会被替换成当前常量字段的值。
+
+- `{@value reference}`
+
+  会被替换成指定的常量字段`reference`的值。
+
+### §5.1.4 交叉引用
+
+我们知道，`@see reference`、`{@link reference}`、`{@linkplain reference}`、`{@value reference}`都能实现超链接跳转。`reference`参数有三种不同的格式：
+
+- 以引号开头：出版物名称，按照字面形式显示`reference`的值。
+
+- 以`<`开头：等价于`<a href="reference"></a>`。
+
+- `feature [label]`：将`label`作为超链接文本，按照索引`feature`链接到指定位置。
+
+  `feature`指向包、类型、类型的成员，可以是以下格式的任意一种：
+
+  - `pkgname`：指向指定的包。
+
+    ```java
+    /**
+     * @see java.lang.reflect
+     */
+    ```
+
+  - `pkgname.typename`：根据完整的包名，查找并指向类、接口。枚举类型、注解类型。
+
+    ```java
+    /**
+     * @see java.lang.List
+     */
+    ```
+
+  - `typename`：不指定包名，指向指定的类型。
+
+    ```java
+    /**
+     * @see List
+     */
+    ```
+
+  - `typename#methodname`：不指定包名，指向指定类型中的指定方法。
+
+    ```java
+    /**
+     * @see java.io.InputStream#reset
+     * @see InputStream#close
+     */
+    ```
+
+  - `typename#methodname(paramtypes)`：指向某个方法或构造方法，而且明确指定参数的类型，从而区分重构的情况。
+
+    ```java
+    /**
+     * @see InputStream#read(byte[],int,int)
+     */
+    ```
+
+  - `#methodname`：指向一个没有重载的、定义于当前类/当前接口及其外层类/超类/超接口的方法或构造方法。
+
+    ```java
+    /**
+     * @see #setBackgroundColor
+     */
+    ```
+
+  - `#methodname(paramtypes)`：指向一个定义于当前类/当前接口及其外层类/超类/超接口的方法或构造方法。
+
+    ```java
+    /**
+     * @see #setBackgroundColor(int,int)
+     */
+    ```
+
+  - `typename#fieldname`：指向类中的指定字段.
+
+    ```java
+    /**
+     * @see java.io.BufferedInputStream#buf
+     */
+    ```
+
+  - `#fieldname`：指向一个定义于当前接口/当前类及其外层类/超类/超接口的指定字段。
+
+    ```java
+    /**
+     * @see #centerX
+     */
+    ```
+    
+
+### §5.1.5 包的文档注释
+
+到目前为止，我们使用的文档注释全部都定义在`*.java`文件内。许多文件存放在一个文件夹里打包，称为”包“。要给包写文档注释就不能在`*.java`文件内写了，需要在文件夹根目录内添加一个名为`package.html`的文件。文件内不得出现Java类型的注释，而是像真正的HTML一样写，可以使用以上提到的所有注释标签。
+
+除了给单个包撰写文档注释，我们也可以给一组包撰写文档注释。需要在这一组包的根目录内添加一个名为`overview.html`的文件，`javadoc`能根据其中的内容生成最高层概览。
+
+
 
