@@ -2265,13 +2265,17 @@ flowchart LR
 
 # §4 内存管理与并发
 
-## §4.1 垃圾回收/自动内存管理
+## §4.1 内存管理
 
-在C或C++中，我们必须手动调用`free()`或`delete`才能回收内存，而在Java中，对象占用的内存在不需要使用对象时会自动回收，这一机制通常被成为**垃圾回收** 或**自动内存管理**。不同的虚拟机使用的垃圾回收方式也不同，况且现在也没有相应的规范来强制要求垃圾回收的标准。`HotSpot JVM`时最常用的`JVM`之一，广泛应用于服务器环境。本节将以`HotSpot JVM`为例介绍内存回收机制。
+### §4.1.1 垃圾回收/自动内存管理
 
-### §4.1.1 内存泄漏
+在C或C++中，我们必须手动调用`free()`或`delete`才能回收内存，而在Java中，对象占用的内存在不需要使用对象时会自动回收，这一机制通常被成为**垃圾回收**或**自动内存管理**。
 
-分配的内存没有回收会导致内存泄露。虽然Java支持垃圾回收，但是如果这个不再使用的对象存在至少一个有效的引用，那么依然会发生内存泄露，如下例所示
+`JVM`能精确地知道程序分配了哪些空间，这些对象和数组储存在分配表(Allocation Table)内；还能区分栈帧(Stack Frame)里的局部变量指向堆(Heap)里的哪个对象和数组；还能追踪堆中对象和数组保存的所有引用。在应用线程的堆栈跟踪中，从其中的某一个方法的某个局部变量开始，沿着引用链最终能找到一个对象，我们就称这个对象为可达对象(Reachable Object)/活性对象。
+
+不同的虚拟机使用的垃圾回收方式也不同，况且现在也没有相应的规范来强制要求垃圾回收的标准。`HotSpot JVM`时最常用的`JVM`之一，广泛应用于服务器环境。本节将以`HotSpot JVM`为例介绍内存回收机制。
+
+分配的内存没有回收会导致内存泄露。虽然Java支持垃圾回收，但是如果这个不再使用的对象存在至少一个有效的引用，那么依然会发生内存泄露，如下例所示：
 
 ```java
 public class Demo{
@@ -2295,8 +2299,343 @@ public class Demo{
 ```java
 int bigArray[] = new int[10000]; // 10000×4Byte≈39.1KB
 int result = addAll(bigArray);
-bigArray = null; // 解除引用,这时new int[10000]就会 
+bigArray = null; // 解除引用,这时new int[10000]就会被删除
 // ...
+```
 
+### §4.1.2 标记清除算法
+
+垃圾回收最常用的、最简单的算法是标记清除(Mark And Sweep)算法:
+
+1. 遍历整个分配表中的对象，把每个对象都标记为“已死亡”。
+2. 从指向堆的局部变量开始，跟踪这些变量指向的存储在迭代表中的对象，发现一个就将其重新标记为“存活”。重复该过程，遍历所有指向堆的局部变量。
+3. 便利整个分配表中的对象，回收那些标记为“已死亡”对象的内存，然后把这些内存重新放回可用内存列表中，最后在分配表中删除这些对象。
+
+上面的步骤是最理想的情况。现实情况中，所有对象的内存都由分配表指定，因此`JVM`在堆内存耗尽之前就会触发垃圾回收程序。我们知道这一算法要遍历整个分配表，而且直接给所有的对象全都标记为“已死亡”。此时程序仍然在运行，不断地更改分配表，这两者之间互相冲突，最终导致内存表中的数据被破坏，也就是**结果腐化**。
+
+为了避免结果腐化，标记清楚算法会在执行垃圾回收时，让所有应用线程暂停一下，等到垃圾回收完成时再继续执行，这种暂停也被称为STW(Stop-The-World)。对于大多数情况而言，即使没有这个机制，操作系统中的进程也总会因为不断交替进出CPU而产生相同的延迟，因此STW可以看作是正常的进程交替，对执行效率的影响可以忽略不计。
+
+结果腐化只是标记清除算法的例外之一。现实中，各种各样的`JVM`会在此基础上采取更多不同的优化措施来避免标记清楚算法其它的问题。
+
+### §4.1.3 弱代假设和筛选回收
+
+弱代假设(WGH,Weak Generational Hypothesis)指的是假设对象常常处于少数几个预期生命周期之一(这些预期生命周期简称为"代")。在这个假设中，大多数对象的生命周期非常短，称为瞬时对象，不久就会被当作垃圾而回收内存。`HotSpot JVM`中有一个垃圾回收子系统，专门利用弱代假设作用于生命周期较短的对象。
+
+在[§4.2 标记清除算法](#§4.2 标记清除算法)一节中我们讲过，该算法的第三步是把“已死亡”的对象内存进行回收，然后再一次放回可用内存列表中。然而如果弱代假设成立，那么分配表中的大部分对象应该都没有合法的引用而死亡，于是原本的“第三步”会浪费大量的时间用于将内存放回可用内存列表中，严重影响了效率。
+
+为解决这一问题，`HotSpot JVM`把堆内存分成多个独立的内存空间。每次回收垃圾时，只为活性对象分配空间，并把这些对象移动到另一个内存空间。这种方式称作**筛选回收**(Evacuation)。作为比喻，原来的方法相当于删除电脑中多余的垃圾文件，从而腾出空间，而筛选回收相当于先把电脑中重要的文件拷贝出来，然后直接对硬盘格式化，从而腾出空间。在垃圾文件远多于重要文件的情况下，筛选回收的效率要远大于原本的方法。
+
+### §4.1.4 `HotSpot`堆
+
+`HotSpot JVM`由一个解释器、一个即时编译器、一个用户空间内存管理子系统这三者组成。`Java`堆是一块连续的内存，创建于`JVM`启动的时刻。起初`Java`堆只将部分堆分配给各个内存池，在后续程序运行的过程中，垃圾回收子系统负责给内存池按需扩容。
+
+堆分为两代，分别是新生代和老年代。新生代包括一个`Eden`区和两个`Survivor`区，老年代只有一个内存空间。经过多次垃圾回收还能存活的对象最终会退给老年代。
+
+垃圾回收程序有两类：
+
+- 并行回收程序：使用多个线程执行回收操作的垃圾回收程序
+- 并发回收程序：可以与应用线程同时运行的垃圾回收程序
+
+目前为止我们见到的都是并行回收程序。`HotSpot`允许植入不同的回收程序,例如`CMS`回收程序既是并行回收程序，又是并发回收程序。回收老年代的回收程序不使用筛选回收，因为这其中有一个整理过程，从而避免产生碎片。
+
+### §4.1.5 并发标记清除(`CMS`)
+
+在[§4.4 `HotSpot`堆](#§4.4 `HotSpot`堆)一节中我们提到，并发标记清除(CMS,Concurrent Mark and Sweep)，只能用于回收老年代。它只适用于能容忍短暂停顿的场景，停止时间为`STW`的几毫秒，对于金融贸易、时区授时、航班通信等场景则完全不适用。
+
+### §4.1.6 `Garbage First`回收程序(`G1`)
+
+`Garbage First`回收程序(`G1`)是另外一种垃圾回收程序，开发于Java 7时代，目的就是为了取代`CMS`。相比于`CMS`，`G1`的停顿时间非常短，甚至可以由用户设置停顿指标，自定义回收垃圾时的停顿时间和停顿频率，因此非常适合高吞吐量的场景。
+
+`G1`使用粗粒度方式管理内存，把内存分成多个区，将大部分算力集中在处理新生代上，因为在弱代假设的前提下，新生代释放的内存最多。
+
+### §4.1.8 终结机制
+
+终结(Finalization)机制指的是自动释放不再使用的资源，包括释放内存、关闭文件、中断临时建立的网络连接、删除临时文件等，比垃圾回收机制涵盖的范围要广得多。如果对象有`finalize()`方法(称为**终结方法**)，那么当不再使用该对象后的某个时间就调用该方法。为了避免垃圾回收机制抢先一步只回收内存而不回收其他资源，我们需要在垃圾回收机制生效之前就调用终结方法。
+
+## §4.2 并发
+
+Java 1就支持多线程编程。创建新线程需要调用`Thread`类：
+
+```java
+Thread i = new Thread(
+    ()->{
+        System.out.println("Hello World");
+    }
+);
+i.start(); // Hello World
+```
+
+`Thread`类的构造方法接受一个`Runnable`接口实例，这里的`Lambda`表达式会被转化为`Runnable`实例，最后使用`start()`方法启动线程后自动退出。
+
+### §4.2.1 线程的生命周期
+
+不同的操作系统看待线程的视角有所不同，Java提供了`Thread.State`这一枚举类型，将这些线程状态抽象化为以下几种：
+
+- `NEW`：已经创建线程，但是还没有调用`Thread.start()`方法
+- `RUNNABLE`：线程正在运行
+- `BLOCKED`：线程终止运行，直到获得一个锁，从而进入由`synchronized`修饰的方法
+- `WAITING`：线程终止运行，因为调用了`Object.wait()`或`Thread.join()`
+- `TIMED_WAITING`：线程终止运行，因为调用了`Object.wait()`或`Thread.join()`或`Thread.sleep()`，并且传入了超时时间
+- `TERMINATED`：线程运行完毕，通过`run()`方法正常退出或抛出异常而退出
+
+```mermaid
+flowchart LR
+	StartFunction[/"start()"/]
+	ThreadSleepFunction[/"Thread.sleep()"/]
+	ThreadWaitFunction[/"Thread.wait()"/]
+	ObjectNotifyFunction[/"Object.notify()"/]
+	ObjectNotifyAllFunction[/"Object.notify.All()"/]
+	
+	NewState(("准备运行<br>NEW"))
+	RunnableState(("运行中<br>RUNNABLE"))
+	BlockedState(("被IO或同步操作阻塞<br>BLOCKED"))
+	WaitingState(("等待中<br>WAITING"))
+	TimedWaitingState(("休眠中<br>TIMED_WAITING"))
+	TerminatedState(("执行完毕<br>TERMINATED"))
+	
+	StartFunction-->NewState
+	NewState--"被调度程序选中"-->RunnableState
+	RunnableState--"调度程序交换"-->NewState
+	RunnableState-->ThreadSleepFunction
+	ThreadSleepFunction-->TimedWaitingState
+	TimedWaitingState-->RunnableState
+	RunnableState-->ThreadWaitFunction
+	ThreadWaitFunction-->WaitingState
+	WaitingState-->ObjectNotifyFunction-->RunnableState
+	WaitingState-->ObjectNotifyAllFunction-->RunnableState
+	RunnableState--"收到同步数据"-->BlockedState
+	BlockedState--"收到同步数据"-->RunnableState
+	BlockedState--"其他线程关闭了套接字"-->TerminatedState
+	RunnableState--"执行完毕"-->TerminatedState
+```
+
+Java中的内一个应用线程都有自己的栈和局部变量，这些线程共用一个堆，因此可以方便地在线程之间共享对象。这由此引出**对象默认可见**这一设计原则，即如果某个线程有权限得到一个对象的引用，那么这个线程就有权限无限制地传给其他线程。
+
+在一个程序中，不管调用什么方法、不管操作系统如何调度线程，它能获取到的任何其他对象都禁止处于非法状态或者状态不一致，这样的程序被称为**安全的多线程程序**。
+
+### §4.2.2 互斥和状态保护
+
+前面我们提到，为了避免读取和修改的过程中对象的状态不一致，我们需要对代码进行保护，Java为此提供了一种名为**互斥**的机制。
+
+```java
+class SynchronizedDemo implements Runnable {
+    private static int count = 0;
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 10; i++) {
+            Thread thread = new Thread(new SynchronizedDemo());
+            thread.start();
+        }
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("result: " + count);
+    }
+
+    @Override public void run() {
+        for (int i = 0; i < 1000000; i++)
+            count++;
+    }
+}
+```
+
+以上述代码为例，我们的意图是创建10个不同的进程，给`SynchronizedDemo`的类字段`count`不断地累加值，理论上最终count的值应该为$10\times1000000=10000000$。但是实际结果让人大跌眼镜，输出结果总小于理论值，更关键的是每次输出的结果都不一样。
+
+在这个例子中，多个线程同时操作一个字段，造成了线程不安全。为了避免线程之间发生冲突，Java提供了`synchronized`关键字，当代码块或方法被该关键词修饰时，则Java只允许某一时刻最多只有一个线程执行该段代码：
+
+```java
+class SynchronizedDemo implements Runnable {
+    private static int count = 0;
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 10; i++) {
+            Thread thread = new Thread(new SynchronizedDemo());
+            thread.start();
+        }
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("result: " + count);
+    }
+
+    @Override public void run() {
+        synchronized (SynchronizedDemo.class) {
+            for (int i = 0; i < 1000000; i++)
+                count++;
+        }
+    }
+}
+```
+
+Java为创建过的每个对象做一个特殊的标记，这个标记称为**监视器**(Monitor)或**锁**，用于告知线程是否可以执行指定代码。由`synchronized`修饰的代码块或方法会发生如下事件：
+
+1. 线程需要修改对象时，会临时把对象编程不一致的状态
+2. 线程获取锁，告知Java它将临时互斥存储这个对象
+3. 线程修改对象完成后，恢复对象的合法状态
+4. 线程释放锁
+
+在这个过程中，如果其他线程尝试访问对象的话，会被Java阻塞，直到线程释放锁为止。
+
+### §4.2.3 `volatile`关键字
+
+`volatile`关键字表示使用字段或变量前，必须重新从主内存读取值，修改时也必须马上将变量存入住内存。这一特性常用于“关闭前一直运行”的设计理念：
+
+```java
+class SynchronizedDemo implements Runnable{
+    private volatile boolean shutdown = false;
+    public void shutdown(){
+        shutdown = true;
+    }
+    @Override public void run(){
+        while(!shutdown){
+            // Working
+        }
+    }
+}
+```
+
+### §4.2.4 `Thread`类方法
+
+- `getId()`
+
+  `getId()`返回线程的`long`类型ID值，该ID值在线程的整个生命周期中都不变。
+
+- `getPriority()`/`setPriority(int newPriority)`
+
+  这两个方法控制线程的优先级。优先级是一个1~10之间的整数，系统优先运行优先级大的线程。
+
+- `setName()`/`getName(String name)`
+
+  这两个方法控制线程的名称。名称是一个字符串变量，便于`jvisualvm`之类的工具进行调试。
+
+- `getState()`
+
+  返回一个`Thread.State`实例，用于表示进程的状态。
+
+- `isAlive()`
+
+  返回一个布尔值，表示进程是否为`RUNNABLE`状态。
+
+- `start()`
+
+  用于创建一个新线程，然后调用线程实例中的`run()`方法。
+
+- `interrupt()`
+
+  停止当前进程的运行。如果该线程早已被`sleep()`、`wait()`、`join()`方法停止了的话关于抛出`InterruptedException`异常，同时强行唤醒该进程。
+
+- `join()`
+
+  将当前线程切换到等待状态，直到该方法被调用时所在的线程死亡时才恢复运行。
+
+- `setDaemon()`
+
+  用户线程是指当前线程运行时阻止进程停止的线程，守护线程恰恰相反。该方法设置当前线程是守护线程还是用户线程。
+
+- `setUncaughtExceptionHandler()`
+
+  线程因抛出异常而退出前会向控制台输出一系列信息，包括线程名称、异常类型、堆栈跟踪等。`setUncaughtExceptionHandler()`方法允许用户绑定一个检测异常的监听器，从而在监听器内自定义捕获异常的方式和输出的内容，甚至在这个监听器内尝试重启线程，实现自我恢复的效果：
+
+  ```java
+  public class Demo {
+      public static void main(String[] args){
+          Thread handledThread = new Thread(
+                  ()->{
+                      throw new UnsupportedOperationException();
+                  }
+          );
+          handledThread.setName("BrokenThread");
+          handledThread.setUncaughtExceptionHandler(
+                  (t,e)->{
+                      System.err.printf(
+                              "Exception in thread %d '%s':%s at line %d of %s%n",
+                              t.getId(),
+                              t.getName(),
+                              e.toString(),
+                              e.getStackTrace()[0].getLineNumber(),
+                              e.getStackTrace()[0].getFileName()
+                      );
+                  }
+          );
+      }
+  }
+  ```
+
+`Thread`类同时也有一些弃用的方法。这而方法原本是Java的线程API提供的，但是非常危险，设计时稍有不慎就会导致程序崩溃。但是Java的向后兼容性使其不能删除这些方法。开发者虽然要知道这些方法的用途，但是设计时尽量不要使用。
+
+- `stop()`
+
+  `stop()`方法会立刻杀死线程。这种方法的使用违背了并发安全的要求，因为正常情况下，线程执行`run()`函数后会自动正常退出，如果必须使用`stop()`方法才能退出，那么这个线程的设计一定出了大问题。
+
+- `suspend()`/`resume()`/`countStackFrames()`
+
+  使用`suspend()`挂起线程时，该线程占用的锁并不会释放，这种锁成为**死锁**。
+
+> 注意：内部类只是语法糖，因此内部类的锁对外层类无效，外层类的锁也对内部类无效。
+
+最后，锁是一种“只防君子，不防小人”的机制。线程获取的锁只能避免其他线程再次获取这个锁，而不能完全避免其他线程访问这个线程内的对象。即使对象所在的线程已经加了锁，那些没被`synchronized`关键词修饰的方法或代码块也能更改对象。只有所有类都遵守`synchronized`，锁才能发挥预期的作用。
+
+下面是`Thread`类方法的一个例子：
+
+```java
+class WaitingQueue<E>{
+    LinkedList<E> queue = new LinkedList<E>(); // 仓库
+    public synchronized void push(E object){
+        queue.add(object); // 将对象指针添加到链表末端
+        this.notifyAll(); // 告诉所有等待的线程可以运行了
+    }
+    public synchronized E pop(){
+        while(queue.size() == 0){
+            try{
+                this.wait();
+            }catch(InterruptedException ignore){
+
+            }
+        }
+        return queue.remove();
+    }
+    public static void main(String[] args){
+        WaitingQueue waitingQueue = new WaitingQueue();
+        Thread addThread = new Thread(
+                ()->{
+                    for(int count=0;count<2;count++){
+                        waitingQueue.push(new Object());
+                        try {
+                            Thread.sleep(100); // 每隔100毫秒向链表中写入一个节点
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+        );
+        Thread popThread = new Thread(
+                ()->{
+                    while(true){
+                        System.out.println("Detecting whether waitingQueue is blank...");
+                        waitingQueue.pop();
+                        System.out.println("An Object is popped.\n");
+                    }
+                }
+        );
+        addThread.start();
+        popThread.start();
+    }
+}
+```
+
+```shell
+C:/> java -javaagent:... -Dfile.encoding=UTF-8 -classpath ...
+	Detecting whether waitingQueue is blank...
+	An Object is popped.
+
+	Detecting whether waitingQueue is blank...
+	An Object is popped.
+
+	Detecting whether waitingQueue is blank...
+	# 没有exit code，因为进程没有退出，新节点加入之前一直在wait()到
 ```
 
