@@ -1806,10 +1806,6 @@ public class Demo {
 
 `Set`接口扩展于`Collection`接口，因此实现了`Collection`接口的所有方法。但是受制于`Set`元素的不可重复性，`add()`和`addAll()`必须也遵守无重复原则。除此之外，`Set`接口本身并没有再定义自己独有的新方法。
 
-
-
-
-
 |       类       |      `HashSet`       | `LinkedHashSet` |       `EnumSet`        |                     `TreeSet`                      |       `CopyOnWriteArraySet`        |
 | :------------: | :------------------: | :-------------: | :--------------------: | :------------------------------------------------: | :--------------------------------: |
 |    内部表示    |        哈希表        |    哈希链表     |          位域          |                       红黑树                       |                数组                |
@@ -1820,7 +1816,33 @@ public class Demo {
 |    迭代性能    | $O(\text{capacity})$ |     $O(n)$      |         $O(n)$         |                       $O(n)$                       |               $O(n)$               |
 |      备注      |     最佳通用实现     | 保留插入的顺序  | 只能保存非`null`枚举值 | 元素数据类型实现`Comparable`接口或`Comparator`接口 | 即使不使用同步方法也能保证线程安全 |
 
-# 2月27日本应完成8w字.
+类似于离散数学的偏序集，`TreeSet`类使用红黑树数据结构维护集，其中的元素需要按照`Comparable`对象的自然顺序升序迭代，或者按照`Comparator`对象的顺序迭代。
+
+`SortedSet`接口提供了多个有序的方法：
+
+```java
+class Demo{
+    public static void main(String[] args){
+        SortedSet<String> set = new TreeSet<>(Arrays.asList(args));
+        for(String word : set){
+            System.out.println(word);
+        }
+        
+        String first = set.first(); // 获取第一个元素
+        String last = set.last(); // 获取最后一个元素
+        
+        SortedSe
+        
+        SortedSet<String> head = set.headSet(last);
+        System.out.println(head);
+        
+        SortedSet<String> middle = set.subSet(first+'\0',last);
+        System.out.println(middle);
+    }
+}
+```
+
+
 
 ### §2.14.3 `List`接口
 
