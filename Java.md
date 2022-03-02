@@ -1823,38 +1823,251 @@ public class Demo {
 ```java
 class Demo{
     public static void main(String[] args){
-        SortedSet<String> set = new TreeSet<>(Arrays.asList(args));
+        // 创建时就自动排序
+        SortedSet<String> set = new TreeSet<>(
+            Arrays.asList(new String[]{"Banana","Cake","Apple"}))
+        );
         for(String word : set){
-            System.out.println(word);
+            System.out.println(word); // Apple,Banana,Cake
         }
         
         String first = set.first(); // 获取第一个元素
         String last = set.last(); // 获取最后一个元素
         
-        SortedSe
+        SortedSet<String> tail = set.tailset(first+'\0'); // 重新设置开头
+        System.out.println(tail); // [Banana, Cake]
         
-        SortedSet<String> head = set.headSet(last);
-        System.out.println(head);
+        SortedSet<String> head = set.headSet(last); // 重新设置结尾
+        System.out.println(head); // [Apple,Banana]
         
-        SortedSet<String> middle = set.subSet(first+'\0',last);
-        System.out.println(middle);
+        SortedSet<String> middle = set.subSet(first+'\0',last); // 重新选取子集
+        System.out.println(middle); // [Banana]
+    }
+
+```
+
+### §2.14.3 `List`接口
+
+`List`是一种有序的对象集合，与数组类似，但是能动态更改长度，允许出现重复的元素。
+
+```java
+public class ConstantClass {
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<String>(
+                Arrays.asList("Cake","Apple","Banana")
+        );
+        List<String> words = Arrays.asList("hello","world");
+
+        String first = list.get(0); // 获取第一个元素,Cake
+        String last = list.get(list.size()-1); // 获取最后一个元素,Banana
+
+        list.add(first); // 在末尾添加,list=[Cake,Apple,Banana,Cake]
+        list.add(0,first); // 在指定位置添加,list=[Cake,Apple,Banana,Cake]
+        list.addAll(words); // 在末尾批量添加,list=[Cake,Apple,Banana,Cake,hello,world]
+        list.addAll(1,words); // 在指定位置批量添加,list=[Cake,hello,world,Cake,Apple,Banana,Cake,hello,world]
+
+        List<String> subList = list.subList(1,3); // 截取子集地址,subList=[hello,world]
+        subList.set(0,"hi"); // 更改指定位置的元素,subList=[hi,world],list=[Cake,hi,world,Cake,Apple,Banana,Cake,hello,world]
+        
+        String minStr = Collections.min(list.subList(0,4)); // 按照字符串规则排序,minstr="hi"
+        Collections.sort(list.subList(0,4)); // 
+        List<String> subCopy = new ArrayList<>(list.subList(1,3)); //局部排序,list=[Cake,Cake,hi,world,Apple,Banana,Cake,hello,world]
+
+        int p = list.indexOf(last); // 正向查找,不存在时返回-1
+        p = list.lastIndexOf(last); // 逆向查找,不存在时返回-1
+
+        int n = list.size(); // 获取List元素数量
+        
+        list.remove("Cake"); // 按照值删除第一次找到的元素,list=[Cake,hi,world,Apple,Banana,Cake,hello,world]
+        list.remove(0); // 按照位置删除指定位置的元素,list=[hi,world,Apple,Banana,Cake,hello,world]
+        list.subList(0,2).clear(); // 删除指定位置范围内的元素,list=[Apple,Banana,Cake,hello,world]
+        list.retainAll(words); // 只保留在words中出现的元素,list=[hello,world]
+        list.removeAll(words); // 只删除在words中出现的元素,list=[]
+        list.clear(); // 清空List,list=[]
     }
 }
 ```
 
+`List`继承于`Collection`，而`Collection`实现了`Iterable`接口，这意味着我们可以对`List`实例使用`for(value:list)`进行遍历：
 
+```java
+public class Demo {
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<String>(Arrays.asList("Apple", "Banana", "Cake"));
+        // 使用for
+        for(String word : list){
+            System.out.println(word);
+        }
+        // 手动调用iterator
+        for(Iterator<String> iterator = list.iterator();iterator.hasNext();){
+            System.out.println(iterator.next());
+        }
+    }
+}
+```
 
-### §2.14.3 `List`接口
+在`for(value:list)`中获得的`value`是值传递而非引用传递：
 
+```java
+public class Demo {
+    public static void main(String[] args){
+        List<String> list = new ArrayList<String>(
+            Arrays.asList("Apple","Banana","Cake")
+            for(String word : list){
+                word = "114514";
+            }
+            System.out.println(list); // [Apple.Banana,Cake]
+        );
+    }
+}
+```
 
+为了深入理解遍历循环处理集合的方式，我们先来看一下`java.util.Iterator`和`java.lang.Iterable`这两个接口的定义：
+
+```java
+public interface Iterator<E>{
+    boolean hasNext();
+    E next();
+    default void remove(){throw new UnsupportedOperationException("remove");}
+    default void forEachRemaining(Consumer<? super E> action){
+        Objects.requireNonNull(action);
+        while(hasNext()){ // 只要hasNext()告诉我们集合还有下一个元素
+            action.accept(next()); // 就使用next()方法获得这下一个元素
+        }
+    }
+}
+public interface Iterable<T>{
+    Iterator<T> iterator();
+    default void forEach(Consumer<? super T> action){
+        Objects.requireNonNull(action);
+        for(T t : this){
+            action.accept(t);
+        }
+    }
+    default Spliterator<T> spliterator(){
+        return Spliterators.spliteratorUnknownSize(iterator,0);
+    }
+}
+```
+
+| 类                     | 表示方式 | 首次出现的版本 | 随机访问 | 备注                                                         |
+| ---------------------- | -------- | -------------- | -------- | ------------------------------------------------------------ |
+| `ArrayList`            | 数组     | Java 1.2       | √        | 最佳全能实现                                                 |
+| `LinkedList`           | 双向链表 | Java 1.2       | ×        | 高效插入和删除                                               |
+| `CopyOnWriteArrayList` | 数组     | Java 5.0       | √        | 线程安全,遍历快,修改慢                                       |
+| `Vector`               | 数组     | Java 1.0       | √        | `synchronized`,已过时                                        |
+| `Stack`                | 数组     | Java 1.0       | √        | 扩展自`Vertor`,支持`push()`/`pop()`/`peek()`,已过时,推荐使用新一代的`Deque` |
 
 ### §2.14.4 `Map`接口
 
+映射(Map)是一系列键值对，该接口定义了用于增改与查询映射的API。
 
+```java
+public class Demo {
+    public static void main(String[] args) {
+        // 新建空映射
+        Map<String,Integer> map = new HashMap();
+        // 新建一个不可变的映射
+        Map<String,Integer> singleTon = Collections.singletonMap("senpai",114514);
+        // 新建一个不可变的空映射
+        Map<String,Integer> empty = Collections.<String,Integer>emptyMap();
+
+        String[] words = {"a","b","c"};
+        for(int i=0;i<words.length;i++){
+            map.put(words[i],i); // 向映射中写入键值对
+        }
+        for(int i=0;i<words.length;i++){
+            map.put(words[i].toUpperCase(),i); // 键区分大小写
+        }
+        map.putAll(singleTon); // 向映射中批量写入键值对
+
+        map.containsKey(words[0]); // 检测是否含有指定的键
+        map.containsValue(words.length); // 精测是否含有指定的值
+
+        Set<String> keys = map.keySet(); // 根据Map的键集新建键Set
+        Collection<Integer> values = map.values(); // 根据Map的值集新建Collection
+        Set<Map.Entry<String,Integer>> entries = map.entrySet(); // 根据Map中每个键值对的地址新建Set
+
+        for(String key:map.keySet()){
+            System.out.println(key); // 遍历键名
+        }
+        for(Integer value:map.values()){
+            System.out.println(value); // 遍历值名
+        }
+
+        for(Map.Entry<String,Integer> pair:map.entrySet()){
+            System.out.printf(
+                    "'%s'==>%d%n",
+                    pair.getKey(),pair.getValue()
+            );
+            pair.setValue(pair.getValue()+1); // 可以直接读取与更改键值对地址的键与值
+        }
+
+        map.put("testing",null); // 根据键名指定值
+        map.get("testing"); // null
+        map.containsKey("testing"); // 检测键名是否存在,此处返回true
+        map.remove("testing"); // 真正删除键值对
+        map.get("testing"); // null
+        map.containsKey("testing"); // 检测键名是否存在,这次返回false
+
+        map.values().remove(2); // 指定值删除键值对
+        map.values().removeAll(Collections.singleton(4)); // 指定值删除所有键值对
+        map.values().retainAll(Arrays.asList(2,3)); // 按照值,只保留其中的键值对
+		
+        // 手动调用迭代器
+        Iterator<Map.Entry<String,Integer>> iterator = map.entrySet().iterator();
+        while(iterator.hasNext()){
+            Map.Entry<String,Integer> entry = iterator.next();
+            if(entry.getValue() == 2){
+                iterator.remove();
+            }
+        }
+
+        // 对值集取交集
+        Set<Integer> v = new HashSet<Integer>(map.values());
+        v.retainAll(singleTon.values());
+        
+        map.size(); // 删除所有键值对
+        map.clear(); // 返回键值对数量
+        map.isEmpty(); // 检测是否为空
+        map.equals(empty); // 检测值传递是否相同
+    }
+}
+```
+
+| 类                      | 表示方式    | 首次出现的版本 | `null`键 | `null`值 | 备注                                                |
+| ----------------------- | ----------- | -------------- | -------- | -------- | --------------------------------------------------- |
+| `HashMap`               | 哈希表      | Java 1.2       | √        | √        | 通用实现                                            |
+| `ConcurrentHashMap`     | 哈希表      | Java 5.0       | ×        | ×        | 通用的线程安全实现,参考`ConcurrentMap`接口          |
+| `ConcurrentSkipListMap` | 哈希表      | Java 6.0       | ×        | ×        | 专用的线程安全实现,参考`ConcurrentNavigableMap`接口 |
+| `EnumMap`               | 数组        | Java 5.0       | ×        | √        | 键是枚举类型                                        |
+| `LinkedHashMap`         | 哈希表+列表 | Java 1.4       | √        | √        | 保留插入或访问顺序                                  |
+| `TreeMap`               | 红黑树      | Java 1.2       | ×        | √        | 按照键排序,$O(\log n)$                              |
+| `IdentifyHashMap`       | 哈希表      | Java 1.4       | √        | √        | 警惕`==`与`equals()`                                |
+| `WeakHashMap`           | 哈希表      | Java 1.2       | √        | √        | 不会阻止垃圾回收键                                  |
+| `Hashtable`             | 哈希表      | Java 1.0       | ×        | ×        | `synchronized`,已过时                               |
+| `Properties`            | 哈希表      | Java 1.0       | ×        | ×        | 继承自`String`类,实现了`Hashtable`接口              |
 
 ### §2.14.5 `Queue`/`BlockingQueue`接口
 
+`queue`是一组有序的元素，提取时按找插入元素的顺序从头读取，根据插入元素的顺序分为两类：先进先出队列(FIFO,First-In,First-Out)和后进先出(LIFO,Last-In,First-Out)队列。
 
+`queue`内允许出现重复的元素，但不能根据索引获取值。
+
+```java
+public interface Queue<E> extends Collection<E>{
+    boolean add(E e);
+    boolean offer(E e);
+    E remove();
+    E poll();
+    E element();
+    E peek();
+}
+```
+
+- 添加方法
+  - `add()`：该方法在`Collection`接口中已被定义，只是按照常规的方法添加元素。如果队列有界且已满，则会抛出异常。
+  - `offer()`：当队列有界且已满时仅返回`false`而不会抛出异常。
 
 ### §2.14.6
 
