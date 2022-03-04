@@ -43,6 +43,30 @@ Java支持全局Unicode。
   **/
   ```
 
+## §1.3 语句
+
+Java的语句以分号作为结尾，一行可以书写多个语句，一个语句可以跨多行，**但是字符串、变量名不能跨行**。
+
+## §1.4 标识符
+
+标识符由字母、数字、下划线、美元符号(`$`)组成，但不能以数字开头，不能是Java关键字和保留字（已经定义过但未使用的关键字，只有`goto`和`const`这两个）。
+
+> 注意：`true`/`false`/`null`都不是Java关键字！
+>
+> Java关键字一览表：
+>
+> | `abstract`      | `continue` | `for`          | `new`       | `switch`       |
+> | --------------- | ---------- | -------------- | ----------- | -------------- |
+> | `assert`        | `default`  | `goto`(保留字) | `package`   | `synchronized` |
+> | `boolean`       | `do`       | `if`           | `private`   | `this`         |
+> | `break`         | `double`   | `implements`   | `protected` | `throw`        |
+> | `byte`          | `else`     | `import`       | `public`    | `throws`       |
+> | `case`          | `enum`     | `instanceof`   | `return`    | `transient`    |
+> | `catch`         | `extends`  | `int`          | `short`     | `try`          |
+> | `char`          | `final`    | `interface`    | `static`    | `void`         |
+> | `class`         | `finally`  | `long`         | `strictfp`  | `volatile`     |
+> | `const`(保留字) | `float`    | `native`       | `super`     | `while`        |
+
 # §2 基础语法
 
 ## §2.1 数据类型
@@ -69,12 +93,19 @@ Java支持全局Unicode。
 | `float`   | ×         | √~缩~  | √~缩~   | √~缩~  | √~缩~ | √~缩~  |            | √~放~      |
 | `double`  | ×         | √~缩~  | √~缩~   | √~缩~  | √~缩~ | √~缩~  | √~缩~      |            |
 
-> 注意：缩小转换必须使用显示校正。
+> 注意：缩小转换必须使用显式校正。
 >
 > ```java
 > int a = 10;
 > byte b = a; // 报错
 > byte = (byte) a // 可执行
+> ```
+
+> 注意：字符串不能直接转换为基本类型，需要使用`XXX.parseXXX(String)`来转换：
+>
+> ```java
+> String string = "100";
+> int integer = Integer.parseInt(string);
 > ```
 
 ### §2.1.1 `boolean`
@@ -1713,6 +1744,159 @@ String[] filelist = dir.list(
 MyObject::myFunction
 ```
 
+### §2.13.2 函数式方式
+
+lambda表达式源于函数式编程语言和风格，在以下情境中被广泛应用：
+
+- 流过滤器
+
+  ```java
+  public class Demo {
+      public static void main(String[] args) {
+          String[] duplicated_pupils_StringArray = {"Mike","Alice","BOB","ALICE","MIKE","mike","bob"};
+          List<String> duplicated_pupils_ListString = Arrays.asList(duplicated_pupils_StringArray);
+          String search = "mike";
+          String mike = duplicated_pupils_ListString.stream()
+                  .filter(s -> s.equalsIgnoreCase(search))
+                  .collect(Collectors.joining(","));
+          System.out.println(mike); // Mike,MIKE,mike
+      }
+  }
+  ```
+
+  在这个例子中，`filter()`接受一个lambda表达式，先将流拆成各个小节，再将小节依次传入`s`，调用`equalsIgnoreCase(search)`方法，将小节与`search`进行忽视大小写的比较，返回一个`Predicate`接口实例作为整个lambda表达式的值，最后将该实例传入`filter()`方法中判断是否留下该小节。
+
+  `Predicate`接口定义于`java.util.function`中，定义了一系列逻辑方法：
+
+  ```
+  Predicate<String> orOperation =
+  	(s -> s.equalsIgnoreCase(search)).or(s -> s.equals("Bob"));
+  ```
+
+- 映射
+
+  Java 8种的映射模式使用`java.util.function`中定义的`Function<T,R>`接口实现。
+
+  ```java
+  public class Demo {
+      public static void main(String[] args) {
+          String[] duplicated_pupils_StringArray = {"Mike","Alice","BOB","ALICE","MIKE","mike","bob"};
+          List<String> duplicated_pupils_ListString = Arrays.asList(duplicated_pupils_StringArray);
+          List<Integer> namesLength = duplicated_pupils_ListString.stream()
+                  .map(String::length) // 映射到String类定义的length()方法
+                  .collect(Collectors.toList());
+          System.out.println(namesLength); // [4,5,3,5,4,4,3]
+      }
+  }
+  ```
+
+- 遍历
+
+  `forEach()`接受一个`Consumer`接口实例。
+
+  ```java
+  public class Demo{
+      public static void main(String[] args){
+          List<String> list = Arrays.asList("hello","world","!");
+          
+          // 以下两种方法完全等价
+          list.stream().forEach(System.out::println); // hello world !
+      	list.stream().forEach(s -> System.out.println(s));
+      }
+  }
+  ```
+
+- 化简
+
+  `reduce`方法有两个参数，分别为初始值/单位值和lambda表达式，能将初始值与传入的第一个值传入lambda表达式进行计算，将得到的结果再与第二个值进行运算，如此往复，实现“累加”的效果，可表示为$f(x_1,x_2,...x_n)=f(x_n,f(x_{n-1,}f(x_{n-2},(...))))$。
+
+  ```java
+  public class Demo {
+      public static void main(String[] args) {
+          double sum = (double) Stream.of(1,2,3,4,5)
+                  .reduce(0,(x,y)->{return x+y;});
+          System.out.println(sum); // 15.0
+      }
+  }
+  ```
+
+### §2.13.3 流API
+
+在Java 8的lambda表达式诞生之前，`Collections`类内设计的所有方法都没有考虑任何函数式运算的兼容性问题。为了解决这个问题，Java 8引入了`Stream`类，可以直接使用`stream()`方法在`Collections`实例与`Stream`实例之间互相转化，具体过程如下：
+
+```mermaid
+graph LR
+	Collections["Collections"]
+	Stream["Stream"]
+	Collections--"stream()"-->Stream
+	Stream--"filter()"-->Stream
+	Stream--"flatMap()/map()"-->Stream
+	Stream--"collect()"-->Collections
+```
+
+#### §2.13.3.1 惰性求值
+
+相比于其他数据结构，`Stream`最特殊的一个地方就是它可以在某些情况下不占用任何空间，就能提供指定的数据，数据数量甚至可以达到无限。这使得我们不能轻易地将`Stream`转化为`Collection`，否则内存很快就会耗尽。例如下面就是一个不断输出平方数的无限流：
+
+```java
+class SquareGenerator implements IntSupplier{
+    private int current =1;
+    @Override public synchronized int getAsInt(){
+        int result = current*current;
+        current++;
+        return result;
+    }
+}
+
+public class Demo {
+    public static void main(String[] args) {
+        IntStream squares = IntStream.generate(new SquareGenerator());
+        PrimitiveIterator.OfInt stepThrough = squares.iterator();
+        for(int i=0;i<10;i++){
+            System.out.println(stepThrough.nextInt());
+        }
+        System.out.println("First iterator done.");
+        for(int i=0;i<10;i++){
+            System.out.println(stepThrough.nextInt());
+        }
+        System.out.println("Second iterator done.");
+        for(int i=0;i<10;i++){
+            System.out.println(stepThrough.nextInt());
+        }
+        System.out.println("Third iterator done.");
+        // ......
+    }
+}
+```
+
+为了处理流，我们必须改变过去的方式，只有当需要时才从流中取出元素，也就是按需读取下一个元素。这种特殊需求对应的的关键技术被称为惰性求值(Eager Evaluation)：
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        String[] famousQuotesStringArray = {
+                "To be or not to be, this is a question.", // 10个词
+                "An apple a day keeps doctor away.", // 7个词
+                "You jump, I jump", // 4个词
+                "What's the price of this T-shirt?" // 6个词
+        }; // 总共10+7+4+6=27 
+        List<String> famousQuotesListString = Arrays.asList(famousQuotesStringArray);
+        List<String> words = famousQuotesListString.stream() // List实例转化为Stream实例
+                /* flatMap()将Stream流拆成单行字符串作为line
+                 * 将line导入lanmbda表达式中,由split()方法拆成单词构成的数组
+                 * 最终Stream.of()根据单行单词数组生成对应的Stream流
+                 * flatMap()将这些Stream流合并到一个总体的Stream流中
+                 */
+            	.flatMap(line -> Stream.of(line.split(" ")))
+                .collect(Collectors.toList());
+        int wordCount = words.size();
+        System.out.println(wordCount); // 27
+    }
+}
+```
+
+
+
 ## §2.14 集合
 
 集合是Java支持的基本数据结构之一，本质上是一系列泛型接口，作为很多编程方式的抽象，囊括了绝大多数基本程序包。
@@ -2067,13 +2251,101 @@ public interface Queue<E> extends Collection<E>{
 
 - 添加方法
   - `add()`：该方法在`Collection`接口中已被定义，只是按照常规的方法添加元素。如果队列有界且已满，则会抛出异常。
-  - `offer()`：当队列有界且已满时仅返回`false`而不会抛出异常。
+  - `offer()`：当队列有界且已满时仅返回`false`而不会抛出异常。`BlockingQueue`重载了该方法，如果队列已满，会在指定的时间内等待空间。
+  - `put()`：定义于`BlockingQueue`接口中，如果队列已满，则一直等待空间，该方法会阻塞线程。
+- 移除方法
+  - `remove()`：定义于`Collection`接口中，将指定的元素从队列中移除。`Queue`接口重载了该方法提供了一个没有参数的方法，用于删除并返回队首的元素。
+  - `poll()`：定义于`Queue`接口，与`remove()`功能类似，但是当队列为空时只是返回`null`而非抛出异常。`BlockingQueue`重载了该方法，如果队列为空，会在指定的时间内等待空间。
+  - `take()`：定义于`BlockingQueue`接口中，如果队列为空，则一直等待元素，该方法会阻塞线程。
+  - `drainTo()`：定义于`BlockingQueue`接口中，将队列中所有的元素添加到`Collection`实例中。
+- 查询方法
+  - `element()`：定义于`Queue`接口中，返回队首的元素，若列表为空则抛出`NoSuchElementException`异常。
+  - `peek()`：定义于`Queue`接口中，与`element()`功能类似，但队列为空时仅返回`null`而不抛出异常。
 
-### §2.14.6
+### §2.14.6 集合的包装方法
 
+`java.util.Collections`类定义了一系列集合的包装方法，支持线程安全、写入保护和运行时类型检查。
 
+#### §2.14.6.1 线程安全性
 
-### §2.14.7
+`java.util`中有大量的集合类型，这其中除了过时的`Vector`和`Hashtable`外，都没有`synchronized`修饰，不能禁止多个线程并发访问。为了达到线程安全的目的，我们可以使用如下方式创建线程安全的集合：
+
+```java
+List<String> list = Collections.synchronizedList(new ArrayList<>(Arrays.asList("1","2","3")));
+Set<String> strings = Collections.synchronizedSet(new HashSet<>(Arrays.asList("a","b","c")));
+Map<Integer,String> map = Collections.synchronizedMap(new HashMap<Integer,String>());
+```
+
+#### §2.14.6.2 写入保护
+
+```java
+List<Integer> primes = new ArrayList<Integer>();
+List<Integer> readOnly = Collections.unmodifiableList(primes);
+
+primes.addAll(Arrays.asList(2,3,5,7,11,13,17)); // 操作成功
+readOnly.add(19); // 抛出UnsupportedOperationException异常
+```
+
+### §2.14.7 辅助方法
+
+`Collections`类提供了大量用于操作的方法：
+
+```java
+public class Demo{
+    public static void main(String[] args){
+        List<Integer> list = new ArrayList<Integer>(Arrays.asList(1,6,2,5,3,4)); // list=[1,6,2,5,3,4]
+        Collections.sort(list); // list=[1,2,3,4,5,6]
+
+        System.out.println(Collections.binarySearch(list,5)); // 根据元素查找索引,4
+
+        List<Integer> list1 = new ArrayList<Integer>(Arrays.asList(6,5,4)); // list1=[6,5,4]
+        List<Integer> list2 = new ArrayList<Integer>(Arrays.asList(1,2,3,4)); // list2=[1,2,3,4]
+
+        Collections.copy(list2,list1); // 将list1复制到list2(list2容量必须大于等于list1容量),list2=[6,5,4,4]
+
+        Collections.fill(list,new Integer(7)); // list=[7,7,7,7,7,7]
+        System.out.println(Collections.max(list1)); // 返回最大值,6
+        System.out.println(Collections.min(list1)); // 返回最小值,4
+
+        Collections.reverse(list1); // list1=[4,5,6]
+        Collections.shuffle(list1); // list1=[6,4,5]
+    }
+}
+```
+
+`Collections`类定义了一些返回空集合的方法，通常情况下我们表示空集合时用的是`null`，这种方法存在诸多弊端，最好使用返回空集合的方法：
+
+```java
+Set<Integer> set = Collections.emptySet();
+List<String> list = Collections.emptyList();
+Map<String,Integer> map = Collections.emptyMap();
+```
+
+对象数组的操作与之类似：
+
+```java
+public class Demo{
+    public static void main(String[] args){
+        Set<Integer> set = Collections.emptySet();
+        List<String> list = Collections.emptyList();
+        Map<String,Integer> map = Collections.emptyMap();
+
+        String[] strings = {"hello","world"};
+        List<String> fixedList = Arrays.asList(strings); // 生成长度不可变的列表
+        fixedList.add("!"); // UnsupportedOperationException
+        List<String> variableList = new ArrayList<String>(fixedList); // 生成长度可变的列表
+		variableList.add("!"); // 操作成功
+        
+        Set<String> abc = new HashSet<String>(Arrays.asList("a","b","c"));
+        Object[] members = set.toArray();
+        Object[] items = list.toArray();
+        Object[] keys = map.keySet().toArray();
+        Object[] values = map.values().toArray();
+
+        String[] c = list.toArray(new String[0]); // List<String>->String[]
+    }
+}
+```
 
 # §3 面向对象设计
 
