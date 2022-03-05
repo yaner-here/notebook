@@ -162,6 +162,15 @@ double double_variable_2 = 123L; // 整数型字面量后
 
 > 注意：Java在计算$0\div0$时会抛出`ArithmeticException`异常。
 
+除了直接指定十进制数，我们也可以使用`0b<binaryDigits>`的方法按位给出二进制数：
+
+```java
+byte b = 0b0000_1000;
+System.out.println(b); // 8
+b = 0b_1000_0001; // -120
+System.out.println(b)l //
+```
+
 ### §2.1.4 `float`、`double`
 
 ```java
@@ -176,6 +185,74 @@ float float_variable_1 = 1.25f // 浮点数字面量后加f指定float
 > ```java
 > double double_variable_4 = 0.0/0.0; // NaN
 > ```
+
+Java与大多数语言都严格执行`IEEE-754`标准来计算浮点数，这样就不能避免该标准运算精度的局限性：
+
+```python
+C:/>python
+	Python 3.9.5 (default, May 18 2021, 14:42:02) [MSC v.1916 64 bit (AMD64)] :: Anaconda, Inc. on win32
+	Type "help", "copyright", "credits" or "license" for more information.
+	>>> 0.2-0.3
+		-0.09999999999999998
+```
+
+```java
+System.out.println(0.2-0.3); // -0.09999999999999998
+```
+
+`IEEE-754`作为最广泛使用的浮点数计算标准，被各大平台、架构和操作系统支持。如果不考虑兼容性的话，我们可以使用Java提供的`java.math.BigDemical`类，实现任意精度的浮点数运算：
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        double doubleNum = 0.1234567891145141919810;
+        BigDecimal bigDecimalNumByDouble = new BigDecimal(0.1234567891145141919810);
+        BigDecimal bigDecimalNumByString = new BigDecimal("0.1234567891145141919810");
+
+        System.out.println(doubleNum); // 0.12345678911451419
+        System.out.println(bigDecimalNumByDouble); // 未定义行为,0.12345678911451418713340899557806551456451416015625
+        System.out.println(bigDecimalNumByString); // 0.1234567891145141919810
+
+        BigDecimal one = new BigDecimal(BigInteger.ONE);
+        one.divide(new BigDecimal("3"));
+        System.out.println(one); //抛出java.lang.ArithmeticException异常: Non-terminating decimal expansion; no exact representable decimal result.
+    }
+}
+```
+
+`java.lang.Math`是Java的数学函数标准库，提供了`abs()`、(反)三角/双曲线函数、`max()`/`min()`、`floor()`/`ceil()`、`pow(a,b)`/`exp()`/`log()`/`log10()`等函数：
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        System.out.println("Math.abs(-1) returns " + Math.abs(-1));
+        System.out.println("Math.sin(Math.PI/2) returns " + Math.sin(Math.PI/2));
+        System.out.println("Math.cos(0) returns " + Math.cos(0));
+        System.out.println("Math.max(-3,2) returns " + Math.max(-3,2));
+        System.out.println("Math.min(-3.2) returns " + Math.min(-3,2));
+        System.out.println("Math.pow(1.5,2) returns " + Math.pow(1.5,2));
+        System.out.println("Math.exp(2) returns " + Math.exp(2));
+        System.out.println("Math.log(Math.E) returns " + Math.log(Math.E));
+        System.out.println("Math.log10(100_0000) returns " + Math.log10(100_0000));
+        System.out.println("Math.random() returns " + Math.random());
+    /*
+		Math.abs(-1) returns 1
+		Math.sin(Math.PI/2) returns 1.0
+		Math.cos(0) returns 1.0
+		Math.max(-3,2) returns 2
+		Math.min(-3.2) returns -3
+		Math.pow(1.5,2) returns 2.25
+		Math.exp(2) returns 7.38905609893065
+		Math.log(Math.E) returns 1.0
+		Math.log10(100_0000) returns 6.0
+		Math.random() returns 0.013475721977882715
+	 */
+    }
+}
+
+```
+
+
 
 ## §2.2 运算符
 
@@ -1834,7 +1911,7 @@ graph LR
 	Stream--"collect()"-->Collections
 ```
 
-#### §2.13.3.1 惰性求值
+### §2.13.4 惰性求值
 
 相比于其他数据结构，`Stream`最特殊的一个地方就是它可以在某些情况下不占用任何空间，就能提供指定的数据，数据数量甚至可以达到无限。这使得我们不能轻易地将`Stream`转化为`Collection`，否则内存很快就会耗尽。例如下面就是一个不断输出平方数的无限流：
 
@@ -1879,7 +1956,7 @@ public class Demo {
                 "An apple a day keeps doctor away.", // 7个词
                 "You jump, I jump", // 4个词
                 "What's the price of this T-shirt?" // 6个词
-        }; // 总共10+7+4+6=27 
+        }; // 总共10+7+4+6=27个词
         List<String> famousQuotesListString = Arrays.asList(famousQuotesStringArray);
         List<String> words = famousQuotesListString.stream() // List实例转化为Stream实例
                 /* flatMap()将Stream流拆成单行字符串作为line
@@ -2346,6 +2423,203 @@ public class Demo{
     }
 }
 ```
+
+## §2.15 字符串
+
+### §2.15.1 不可变性
+
+字符串的不可变性指的是：选定组成字符串的字符并创建`String`对象后，字符串的内容就不可能改变了，改变的只能是新字符串分配的空间和字符串指针变量指向的位置。
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        String a = "a";
+        String b = "b";
+        System.out.println(a + b); // ab
+    }
+}
+```
+
+以上代码使用了`+`运算符，该运算符的实质是使用了中间变量`StringBuilder`类：
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        String a = "a";
+        String b = "b";
+        StringBuilder stringBuilder = new StringBuilder(a);
+        stringBuilder.append(b);
+        String c = stringBuilder.toString();
+        System.out.println(c); // ab
+    }
+}
+```
+
+### §2.15.2 正则表达式
+
+Java使用定义在`java.util.regex`包中的`Pattern`类表示正则表达式。该类不能直接调用构造方法，必须使用`.compile()`方法才能创建实例。
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        Pattern pattern = Pattern.compile("colou?r"); // ?代表前一个字母可选
+
+        String UKStyle = "I like these colours.";
+        String USStyle = "I like these colors";
+        String misspellingStyle = "I like these clors";
+        Matcher UKMatcher = pattern.matcher(UKStyle);
+        Matcher USMatcher = pattern.matcher(USStyle);
+        Matcher misspellingMatcher = pattern.matcher(misspellingStyle);
+
+        System.out.println("Pattern matches Uk style? : " + UKMatcher.find());
+        System.out.println("Pattern matches US style? : " + USMatcher.find());
+        System.out.println("Pattern matches misspelling style? : " + misspellingMatcher.find());
+        // Pattern matches Uk style? : true
+		// Pattern matches US style? : true
+		// Pattern matches misspelling style? : false
+    }
+}
+```
+
+| 元字符  | 意义                         | 备注                      |
+| ------- | ---------------------------- | ------------------------- |
+| `?`     | 前一个字符出现0次或1次       |                           |
+| `*`     | 前一个字符出现0次或多次      |                           |
+| `+`     | 前一个字符出现1次或多次      |                           |
+| `{M,N}` | 前一个字符出现次数$\in[m,n]$ |                           |
+| `\d`    | 一个数字字符                 |                           |
+| `\D`    | 一个非数字字符               |                           |
+| `\w`    | 一个组成单词的字符           | 包括数字、字母、下划线`_` |
+| `\W`    | 一个不能组成单词的字符       |                           |
+| `\s`    | 一个空白字符                 |                           |
+| `\S`    | 一个非空白字符               |                           |
+| `\n`    | 一个换行符                   |                           |
+| `\t`    | 一个制表符                   |                           |
+| `.`     | 一个任意字符                 | Java中不包含换行符        |
+| `[]`    | 方括号内的任意一个字符       | 称为字符组                |
+| `()`    | 构成一组模式元素             | 成为组/捕获组             |
+| `|`     | 定义可选值                   | 实现逻辑或                |
+| `^`     | 字符串的开头                 |                           |
+| `$`     | 字符串的末尾                 |                           |
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        String patternString = "\\d"; // patternString=\d
+        String text = "Iphone 9";
+        Pattern pattern = Pattern.compile(patternString);
+        Matcher matcher = pattern.matcher(text);
+        System.out.println(patternString + " matches " + text + "? " + matcher.find());
+        System.out.println(" ; match: " + matcher.group());
+		// \d matches Iphone 9? true ; match: 9
+        
+        // patternString = "[a..zA..Z]"; "a..z"语法已被废弃,应该使用a-z
+        // 或者"[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]"全打一遍
+        patternString = "[a-zA-Z]";
+        pattern = Pattern.compile(patternString);
+        matcher = pattern.matcher(text);
+        System.out.println(patternString + " matches " + text + "? " + matcher.find());
+        System.out.println(" ; match: " + matcher.group());
+        // [a-zA-Z] matches Iphone 9? true ; match: I
+
+        patternString = "([a..jA..J]*)";
+        pattern = Pattern.compile(patternString);
+        matcher = pattern.matcher(text);
+        System.out.println(patternString + " matches " + text + "? " + matcher.find());
+        System.out.println(" ; match: " + matcher.group());
+        // ([a..jA..J]*) matches Iphone 9? true ; match:
+        
+        text = "abacab";
+        patternString = "a....b";
+        pattern = Pattern.compile(patternString);
+        matcher = pattern.matcher(text);
+        System.out.println(patternString + " matches " + text + "? " + matcher.find());
+        System.out.println(" ; match: " + matcher.group());
+		// a....b matches abacab? true ; match: abacab
+    }
+}
+```
+
+结合之前讲过的过滤器模式和`asPredicate`函数，我们就可以将正则表达式`Pattern`实例转化成`Predicate`接口实例，而lambda表达式也是`Predicate`接口实例，即实现了正则表达式到lambda表达式的转化：
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        String patternString = "\\d";
+        Pattern pattern = Pattern.compile(patternString);
+        String[] inputs = {"Ubuntu","Ubuntu 20.04","WSL2"};
+        List<String> list = Arrays.asList(inputs);
+        List<String> containDigits = list.stream()
+                .filter(pattern.asPredicate())
+                .collect(Collectors.toList());
+        System.out.println(containDigits); // [Ubuntu 20.04, WSL2]
+    }
+}
+```
+
+## §2.16 日期与时间
+
+Java 8引入了一个新包`java.time`，用于处理日期与时间，包含以下四个子包：
+
+- `java.time.chrono`：支持非ISO标准的计时法
+- `java.time.format`：将日期对象与字符串互相转换
+- `java.time.temporal`：定义日期和时间所需的核心接口
+- `java.time.zone`：底层时区规则使用的类
+
+### §2.16.1 时间戳
+
+一个时间戳可以分解为以下部分：
+
+|                 | 5    | March | 2022 | 11:31 | AM   | GMT  |
+| --------------- | ---- | ----- | ---- | ----- | ---- | ---- |
+| `ZonedDateTime` | √    | √     | √    | √     | √    | √    |
+| `LocalDateTime` | √    | √     | √    | √     | √    |      |
+| `LocalDate`     | √    | √     | √    |       |      |      |
+| `LocalTime`     |      |       |      | √     | √    |      |
+| `Zonedld`       |      |       |      |       |      | √    |
+
+```java
+class BirthdayDiary {
+    private Map<String, LocalDate> birthdays;
+    public BirthdayDiary(){
+        birthdays = new HashMap<>();
+    }
+    public LocalDate addBirthday(String name,int year,int month,int day){
+        LocalDate birthday = LocalDate.of(year,month,day);
+        birthdays.put(name,birthday);
+        return birthday;
+    }
+    public int getAgeInYear(String name,int year){
+        Period period = Period.between(birthdays.get(name),birthdays.get(name).withYear(year));
+        return period.getYears();
+    }
+    public Set<String> getFriendsOfAgeIn(int age,int year){
+        return birthdays.keySet().stream()
+                .filter(p -> getAgeInYear(p,year) == age)
+                .collect(Collectors.toSet());
+    }
+    public int getDaysUntilBirthday(String name){
+        Period period = Period.between(LocalDate.now(),birthdays.get(name));
+        return period.getDays();
+    }
+    public Set<String> getBirthdaysIn(Month month){
+        return birthdays.entrySet().stream()
+                .filter(p -> p.getValue().getMonth() == month)
+                .map(p -> p.getKey())
+                .collect(Collectors.toSet());
+    }
+    public Set<String> getBirthdaysInNextMonth(){
+        return getBirthdaysIn(LocalDate.now().getMonth());
+    }
+    public int getTotalAgeInYears(){
+        return birthdays.keySet().stream()
+                .mapToInt(p -> getAgeInYear(p,LocalDate.now().getYear()))
+                .sum();
+    }
+}
+```
+
+
 
 # §3 面向对象设计
 
