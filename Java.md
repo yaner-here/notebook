@@ -2570,7 +2570,7 @@ Java 8引入了一个新包`java.time`，用于处理日期与时间，包含以
 
 一个时间戳可以分解为以下部分：
 
-|                 | 5    | March | 2022 | 11:31 | AM   | GMT  |
+| 时间戳          | 5    | March | 2022 | 11:31 | AM   | GMT  |
 | --------------- | ---- | ----- | ---- | ----- | ---- | ---- |
 | `ZonedDateTime` | √    | √     | √    | √     | √    | √    |
 | `LocalDateTime` | √    | √     | √    | √     | √    |      |
@@ -2598,9 +2598,11 @@ class BirthdayDiary {
                 .filter(p -> getAgeInYear(p,year) == age)
                 .collect(Collectors.toSet());
     }
-    public int getDaysUntilBirthday(String name){
-        Period period = Period.between(LocalDate.now(),birthdays.get(name));
-        return period.getDays();
+    public long getDaysUntilBirthday(String name){
+        return ChronoUnit.DAYS.between(
+                birthdays.get(name),
+                LocalDate.now()
+        );
     }
     public Set<String> getBirthdaysIn(Month month){
         return birthdays.entrySet().stream()
@@ -2615,6 +2617,315 @@ class BirthdayDiary {
         return birthdays.keySet().stream()
                 .mapToInt(p -> getAgeInYear(p,LocalDate.now().getYear()))
                 .sum();
+    }
+}
+public class Demo {
+    public static void main(String[] args) {
+        BirthdayDiary birthdayDiary = new BirthdayDiary();
+        birthdayDiary.addBirthday("Alice",2000,3,9);
+        System.out.println(birthdayDiary.getDaysUntilBirthday("Alice"));
+    }
+}
+```
+
+### §2.16.2 `TemporalQuery`接口
+
+Java提供了`TemporalQuery`接口，用于查询时间戳相关的信息：
+
+```java
+@FunctionalInterface public interface TemporalQuery<R>{
+    R queryFrom(TemporalAccessor temporal);
+}
+```
+
+例如我们需要得知今天属于哪个季度，原本需要编写以下代码：
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        LocalDate today = LocalDate.now();
+        Month todayMonth = today.getMonth();
+        Month firstMonthQuarter = todayMonth.firstMonthOfQuarter();
+        switch (firstMonthQuarter.getValue()){
+            case 1:
+                System.out.println("Now is the first quarter of the year.");
+                break;
+            case 4:
+                System.out.println("Now is the second quarter of the year.");
+                break;
+            case 7:
+                System.out.println("Now is the third quarter of the year.");
+                break;
+            case 10:
+                System.out.println("Now is the fourth quarter of the year.");
+                break;
+        }
+    }
+}
+```
+
+现在有了`TemporalQuery`接口，就可以大幅简化主函数：
+
+```java
+enum YearQuarter{
+    first,second,third,fourth;
+}
+
+class YearQuarterQuery implements TemporalQuery<YearQuarter>{
+    @Override public YearQuarter queryFrom(TemporalAccessor temporal){
+        LocalDate now = LocalDate.from(temporal);
+        if(now.isBefore(now.with(Month.APRIL).withDayOfMonth(1))){
+            return YearQuarter.first;
+        }else if(now.isBefore(now.with(Month.JULY).withDayOfMonth(1))){
+            return YearQuarter.second;
+        }else if(now.isBefore(now.with(Month.NOVEMBER).withDayOfMonth(1))){
+            return YearQuarter.third;
+        }else{
+            return YearQuarter.fourth;
+        }
+    }
+}
+
+public class Demo {
+    public static void main(String[] args) {
+        YearQuarterQuery yearQuarterQuery = new YearQuarterQuery();
+        
+        // 直接使用
+        YearQuarter yearQuarter = yearQuarterQuery.queryFrom(LocalDate.now());
+        System.out.println(yearQuarter);
+        
+        // 间接使用
+        /*
+            @SuppressWarnings("unchecked") @Override public <R> R query(TemporalQuery<R> query) {
+                if (query == TemporalQueries.localDate()) {
+                    return (R) this;
+                }
+                return ChronoLocalDate.super.query(query);
+            }
+         */
+        yearQuarter = LocalDate.now().query(yearQuarterQuery);
+        System.out.println(yearQuarter);
+    }
+}
+```
+
+### §2.16.3 调节器
+
+调节器用于更改日期和时间对象。
+
+```java
+class QuarterFirstDay implements TemporalAdjuster{
+    @Override public Temporal adjustInto(Temporal temporal){
+        final int currentQuarter = YearMonth.from(temporal).get(IsoFields.QUARTER_OF_YEAR);
+        switch(currentQuarter){
+            case 1:
+                return LocalDate.from(temporal)
+                        .with(TemporalAdjusters.firstDayOfYear());
+            case 2:
+                return LocalDate.from(temporal)
+                        .withMonth(Month.APRIL.getValue())
+                        .with(TemporalAdjusters.firstDayOfMonth());
+            case 3:
+                return LocalDate.from(temporal)
+                        .withMonth(Month.JULY.getValue())
+                        .with(TemporalAdjusters.firstDayOfMonth());
+            case 4:
+                return LocalDate.from(temporal)
+                        .withMonth(Month.OCTOBER.getValue())
+                        .with(TemporalAdjusters.firstDayOfMonth());
+            default:
+                return null;
+        }
+    }
+}
+
+public class Demo {
+    public static void main(String[] args) {
+        LocalDate now = LocalDate.now();
+        Temporal quarterFirstDay = now.with(new QuarterFirstDay());
+        System.out.println(quarterFirstDay); // 2022-01-01
+    }
+}
+```
+
+### §2.16.4 过时的时间API
+
+前面我们提到，Java 8引入了一个新包`java.time`。在这之前，开发者只能使用`java.util.Date`处理日期与时间，这是旧版本唯一一个能处理日期与时间的包。
+
+## §2.17 文件与I/O
+
+`File`类是旧版本Java处理文件I/O的基础，既能表示文件，也能表示目录：
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        File homeDir = new File(System.getProperty("user.home"));
+        File file = new File(homeDir,"app.conf");
+        if(file.exists() && file.isFile() && file.canRead()){
+            File configDir = new File(file,".configDir");
+            configDir.mkdir();
+            file.renameTo(new File(configDir,".config"));
+        }
+    }
+}
+```
+
+### §2.17.1 文件
+
+```java
+public class Demo{
+    public static void main(String[] args){
+        File homeDir = new File(System.getProperty("user.name"));
+        File file = new File(homeDir,"app.conf");
+        
+        // 获取权限信息
+        boolean canExecute = file.canExecute();
+        boolean canRead = file.canRead();
+        boolean canWrite = file.canWrite();
+
+        // 设置权限信息
+        boolean ok;
+        ok = file.setReadOnly(); // 设为只读
+        ok = file.setExecutable(true); // 设置是否可执行
+        ok = file.setReadable(true); // 设置是否可读
+        ok = file.setWritable(false); // 设置是否可写
+
+        // 获取文件名与文件路径
+        File absolutePathFile = file.getAbsoluteFile(); // 绝对路径
+        File canonicalPathFile = file.getCanonicalFile(); // 相对路径
+        String absolutePath = file.getAbsolutePath(); // 绝对路径字符串
+        String canonicalPath = file.getCanonicalPath(); // 相对路径字符串
+        String fileName = file.getName(); // 文件名
+        String parentName = file.getParent(); // 父级目录名
+        URI URIPath = file.toURI(); // URI格式的文件路径
+
+        boolean exists = file.exists(); // 文件是否存在
+        boolean isAbsolutePath = file.isAbsolute(); // 路径是否为绝对路径
+        boolean isDir = file.isDirectory(); // File指向的是否为文件夹
+        boolean isFile = file.isFile(); // File指向的是否为文件
+        boolean isHidden = file.isHidden(); // 文件是否隐藏
+        long modifiedTime = file.lastModified(); // 返回long型的最后修改时间的时间戳
+        boolean updateOK = file.setLastModified(updateTime); // 提供一个long型时间戳,设置修改时间
+        long fileLength = file.length(); // 文件空间字节数
+        
+        boolean renamed = file.renameTo(destFile); // 文件重命名
+        boolean deleted = file.delete(); // 文件删除
+        
+        boolean createdOK = file.createNewFile(); // 创建新闻
+        
+        File tmp = File.createTempFile("my-tmp",".tmp"); // 新建临时文件
+        tmp.deleteOnExit(); // 退出时删除临时文件
+        
+        boolean createDir = homeDir.mkdir(); // 创建目录
+        String[] fileNames = homeDir.list(); // 列举该目录下的所有文件名
+        File[] files = homeDir.listFiles(); // 列举该目录下的所有文件
+        
+        long free,total,usable;
+        free = file.getFreeSpace();
+        total = file.getTotalSpace();
+        usable = file.getUsableSpace();
+        File[] roots = File.listRoots();
+    }
+}
+```
+
+### §2.17.2 流
+
+这里提到的I/O流于Java 1.0就被引入，不是Java 8种引入的集合API。I/O流用于处理硬盘、网络等数据源发送的连续字节流，其核心是`InputStream`和`OutputStream`这两个抽象类。这两个抽象类经常后继为各式子类，例如`System.out.println()`使用的是`FilterOutputStream`类，文件流使用的是`FileStream`类：
+
+```java
+public final class System{
+    // ...
+    public static final PrintStream out = null;
+    // ...
+}
+
+public class PrintStream extends FilterOutputStream{
+    // ...
+    public void println(@Nullable String x){
+        // ...
+    }
+    // ...
+}
+
+public class FilterOutputStream extends OutputStream {
+    // ...
+}
+```
+
+```java
+public class Demo{
+    public static void main(String[] args){
+        try(InputStream inputStream = new FileInputStream("C:/Users/Administrator/Desktop/test.txt")){
+            byte[] buffer = new byte[4096];
+            int length = inputStream.read(buffer);
+            int counter = 0;
+            while(length > 0){
+                for(byte character : buffer){
+                    counter = counter + (character == 97 ? 1 : 0);
+                }
+                length = inputStream.read();
+            }
+            System.out.printf("该文件共含有%d个小写字母a.",counter);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+### §2.17.3 `Reader`类和`Writer`类
+
+在[§2.17.2 流](#§2.17.2 流)一节中我们提到，我们可以使用`FileStream`类来代替`File`类，将文件的字节整体抽象为字符流。在此基础上，我们就可以再进一步，使用更加抽象的`Reader`类和`Writer`类，处理各种字符编码，无需顾及底层I/O流，相关的子类有`FileReader`、`BufferedReader`、`InputStreamReader`、`FileWriter`、`PrintWriter`、`BufferedWriter`。
+
+```java
+public class FileReader{ // 按行输出文件内容
+    public static void main(String[] args){
+        try(BufferedReader bufferedReader = new BufferedReader(new FileReader("C:/test.txt"))){
+            String line = bufferedReader.readLine();
+            while(line != null){
+                System.out.println(line);
+                line = bufferedReader.readLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+```
+
+```java
+public class ChatroomCommand{ // 识别命令行输入的文本是否为指令
+    public static void main(String[] args){
+        Pattern SHELL_META_START = Pattern.compile("^#(\\w+)\\s*(\\w+)?");
+        try(BufferedReader console = new BufferedReader(new InputStreamReader(System.in))){
+            String line = console.readLine();
+            READ:while(line != null){
+                Matcher matcher = SHELL_META_START.matcher(line);
+                if(matcher.find()){
+                    String metaName = matcher.group(1);
+                    String arg = matcher.group(2);
+                    // do something
+                    continue READ;
+                }
+                System.out.println(line);
+                line = console.readLine();
+            }
+        }catch(IOException ioException){
+
+        }
+    }
+}
+```
+
+```java
+public class WriteFile{ //  
+    public static void main(String[] args){
+        File file = new File(System.getProperty("user.home") + File.separator + ".bashrc");
+        try(PrintWriter printWriter = new PrintWriter(new BufferedWriter(new FileWriter(file)))){
+            System.out.println("## Automatically generated config file. DO NOT EDIT.");
+        }catch(IOException ioException){
+            System.out.println("File Error");
+        }
     }
 }
 ```
