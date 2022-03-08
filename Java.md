@@ -400,6 +400,8 @@ for(initialize;test;update){ // 先执行initialize,然后判断test
 }
 ```
 
+> 注意：当`test`为空时，Java将会认为这是`true`，从而造成死循环。
+
 ### §2.3.11 遍历语句
 
 ```java
@@ -596,15 +598,23 @@ int[][] array_2d; // 二维数组
 
 ### §2.5.1 数组初始化
 
-- `int[] a = new int[]{1,2,3}`
+Java支持`int[] a`和`int a[]`两种静态初始化语法和`int[] a = new int[length]`一种动态初始化语法。与C语言不同的是，Java的静态初始化语法声明数组时不能直接指出数组长度，且声明之后不能立即被访问，因为尚未分配内存空间，需要`array = new int[length]`之后才能使用。动态初始化声明的数组可以立即被访问，Java按以下规则分配初始值：
 
-- `int[] a = {1,2,3}`
+| 数组元素类型                | 初始值      |
+| --------------------------- | ----------- |
+| `byte`/`short`/`int`/`long` | `0`         |
+| `float`/`double`            | `0.0`       |
+| `char`                      | `'0\u0000'` |
+| `boolean`                   | `false`     |
+| 类/接口/数组                | `null`      |
 
-  > 注意：在C语言中`{1,2,3,}`会被判定为`SyntaxError`，但Java会自动忽略末尾多余的逗号。 
+每个数组都有一个`array.length`属性用于计算数组的长度。
 
-- `int[] a = new int[3]`指定元素个数。
+引用类型数组中每个元素存储的都是指针。
 
-  > 注意：数组的`array.length`为`int`型整数，这意味着数组的长度不能超过`int`的最大值`Integer.MAX_VALUE`。
+> 注意：在C语言中`int[] a = {1,2,3,}`会被判定为`SyntaxError`，但Java会自动忽略末尾多余的逗号。 
+
+> 注意：数组的`array.length`为`int`型整数，这意味着数组的长度不能超过`int`的最大值`Integer.MAX_VALUE`。
 
 ### §2.5.2 数组类型放大转换/数组协变
 
@@ -2426,7 +2436,13 @@ public class Demo{
 
 ## §2.15 字符串
 
-### §2.15.1 不可变性
+### §2.15.1 `+`运算符
+
+`ElemType + String`会自动尝试将`ElemType`转化为`String`，然后再讲两者拼接起来。
+
+`String`不能直接转换为`ElemType`，必须使用对应数据类型的`ElemType.parseElemType(String)`方法。
+
+### §2.15.2 不可变性
 
 字符串的不可变性指的是：选定组成字符串的字符并创建`String`对象后，字符串的内容就不可能改变了，改变的只能是新字符串分配的空间和字符串指针变量指向的位置。
 
@@ -2455,7 +2471,7 @@ public class Demo {
 }
 ```
 
-### §2.15.2 正则表达式
+### §2.15.3 正则表达式
 
 Java使用定义在`java.util.regex`包中的`Pattern`类表示正则表达式。该类不能直接调用构造方法，必须使用`.compile()`方法才能创建实例。
 
@@ -2929,6 +2945,299 @@ public class WriteFile{ //
     }
 }
 ```
+
+### §2.17.4 `nio.file`
+
+`java.io.File`存在着以下缺点：
+
+- 没有覆盖对文件所有的操作
+- 在不同的操作系统中不能使用相同规则的文件路径
+- 没有统一的文件读写模型
+- 难以遍历未知的目录结构
+- 线程必堵塞
+
+Java 7引入了全新的`java.nio.File`类，完全解决了上述问题：
+
+```java
+import java.io.File;
+import java.nio.file.*;
+public class WriteFile{
+    public static void main(String[] args){
+        File inputFile = new File("input.txt");
+        try(InputStream inputStream = new FileInputStream(inputFile)){
+            Files.copy(inputStream,Paths.get("output.txt"));
+        }catch(IOException ioException){
+            ioException.printStackTrace();
+        }
+    }
+}
+```
+
+## §2.18 网络
+
+Java支持众多标准网络协议，相关API定义于`java.net`与`javax.net`中。
+
+### §2.18.1 HTTP
+
+`java.net.URL`类用于指定`http`/`ftp`/`file`/`https`协议的链接，通过`URL.openStream()`尝试访问：
+
+```java
+class HttpFetcher{
+    public static void main(String[] args) {
+        try {
+            URL url = new URL("https://www.baidu.com");
+            InputStream inputStream = url.openStream();
+            Files.copy(inputStream,Paths.get("C:/1.txt"));
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        }
+    }
+}
+```
+
+使用`URLConnection`类及其子类可更精细的控制HTTP协议的底层细节：
+
+```java
+class HttpFetcherWithURLConnection{
+    public static void main(String[] args) {
+        try {
+            URL url = new URL("https://www.baidu.com");
+            URLConnection connection = url.openConnection();
+            System.out.println("This webpage's content type is " + connection.getContentType());
+            System.out.println("This webpage's encoding charset is " + connection.getContentEncoding());
+            System.out.println("This webpage's date is " + connection.getLastModified());
+            System.out.println("This webpage's length is " + connection.getContentLength());
+            InputStream inputStream = connection.getInputStream();
+        } catch (IOException ioException){
+            ioException.printStackTrace();
+        }
+
+    }
+}
+```
+
+```java
+class HttpFetcherWithHttpURLConnection{
+    public static void main(String[] args) {
+        try {
+            URL url = new URL("https://www.baidu.com");
+            String rawData = "q=java";
+            String encodedData = URLEncoder.encode(rawData,"ASCII");
+            String contentType = "application/x-www-form=urlencoded";
+
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type",contentType);
+            connection.setRequestProperty("Content-Length",String.valueOf(encodedData.length()));
+            connection.setDoOutput(true);
+            OutputStream outputStream = connection.getOutputStream();
+            outputStream.write(encodedData.getBytes());
+
+            int response = connection.getResponseCode();
+            if (response == HttpURLConnection.HTTP_MOVED_PERM || response == HttpURLConnection.HTTP_MOVED_TEMP){
+                System.out.println("Moved to: " + connection.getHeaderField("Location"));
+            } else {
+                try {
+                    InputStream inputStream = connection.getInputStream();
+                    Files.copy(
+                            inputStream,
+                            Paths.get("C:/Users/闫刚/Desktop/1.txt"),
+                            StandardCopyOption.REPLACE_EXISTING
+                    );
+                } catch (IOException ioException){
+                    ioException.printStackTrace();
+                }
+            }
+
+            System.out.println("This webpage's content type is " + connection.getContentType());
+            System.out.println("This webpage's encoding charset is " + connection.getContentEncoding());
+            System.out.println("This webpage's date is " + connection.getLastModified());
+            System.out.println("This webpage's length is " + connection.getContentLength());
+            InputStream inputStream = connection.getInputStream();
+        } catch (IOException ioException){
+            ioException.printStackTrace();
+        }
+
+    }
+}
+```
+
+### §2.18.2 TCP
+
+Java使用`Socket`类和`ServerSocket`类实现TCP，分别用于客户端与服务器端。
+
+```java
+class HttpFetcher{
+    public static void main(String[] args) {
+        String hostname = "www.baidu.com";
+        String filename = "/index.html";
+        int port = 80;
+        try {
+            Socket socket = new Socket(hostname,port);
+            BufferedReader from = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            PrintWriter to = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
+            to.print("GET " + filename + " HTTP/1.1\r\nHost: " + hostname + "\r\n\r\n");
+            to.flush();
+            for(String line = null;(line = from.readLine())!=null;){
+                System.out.println(line);
+            }
+        } catch (IOException ioException){
+            ioException.printStackTrace();
+        }
+    }
+}
+/*
+	HTTP/1.1 200 OK
+	Accept-Ranges: bytes
+	Cache-Control: no-cache
+	Connection: keep-alive
+	Content-Length: 9508
+	Content-Type: text/html
+	Date: Tue, 08 Mar 2022 01:53:13 GMT
+	P3p: CP=" OTI DSP COR IVA OUR IND COM "
+	P3p: CP=" OTI DSP COR IVA OUR IND COM "
+	Pragma: no-cache
+	Server: BWS/1.1
+	Set-Cookie: BAIDUID=......:FG=1; expires=Thu, 31-Dec-37 23:55:55 GMT; max-age=2147483647; path=/; domain=.baidu.com
+	Set-Cookie: BIDUPSID=......; expires=Thu, 31-Dec-37 23:55:55 GMT; max-age=2147483647; path=/; domain=.baidu.com
+	Set-Cookie: PSTM=......; expires=Thu, 31-Dec-37 23:55:55 GMT; max-age=2147483647; path=/; domain=.baidu.com
+	Set-Cookie: BAIDUID=......:FG=1; max-age=31536000; expires=Wed, 08-Mar-23 01:53:13 GMT; domain=.baidu.com; path=/; version=1; comment=bd
+	Traceid: ......
+	Vary: Accept-Encoding
+	X-Frame-Options: sameorigin
+	X-Ua-Compatible: IE=Edge,chrome=1
+*/
+```
+
+```java
+class HttpHandler implements Runnable{
+    private final Socket socket;
+    HttpHandler(Socket client){
+        this.socket = client;
+    }
+    @Override public void run(){
+        try {
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
+            out.print("HTTP/1.0 200\r\nContent-Type: text/plain\r\n\r\n");
+            String line;
+            while ((line = in.readLine()) != null){
+                if (line.length() == 0){
+                    break;
+                } else {
+                    out.println(line);
+                }
+            }
+        } catch (IOException ioException){
+            ioException.printStackTrace();
+        }
+    }
+    public static void main(String[] args) {
+        try {
+            int port = 12345;
+            ServerSocket serverSocket = new ServerSocket(port);
+            while (true) {
+                Socket client = serverSocket.accept();
+                HttpHandler httpHandler = new HttpHandler(client);
+                new Thread(httpHandler).start();
+            }
+        } catch (Exception exception){
+            exception.printStackTrace();
+        }
+    }
+}
+```
+
+## §2.19 类加载/反射/方法句柄
+
+### §2.19.1 类文件/类对象/元数据
+
+我们知道，Java先将`.java`源码编译成`.class`类文件，然后在JVM上运行。`.class`本质上是一堆字节码，由一系列包含着元数据的类对象进行表示。
+
+在Java中，获取类对象有多种方法：
+
+```java
+class classA { }
+class classB {
+    public static void main(String[] args){
+        Class<?> classC = getClass(); // getClass返回调用该方法的实例对应的类对象,这里是classB
+    	Class<?> classD = (new Object()).getClass(); // Object实例有类似的方法,这里返回的是Object的类对象
+    	Class<?> intClass = int.class;
+        Class<?> byteArrayClass = byte[].class;
+        Class<?> stringClass = String.class;
+        Class<?> VoidClass = Void.TYPE;
+        Class<?> ByteClass = Byte.TYPE;
+        Class<?> IntegerClass = Integer.TYPE;
+        Class<?> DoubleClass = Double.TYPE;
+    }
+}
+```
+
+类对象中的元数据不止用于告知JVM构造步骤，也便于开发者查询类中的信息：
+
+- 查找废弃方法：
+
+  ```java
+  class DeprecatedClass {
+      public void functionA(){}
+      @Deprecated public void functionB(){}
+      public void functionC(){}
+  }
+  class DeprecatedFunctionDetector{
+      public static void main(String[] args) {
+          Class<?> targetClass = DeprecatedClass.class;
+          for (Method method : targetClass.getMethods()){
+              for (Annotation annotation : method.getAnnotations()){
+                  if (annotation.annotationType() == Deprecated.class){
+                      System.out.println(method.getName());
+                      // functionB
+                  }
+              }
+          }
+      }
+  }
+  ```
+
+- 查找共同父类
+
+  ```java
+  class GrandFather{ }
+  class Father1 extends GrandFather{ }
+  class Father2 extends GrandFather{ }
+  class Son1 extends Father1{ }
+  class Son2 extends Father2{ }
+  
+  class CommonAncestorDetector{
+      public static Class<?> commonAncestor(Class<?> class1,Class<?> class2){
+          if (class1 == null || class2 == null){ return null; }
+          if (class1.equals(class2)){ return class1; }
+          if (class1.isPrimitive() || class2.isPrimitive()){ return null; }
+          List<Class<?>> ancestors = new ArrayList<>();
+          Class<?> tempClass = class1;
+          while (!tempClass.equals(Object.class)){
+              if (tempClass.equals(class2)){ return tempClass; }
+              ancestors.add(tempClass);
+              tempClass = tempClass.getSuperclass();
+          }
+          tempClass = class2;
+          while (!tempClass.equals(Object.class)){
+              for (Class<?> i : ancestors){
+                  if (tempClass.equals(i)){ return tempClass; }
+              }
+              tempClass = tempClass.getSuperclass();
+          }
+          return Object.class;
+      }
+      public static void main(String[] args) {
+          Class<?> Ancestor = commonAncestor(Son1.class,Son2.class);
+          System.out.println(Ancestor.getName());
+          // com.exampl
+      }
+  }
+  ```
+
+  
 
 
 
