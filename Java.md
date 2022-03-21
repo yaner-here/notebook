@@ -3011,7 +3011,6 @@ class HttpFetcherWithURLConnection{
         } catch (IOException ioException){
             ioException.printStackTrace();
         }
-
     }
 }
 ```
@@ -3153,7 +3152,17 @@ class HttpHandler implements Runnable{
 
 ### §2.19.1 类文件/类对象/元数据
 
-我们知道，Java先将`.java`源码编译成`.class`类文件，然后在JVM上运行。`.class`本质上是一堆字节码，由一系列包含着元数据的类对象进行表示。
+我们知道，Java先将`.java`源码编译成`.class`类文件，然后在JVM上运行。类文件`.class`本质上是一堆字节码，由一系列包含着元数据的类对象进行表示，按顺序包含以下部分：
+
+- 魔法数`CA FE BA BE`，用于向操作系统说明自己是`.class`文件
+- 类文件标准版本，向后兼容
+- 当前类的常量池
+- 访问标志(即修饰符)，例`public`/`private`/`abstract`等
+- 当前类的名称
+- 继承信息(即超类的名称)
+- 当前类实现的接口
+- 当前类包含的方法
+- 当前类包含的属性
 
 在Java中，获取类对象有多种方法：
 
@@ -3232,9 +3241,70 @@ class classB {
       public static void main(String[] args) {
           Class<?> Ancestor = commonAncestor(Son1.class,Son2.class);
           System.out.println(Ancestor.getName());
-          // com.exampl
+          // com.example.GrandFather
       }
   }
+  ```
+
+
+### §2.19.2 类加载
+
+Java在运行时，会将新类型添加到JVM的进程中，这一过程成为**类加载**，分为以下阶段：
+
+- 加载
+
+  从文件系统/网络位置中读取类文件，并存储在一个字节数组中。`ClassLoader::defineClass()`方法将该字节数组转换为类对象雏形。虽然该方法返回的是`Class<?>`，但是此时返回的类对象不完整，仍然不能使用。
+
+- 链接
+
+  链接阶段会依次经过验证、准备、解析、初始化这四步，将类对象雏形转化为真正可用的类对象。
+
+- 验证
+
+  验证阶段确认生成的类文件与预期相符，没有违背JVM的安全模型，避免类文件中包含致使JVM自身崩溃或引起未定义行为(Undefined Behaviour)的字节码。
+
+- 准备和解析
+
+  验证通过后，JVM为生成的类对象分配内存空间、
+
+  ```mermaid
+  flowchart TB
+      Object["Object"]
+      Class["Class"]
+      ClassLoader["ClassLoader"]
+      String["String"]
+      InterruptedException["InterruptedException"]
+      CloneNotSupportedException["CloneNotSupportedException"]
+      Throwable["Throwable"]
+      Exception["Exception"]
+      PrintStream["PrintStream"]
+      PrintWriter["PrintWriter"]
+      
+      Serializable[/"Serializable"/]
+      Comparable[/"Comparable"/]
+      CharSequence[/"CharSequence"/]
+  
+      IO(("I/O"))
+      Reflection(("Reflection"))
+  
+      Object-->Class
+      Object-->String
+      Object-->InterruptedException
+      Object-->CloneNotSupportedException
+      Object-->Throwable
+      Class-->ClassLoader
+      Class.->Serializable
+      InterruptedException.->Serializable
+      CloneNotSupportedException.->Serializable
+      CloneNotSupportedException-->Exception
+      Exception-->Throwable
+      Throwable-->PrintStream
+      Throwable-->PrintWriter
+      String.->Comparable
+      String.->CharSequence
+      PrintWriter-->IO-->PrintWriter
+      PrintStream-->IO-->PrintStream
+      Class-->Reflection-->Class
   ```
 
   
