@@ -2253,7 +2253,7 @@ public class Demo {
         map.putAll(singleTon); // 向映射中批量写入键值对
 
         map.containsKey(words[0]); // 检测是否含有指定的键
-        map.containsValue(words.length); // 精测是否含有指定的值
+        map.containsValue(words.length); //  是否含有指定的值
 
         Set<String> keys = map.keySet(); // 根据Map的键集新建键Set
         Collection<Integer> values = map.values(); // 根据Map的值集新建Collection
