@@ -4303,7 +4303,7 @@ class Complex {
 
 `javadoc`能识别文档注释中的一些特殊标签，这些标签以`@`字符开头，统称为文档注释标签。
 
-- `@author name`
+-  `@author name`
 
   添加一个`Author:`条目，用于指定作者的名字`name`。
 

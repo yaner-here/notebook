@@ -200,9 +200,9 @@ select username,count(*) from users group by username having count(*)=2; -- √
 ### §4.2.8 ORDER BY筛选
 
 ```sql
-        -- NULL会聚集在表首或表尾
-        select id,username from users order by username,id desc;
-        select id,username from users order by 2,1 desc;-- 数字代表select列
+-- NULL会聚集在表首或表尾
+select id,username from users order by username,id desc; -- descd
+select id,username from users order by 2,1 desc;-- 数字代表select列
 ```
 
 ### §4.2.9 IN筛选
