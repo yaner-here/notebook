@@ -104,7 +104,7 @@ JSP的指令元素包括`page`指令、`include`指令、`taglib`指令，格式
 
 - `errorPage`：指定此网页的错误提示页面
 
-- `contentType`：指定该网页使用的字符集、JSP响应的MINE类型，缺省为`text/html;charset=ISO-8859-1 `
+- `contentType`：指定该网页使用的字符集、JSP响应的MIME类型，缺省为`text/html;charset=ISO-8859-1 `
 
 ### §1.2.2 include指令
 
@@ -265,7 +265,7 @@ JavaBean要求必须先手动初始化实例，才能调用改实例。然而JSP
 | `setCharacterEncoding(String)`    |        设置Server解析Request时使用的字符集         |                                                            |
 | `getCookies()`                    |          获取Client发送的`Cookie`实例数组          |                                                            |
 | `getSession()`                    |         获取当前Session的`HttpSession`实例         |                                                            |
-| `getContentType()`                |            获取Client请求数据的MINE类型            |                        `text/html`                         |
+| `getContentType()`                |            获取Client请求数据的MIME类型            |                        `text/html`                         |
 | `getProtocol()`                   |                获取Client使用的协议                |                         `HTTP/1.1`                         |
 | `getContentLength()`              |    获取Client发送Request时指明的`ContentLength`    |                        `-1`（缺省）                        |
 
@@ -307,4 +307,270 @@ JavaBean要求必须先手动初始化实例，才能调用改实例。然而JSP
 
 ### §1.4.2 `response`
 
-`res`
+`response`用于生成Response并发送到Client。
+
+| 方法名                                    | 作用                             |
+| ----------------------------------------- | -------------------------------- |
+| `void sendRedirect(String)`               | 让Client重定向到指定的URL        |
+| `void setContentType(String)`             | 设置Response的MIME类型           |
+| `void setContentLength(int)`              | 设置Response的内容长度           |
+| `void setHeader(String key,String value)` | 设置Response报文首部的字段       |
+| `void setStatus(int)`                     | 设置HTTP状态码                   |
+| `ServletOutputStream getOutputStream()`   | 获取`ServletOutputStream`实例    |
+| `PrintWriter getWriter()`                 | 获取`PrintWriter`实例            |
+| `int getBufferSize()`                     | 获取缓冲区长度                   |
+| `void setBufferSize()`                    | 设置缓冲区长度                   |
+| `void flushBuffer()`                      | 强制将缓冲区内的数据发送到Client |
+| `void addCookie(Cookie)`                  | 向Client添加Cookie               |
+| `void addHeader(String key,String value)` | 添加HTTP的头文件                 |
+| `boolean isCommited()`                    | 判断服务器是否已经发送Response   |
+
+例如使用`response.setHeader()`设置`refresh`头，实现页面自动刷新：
+
+```jsp
+<!-- LiveTime.jsp 实时刷新页面，显示当前时间 -->
+<%@ page import="java.util.Date" %>
+<% request.setCharacterEncoding("UTF-8"); %>
+<html>
+	<body>
+        <%
+            out.println(new Date());
+            response.setHeader("refresh", "1"); // 单位为秒
+        	// 或response.setHeader("refresh","1；URL=baidu.com")
+        %>
+	</body>
+</html>
+```
+
+例如跟踪用户的访问记录：
+
+```jsp
+<html>
+	<body>
+    <%
+        Cookie cookieResponse = null;
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            out.println("No cookie available.");
+        } else {
+            if (cookies.length == 0) {
+                out.println("Writing Cookie is forbidden on client.");
+            } else {
+                for (Cookie cookie : cookies) {
+                    if(cookie.getName().equals("isVisited")){
+                        cookieResponse = cookie;
+                        break;
+                    }
+                }
+            }
+        }
+        if(cookieResponse == null){
+            out.println("You visit the page for the first time.");
+            cookieResponse = new Cookie("isVisited",new Date().toString().replaceAll(" ","."));
+        }else{
+            out.println("You visited the page in " + cookieResponse.getValue());
+            cookieResponse.setValue(new Date().toString().replaceAll(" ","."));
+        }
+        response.addCookie(cookieResponse);
+        response.flushBuffer();
+    %>
+    </body>
+</html>
+```
+
+### §1.4.3 `out`
+
+`out`对象能结合JSP代码，将数据发送到Client。
+
+| 方法名            | 作用                                            |
+| ----------------- | ----------------------------------------------- |
+| `clear()`         | 清空缓冲区，若缓冲区本身为空则引起`IOException` |
+| `clearBuffer()`   | 清空缓冲区                                      |
+| `flush()`         | 强制输出缓冲区全部数据                          |
+| `getBufferSize()` | 返回缓冲区长度，默认为`8192`                    |
+| `getRemaining()`  | 返回缓冲区剩余长度                              |
+| `isAutoFlush()`   | 是否自动输出缓冲区的数据                        |
+| `newline()`       | 换行                                            |
+| `print()`         | 输出                                            |
+| `println()`       | 输出后换行                                      |
+| `close()`         | 强制输出缓冲区全部数据，然后关闭输出流          |
+
+```jsp
+<!-- OutBuffer.jsp -->
+<html>
+<body>
+    <%
+        out.println("This line won't be displayed.");
+        out.clearBuffer();
+        out.println("Current buffer size: " + out.getBufferSize() + "<br>");
+        out.println("Current buffer available size: " + out.getRemaining() + "<br>");
+        out.flush();
+        out.println("This line will be forced to be displayed.");
+        out.close();
+        out.println("This line won't be displayed.");
+    %>
+</body>
+</html>
+```
+
+### §1.4.4 `session`
+
+`session`对象用于保存当前Session的信息，生命周期从Server与Client建立连接开始，到两者断开连接为止。每个用户分别凭自己收到的Session ID与服务器交互，服务器根据Session ID匹配字段。
+
+“断开连接”指的是以下四种情形之一：
+
+- Client关闭浏览器
+- Server宕机
+- Server端JSP执行`session.invalidate()`
+- Server收到的两次请求的时间间隔超出预设值，Tomcat默认为30分钟
+
+| 方法名                                | 作用                                                         |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `void setAttribute(String,Object<E>)` | 向Session添加键值对                                          |
+| `Object<E> getAttribute(String)`      | 从Session获得值                                              |
+| `Enumeration<E> getAttributeNames()`  | 获取包含所有变量的名称的`Enumeration`实例                    |
+| `void removeAttribute(String)`        | 从Seesion删除键值对                                          |
+| `void invalidate()`                   | 结束Session                                                  |
+| `long getCreationTime()`              | 返回Session建立的时间（单位为毫秒）                          |
+| `long getLastAccessedTime()`          | 返回Session最近一次被调用的时间，新建的Session为`-1`         |
+| `long getMaxInactiveInternal()`       | 返回两次请求的时间间隔的最大值，Tomcat默认为30分钟（单位为秒） |
+| `boolean isNew()`                     | 返回当前Session是否为第一次创建                              |
+| `setMaxInactiveInterval(int)`         | 设置两次请求的时间间隔的最大值（单位为秒）                   |
+
+利用`session`可以做一个简单的登录系统：
+
+```jsp
+<!-- SessionLogin.jsp -->
+<html>
+<body>
+<%
+    String username = request.getParameter("username");
+    if (username != null) {
+        session.setAttribute("username", username);
+        out.print("Login Success!");
+    }
+%>
+<form action="SessionLogin.jsp">
+    <label><input type="text" name="username"></label>
+    <label><input type="submit"></label>
+</form>
+</body>
+</html>
+```
+
+```jsp
+<!-- SessionWelcome.jsp -->
+<html>
+<body>
+<%
+    String username = (String) session.getAttribute("username");
+    if (username != null) {
+        out.print("Hello, " + username + "!");
+    } else {
+        out.print("Sorry, you havn't login.");
+        out.print("<a href=\"SessionLogin.jsp\">Go to login</a>");
+    }
+%>
+</body>
+</html>
+```
+
+### §1.4.5 `application`
+
+`application`对象代表着整个Web应用，除了保存全局变量外，还可以获取网站本身的信息。多个用户共享同一个`application`实例。其生命周期从Server运行开始，到Server宕机结束，不能被JSP手动创建或清除。
+
+| 方法名                                | 作用                                               |
+| ------------------------------------- | -------------------------------------------------- |
+| `void setAttribute(String,Object<E>)` | 设置`application`变量                              |
+| `Object<E> getAttribute(String)`      | 获取`application`变量                              |
+| `void removeAttribute(String)`        | 删除`application`变量                              |
+| `Enumeration getAttributeNames() `    | 获得包含所有`application`变量名的`Enumeration`实例 |
+| `int getMajorVersion()`               | 获得Server支持的最新ServletAPI版本                 |
+| `int getMinorVersion()`               | 获得Server支持的最旧ServletAPI版本                 |
+| `String getMimeType(String)`          | 返回路径为`String`的文件的格式和编码               |
+| `String getReadPath(String)`          | 返回相对路径的绝对滤镜                             |
+| `String getServerInfo()`              | 返回Server解释引擎的信息                           |
+
+例如统计当前页面被访问的次数：
+
+```jsp
+<!-- ApplicationVisitedPlayerCounter.jsp -->
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<body>
+<%
+    Integer visitedNumber = (Integer) application.getAttribute("VisitedPlayerNumber");
+    if (visitedNumber == null) {
+        visitedNumber = Integer.valueOf(0);
+        application.setAttribute("VisitedPlayerNumber", visitedNumber);
+    }
+    visitedNumber = visitedNumber + 1;
+    application.setAttribute("VisitedPlayerNumber", visitedNumber);
+%>
+The page have been visited for <%= application.getAttribute("VisitedPlayerNumber").toString() %> times!
+</body>
+</html>
+```
+
+### §1.4.6 `pageContext`
+
+`pageContext`允许当前JSP访问所有作用域的`request`、`response`、`session`、`application`等对象。
+
+- 当前JSP作用域内的任意内置对象
+
+  | 方法名                                                  | 作用                                                         |
+  | ------------------------------------------------------- | ------------------------------------------------------------ |
+  | `Object getAttribute(String name,int scope)`            | 获取当前JSP的`scope`作用域的`name`属性                       |
+  | `Enumeration getAttributeNamesInScope(int scope)`       | 获取包含当前JSP的`scope`作用域的所有属性的`Enumeration`实例  |
+  | `void removeAttribute(String name,int scope)`           | 移除当前JSP的`scope`作用域的`name`属性                       |
+  | `void removeAttribute(String)`                          | 移除当前JSP第一个找到的`name`属性                            |
+  | `void setAttribute(String name,Object value,int scope)` | 设置当前JSP的`scope`作用域的`name`属性，`scope`缺省时指定为`page`作用域 |
+
+- 当前JSP作用域内的特殊内置对象
+
+  | 方法名                               | 作用                                                  |
+  | ------------------------------------ | ----------------------------------------------------- |
+  | `Exception getException()`           | 当前网页被声明为`ErrorPage`时，回传目前抛出的异常实例 |
+  | `JspWriter getOut()`                 | 回传目前网页的输出流实例（例如`out`）                 |
+  | `Object getPage()`                   | 回传目前网页的`Servlet`实例（例如`page`）             |
+  | `ServletRequest getRequest()`        | 回传目前网页的请求实例（例如`request`）               |
+  | `ServletResponse getResponse()`      | 回传目前网页的响应实例（例如`response`）              |
+  | `ServletConfig getServletConfig()`   | 回传目前网页的`ServletConfig`实例（例如`config`）     |
+  | `ServletContext getServletContext()` | 回传目前网页的执行环境（例如`application`）           |
+  | `HttpSession getSession()`           | 回传与当前网页有关系的会话（例如`session`）           |
+
+- 内置对象的各类属性
+
+  | 方法名                                | 作用                           |
+  | ------------------------------------- | ------------------------------ |
+  | `int getAttributesScope(String name)` | 返回`name`属性所处的作用域范围 |
+  | `Object findAttribute(String name)`   | 在所有作用域中查找`name`属性   |
+
+> 注意：`int scope`使用的常量定义于`javax.servlet.jsp.PageContext`中，取值范围如下所示：
+>
+> - `PAGE_SCOPE = 1`
+> - `REQUEST_SCOPE = 2`
+> - `SESSION_SCOPE = 3`
+> - `APPLICATION_SCOPE = 4`
+
+```jsp
+<%
+	// 以下语句效果完全相同
+	page.setAttribute("username");
+	pageContext.setAttribute("username","admin"); // 默认为page
+	pageContext.getPage().setAttribute("username","admin");
+	pageContext.getServletContext().getPage().setAttribute("username","admin");
+%>
+```
+
+### §1.4.7 `config`
+
+`config`对象用于表示Servlet的配置。
+
+| 方法                                   | 作用                                    |
+| -------------------------------------- | --------------------------------------- |
+| `String getInitParameter(String name)` | 获取`name`所指定                        |
+| `Enumeration getInitParameterNames()`  | 获取包含所有初始参数的`Enumeration`实例 |
+| `ServletContext getServletContext()`   | 获取Servlet的`pageContext`实例          |
+| `String getServletName()`              | 获取Servlet名称                         |
+
