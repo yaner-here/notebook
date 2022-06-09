@@ -71,7 +71,7 @@ JSP包含两种注释：
 
 JSP的指令元素包括`page`指令、`include`指令、`taglib`指令，格式为`<%@ 指令名属性="属性值" %>`，**只在编译时运行一次**。
 
-### §1.2.1 page指令
+### §1.2.1 `page`
 
 `page`指令用于定义JSP页面内的属性和属性值，格式为`<%@ page key1=value1 key2=value2 ... %>`。该指令可以修改的属性和属性值有：
 
@@ -106,7 +106,7 @@ JSP的指令元素包括`page`指令、`include`指令、`taglib`指令，格式
 
 - `contentType`：指定该网页使用的字符集、JSP响应的MIME类型，缺省为`text/html;charset=ISO-8859-1 `
 
-### §1.2.2 include指令
+### §1.2.2 `include`
 
 `include`指令在当前文件中包含一个静态文件，格式为`<%@ include file="<path>" %>`。
 
@@ -127,7 +127,7 @@ JSP的指令元素包括`page`指令、`include`指令、`taglib`指令，格式
 </html>
 ```
 
-### §1.2.3 taglib指令
+### §1.2.3 `taglib`
 
 ？？？？？？？？？？？？？？TODO：
 
@@ -158,7 +158,7 @@ JSP的指令元素包括`page`指令、`include`指令、`taglib`指令，格式
 
 `<jsp:forward>`用于在不改变地址栏地址的情况下，实现重定向页面，格式为`<jsp:forward page="URL">`。
 
-### §1.3.3 `<jsp: param>`
+### §1.3.3 `<jsp:param>`
 
 `<jsp:param>`用于传参，通常与`<jsp:include>`、`<jsp:forward>`、`<jsp:plugin>`搭配使用，格式为`<jsp:param name="name" value="value">`。
 
@@ -569,8 +569,221 @@ The page have been visited for <%= application.getAttribute("VisitedPlayerNumber
 
 | 方法                                   | 作用                                    |
 | -------------------------------------- | --------------------------------------- |
-| `String getInitParameter(String name)` | 获取`name`所指定                        |
+| `String getInitParameter(String name)` | 获取`name`所指定的初始参数              |
 | `Enumeration getInitParameterNames()`  | 获取包含所有初始参数的`Enumeration`实例 |
 | `ServletContext getServletContext()`   | 获取Servlet的`pageContext`实例          |
 | `String getServletName()`              | 获取Servlet名称                         |
+
+### §1.4.8 `page`
+
+`page`对象代表的是当前JSP页面本身，与`this`关键字等价。
+
+| 方法名                             | 作用                       |
+| ---------------------------------- | -------------------------- |
+| `void hashCode()`                  | 返回当前`page`对象的哈希值 |
+| `void getClass()`                  | 返回网页的类信息           |
+| `void toString()`                  | 返回当前网页的字符串       |
+| `ServletConfig getServletConfig()` | 获得`config`实例           |
+| `String getServletInfo()`          | 返回服务器程序的信息       |
+
+# §2 Servlet
+
+JSP基于Servlet开发。Servlet是用Java Servlet API开发的一种类，所有API定义于`javax.Servlet`中。
+
+```mermaid
+graph LR
+    Servlet{{Servlet}}
+    ServletConfig{{ServletConfig}}
+    Serializable{{Serializable}}
+    JspPage{{JspPage}}
+    GenericServlet[GenericServlet]
+    HttpJspPage{{HttpJspPage}}
+    HttpServlet[HttpServlet]
+    HttpJspBase[HttpJspBase]
+    CustomizeHttpServlet[(自定义HttpServlet)]
+    CustomizeHttpJspBase[(自定义HttpJspBase)]
+    Servlet--"继承"-->JspPage--"继承"-->HttpJspPage
+    Servlet--"实现"-->GenericServlet
+    ServletConfig--"实现"-->GenericServlet
+    Serializable--"实现"-->GenericServlet
+    GenericServlet--"继承"-->HttpServlet
+    HttpJspPage--"实现"-->HttpJspBase
+    HttpJspBase--"继承"-->HttpServlet
+    HttpServlet--"继承"-->CustomizeHttpServlet
+    HttpJspBase--"继承"-->CustomizeHttpJspBase
+```
+
+```mermaid
+flowchart LR
+	subgraph Client
+		Browser["浏览器"]
+	end
+	subgraph Server
+		subgraph ServletContainer["Servlet容器"]
+			ServletRequestInstance["ServletRequest实例"]
+				-->ServletInstance["Servlet实例"]
+				-->ServletReponse["ServletReponse实例"]
+				-->PrintWriterInstance["PrintWriter实例"]
+		end
+	end
+	Browser--"请求"-->ServletRequestInstance
+	PrintWriterInstance--"响应"-->Browser
+```
+
+## §2.1 创建实例
+
+每个自定义Servlet类都必须继承于抽象类`HttpServlet`，实现其定义的`doGet()`和`doPost()`方法。
+
+```java
+package com.example;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+public class UserInfoManagement extends HttpServlet {
+
+    public UserInfoManagement(){
+
+    }
+
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        resp.setContentType("text/html");
+        PrintWriter out = resp.getWriter();
+        out.println("<html><body>Welcome to the User Info Management!</body></html>");
+        out.flush();
+        out.close();
+    }
+
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        
+    }
+}
+```
+
+## §2.2 `web.xml`配置文件
+
+在配置文件`web.xml`中声明新建的Servlet时，需要在其中声明该Servlet的各项信息：
+
+- `<web-app>`（根标签）
+
+  - `<servlet>`（必须在最前出现）
+
+    | 标签名              | 父标签名    | 含义                                                         | 注意事项                                                     |
+    | ------------------- | ----------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+    | `<servlet-name>`    | `<servlet>` | Servlet的名称                                                | 必填项，必须与`<servlet-mapping>`内的`<servlet-name>`相同    |
+    | `<servlet-class>`   | `<servlet>` | Servlet类的路径                                              | 必填项                                                       |
+    | `<display-name>`    | `<servlet>` | Servlet发布时的名称                                          |                                                              |
+    | `<description>`     | `<servlet>` | Servlet的功能描述                                            |                                                              |
+    | `<load-on-startup>` | `<servlet>` | 当`<web-app>`内包含许多`<servlet>`时，设置不同`Servlet`的启动顺序 | 接受整数值时，值越小越先启动；值为`AnyTime`时，启动顺序不固定 |
+    | `<init-param>`      | `<servlet>` | Servlet的初始化参数                                          | 内部必须只包含一个`<param-name>`和`<param-value>`            |
+
+    - `<init-param>`
+
+      | 标签名          | 父标签名       | 含义                             | 注意事项                                                   |
+      | --------------- | -------------- | -------------------------------- | ---------------------------------------------------------- |
+      | `<param-name>`  | `<init-param>` | Servlet的初始化参数的键（Key）   | 在`Servlet.init()`内通过`getInitParameter()`方法获取键值对 |
+      | `<param-value>` | `<init-param>` | Servlet的初始化参数的值（Value） | 在`Servlet.init()`内通过`getInitParameter()`方法获取键值对 |
+
+  - `<servlet-mapping>`（必须在最后出现）
+
+    | 标签名           | 父标签名            | 含义                        | 注意事项                                  |
+    | ---------------- | ------------------- | --------------------------- | ----------------------------------------- |
+    | `<servlet-name>` | `<servlet-mapping>` | 要进行路径映射的Servlet名称 | 必须与`<servlet>`内的`<servlet-name>`相同 |
+    | `<url-pattern>`  | `<servlet-mapping>` | Servlet的映射路径           | 必须以`/`开头                             |
+
+```xml
+<!-- web.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                             http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+    <servlet>
+        <description>User Info Management System</description>
+        <display-name>UserInfoManagement</display-name>
+        <servlet-name>UserInfoManagement</servlet-name>
+        <servlet-class>com.example.UserInfoManagement</servlet-class>
+        <init-param>
+        	<param-name>version</param-name>
+            <param-value>0.1</param-value>
+        </init-param>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>UserInfoManagement</servlet-name>
+        <url-pattern>/test</url-pattern>
+    </servlet-mapping>
+    
+</web-app>
+```
+
+## §2.3 `GenericServlet`类
+
+`GenericServlet`类的声明为`public abstract class GenericServlet implements Servlet, ServletConfig, java.io.Serializable`。该类定义了下列方法：
+
+- `void init([ServletConfig])`：初始化Servlet实例
+- `void destory()`：销毁Servlet实例
+- `String getServletInfo()`：获取Servlet信息
+- `ServletConfig getServletConfig()`：获得包含Servlet配置的`ServletConfig`实例
+- `void service(ServletRequest,ServletResponse)`：运行Servlet的逻辑入口
+
+## §2.4 `HttpServlet`类
+
+`HttpServlet`类的声明为`public abstract class HttpServlet extends GenericServlet`，用于提供HTTP的基本功能：
+
+- `void doGet(ServletRequest,ServletResponse)`：处理HTTP的GET请求
+- `void doPost(ServletRequest,ServletResponse)`：处理HTTP的POST请求
+- `void doPut(ServletRequest,ServletResponse)`：处理HTTP的PUT请求
+- `void doDelete(ServletRequest,ServletResponse)`：处理HTTP的Delete请求
+- `String getServletInfo()`：获取Servlet信息
+- `ServletConfig getServletConfig()`：获取Servlet的初始化参数和`ServletContext`
+- `void init()`：Server创建Servlet实例时默认执行，只在被创建时执行一次，用于管理服务器资源
+- `void service(ServletRequest,ServletResponse)`：用户访问时默认执行，只在新用户访问时被执行一次
+- `void destory()`：Serverl销毁Servlet实例时默认执行
+
+## §2.5 `HttpServletRequest`接口
+
+`HttpServletRequest`接口的声明为`public interface HttpServletRequest extends ServletRequest`。当Servlet容器受到请求时，就将该接口实例化，封装成一个实例，然后将该实例传给`GenericServlet.service()`方法。该接口定义的主要方法有：
+
+| 方法名                                    | 作用 |
+| ----------------------------------------- | ---- |
+| `String getAuthType()`                    |      |
+| `Cookie[] getCookies()`                   |      |
+| `long getDataHeader(String)`              |      |
+| `String getHeader(String)`                |      |
+| `Enumeration<String> getHeaderNames()`    |      |
+| `Enumeration<String> getHeader(String)`   |      |
+| `int getIntHeader(String)`                |      |
+| `String getMethod()`                      |      |
+| `String getPathInfo()`                    |      |
+| `String getPathTranslated()`              |      |
+| `String getQueryString()`                 |      |
+| `String getRemoteUser()`                  |      |
+| `String getRequestedSessionId()`          |      |
+| `String getRequestURI()`                  |      |
+| `String getServletPath()`                 |      |
+| `HttpSession getSession([boolean])`       |      |
+| `int getContentLength()`                  |      |
+| `String getContentType`                   |      |
+| `ServletInputStream getInputStream()`     |      |
+| `String getLocalAddr()`                   |      |
+| `Locale getLocale()`                      |      |
+| `String getLocalName()`                   |      |
+| `int getLocalPort()`                      |      |
+| `String getParameter(String)`             |      |
+| `Map<String,String[]> getParameterMap()`  |      |
+| `Enumeration<String> getParameterNames()` |      |
+| `String[] getParameterValues(String)`     |      |
+| `String getProtocol()`                    |      |
+|                                           |      |
+|                                           |      |
+|                                           |      |
+|                                           |      |
+|                                           |      |
+|                                           |      |
 
