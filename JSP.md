@@ -750,40 +750,352 @@ public class UserInfoManagement extends HttpServlet {
 
 `HttpServletRequest`接口的声明为`public interface HttpServletRequest extends ServletRequest`。当Servlet容器受到请求时，就将该接口实例化，封装成一个实例，然后将该实例传给`GenericServlet.service()`方法。该接口定义的主要方法有：
 
-| 方法名                                    | 作用 |
-| ----------------------------------------- | ---- |
-| `String getAuthType()`                    |      |
-| `Cookie[] getCookies()`                   |      |
-| `long getDataHeader(String)`              |      |
-| `String getHeader(String)`                |      |
-| `Enumeration<String> getHeaderNames()`    |      |
-| `Enumeration<String> getHeader(String)`   |      |
-| `int getIntHeader(String)`                |      |
-| `String getMethod()`                      |      |
-| `String getPathInfo()`                    |      |
-| `String getPathTranslated()`              |      |
-| `String getQueryString()`                 |      |
-| `String getRemoteUser()`                  |      |
-| `String getRequestedSessionId()`          |      |
-| `String getRequestURI()`                  |      |
-| `String getServletPath()`                 |      |
-| `HttpSession getSession([boolean])`       |      |
-| `int getContentLength()`                  |      |
-| `String getContentType`                   |      |
-| `ServletInputStream getInputStream()`     |      |
-| `String getLocalAddr()`                   |      |
-| `Locale getLocale()`                      |      |
-| `String getLocalName()`                   |      |
-| `int getLocalPort()`                      |      |
-| `String getParameter(String)`             |      |
-| `Map<String,String[]> getParameterMap()`  |      |
-| `Enumeration<String> getParameterNames()` |      |
-| `String[] getParameterValues(String)`     |      |
-| `String getProtocol()`                    |      |
-|                                           |      |
-|                                           |      |
-|                                           |      |
-|                                           |      |
-|                                           |      |
-|                                           |      |
+| 方法名                                           | 作用                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| `String getAuthType()`                           | 返回Request的身份验证模式                                    |
+| `Cookie[] getCookies()`                          | 返回Client发送的Cookie                                       |
+| `long getDateHeader(String)`                     | 返回Request中表示时间的字段转化而成的`Date.to`，从1970年1约1日以来的毫秒数 |
+| `String getHeader(String)`                       | 返回Request中表示时间的字段转化而成的`Date.getTime()`（从1970年1约1日以来的毫秒数） |
+| `Enumeration<String> getHeaderNames()`           | 返回Request中包含所有字段的键（Key）的`Enumeration`实例      |
+| `Enumeration<String> getHeader(String)`          | 返回Request中只包含指定键（Key）的`Enumeration`实例          |
+| `int getIntHeader(String)`                       | 返回Request中表示整数的字段转化而成的`int`                   |
+| `String getMethod()`                             | 返回Request使用的HTTP方法                                    |
+| `String getPathInfo()`                           | 返回URL去除Servlet路径后的路径，路径为空是返回`null`，是`getPathTranslated()`的反函数 |
+| `String getPathTranslated()`                     | 返回URL的在操作系统内的绝对路径，若`getPathInfo()==null`则返回`null`，时`getPathInfo()`的反函数 |
+| `String getQueryString()`                        | 返回URL中用于GET传参的查义字符串                             |
+| `String getRemoteUser()`                         | 返回发送Request的用户名，用于HTTP身份鉴权                    |
+| `String getRequestedSessionId()`                 | 返回Request的Session ID                                      |
+| `String getRequestURI()`                         | 返回URL中去除GET传参的差异字符串，只保留请求资源路径的部分   |
+| `String getServletPath()`                        | 返回Request请求的Servlet路径                                 |
+| `HttpSession getSession([boolean])`              | 返回Request对应的`Session`实例                               |
+| `int getContentLength()`                         | 返回Request请求头中`Content-Length`字段的值                  |
+| `String getContentType`                          | 返回Request请求头中`Content-Type`字段的值                    |
+| `ServletInputStream getInputStream()`            | 返回Request请求正文的`InputStream`实例                       |
+| `String getLocalAddr()`                          | 返回Request请求头中指示的Client地址                          |
+| `Locale getLocale()`                             | 返回Request请求头中指示的地区对应的`Locale`实例              |
+| `String getLocalName()`                          | 返回Server用于接受Request的主机名                            |
+| `int getLocalPort()`                             | 返回Server用于接受Request的端口                              |
+| `String getParameter(String)`                    | 返回Request请求参数中指定名称的字段的值                      |
+| `Map<String,String[]> getParameterMap()`         | 返回Request所有请求参数对应的`Map`实例                       |
+| `Enumeration<String> getParameterNames()`        | 返回Request所有请求参数名称对应的`Enumeration`实例           |
+| `String[] getParameterValues(String)`            | 返回Request特定名称的请求参数的所有值                        |
+| `String getProtocol()`                           | 返回Request使用的协议                                        |
+| `BufferedReader getReader()`                     | 返回Request请求正文的`BufferedReader`实例                    |
+| `String getRemoteAddr()`                         | 返回Proxy或Client的IP地址                                    |
+| `String getRemoteHost()`                         | 返回Proxy或Client的主机名                                    |
+| `int getRemotePort()`                            | 返回Proxy或Client的端口                                      |
+| `RequestDispatcher getRequestDispatcher(String)` | 返回`RequestDispatcher`接口的一个实例                        |
+| `String getServerName()`                         | 返回Client请求的Server的主机名                               |
+| `int getServerPort()`                            | 返回Client请求的Server的端口                                 |
+| `ServletContext getServletContext()`             | 返回最近一次Reques对应的`ServletResquest.getServletContext()` |
+| `boolean isSecure()`                             | 判断协议是HTTP还是HTTPS                                      |
+| `void removeAttribute(String name)`              | 删除Request请求头中特定名称的请求参数                        |
+| `void setAttribute(String,Object)`               | 向Request请求头添加请求参数                                  |
+| `void setCharacterEncoding(String)`              | 设置解析Request使用的编码                                    |
+
+## §2.6 `HttpServletResponse`接口
+
+`HttpServletResponse`接口的声明为`public interface HttpServletResponse extends ServletResponse`。该接口定义的主要方法有：
+
+| 方法名                               | 作用                                   |
+| ------------------------------------ | -------------------------------------- |
+| `addHeader(String,String)`           | 向Response添加响应参数                 |
+| `sendError(int sc,[String message])` | 向Client发送HTTP状态错误代码和错误信息 |
+| `sendHeader(String,String)`          | 向Response添加响应参数（覆盖原参数）   |
+| `setStatus(int sc)`                  | 向Client发送HTTP状态代码               |
+| `addCookie(Cookie)`                  | 给Client设置Cookie                     |
+
+## §2.7 `ServletConfig`接口
+
+`ServletConfig`接口的声明为`public interface ServletConfig`。`Servlet`通过调用`init(ServletConfig)`配置`Servlet`的名称 、初始化参数和上下文。该接口定义的方法有：
+
+| 方法名                                        | 作用                                                         |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| `String getInitParameter(String)`             | 获取特定名称的初始化参数                                     |
+| `Enumeration<String> getInitParameterNames()` | 获取包含所有初始化参数键（Key）的`Enumeration`实例           |
+| `ServletContext getServletContext()`          | 获取当前Servlet的`ServletContext`实例                        |
+| `String getServletName()`                     | 获取`web.xml`中当前Servlet的`<servlet-name>`，若未定义该标签则返回`<servlet-class>` |
+
+```xml
+<!-- web.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+    <servlet>
+        <servlet-name>UserInfoManagement</servlet-name>
+        <servlet-class>com.example.UserInfoManagement</servlet-class>
+        <init-param>
+            <param-name>version</param-name>
+            <param-value>0.1</param-value>
+        </init-param>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>UserInfoManagement</servlet-name>
+        <url-pattern>/test</url-pattern>
+    </servlet-mapping>
+</web-app>
+```
+
+```java
+/* UserInfoManagement.java */
+package com.example;
+
+import javax.servlet.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.*;
+
+public class UserInfoManagement extends GenericServlet {
+
+    private final Map initParams = new LinkedHashMap();
+    private String servletName;
+
+    @Override
+    public void init(ServletConfig config) throws ServletException {
+        super.init(config);
+        Enumeration paramNames = getInitParameterNames();
+        while(paramNames.hasMoreElements()){
+            String paramName = (String) paramNames.nextElement();
+            String paramValue = getInitParameter(paramName);
+            initParams.put(paramName,paramValue);
+        }
+        servletName = getServletName();
+    }
+
+    @Override
+    public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
+        res.setContentType("text/html;charset=UTF-8");
+        PrintWriter out = res.getWriter();
+        
+        out.println("servletName: " + servletName + "<br>");
+
+        out.println("initParams: <table>");
+        out.println("<td>paramName</td>");
+        out.println("<td>paramName</td>");
+        Set paramNames = initParams.keySet();
+        Iterator iterator = paramNames.iterator();
+        while(iterator.hasNext()){
+            String paramName = (String) iterator.next();
+            String paramvalue = (String) initParams.get(paramName);
+            out.println("<tr><td>" + paramName + "</td>");
+            out.println("<td>" + paramvalue + "</td>");
+            out.println("<tr>");
+        }
+        out.println("</table>");
+        
+    }
+}
+```
+
+## §2.8 `HttpSession`接口
+
+`HttpSession`接口的声明为`public interface HttpSession`，封装了一系列`Session`相关的概念。`HttpServletResquest`类实现了该接口，常用的方法有：
+
+| 方法名                                    | 作用                                                 |
+| ----------------------------------------- | ---------------------------------------------------- |
+| `Object getAttribute(String)`             | 获取Session作用域中特定名称的参数                    |
+| `Enumeration<String> getAttributeNames()` | 获取包含Session作用域中所有参数的`Enumeration`实例   |
+| `void removeAttribute(String)`            | 删除Session作用域中特定米in过程的参数                |
+| `void setAttribute(String,Object)`        | 向Session作用域中添加参数                            |
+| `long getCreationTime()`                  | 返回Session被创建时的时间（GMT毫秒格式）             |
+| `String getId()`                          | 返回Session ID                                       |
+| `long getLastAccessedTime()`              | 返回Session最后一次Request的时间（GMT毫秒格式）      |
+| `int getMaxInactiveInternal()`            | 返回Session两次Request之间的最长时间间隔             |
+| `boolean isNew()`                         | 判断Session是新建的还是已有的                        |
+| `void setMaxInactiveInterval()`           | 设置Session两次Request之间的最长间隔时间（单位为秒） |
+| `void invalidate()`                       | 删除Session和与之相关联的对象                        |
+
+```java
+/* UserInfoManagement.java */
+public class UserInfoManagement extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        resp.setContentType("text/html;charset=UTF-8");
+        PrintWriter out = resp.getWriter();
+        HttpSession session = req.getSession();
+        Boolean isLogin = (Boolean) session.getAttribute("isLogin");
+        if(isLogin == null){
+            isLogin = Boolean.FALSE;
+        }
+        String username = req.getParameter("username");
+        String password = req.getParameter("password");
+        if(isLogin){ // 已登录
+            username = (String) session.getAttribute("username");
+            Date loginTime = new Date(session.getCreationTime());
+            out.println("<a>Welcome to User Info Management System, " + username + "!</a>");
+            out.println("<a>You logged in " + loginTime + " last time.</a>");
+            session.setAttribute("username",username);
+            session.setAttribute("isLogin",Boolean.TRUE);
+        }else if(username != null && password != null){ // 未登录,但已输入用户名和密码
+            Date loginTime = new Date();
+            out.println("<a>Welcome to User Info Management System, " + username + "!</a>");
+            out.println("<a>You logged in " + loginTime + " last time.</a>");
+            session.setAttribute("username",username);
+            session.setAttribute("isLogin",Boolean.TRUE);
+            session.setAttribute("loginTime",loginTime);
+        }else{ // 未登录
+            out.println("<a>Please input your username and password by GET!");
+        }
+    }
+
+}
+```
+
+## §2.9 `ServletContext`接口
+
+`ServletContext`接口模拟了Servlet实例与引擎的交互，其实例代表着当前Servlet引擎运行的一个独立WebApp（虚拟机），可以通过`ServletConfig.getServletContext()`或`GenericServlet.getServletContext()`获得。
+
+| 方法名                                        | 作用                                                  |
+| --------------------------------------------- | ----------------------------------------------------- |
+| `getAttriibute()`                             | 略                                                    |
+| `getAttributeNames()`                         | 略                                                    |
+| `removeAttriibute()`                          | 略                                                    |
+| `setAttribute()`                              | 略                                                    |
+| `getInitParameter()`                          | 略                                                    |
+| `getInitParameterNames()`                     | 略                                                    |
+| `getServletInfo()`                            | 返回Servlet引擎的信息                                 |
+| `getMajorVersion()`                           | 返回支持的Servlet API最高版本                         |
+| `getMinorVersion()`                           | 返回支持的Servlet API最低版本                         |
+| `void log(String)`                            | 将指定的信息写入Servlet日志文件中                     |
+| `ServletContext getContext()`                 | 返回`ServletContext`实例                              |
+| `String getResource(String)`                  | 根据给定的相对路径，返回URL                           |
+| `InputStream getResourceAsStream(String)`     | 根据给定的相对路径，返回表示该文件的`InputStream`实例 |
+| `getRealPath(String)`                         | 根据给定的相对路径，返回带有主机名和端口的完整URL     |
+| `getMimeType(String)`                         | 根据给定的相对路径，返回该文件的MIME类型              |
+| `RequestDispatcher getNameDispatcher(String)` | 用于向其它Servlet或JSP转发请求                        |
+| `RequestDispatcher getRequestDispatcher()`    | 用于向其它Servlet或JSP转发请求                        |
+
+## §2.10 `RequestDispatcher`接口
+
+`RequestDispatcher`接口的定义为`public interface RequestDispatcher`，用于转发Client的Request到Server上的其他组件。
+
+获得`RequestDispatcher`实例的方法有：
+
+- 使用`ServletContext`接口中的`getRequestDispatcher(String path)`方法
+
+  ```java
+  public class CustomizeHttpServlet extends ... {
+      @Override ... doGet(...) throws ... {
+          String path = "...";
+          ServletConfig config = getServletConfig();
+          ServletContext context = config.getServletContext();
+          RequestDispatcher dispatcher = context.getRequestDispatcher(path);
+      }
+  }
+  ```
+
+- 使用`ServletContext`接口中的`getNameDispatcher(String path)`方法
+
+  ```java
+  public class CustomizeHttpServlet extends ... {
+      @Override ... doGet(...) throws ... {
+          // ...
+          RequestDispatcher dispatcher = context.getNameDispatcher(path);
+      }
+  }
+  ```
+
+- 使用`ServletRequest`接口中的`getRequestDispatcher(String path)`方法
+
+  ```java
+  public class CustomizeHttpServlet extends ... {
+      @Override ... doGet(...) throws ... {
+          // ...
+          RequestDispatcher dispatcher = request.getRequestDispatcher(path);
+      }
+  }
+  ```
+
+`RequestDispathcer.forward(ServletRequest,ServletResponse)`用于控制页面跳转：
+
+```java
+public class CustomizeHttpServlet extends ... {
+    @Override ... doGet(...) throws ... {
+        // ...
+        ServletConfig config = getServletConfig();
+        ServletContext context = config.getServletContext();
+        RequestDispatcher dispatcher = context.getRequestDispatcher("/forward.html"); // 这里的相对路径的根目录由context决定
+        dispatcher.forward(request,response); // 转发
+    }
+}
+```
+
+`RequestDispatcher.include(ServletRequest,ServletResponse)`用于转发请求的同时，继续保持对Response的控制权，转发到的Servlet的输出会被合并到当前Servlet。
+
+## §2.11 声明式异常处理
+
+```java
+public class UserInfoManagement extends HttpServlet {
+    try {
+        int a = 1/0;
+    } catch (ArithmeticException e) {
+        req.setAttribute("javax.servlet.error.exception",e);
+        req.setAttribute("javax.servlet.error.request_uri",req.getRequestURI());
+        RequestDispatcher requestDispatcher = req.getRequestDispatcher("ExceptionHandler");
+        requestDispatcher.forward(req,resp);
+    }
+}
+
+public class CustomizeHttpErrorHandlerServlet extends HttpServlet {
+    @Override protected void service(HttpServletRequest req,Http ServletResponse resp) throws ServletException,IOException {
+        int statusCode = req.getAttribute("javax.servlet.error.status_code");
+		switch(statusCode){
+            case 401:
+                out.println("404");
+                break;
+            case 404:
+                out.println("404");
+                break;
+        }
+    }
+}
+```
+
+```xml
+<web-app>
+	
+</web-app>
+```
+
+????????？？？？？？？？？？？？？？？？？？？？TODO：
+
+## §2.12 程序式异常处理
+
+
+
+
+
+
+
+
+
+
+
+## §2.13 实战：留言板
+
+```mermaid
+flowchart LR
+	subgraph MessageBean["MessageBean.java"]
+		MessageBeanAuthor["author"]
+		MessageBeanTitle["title"]
+		MessageBeanComment["comment"]
+		MessageBeanTime["time"]
+	end
+	subgraph MessageSubmit["MessageSubmit.jsp"]
+		subgraph MessageSubmitForm["&lt;form action='ShowMessageServlet' method='post'&gt;"]
+			direction TB
+			MessageSubmitFormAuthor["author"]
+			MessageSubmitFormTitle["title"]
+			MessageSubmitFormComment["comment"]
+			MessageSubmitFormTime["time"]
+			MessageSubmitFormSubmit["submit"]
+		end
+		MessageSubmitRedirectShowMessageJSP["View All Comments"]
+	end
+	
+	
+```
 
