@@ -1076,14 +1076,10 @@ public class CustomizeHttpErrorHandlerServlet extends HttpServlet {
 
 ## §2.13 实战：留言板
 
+定义每条留言抽象化JavaBean类`MessageBean.java`，包含`author`/`title`/`comment`/`time`四个字段。
+
 ```mermaid
 flowchart LR
-	subgraph MessageBean["MessageBean.java"]
-		MessageBeanAuthor["author"]
-		MessageBeanTitle["title"]
-		MessageBeanComment["comment"]
-		MessageBeanTime["time"]
-	end
 	subgraph MessageSubmit["MessageSubmit.jsp"]
 		subgraph MessageSubmitForm["&lt;form action='ShowMessageServlet' method='post'&gt;"]
 			direction TB
@@ -1093,9 +1089,135 @@ flowchart LR
 			MessageSubmitFormTime["time"]
 			MessageSubmitFormSubmit["submit"]
 		end
-		MessageSubmitRedirectShowMessageJSP["View All Comments"]
+		MessageSubmitRedirectShowMessage[/"View All Comments"/]
 	end
-	
-	
+    subgraph ShowMessage["ShowMessage.jsp"]
+        ShowMessageArrayList["ArrayList&lt;MessageBean&gt; wordList<br>= (ArrayList) application.getAttribute(&quot;wordList&quot;)"]
+        -->ShowMessageForeach["foreach(MessageBean message : wordList)<br>{out.pritnln(message);}"]
+    end
+    subgraph ShowMessageServlet["ShowMessageServlet.java"]
+        subgraph ShowMessageServletDoPost["@Override protected void doPost(request,response)"]
+            direction TB
+            ShowMessageServletDoPostNewMessageBean["new MessageBean(request.getParameter(&quot;author/title/...&quot;))"]
+            -->ShowMessageServletDoPostArrayList["ArrayList<MessageBean> wordList =<br>(ArrayList) request.getSession().getServletContext().getAttribute(&quot;wordList&quot;)"]
+            -->ShowMessageServletDoPostAdd["wordList.add(messageBean)"]
+        end
+    end
+    MessageSubmitForm--"submit<br>POST"-->ShowMessageServletDoPost
+    MessageSubmitRedirectShowMessage--"Redirect"-->ShowMessage
+```
+
+```java
+/* MessageBean.java */
+package com.example;
+public class MessageBean {
+
+    private String author;
+    private String title;
+    private String comment;
+    private Date time;
+
+    public String getAuthor() { return author; }
+    public void setAuthor(String author) { this.author = author; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+    public String getComment() { return comment; }
+    public void setComment(String comment) { this.comment = comment; }
+    public Date getTime() { return time; }
+    public void setTime(Date time) { this.time = time; }
+
+}
+```
+
+```jsp
+<!-- MessageSubmit.jsp -->
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+    <title>Title</title>
+</head>
+<body>
+    <form action="SaveMessageServlet" method="post">
+        <input type="text" name="author" placeholder="Author"><br>
+        <input type="text" name="title" placeholder="Title"><br>
+        <input type="text" name="content" placeholder="Content"><br>
+        <input type="submit" name="submit" value="Submit"><br>
+        <a href="${pageContext.request.contextPath}/ShowMessage.jsp">View All Comments</a>
+    </form>
+</body>
+</html>
+```
+
+```jsp
+<!-- ShowMessage.jsp -->
+<%@ page import="java.util.ArrayList" %>
+<%@ page import="com.example.MessageBean" %><
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+    <title>All Comments</title>
+</head>
+<body>
+<%
+    ArrayList<MessageBean> wordList = (ArrayList) application.getAttribute("wordList");
+    if(wordList == null || wordList.size() == 0){
+        out.println("No comments now!");
+    }else{
+        for(MessageBean messageBean : wordList) {
+            out.println("Author: " + messageBean.getAuthor() +"<br>");
+            out.println("Title: " + messageBean.getTitle() +"<br>");
+            out.println("Comment: " + messageBean.getComment() +"<br>");
+            out.println("Time: " + messageBean.getTime() +"<br><br>");
+        }
+    }
+%>
+<a href="MessageSubmit.jsp">Leave a comment</a>
+</body>
+</html>
+```
+
+```java
+/* SaveMessageServlet.java */
+package com.example;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Date;
+
+public class SaveMessageServlet extends HttpServlet {
+    
+    @Override protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        MessageBean messageBean = new MessageBean();
+        messageBean.setAuthor(request.getParameter("author"));
+        messageBean.setTitle(request.getParameter("title"));
+        messageBean.setComment(request.getParameter("content"));
+        messageBean.setTime(new Date());
+        ServletContext servletContext = request.getSession().getServletContext();
+        ArrayList wordList = (ArrayList) servletContext.getAttribute("wordList");
+        if(wordList == null){
+            wordList = new ArrayList();
+        }
+        wordList.add(messageBean);
+        servletContext.setAttribute("wordList",wordList);
+        response.sendRedirect("ShowMessage.jsp");
+    }
+
+}
+```
+
+```jsp
+<!-- web.xml -->
+<web-app>
+    <servlet>
+        <servlet-name>SaveMessageServlet</servlet-name>
+        <servlet-class>com.example.SaveMessageServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>SaveMessageServlet</servlet-name>
+        <url-pattern>/SaveMessageServlet</url-pattern>
+    </servlet-mapping>
+</web-app>
 ```
 
