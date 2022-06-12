@@ -1221,3 +1221,375 @@ public class SaveMessageServlet extends HttpServlet {
 </web-app>
 ```
 
+## §2.14 JavaBean
+
+JavaBean是一种技术的泛称，本质上就是一个Java类，用于封装内部动作并与其它控件通信。
+
+标准的JavaBean类必须同时满足以下条件：
+
+- 不能包括带有参数的构造函数
+- 实现`Serializable`接口（一般不需要特别声明）
+- 每个实例字段都必须有对应的属性接口（`get()`和`set()`方法）
+
+常用的JSP标签有：
+
+- `<jsp:userBean>`用于定义一个具有一定生存范围和唯一ID的JavaBean实例，格式为`<jsp:userBean id="name" class="className" scope="page|request|session|application">`。若目标`scope`和`id`均相同，则取消新建行为。
+- `<jsp:getProperty>`用于获取JavaBean实例的属性值，格式为`<jsp:getProperty name="name" property="propertyName" />`
+- `<jsp:setProperty>`用于设置JavBean实例的属性值，格式为以下其一：
+  - `<jsp:setProperty name="name">`
+  - `<jsp:setProperty name="name" property="propertyName">`
+  - `<jsp:setProperty name="name" property="propertyName" param="paramName">`
+  - `<jsp:setProperty name="name" property="propertyName" value="paramValue">`
+
+# §3 JDBC
+
+JSP脚本使用JDC（Java Data Connectivity）技术与数据库交互，这一技术使用的是JDBC（Java Data Base Connectivity）提供的各类接口。
+
+如今的大多数数据库都为Java提供了相应的JDBC驱动程序。对于少数没有提供的，JSP脚本也可以通过ODBC（Open Data Base Connectivity）实现交互。
+
+JDBC相关的API定义于`java.sql.*`库中：
+
+| 接口名                       | 作用                             |
+| ---------------------------- | -------------------------------- |
+| `java.sql.DriverManager`     | 调用驱动程序，为后续交互提供支持 |
+| `java.sql.Connection`        | 处理与数据库的连接               |
+| `java.sql.Statement`         | 单条SQL语句的封装                |
+| `java.sql.PreparedStatement` | 单条编译SQL语句的封装            |
+| `java.sql.CallableStatement` | 单条内嵌过程SQL语句的封装        |
+| `java.sql.ResultSet`         | 控制`Statement`的执行状态        |
+
+```mermaid
+flowchart LR
+	DriverManager["DriverManager<br>驱动管理器"]
+	--"加载JDBC驱动程序"-->Connection["Connection<br>连接"]
+	--"建立与数据库的连接"-->Statement["Statement<br>SQL语句"]
+	--"发送SQL查询"-->ResultSet["ResultSet<br>结果集"]
+```
+
+Java和SQL各自有一套完整的数据类型，其转换关系如下：
+
+| Java数据类型           | SQL数据类型   | Java数据类型         | SQL数据类型     |
+| ---------------------- | ------------- | -------------------- | --------------- |
+| `String`               | `CHAR`        | `float`              | `REAL`          |
+| `String`               | `VARCHAR`     | `double`             | `FLOAT`         |
+| `String`               | `LONGVARCHAR` | `double`             | `DOUBLE`        |
+| `java.math.BigDecimal` | `NUMERIC`     | `byte[]`             | `BINARY`        |
+| `java.math.BigDecimal` | `DECIMAL`     | `byte[]`             | `VARBINARY`     |
+| `boolean`              | `BIT`         | `byte[]`             | `LONGVARBINARY` |
+| `byte`                 | `TINYINT`     | `java.sql.Date`      | `DATE`          |
+| `short`                | `SMALLINT`    | `java.sql.Time`      | `TIME`          |
+| `int`                  | `INTEGER`     | `java.sql.TimeStamp` | `TIMESTAMP`     |
+| `long`                 | `BIGINT`      |                      |                 |
+
+## §3.1 `Connection`
+
+以下列举常见数据库提供的JDBC驱动中用于连接的语句：
+
+- `Oracle SQL`（thin模式）
+
+  ```java
+  Class.forName("oracle.jdbc.driver.OracleDriver").newInstance();
+  Connection conn = DriverManager.getConnection("url","username","password");
+  ```
+
+- `IBM Db2`
+
+  ```java
+  Class.forName("com.ibm.db2.jdbe.app.DB2Driver").newInstance();
+  Connection conn = DriverManager.getConnection("url","username","password");
+  ```
+
+- `Microsoft SQL Server`
+
+  ```java
+  Class.forName("com.microsoft.jdbc.sqlserver.SQLServerDriver").newInstance();
+  Connection conn = DriverManager.getConnection("url","username","password");
+  ```
+
+- `Sybase`
+
+  ```java
+  Class.forName("com.sybase.jdbc.SybDriver").newInstance();
+  PropertiessysProps = System.getProperties();
+  SysProps.put("user","user");
+  SysProps.put("password","password");
+  Connection conn = DriverManager.getConnection("url",SysProps);
+  ```
+
+- `IBM Informix`
+
+  ```java
+  Class.forName("com.informix.jdbc.IfxDriver").newInstance();
+  Connection conn = DriverManager.getConnection(url);
+  ```
+
+- `MySQL`
+
+  ```java
+  Class.forName("org.git.mm.mysql.Driver").newInstance();
+  Connection conn = DriverManager.getConnection("url");
+  ```
+
+- `Postgre SQL`
+
+  ```java
+  Class.forName("org.postgresql.Driver").newInstance();
+  Connection conn = DriverManager.getConnection("url","username","password");
+  ```
+
+```jsp
+<%@ page import="java.sql.Connection" %>
+<%@ page import="java.sql.DriverManager" %>
+<%@ page import="java.sql.SQLException" %>
+<%@ page import="java.io.StringWriter" %>
+<%@ page import="java.io.PrintWriter" %>
+<%@ page import="org.mariadb.jdbc.Driver" %> <!-- 这个必须加上! -->
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<body>
+    <%
+        String databaseUrl = "jdbc:mariadb://localhost:3306";
+        String username = "admin";
+        String password = "admin";
+        try {
+            Class.forName("org.mariadb.jdbc.Driver");
+            Connection connection = DriverManager.getConnection(databaseUrl,username,password);
+            if (connection == null){
+                out.println("连接失败");
+            } else {
+                out.println("连接成功");
+                connection.close();
+            }
+        } catch (ClassNotFoundException | SQLException e) {
+            StringWriter stringWriter = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(stringWriter);
+            e.printStackTrace(printWriter);
+            out.println(stringWriter.toString());
+        }
+    %>
+</body>
+</html>
+```
+
+## §3.2 `Statement`/`PreparedStatement`/`CallableStatement`
+
+### §3.2.1 `Statement`
+
+`Statement`接口主要提供执行SQL命令的一系列方法，**只能调用一次`.execute()`方法**，并且设置返回的`ResultSet`实例。
+
+| 方法名                           | 作用                                                         |
+| -------------------------------- | ------------------------------------------------------------ |
+| `close()`                        | 销毁实例，释放占用的资源                                     |
+| `addBatch(String)`               | 将SQL命令添加到SQL批处理命令中（要求SQL命令的返回值不能为`ResultSet`，符合条件的有`INSERT`/`DELETE`/`UPDATE`/`CREATE`/`DROP`/`USE`/...） |
+| `clearBatch()`                   | 删除所有的批处理命令                                         |
+| `ResultSet execute(String)`      | 执行SQL命令，返回对应的`ResultSet`实例                       |
+| `ResultSet executeQuery(String)` | 执行SQL查询命令（`SELECT`），返回对应的`ResultSet`实例       |
+| `int executeUpdate(String)`      | 执行SQL更新指令（`INSERT`/`DELETE`/`UPDATE`），返回受影响的记录数 |
+| `int[] executeBatch()`           | 执行SQL批处理命令，返回每条语句影响的记录数                  |
+| `getConnection()`                | 返回生成该实例的`Connection`实例                             |
+| `setMaxRows(int)`                | 设置`ResultSet`中的最大记录数                                |
+| `getMaxRows()`                   | 返回`ResultSet`中的最大记录数                                |
+
+### §3.2.2 `PreparedStatement`
+
+`PreparedStatement`接口继承自`Statement`。其第一次调用`.execute()`方法的开销远大于`Statement`，**但是可以重复调用该方法**。实例化时`connection.preparedStatement(String sqlCommand)`用到的字符串可以用`?`作为占位符，后续通过`preparedStatement.setInt/setLong/setString/setNull/...(int index,int/long/String/...)`替换指定位置的占位符，或者用`preparedStatement.clearParameter()`恢复初始状态。
+
+```java
+String sqlCommand = "INSERT INTO users VALUES (?,?,?)"
+PreparedStatement preparedStatement = connection.prepareStatement(sqlCommand);
+for(int i = 0 ; i < 100 ; i++) {
+    preparedStatement.setInt(i);
+    preparedStatement.setString("user_" + String.valueOf(i));
+    preparedStatement.setString(String.valueOf(Math.random());
+    preparedStatement.executeUpdate();
+}
+```
+
+上述过程涉及1次`Statement`预储和100次迭代，共计101次网络往返。为了减少网络开支，我们可以使用命令批处理的方法，将100次迭代压缩至1次执行，共计2次网络往返：
+
+```java
+String sqlCommand = "INSERT INTO users VALUES (?,?,?)";
+PreparedStatement preparedStatement = connection.prepareStatement(sqlCommand);
+for(int i = 0 ; i < 100 ; i++) {
+    preparedStatement.setInt(i);
+    preparedStatement.setString("user_" + String.valueOf(i));
+    preparedStatement.setString(String.valueOf(Math.random());
+    preparedStatement.addBatch();
+}
+preparedStatement.executeBatch();
+```
+
+### §3.2.3 `CallableStatement`
+
+`CallableStatement`接口继承自`PreparedStatement`接口，为所有DBMS提供了一套标准化的数据库转码语言，用于调用存储在数据库中的**存储过程**。这种语言一般如下所示：
+
+```java
+CallableStatement callableStatement = connection.prepareCall("{Call getTestData(?,?)}")
+```
+
+转码语言完整的语法为`{ [? =] call <FunctionName>[(?,?,...)] }`。它的外部被`{}`括起来，内部是`call`和方法名。
+
+```java
+CallableStatement callableStatement = connection.prepareCall("{Call getTestData(?,?)}");
+callableStatement.registerOutParameter(1,java.sql.types.tinyint);
+callableStatement.registerOutParameter(2,java.sql.types.decimal,3);
+callableStatement.setByte(1,99);
+callableStatement.setBigDecimal(2,new BigDecimal(3.1415926));
+callableStatement.executeQuery();
+byte data_tinyint = callableStatement.getByte(1);
+BigDecimal data_decimal = callableStatement.getBigDecimal(2,3);
+```
+
+## §3.3 `ResultSet`
+
+- 执行静态SQL查询（写死的SQL语句）：
+
+  ```java
+  // Class.forName("...");
+  // Connection connection = ...;
+  // Statement statement = ...;
+  ResultSet resultSet = statement.executeQuery(sqlCommand);
+  ```
+
+- 执行动态SQL查询（可使用`?`占位符的SQL语句）：
+
+  ```java
+  // Class.forName("...");
+  // Connection connection = ...;
+  // Statement statement = ...;
+  // PreparedStatement preparedStatement = ...;
+  ResultSet resultSet = preparedStatement.executeQuery();
+  ```
+
+| 方法名                          | 作用                                                         |
+| ------------------------------- | ------------------------------------------------------------ |
+| `boolean absolute(int rows)`    | 将指针移动到第`rows`行的行首                                 |
+| `boolean first()`               | 将指针移动到第1行的行首                                      |
+| `boolean last()`                | 将指针移动到最后一行的行首                                   |
+| `void afterLast()`              | 将指针移动到最后一行的行尾                                   |
+| `void beforeFirst()`            | 将指针移动到第-1行的行首                                     |
+| `boolean next()`                | 将指针移动到下一行的行首                                     |
+| `boolean previous()`            | 将指针移动到上一行的行首                                     |
+| `boolean relative(int rows)`    | 将指针移动到下`rows`行的行首（支持负数）                     |
+| `boolean isAfterLast()`         | 判断指针是否位于最后一行的行尾                               |
+| `boolean isBeforeFirst()`       | 判断指针是否位于第-1行的行首                                 |
+| `boolean isFirst()`             | 判断指针是否位于第1行的行首                                  |
+| `boolean isLast()`              | 判断指针是否位于最后一行的行尾                               |
+| `int getRow()`                  | 返回当前指针位于第几行行首                                   |
+| `String getString(int index)`   | 返回当前行第`index`列的数据的字符串形式                      |
+| `String getString(String name)` | 返回当前行列名为`name`的列的数据的字符串形式                 |
+| `int getInt(int index)`         | 返回当前行第`index`列的数据的`int`形式                       |
+| `void deleteRow()`              | 返回当前行列名为`name`的列的数据的`int`形式                  |
+| `void cancelrowUpdates()`       | 撤销产生该`ResultSet`实例的`statement.executeUpdate()`方法造成的改动 |
+| `void moveToInsertRow()`        | 将指针移动到一个用于插入的缓冲行，填充参数后可以调用`insertRow()`方法插入 |
+| `void moveToCurrentRow()`       | 将指针移动到调用`moveToInsertRow()`之前的位置                |
+| `void refreshRow()`             | 再次访问数据库，刷新指针所指行的数据                         |
+| `int getFetchSize()`            | 返回`ResultSet`实例包含的行数                                |
+| `void close()`                  | 销毁`ResultSet`实例，释放占用的资源                          |
+
+```java
+while(resultSet.next()){
+    out.println("id: " + getString(1) + "<br>");
+    out.println("username: " + getString(2) + "<br>");
+}
+```
+
+JDBC不仅要求及时销毁以上创建的对象，还对销毁的顺序做出了严格的要求：
+
+```java
+resultSet.close();
+statement.close();
+preparedStatement.close();
+connection.close();
+```
+
+## §3.4 连接池
+
+在访问量巨大的情景下，传统的JDBC即使不执行查询操作，只是尝试连接，也会造成大量的资源开销。连接池（Connection Pool）是一种自定义的Java类，负责分配、管理和释放数据库连接。连接池类必须满足以下要求：
+
+- 实现创建和存储`Connection`实例的引用，留待备用
+- 程序发起连接时，从连接池中取出`Connection`实例
+- 程序关闭连接时，将`Connection`实例放回连接池，不释放
+- 对链接进行管理、计数和监控
+
+创建步骤为：
+
+1. 添加JDBC
+
+   将JDBC驱动的Jar包放到`/tomcat/lib`目录中，并编辑`/tomcat/conf/context.xml`资源配置文件。
+
+   ```jsp
+   <!
+   <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+   <%@ page import="org.mariadb.jdbc.Driver" %>
+   <%@ page import="java.io.File" %>
+   <%@ page import="java.io.FileInputStream" %>
+   <%@ page import="java.nio.ByteBuffer" %>
+   <%@ page import="java.sql.Connection" %>
+   <%@ page import="java.sql.DriverManager" %>
+   <%@ page import="java.sql.Statement" %>
+   <%@ page import="java.sql.ResultSet" %>
+   <html>
+   <head>
+       <title>Title</title>
+   </head>
+   <body>
+   <%
+       Class.forName("org.mariadb.jdbc.Driver");
+       String databaseUrl = "jdbc:mariadb://localhost:3306";
+       String username = "admin";
+       String password = "admin";
+       String filename = request.getParameter("image");
+       File file = new File(filename);
+       try {
+           FileInputStream fileInputStream = new FileInputStream(file);
+           ByteBuffer byteBuffer = ByteBuffer.allocate((int)file.length());
+           byte[] array = new byte[1024];
+           int offset = 0;
+           int length = 0;
+           while((length = fileInputStream.read(array)) > 0){
+               if(length == 1024){
+                   byteBuffer.put(array);
+               }else{
+                   byteBuffer.put(array,0,length);
+               }
+               offset += length;
+           }
+           byte[] content = byteBuffer.array();
+           Connection connection = DriverManager.getConnection(databaseUrl,username,password);
+           Statement statement = connection.createStatement(
+                   ResultSet.TYPE_SCROLL_INSENSITIVE,
+                   ResultSet.CONCUR_UPDATABLE
+           );
+           String sqlCommand = "select * from bindata where filename = " + filename;
+           ResultSet resultSet = statement.executeQuery(sqlCommand);
+           if(resultSet.next()){
+               resultSet.updateBytes(2,content);
+               resultSet.updateRow();
+           }else{
+               resultSet.moveToInsertRow();
+               resultSet.updateString(1,"01");
+               resultSet.updateBytes(2,content);
+               resultSet.insertRow();
+           }
+           resultSet.close();
+           fileInputStream.close();;
+           out.println("添加成功");
+       } catch (Exception e) {
+           e.printStackTrace();
+       }
+   %>
+   </body>
+   </html>
+   ```
+
+   
+
+2. ？？？？？？？？？？？？？？TODO：
+
+
+
+## §3.5 文件存储
+
+
+
