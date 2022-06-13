@@ -1518,78 +1518,448 @@ connection.close();
 
    将JDBC驱动的Jar包放到`/tomcat/lib`目录中，并编辑`/tomcat/conf/context.xml`资源配置文件。
 
-   ```jsp
-   <!
-   <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-   <%@ page import="org.mariadb.jdbc.Driver" %>
-   <%@ page import="java.io.File" %>
-   <%@ page import="java.io.FileInputStream" %>
-   <%@ page import="java.nio.ByteBuffer" %>
-   <%@ page import="java.sql.Connection" %>
-   <%@ page import="java.sql.DriverManager" %>
-   <%@ page import="java.sql.Statement" %>
-   <%@ page import="java.sql.ResultSet" %>
-   <html>
-   <head>
-       <title>Title</title>
-   </head>
-   <body>
-   <%
-       Class.forName("org.mariadb.jdbc.Driver");
-       String databaseUrl = "jdbc:mariadb://localhost:3306";
-       String username = "admin";
-       String password = "admin";
-       String filename = request.getParameter("image");
-       File file = new File(filename);
-       try {
-           FileInputStream fileInputStream = new FileInputStream(file);
-           ByteBuffer byteBuffer = ByteBuffer.allocate((int)file.length());
-           byte[] array = new byte[1024];
-           int offset = 0;
-           int length = 0;
-           while((length = fileInputStream.read(array)) > 0){
-               if(length == 1024){
-                   byteBuffer.put(array);
-               }else{
-                   byteBuffer.put(array,0,length);
-               }
-               offset += length;
-           }
-           byte[] content = byteBuffer.array();
-           Connection connection = DriverManager.getConnection(databaseUrl,username,password);
-           Statement statement = connection.createStatement(
-                   ResultSet.TYPE_SCROLL_INSENSITIVE,
-                   ResultSet.CONCUR_UPDATABLE
-           );
-           String sqlCommand = "select * from bindata where filename = " + filename;
-           ResultSet resultSet = statement.executeQuery(sqlCommand);
-           if(resultSet.next()){
-               resultSet.updateBytes(2,content);
-               resultSet.updateRow();
-           }else{
-               resultSet.moveToInsertRow();
-               resultSet.updateString(1,"01");
-               resultSet.updateBytes(2,content);
-               resultSet.insertRow();
-           }
-           resultSet.close();
-           fileInputStream.close();;
-           out.println("添加成功");
-       } catch (Exception e) {
-           e.printStackTrace();
-       }
-   %>
-   </body>
-   </html>
-   ```
-
    
-
+   
+   
+   
 2. ？？？？？？？？？？？？？？TODO：
 
 
 
 ## §3.5 文件存储
 
+创建SQL数据库：
 
+```sql
+create table table_name (
+    id       int auto_increment,
+    filename char     not null,
+    content  longblob null,
+    constraint table_name_pk
+        primary key (id)
+);
+
+create unique index table_name_id_uindex on table_name (id);
+```
+
+用于选择文件的JSP：
+
+```jsp
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+    <title>Title</title>
+</head>
+<body>
+  <form name="form1" method="post" action="SaveFile.jsp">
+      <input type="file" name="file">
+      <input type="submit" name="submit" value="Upload File To Server">
+  </form>
+</body>
+</html>
+```
+
+用于上传文件的JSP：
+
+```jsp
+<!-- SaveFile.jsp -->
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page import="org.mariadb.jdbc.Driver" %>
+<%@ page import="java.io.File" %>
+<%@ page import="java.io.FileInputStream" %>
+<%@ page import="java.nio.ByteBuffer" %>
+<%@ page import="java.sql.Connection" %>
+<%@ page import="java.sql.DriverManager" %>
+<%@ page import="java.sql.Statement" %>
+<%@ page import="java.sql.ResultSet" %>
+<html>
+<head>
+    <title>Title</title>
+</head>
+<body>
+<%
+    Class.forName("org.mariadb.jdbc.Driver");
+    String databaseUrl = "jdbc:mariadb://localhost:3306";
+    String username = "admin";
+    String password = "admin";
+    String filename = request.getParameter("image");
+    File file = new File(filename);
+    try {
+        FileInputStream fileInputStream = new FileInputStream(file);
+        ByteBuffer byteBuffer = ByteBuffer.allocate((int)file.length());
+        byte[] array = new byte[1024];
+        int offset = 0;
+        int length = 0;
+        while((length = fileInputStream.read(array)) > 0){
+            if(length == 1024){
+                byteBuffer.put(array);
+            }else{
+                byteBuffer.put(array,0,length);
+            }
+            offset += length;
+        }
+        byte[] content = byteBuffer.array();
+        Connection connection = DriverManager.getConnection(databaseUrl,username,password);
+        Statement statement = connection.createStatement(
+                ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_UPDATABLE
+        );
+        String sqlCommand = "select * from file where filename = " + filename;
+        ResultSet resultSet = statement.executeQuery(sqlCommand);
+        if(resultSet.next()){
+            resultSet.updateBytes(2,content);
+            resultSet.updateRow();
+        }else{
+            resultSet.moveToInsertRow();
+            resultSet.updateString(1,"01");
+            resultSet.updateBytes(2,content);
+            resultSet.insertRow();
+        }
+        resultSet.close();
+        fileInputStream.close();;
+        out.println("添加成功");
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+%>
+</body>
+</html>
+```
+
+用于下载文件的JSP：
+
+```jsp
+<!--  -->
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page import="org.mariadb.jdbc.Driver" %>
+<%@ page import="java.sql.Connection" %>
+<%@ page import="java.sql.DriverManager" %>
+<%@ page import="java.sql.Statement" %>
+<%@ page import="java.sql.ResultSet" %>
+<%@ page import="java.io.InputStream" %>
+<html>
+<head>
+    <title>Title</title>
+</head>
+<body>
+<%
+    try {
+        Class.forName("org.mariadb.jdbc.Driver");
+        String databaseUrl = "jdbc:mariadb://localhost:3306";
+        String username = "admin";
+        String password = "admin";
+        Connection connection = DriverManager.getConnection(databaseUrl);
+        String sqlCommand = "select * from file where filename = " + request.getParameter("file");
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(sqlCommand);
+        while (resultSet.next()){
+            response.setContentType("image/jpeg");
+            ServletOutputStream servletOutputStream = response.getOutputStream();
+            InputStream inputStream = resultSet.getBinaryStream(2);
+            byte data[] = new byte[0x7a120];
+            for (int i = inputStream.read(data) ; i != -1 ; ){
+                servletOutputStream.write(data);
+                inputStream.read(data);
+            }
+            servletOutputStream.flush();
+            servletOutputStream.close();
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+%>
+</body>
+</html>
+```
+
+# §4 XML
+
+XML（eXtensible Markup Language，可扩展标记语言）语言不是编程语言，而是一种数据的载体，它的地位与JSON相似。
+
+## §4.1 基本语法
+
+W3C组织指定并推荐一套标准化XML语法：
+
+- XML文件只能包含一个根元素
+- 所有的标签必须带有结束标记（`</...>`或`/>`）
+- 标签的所有属性之必须由单引号或双引号括起来
+
+XML文档包含七个主要部分：
+
+- 序言码
+
+  序言码包含XML声明、处理指令、架构声明，必须放在第一行。
+
+  ```xml
+  <? xmlversion="1.0" encoding="utf-8" ?>
+  ```
+
+  | 属性名     | 含义              | 可选值                                                      |
+  | ---------- | ----------------- | ----------------------------------------------------------- |
+  | `version`  | XML文档的版本     | `1.0`是最常用的版本，兼容性最好。2004年W3C组织推出了`1.1`。 |
+  | `encoding` | XML文档使用的编码 | `gb2312`/`big5`/`utf-8`/...                                 |
+
+- 处理指令（Processing Instructions）
+
+  处理指令为XML应用程序提供指示方法。
+
+  ```xml
+  <!-- CSS Stylesheet Association -->
+  <? xml-stylesheet href="file.css" type="text/css" ?>
+  
+  <!-- DTD Association -->
+  <? xml-model href="file.dtd" type="application/xml-dtd" ?>
+  
+  <!-- XML Schema Association -->
+  <? xml-model href="file.xsd" type="application/xml" schematypens="http://www.w3.org/2001/XMLSchema" ?>
+  
+  <!-- XSL Stylesheet Association -->
+  <? xml-stylesheet href="file.xsl" type="text/xsl" ?>
+  ```
+
+- 根元素
+
+  ```xml
+  <document xsi="http://www.w3.org/2001/XMLSchema-instance">
+      ...
+  </document>
+  ```
+
+- 元素
+
+  元素是XML文档的基本单元，由开始标记、内容、结束标记构成。
+
+- 属性
+
+  属性是XML元素在开始标记中额外添加的字段。
+
+  ```xml
+  <data id="1"></data>
+  ```
+
+- CDATA节
+
+  XML文档中的特殊字符必须进行转义：
+
+  |   字符   |   `&`   |  `>`   |  `<`   |   `'`    |   `"`    |
+  | :------: | :-----: | :----: | :----: | :------: | :------: |
+  | 实体引用 | `&amp;` | `&gt;` | `&lt;` | `&apos;` | `&quot;` |
+
+  对于特殊字符较多的数据，可以将其放在CDATA节内。CDATA节不可嵌套。
+
+  ```xml
+  <![CDATA[ ... ]]>
+  ```
+
+- 注释
+
+  ```xml
+  <!-- ... -->
+  ```
+
+标记语法分为空标记和非空标记。非空标记用于结构化组织数据，由起始标记和结束标记构成，语法为`<标签名></标签名>`；空标记用于对文档的显示方式进行排版，语法为`<标签名 />`。
+
+标记的命名必须符合以下要求：
+
+- 标记名必须以字母或下划线为开头（若`encoding="gb2312"`也可以用中文字符作为开头）
+- 标记名必须只包含字母、数字、下划线`_`、连接线`-`、小数点`.`（若`encoding="gb2312"`也可以包含中文字符）`
+- 标记名不能为保留字`XML`
+
+## §4.2 Java XML API
+
+Java提供了一系列用于解析XML文档的API，主要包含两类API：
+
+- JAXP（Java API for XML Processing），负责解析XML
+- JAXB（Java Architecture for XML Binding），负责将XML映射为Java对象
+
+```mermaid
+flowchart LR
+    subgraph XMLDocument ["XML文档"]
+        XMLDocumentContent["
+            &lt;StudentList&gt;
+                &lt;Student&gt;
+                    &lt;id&gt;1&lt;/id&gt;
+                    &lt;name&gt;Yaner&lt;/name&gt;
+                &lt/Student&gt;
+            &lt;/StudentList&gt;
+        "]
+    end
+    subgraph DOMStuctureTree ["DOM结构树"]
+        direction TB
+        DOMDocument["Document节点"]
+            --"getRootElements()[0]"-->DOMElementStudentList["Element(StudentList)"]
+            -->DOMElementStudent["Element(Student)"]
+            -->DOMElementId["Element(id)"]
+            -->DOMTextId["Text(1)"]
+        DOMElementStudentList--"getDocument()"-->DOMDocument
+        DOMElementStudent
+            -->DOMElementName["Element(name)"]
+            -->DOMTextName["Text(Yaner)"]
+    end
+    XMLDocument-->DOMStuctureTree
+```
+
+### §4.2.1 DOM解析
+
+DOM是一种由文件对象所组成的模型。它将XML解析成树状结构，可以将XML文件转化成一个对象化的数据接口，通过DOM节点数来访问XML文档中的数据，与平台和语言无关。
+
+```java
+import java.io.*;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.DocumentBuilder;
+import javax.swing.text.Document; // 或 org.w3c.dom.Document
+import javax.swing.text.Element;
+
+File xmlFile = new File(...);
+DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+DocumentBuilder builder = factory.newDocumentBuilder();
+Document document = builder.parse(xmlFile);
+Element element = document.getRootElements()[0];
+```
+
+`Element`接口提供以下方法：
+
+| 方法名                            | 作用                                                         |
+| --------------------------------- | ------------------------------------------------------------ |
+| `Element getElement(int index)`   | 返回第`index`个子标签（从0开始数）                           |
+| `Element getParentElement()`      | 返回其父标签                                                 |
+| `int getElementCount()`           | 返回该标签的出度                                             |
+| `int getElementIndex(int offset)` | 返回距离指定`offset`最近的标签                               |
+| `AttributeSet getAttributes()`    | 返回该标签定义的一系列属性，可以使用`Object AttributeSet.getAttribute(Object key)`获得指定属性的值 |
+| `Document getDocument()`          | 返回该标签所处的`Document`实例                               |
+| `int getEndOffset()`              | 返回该标签末尾所处的偏移量                                   |
+| `String getName()`                | 返回该标签的标签名                                           |
+| `int getStartOffset()`            | 返回该标签头部所处的                                         |
+| `boolean isLeaf()`                | 判断该标签是否不含有子标签                                   |
+
+### §4.2.2 SAX解析
+
+SAX是解析XML的一种规范，其使用的包定义于`org.xml.sax`内。虽然也是开源的，但是不被W3C推荐。SAX将XML解析成一个个相互关联的事件源和事件处理器，其中事件源定义为可以产生事件的对象，针对事件产生的相应的对象称为事件处理器。
+
+```java
+import javax.xml.parsers.SAXParserFactory;
+import javax.xml.parsers.SAXParser;
+
+File xmlFile = new File(...);
+SAXParserFactory factory = SAXParserFactory.newInstance();
+@Deprecated SAXParser parser = factory.newSAXParser(); // 已被XMLReader取代
+parser.parse(xmlFile);
+```
+
+## §4.3 JAXB映射
+
+传统开发中，我们常常需要把一个实例中的字段逐一映射到一个标签的各种属性，这一过程十分的繁琐。如果说Hibernate是一种将Java对象映射到SQL的框架，那么JAXB就是一种将Java对象映射到XML的框架。
+
+JAXB映射由四部分组成：Schema、JAXB、XML文档、Java对象。
+
+```mermaid
+graph LR
+    Schema["结构<br>Schema"]
+    JAXB["JAXB映射类"]
+    Object["Java对象"]
+    Document["XML文档"]
+    Schema<--"绑定"-->JAXB
+    Document--"Follows"-->Schema
+    Document--"Unmarshal(validate)"-->Object
+    Object--"Marshal(validate)"-->Document
+    Object--"instanceOf"-->JAXB
+```
+
+> 根据[StackOverflow](https://stackoverflow.com/a/52502208/16366622)，Java在JDK9和JDK10宣布`java.xml.bind`软件包被弃用，在JDK 11及之后的版本彻底将其移除。Java决定将其删除的原因是现在大多数企业不再将XML作为主要数据源进行读写操作。为了保持Java标准库的精炼性，Java决定将其彻底删除：
+>
+> "Java’s standard library isn’t exactly small and lightweight. In the course of the past 20+ years, many features have been added to it, mostly because at the time it was thought that it would be a good idea if Java supported a particular technology out-of-the-box."——[Jesper de Jong的博客](https://www.jesperdj.com/2018/09/30/jaxb-on-java-9-10-11-and-beyond/)
+
+下面我们以博客为例，介绍JAXB的使用。首先定义博客文章的类：
+
+```java
+import javax.xml.bind.annotation.XmlRootElement;
+// @XmlRootElement // 根标签为Article，一个XML只储存一篇博客文章
+public class Article {
+    private String title,author,content,date;
+    public void/String set/get...(){...}
+}
+```
+
+```java
+import javax.xml.bind.annotation.XmlRootElement;
+// @XmlRootElement // 根标签为ArticleList，一个XML储存 博客文章
+public class ArticleList { // 根标签
+    public List<Article> article;
+}
+```
+
+
+
+### §4.3.1 Java对象映射为XML（Marshal）
+
+创建测试类：
+
+```java
+import java.io.File;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+
+public class JAXBDemo {
+    
+    public static void main(String[] args){
+        File xmlFile = new File("/test.xml");
+        try {
+            JAXBContext context = JAXBContext.newInstance(Article.class);
+            Marshaller marshaller = context.createMarshaller();
+            Article article = new Article();
+            article.setAuthor("Alice");
+            article.setTitle("Hello World");
+            article.setContext("I'm learning JSP!");
+            article.setDate("2022.6.14");
+            marshaller.marshal(article,xmlFile);
+        } catch(JAXBException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+发现根目录下`/test.xml`的内容为：
+
+```xml
+<? xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<article>
+	<author>Alice</author>
+    <title>Hello World</title>
+    <content>I&apos;m learning JSP!</content>
+    <date>2022.6.14</date>
+</article>
+```
+
+### §4.3.2 XML映射为Java对象
+
+创建测试类：
+
+```java
+import java.io.File;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+
+public class JAXBDemo_un {
+    public static void print(Article article){
+        System.out.println("Author: " + article.getAuthor());
+        System.out.println("Title: " + article.getTitle());
+        System.out.println("Content: " + article.getContent());
+        System.out.println("Date: " + article.getDate());
+    }
+    public static void main(String[] args){
+        File xmlFile = newFile("/test.xml");
+        try {
+            JAXBContex context = JAXBContext.newInstance(Article.class);
+            UnMarshaller unmarshaller = context.createUnmarshaller();
+            Article article = (Article) unmarshaller.unmarshal(xmlFile);
+			print(article);
+        } catch(JAXBException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
 
