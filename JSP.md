@@ -52,8 +52,6 @@ JSP包含两种注释：
 </html>
 ```
 
-
-
 ### §1.1.4 表达式（Expression）
 
 表达式指的是Java中完整的表达式，格式为`<%= %>`计算后会被转换为字符串，输出到当前的输出流中。
@@ -1883,12 +1881,10 @@ public class Article {
 ```java
 import javax.xml.bind.annotation.XmlRootElement;
 // @XmlRootElement // 根标签为ArticleList，一个XML储存 博客文章
-public class ArticleList { // 根标签
+public class Articles { // 根标签
     public List<Article> article;
 }
 ```
-
-
 
 ### §4.3.1 Java对象映射为XML（Marshal）
 
@@ -1932,9 +1928,9 @@ public class JAXBDemo {
 </article>
 ```
 
-### §4.3.2 XML映射为Java对象
+### §4.3.2 XML映射为Java对象（Unmarshal）
 
-创建测试类：
+当根标签为`<article>`时，创建测试类：
 
 ```java
 import java.io.File;
@@ -1961,5 +1957,255 @@ public class JAXBDemo_un {
         }
     }
 }
+```
+
+当根标签是`<articles>`时，创建测试类：
+
+```java
+import ...;
+@XmlRootElement(name"articles");
+public void JAXBDemo_un {
+    // ...
+    public static void main(String[] args){
+        try {
+            // ...
+            Articles articles = (Articles) unmarshaller.unmarshal(xmlFile);
+            List<Article> articleList = articles.getAtricles();
+        }
+    }
+}
+```
+
+# §5 MVC
+
+MVC（Model-View-Controller）是一种流行的软件设计模式。大多数面向过程的编程语言开发Web应用时，很容易将数据库层、服务器层、前端层混合起来，可维护性很差，而MVC采用分层的思想解决了这一问题。
+
+MVC将一个应用分成以下三层：
+
+- 模型层
+
+  模型（Model）指的是业务流程的抽象化类，用于接受视图请求的数据，与控制器交互后返回相应的数据。
+
+- 视图层
+
+  视图（View）代表用户交互界面。
+
+- 控制层
+
+  控制器（Controller）用于将模型与视图匹配在一起，本身并不对数据进行处理。
+
+在Java中，这三层分别对应着JavaBean、JSP、Servlet：
+
+```mermaid
+flowchart LR
+    Browser["浏览器"]
+    subgraph Server ["Servlet 服务器"]
+        Servlet["控制器(Controller)<br>Servlet"]
+        JSP["视图(View)<br>JSP"]
+        JavaBean["模型(Model)<br>JavaBean"]
+    end
+    Database[(数据库)]
+    Browser<--"Request"-->Servlet
+        <--"Controller实例化Model"-->JavaBean
+        <--"交互"-->Database
+    Browser<--"Response"-->JSP
+        <--"Model生成View"-->JavaBean
+```
+
+# §6 JSP组件
+
+正如Python有众多第三方库，Java有众多第三方包，JSP本身也有各种实用的组件。本节将简要介绍各种第三方库的功能与使用方法，具体的更多细节应参考对应组件官网提供的技术文档。
+
+## §6.1 Apache Commons FileUpload
+
+Apache Commons Project维护的[FileUpload](https://commons.apache.org/proper/commons-fileupload/)组件用于实现文件的上传与下载。该组件可以将`multipart/form-data`的MIME类型请求中的表单域进行解析。
+
+```jsp
+<input name="file" type="file" size="<size>">
+```
+
+```java
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
+
+DiskFileItemFactory factory = new DiskFileItemFactory();
+ServletFileUpload upload = new ServletFileUpload(factory);
+List<FileItem> fileItems = upload.parseRequest(request); // HttpServletRequest request
+for(FileItem fileItem : fileItems){
+    if (fileItem.isFormField()){
+		// 表单域
+    } else {
+		// 文件域
+        String fileName = fileItem.getName(); // 文件名
+        long fileSize = fileItem.getSize(); // 文件大小
+        String fileMIME = fileItem.getContentType(); // 文件MIME类型
+    }
+}
+```
+
+## §6.2 JavaMail
+
+美国Sum公司发布的[JavaMail](https://javaee.github.io/javamail/)提供了一系列处理EMail的API，可以方便的创建邮件用户代理（Mail User Agent，MUA）程序，其地位约等于桌面端的Microsoft Outlook。
+
+以下是一个发送邮件的Demo：
+
+```java
+import java.util.Properties;
+import javax.mail.Address;
+import javax.mail.Authenticator;
+import javax.mail.Message;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+
+class EmailAuthenticator extends Authenticator{
+    private String username,password;
+    public EmailAuthenticator(){
+        super();
+    }
+    public EmailAuthenticator(String username,String password){
+        super();
+        this.username = username;
+        this.password = password;
+    }
+    public Passw
+}
+
+public class Mail_TestBench{
+    private String host = "smtp.qq.com";
+    private String username = "123456";
+    private String password = "123456";
+    private String mailHeadName = "";
+    private String mailHeadValue = "";
+    private String mailTo = "Receiver@qq.com";
+    private String mailFrom = "Sender@qq.com";
+    private String mailSubject = "Subject";
+    private String mailBody = "Content";
+    private String personalName = "test mail";
+    public void send() throws Exception(){
+        try {
+            Properties properties = new Properties();
+            Authenticator authticator = new 
+        }
+    }
+}
+```
+
+JavaMail提供的类包括：`Session`、`Message`、`Address`、`Authenticator`、`Transport`、`Store`、`Folder`等。
+
+### §6.2.1 `Session`
+
+`Session`用于表示邮件协议（例如SMTP）中包含认证信息的会话。
+
+```java
+import java.util.Properties;
+import java.net.Authenticator;
+
+public void customizeGetSession(Properties properties,Authenticator authenticator){
+    Session session = Session.getInstance(properties,authenticator);
+    Session defaultSession = Session.getDefaultInstance(properties,authenticator);
+    return session或defaultSession;
+}
+```
+
+### §6.2.2 `Message`
+
+`Message`用于表示实际发送的电子邮件信息。这是一个抽象类，一般情况下使用其子类`MimeMessage`。
+
+```java
+import javax.mail.internet.MimeMessage;
+
+public void customizeMimeMessage_TestBench(Session session){
+    MimeMessage message = new MimeMessage(session);
+    message.setText("这是正文");
+    message.setContent("这是正文","text/plain");
+    message.setSubject("这是主题");
+    message.saveChanges(); // 保证报头域与session保持一致
+    message.setFrom("发件人地址@gmail.com");
+    InternetAderess address = InternetAddress.parse("收件人地址@gmail.com",false);
+    message.setRecipients(RecipientType type,InternetAderess(可以是[]) address);
+    	// RecipientType是Message的内部类:
+    	//		Message.RecipientType.TO	发送	
+    	//		Message.RecipientType.CC	抄送
+    	//		Message.RecipientType.BCC	暗送
+    message.setSentDate(new Date()); //设置发送时间
+    String content = message.getContent(); // 获取消息内容
+    OutputStream outputStream = new OutputStream();
+    message.writeTo(outputStream); // 获取消息内容，并设置对应输出流实例
+}
+```
+
+### §6.2.3 `Address`
+
+`Address`用于设置电子邮件的响应地址。它是一个抽象类，一般情况下使用其子类`InternetAddress`。
+
+```java
+import javax.mail.internet.InternetAddress;
+import java.net.Authenticator;
+
+// 只含有电子邮件地址
+InternetAddress address = new InternetAddress("用户名@gmail.com");
+
+// 含有电子邮件地址和其他标识信息
+InternetAddress address = new InternetAddress("用户名@gmail.com","Alice");
+```
+
+### §6.2.4 `Authenticator`
+
+`Authenticator`类通过用户名和密码来访问受保护的资源。它是一个抽象类，一般情况下自定义子类并重载其`getPasswordAuthentication()`方法：
+
+```java
+import java.net.PasswordAuthentication;
+import java.net.Authenticator;
+import javax.mail.Transport;
+
+class CustomizeAuthenticator extends Authenticator {
+    
+    @Override public CustomizeAuthenticator getPasswordAuthentication(){
+        String username = "admin";
+        String password = "admin";
+        return new PasswordAuthentication(username,password);
+    }
+    
+    public static void main(String[] args){
+        // Session session = ...;
+        Transport transport = session.getTransport("smtp");
+        transport.connect("服务器地址","发件人","密码");
+        transport.sendMessage(message,message.getAllRecipents());
+        transport.close();
+    }
+    
+}
+```
+
+### §6.2.5 `Transport`
+
+`Transport`类用于使用指定的协议（通常是SMTP）。
+
+```java
+transport.send(message);
+```
+
+### §6.2.6 `Store`
+
+`Store`类表示保存文件夹层级关系的数据库。获取`Session`实例后，就能用`Authenticator`实例连接`Store`实例。
+
+```java
+Store store = session.getStore("pop3"或"imap");
+store.connect("host","username","password");
+store.close();
+```
+
+### §6.2.7 `Folder`
+
+`Folder`类用于存储文件夹内部的数据。
+
+```java
+Folder folder = store.getFolder("INBOX");
+folder.open(Folder.READ_ONLY);
+Message message[] = folder.getMessages();
+folder.close(Boolean isSyncDeletion);
 ```
 
