@@ -127,12 +127,14 @@ JSP的指令元素包括`page`指令、`include`指令、`taglib`指令，格式
 
 ### §1.2.3 `taglib`
 
-？？？？？？？？？？？？？？TODO：
-
-`taglib`指令用于指定JSP自定义的标签，格式为`<%@ taglib uri="<TagLibrary>" prefix="<Prefix>">`，其中各参数的含义为：
+`taglib`指令用于指定JSP自定义的标签，供其他JSP文档引用。其格式为`<%@ taglib uri="<TagLibrary>" prefix="<Prefix>">`，其中各参数的含义为：
 
 - `uri`：根据标签前缀，对自定义标签进行的唯一命名
 - `prefix`：在自定义标签之前的前缀
+
+```jsp
+<%@ taglib uri= %>
+```
 
 > 注意：`jsp`/`jspx`/`java`/`javax`/`servlet`/`sun`/`sunw`等保留字不允许作为自定义标签的前缀。
 
@@ -1026,26 +1028,17 @@ public class CustomizeHttpServlet extends ... {
 ## §2.11 声明式异常处理
 
 ```java
-public class UserInfoManagement extends HttpServlet {
-    try {
-        int a = 1/0;
-    } catch (ArithmeticException e) {
-        req.setAttribute("javax.servlet.error.exception",e);
-        req.setAttribute("javax.servlet.error.request_uri",req.getRequestURI());
-        RequestDispatcher requestDispatcher = req.getRequestDispatcher("ExceptionHandler");
-        requestDispatcher.forward(req,resp);
-    }
-}
-
 public class CustomizeHttpErrorHandlerServlet extends HttpServlet {
     @Override protected void service(HttpServletRequest req,Http ServletResponse resp) throws ServletException,IOException {
         int statusCode = req.getAttribute("javax.servlet.error.status_code");
 		switch(statusCode){
             case 401:
-                out.println("404");
+                out.println("401 You are not authorized!");
+                out.println("<a href=\"...\">Log in Now!</a>") // 自定义提示
                 break;
             case 404:
-                out.println("404");
+                out.println("404 You are lost!");
+                out.println("<a href=\"...\">Go to Home Page</a>") // 自定义提示
                 break;
         }
     }
@@ -1054,23 +1047,67 @@ public class CustomizeHttpErrorHandlerServlet extends HttpServlet {
 
 ```xml
 <web-app>
-	
+	// ...
+    
+    <servlet>
+    	<servlet-name>HttpErrorHandler</servlet-name>
+        <servlet-class>CustomizeHttpErrorHandlerServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+    	<servlet-name>HttpErrorHandler</servlet-name>
+        <url-pattern>/HttpErrorHandler</url-pattern>
+    </servlet-mapping>
+    
+    <error-page> <!-- 在此声明HTTP错误代码 -->
+    	<error-code>401</error-code>
+        <location>/HttpErrorHandler</location>
+    </error-page>
+    <error-page>
+    	<error-code>404</error-code>
+        <location>/HttpErrorHandler</location>
+    </error-page>
+    
+    // ...
 </web-app>
 ```
 
-????????？？？？？？？？？？？？？？？？？？？？TODO：
-
 ## §2.12 程序式异常处理
 
+```java
+public class UserInfoManagement {
+    @Override 
+    public void doGet(HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException {
+        try {
+            int a = 1/0;
+        } catch (ArithmeticException e) {
+            req.setAttribute("javax.servlet.error.exception",e);
+        	req.setAttribute(
+                "javax.servlet.error.request_uri",
+                req.getRequestURI()
+            );
+            RequestDispatcher requestDispatcher =
+                req.getRequestDispatcher("ExceptionHandler");
+            requestDispatcher.forward(req,resp); // 在程序内设置转发
+        }
+    }
+}
 
-
-
-
-
-
-
-
-
+public class CustomizeExceptHandlerServlet extends HttpServlet {
+    @Override 
+    protected void service(HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException {
+        PrintWriter out = response.getWriter();
+        String uri = 
+            (String) reqeust.getAttribute("javax.servlet.error.request_uri");
+        Exception exception = 
+            (Exception) request.getAttribute("javax.servlet.error.exception");
+        out.printf(
+        	"错误链接：%s\n错误原因：%s",
+            uri,
+            exception.toString()
+        )
+    }
+}
+```
 
 ## §2.13 实战：留言板
 
@@ -1512,17 +1549,70 @@ connection.close();
 
 创建步骤为：
 
-1. 添加JDBC
+1. 添加JDBC驱动
 
-   将JDBC驱动的Jar包放到`/tomcat/lib`目录中，并编辑`/tomcat/conf/context.xml`资源配置文件。
+   将JDBC驱动的Jar包放到`/tomcat/lib`目录中。
 
-   
-   
-   
-   
-2. ？？？？？？？？？？？？？？TODO：
+2. 编辑`/tomcat/webapps/<ProjectName>/META-INF/context.xml`资源配置文件
 
+   ```xml
+   <? xml version="1.0" encoding="UTF-8" ?>
+   <!-- path即tomcat/webapps/ProjectName -->
+   <!-- docBase即应用程序根路径 -->
+   <!-- docBase即网页更新时是否重新办医 -->
+   <Context path="/ProjectName" 
+       	 docBase="/ProjectName"
+   		 reloadable="true">
+   	<Resource name="jdbc/my_db" // 资源名称
+                 auth="Container"
+                 type="javax.sql.DataSource"
+                 driverClassName="org.mariadb.jdbc.Driver"
+                 url="jdbc:mariadb://localhost:3306"
+                 username="admin"
+                 password="admin"
+                 maxActive="20"
+                 maxIdle="5"
+                 maxWait="-1" />
+   </Context>
+   ```
 
+3. 编辑`web.xml`
+
+   ```xml
+   <web-app>
+       <!-- ... -->
+       <resource-ref>
+   		<description>DB Connection</description>
+           <res-ref-name>jdbc/my_db</res-ref-name> // 引用的资源名称
+           <res-type>java.sql.DataSource</res-type> // 引用的资源类型
+           <res-auth>Container</res-auth>
+       </resource-ref>
+       <!-- ... -->
+   </web-app>
+   ```
+
+4. 编写程序调用连接池
+
+   ```jsp
+   <%
+   	try {
+           Context context = new InitialContext();
+           DataSource dataSource = (DataSource) context.getConnection();
+           Connection connection = (Connection) dataSource.getConnection();
+           Statement statement = connection.createStatement();
+           ResultSet resultSet = statement.executeQuery("select * from student");
+           ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
+           out.println(resultSetMetaData.getColumnLabel(1)); // 获取第一列的列名
+           while(resultSet.next()){
+               out.println(resultSet.getInt(1));
+               out.println(resultSet.getString(2));
+               out.println(resultSet.getString(3));
+           }
+       } catch(Exception e) {
+           e.printStackTrace();
+       }
+   %>
+   ```
 
 ## §3.5 文件存储
 
@@ -2070,7 +2160,9 @@ class EmailAuthenticator extends Authenticator{
         this.username = username;
         this.password = password;
     }
-    public Passw
+    public PasswordAuthentication getPasswordAuthentication(){
+        return new PasswordAuthentication(username,password);
+    }
 }
 
 public class Mail_TestBench{
@@ -2084,10 +2176,33 @@ public class Mail_TestBench{
     private String mailSubject = "Subject";
     private String mailBody = "Content";
     private String personalName = "test mail";
-    public void send() throws Exception(){
+    public void send(){
         try {
             Properties properties = new Properties();
-            Authenticator authticator = new 
+            Authenticator authticator = new EmailAuthenticator();
+            properties.put("mail.smtp.host",host);
+            properties.put("mail.smtp.auth","true");
+            Session session = Session.getDefaultInstance(properties,auth);
+            MimeMessage message = new MimeMessage(session);
+            message.setSubject(mailSubject);
+            message.setText(mailBody);
+            message.setHeader(mailHeadName,mailHeadValue); // 设置邮件标题 
+            message.setSentDate(new Date());
+            Address address  = new InternetAddress(mailFrom,personalName);
+            message.setFrom(address);
+            Address toAddress = new InternetAddress(mailTo);
+            message.setRecipient(Message.RecipientType.TO,toAddress);
+            Transport.send(message);
+        } catch(Exception e) {
+            e.printStackTrace
+        }
+    }
+    public static void main(String[] args){
+        Mail_TestBench mail= new Mail_TestBench();
+        try {
+            mail.send();
+        } catch(Exception e) {
+            e.printStackTrace();
         }
     }
 }
@@ -2208,4 +2323,250 @@ folder.open(Folder.READ_ONLY);
 Message message[] = folder.getMessages();
 folder.close(Boolean isSyncDeletion);
 ```
+
+## §6.3 JFreeChart
+
+[JFreeChart](https://www.jfree.org/jfreechart/)是一个开源源目，可以生成各式各样的图表，包括柱形图、饼形图、折线图、区域图、时序图、多周图等。
+
+下面是一个柱状图例子：
+
+```jsp
+<!-- index.jsp -->
+<%@ page import="org.jfree.chart.ChartFactory" %>
+<%@ page import="org.jfree.chart.JFreeChart" %>
+<%@ page import="org.jfree.data.category.DefaultCategoryDataset" %>
+<%@ page import="org.jfree.chart.plot.PlotOrientation" %>
+<%@ page import="org.jfree.chart.entity.StandardEntityCollection" %>
+<%@ page import="org.jfree.chart.ChartRenderingInfo" %>
+<%@ page import="org.jfree.chart.servlet.ServletUtilities" %>
+<%@ page import="org.jfree.data.category.DefaultCategoryDataset" %>
+<%@ page import="org.jfree.chart.StandardChartTheme" %>
+<%@ page import="java.awt.Font" %>
+
+<%
+	StandardChartTheme standardChartTheme = new StandardChartTheme("CN");
+	standardChartTheme.setExtraLargeFont("微软雅黑",Font.BOLD,20);
+	standardChartTheme.setRegularFont("宋体",Font.PLAIN,12);
+	standardChartTheme.setLargeFont("隶书",Font.PLAIN,15);
+	ChartFactory.setChartTheme(standardChartTheme);
+
+	DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+	dataset.addValue(200,"China","Apple");
+	dataset.addValue(50,"China","Banana");
+	dataset.addValue(100,"Japan","Apple");
+	dataset.addValue(150,"Japan","Banana");
+	
+	JFreeChart chart = ChartFactory.createBarChart3D(
+    	"Fruit Production", // 图表标题
+        "Fruit", // X轴标题
+        "Production", // Y轴标题
+        dataset, // 数据集
+        PlotOriientation.VERTIACL, // 图表方向
+        true, // 是否包含图例
+        false, // 是否包含提示
+        false // 是否包含URL
+    );
+	ChartRenderingInfo info = new ChartRenderingInfo(new StandardEntityCollection());
+	String fileName = ServletUtilities.saveChartAsPNG(chart,400,270,info,session);
+	String url = request.getContextPath() + "/servlet/DisplayChart?filename=" + fileName;
+%>
+<html>
+    <body>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+            	<td><img src="<%= url %>"></td>
+            </tr>
+        </table>
+    </body>
+</html>
+```
+
+## §6.4 iText
+
+[iText](https://itextpdf.com/en)可以方便的新建PDF，或者将XML、HTML文件转化为PDF。为了兼容中文、日文、韩文字符，需要下载`iTextAsian.jar`包。
+
+```java
+import com.lowagie.text.Document;
+import com.lowagie.text.PDF.PDFWriter;
+import com.lowagie.text.html.HTMLWriter;
+import com.lowagie.text.Table;
+import com.lowagie.text.PDF.PDFPTable;
+import com.lowagie.text.Image;
+    
+public class CustomizePDFGenerator {
+    public static void main(String[] args){
+        
+        Rectangle pageSize = new Rectangle(PageSize.A4); // 设置页面大小为纵向A4
+        // pageSize.rotate(); // 旋转为横向A4
+        
+        Document document = new Document(pageSize,50,50,50,50);
+        	/*	Document的构造方法有三种：
+        	 *		public Document();
+        	 *		public Document(Rectangle pageSize)
+        	 *		public Document(Rectangle,
+        	 *			int marginLeft,marginRight,marginTop,marginBottom
+        	 *		);
+        	*/
+        document.addTitle("标题");
+        docuemnt.addSubject("主题");
+        docuemnt.addKeywords("关机子");
+        docuemnt.addAuthor("作者");
+        docuemnt.addCreator("创建者");
+        docuemnt.addProducer("生产者");
+        docuemnt.addCreationDate(new Date()); // 创建日期
+        docuemnt.addHeader(String name,String content); // 对PDF无效，仅对XML/HTML有效
+        
+        BaseFont baseFontChinese = BaseFont.createFont(
+            "STSong-Light", // 华文宋体
+            "UniGB-UCS2-H",
+            BaseFont.NOT_EMBEDDED
+        );
+        Font fontChinese = new Font(baseFontChinese,12,Font.NORMAL);
+        Paragraph paragraph = new Paragraph("测试文本",fontChinese);
+        document.add(paragraph);
+        
+        //创建简单表格
+        Table simpleTable = new Table(5,9); // 5列9行 
+        
+        Image gifImage = Image.getInstance("test.gif");
+        Image jpegImage = Image.getInstance("test.jpg");
+        Image pngImage = Image.getInstance("test.png");
+        pngImage.setAlignment(
+            Image.RIGHT/Image.MIDDLE/Image.LEFT/Image.TEXTWARP/Image.UNDERLYING
+        ); // 对齐方式
+        pngImage.sacleAbsolute(int width,int height); // 按像素缩放
+        pngImage.saclePercent(int percent); // 按比例缩放
+        pngImage.saclePercent(int widthPercent,int heightPercent); // 分别按比例缩放
+        pngImage.setRatation(Math.PI/6); // 逆时针旋转30°
+        
+    }
+}
+```
+
+## §6.5 JExcel
+
+JXL（Java Excel API）是一套成熟开源的API，而[JExcel](https://www.teamdev.com/jexcel)就是其中一种。它用于对Excel文档进行读取、写入和修改，并且可以将其写入任何`OutputStream`实例，这意味这JXL可以与磁盘I/O、HTTP、SQL、Socket实现无缝接轨。
+
+> 2020年5月31日，[TeamDev](https://www.teamdev.com/jexcel)宣布正式放弃对jExcel的支持，最后一个版本停留在了`v1.8`。现在更新的JXL第三方重置库被托管在[SourceForge](https://sourceforge.net/projects/jexcelapi/files/)上，并且提供[API文档](http://jexcelapi.sourceforge.net/)。
+
+```java
+import jxl.write.WritableWorkbook;
+import jxl.write.WritableSheet;
+import jxl.write.WritableFont;
+import jxl.write.WritableCellFormat;
+import jxl.write.Workbook;
+import jxl.write.Sheet;
+import jxl.write.Cell;
+import jxl.write.Lable;
+import jxl.write.Number;
+import jxl.format.Alignment;
+import jxl.format.VerticalAlignment;
+
+WritableWorkbook book = Workbook.createWorkbook(new File("C:\\test.xls"));
+WritableSheet sheet = book.createSheet("Sheet_1",0); // 在第1个为止创建名为Sheet_1的工作表
+
+// 读取
+WorkBook book = Workbook.getWorkbook(new File("C:\\test.xls"));
+Sheet sheet = book.getSheet(0);
+Cell cell = sheet.getCell(0,0);
+String data = cell.getContents();
+
+// 覆盖写入
+Label label = new Label(int row,int col,String data); //在(row,col)写入字符串（从0开始数）
+sheet.addCell(label);
+Number number = new Number(1,0,123.456); // 在(1.0)写入数字（从0开始数）
+sheet.addCell(number);
+book.write();
+
+// 设置字体与对齐方式
+WritableFont font_1 = new WritableFont(
+    WritableFont.createFont("宋体"), // 加载外部字体
+    12,
+    WritableFont.NO_BOLD
+);
+WritableFont font_2 = new WritableFont(
+	WritableFont.TIMES, // 加载自带字体
+    12,
+    WritableFont.NO_BOLD
+);
+WritableCellFormat format = new WritableCelLFormat(font_1);
+format.setAlignment(Alignment.CENTRE); // 水平居中对齐
+format.setVerticalAlignment(VerticalAlignment.CENTRE); // 垂直居中对齐
+format.setWrap(true); // 自动换行
+Label label = new Label(0,0,"test data",format);
+
+// 合并单元格
+sheet.mergeCells(int x1,int y1,int x2,int y2);
+
+// 行高和行宽
+sheet.setRowView(int row,int height);
+sheet.setColumnView(int col,int width);
+
+// 插入图片
+File file = new File("C:\\test.jpg")
+WritableImage image = new WritableImage(
+    double x, double y, double width, double height
+	File image
+);
+sheet.write();
+
+//  
+book.close();
+```
+
+# §7 Struts 2
+
+Struts 2是一套实现MVC模式的Java Web框架，其架构图如下所示：
+
+```mermaid
+flowchart LR
+    HttpServletRequest["HttpServletRequest"]
+    ActionMapper["ActionMapper"]
+    subgraph IsContextExistedSubgraph [" "]
+        direction TB
+        IsContextExisted[/"是否已存在Context实例"/]
+        ActionContextCleanUp["ActionContextCleanUp"]
+    end
+    subgraph IsSiteMeshFrameUsedSubgraph [" "]
+    IsSiteMeshFrameUsed[/"是否使用SiteMesh框架"/]
+    FilterDispatcher["FilterDispatcher"]
+    end
+    ActionProxy["ActionProxy"]
+    StrutsXML1(("struts.xml"))
+    StrutsXML2(("struts.xml"))
+    ActionInvocation["ActionInvocation"]
+    subgraph PreInterceptor ["Interceptor"]
+        direction TB
+        PreInterceptor1["拦截器1"]
+            -->PreInterceptor2["拦截器2"]
+            -->PreInterceptor3["拦截器3"]
+    end
+    Action["Action"]
+    Result["Result"]
+    Model["Model<br>(JSP/FreeMarker/Velocity/...)"]
+    subgraph PostInterceptor ["Interceptor"]
+        direction TB
+        PostInterceptor1["拦截器1"]
+            -->PostInterceptor2["拦截器2"]
+            -->PostInterceptor3["拦截器3"]
+    end
+    HttpServletResponse["HttpServletResponse"]
+
+    HttpServletRequest-->ActionMapper-->IsContextExisted
+    IsContextExisted--"是"-->ActionContextCleanUp-->IsSiteMeshFrameUsed
+    IsContextExisted--"否"-->IsSiteMeshFrameUsed
+    IsSiteMeshFrameUsed--"是"-->FilterDispatcher-->ActionProxy
+    IsSiteMeshFrameUsed--"否"-->ActionProxy
+    StrutsXML1--"配置文件"-->ActionProxy
+    ActionProxy-->ActionInvocation
+    ActionInvocation-->PreInterceptor
+    PreInterceptor-->Action
+    Action-->Result
+    Result-->Model
+    StrutsXML2--"配置文件"-->Model
+    Model-->PostInterceptor
+    PostInterceptor-->HttpServletResponse
+```
+
+
 
