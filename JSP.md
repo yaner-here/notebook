@@ -1553,7 +1553,7 @@ connection.close();
 
    将JDBC驱动的Jar包放到`/tomcat/lib`目录中。
 
-2. 编辑`/tomcat/webapps/<ProjectName>/META-INF/context.xml`资源配置文件
+2. 编辑`/tomcat/webapps/<ProjectName>/WEB-INF/context.xml`资源配置文件
 
    ```xml
    <? xml version="1.0" encoding="UTF-8" ?>
@@ -2516,7 +2516,7 @@ book.close();
 
 # §7 Struts 2
 
-Struts 2是一套实现MVC模式的Java Web框架，其架构图如下所示：
+Struts 2是Apache维护的一套实现MVC模式的Java Web框架，其架构图如下所示：
 
 ```mermaid
 flowchart LR
@@ -2568,5 +2568,344 @@ flowchart LR
     PostInterceptor-->HttpServletResponse
 ```
 
+## §7.1 开发包结构
 
+从[Struts官网](https://struts.apache.org/download.cgi)下载相应的Jar包，这里我们下载[struts-2.3.37-all.zip](https://archive.apache.org/dist/struts/2.3.37/struts-2.3.37-all.zip)。解压后其文件结构大致如下：
+
+```
+yaner@DESKTOP-UVBN0SD:/mnt/c/struts-2.3.37$ tree -L 2
+.
+├── ANTLR-LICENSE.txt
+├── apps // 官方示例War包
+│   ├── struts2-blank.war
+│   ├── struts2-mailreader.war
+│   ├── struts2-portlet.war
+│   ├── struts2-rest-showcase.war
+│   └── struts2-showcase.war
+├── docs // 官方文档
+│   ├── struts2-bundles
+│   ├── struts2-core
+│   ├── struts2-core-apidocs
+│   ├── struts2-plugins
+│   └── xwork-apidocs
+├── lib // Struts的Jar包
+│   ├── antlr-2.7.2.jar
+│   ├── aopalliance-1.0.jar
+│   ├── asm-3.3.jar
+│   ├── asm-commons-3.3.jar
+│   ├── asm-tree-3.3.jar
+│   ├── builder-0.6.2.jar
+│   ├── classworlds-1.1.jar
+│   ├── commons-beanutils-1.8.0.jar
+│   ├── commons-chain-1.2.jar
+│   ├── commons-collections-3.2.2.jar
+│   ├── commons-digester-2.0.jar
+│   ├── commons-fileupload-1.4.jar
+│   ├── commons-io-2.2.jar
+│   ├── commons-lang-2.4.jar
+│   ├── commons-lang3-3.2.jar
+│   ├── commons-logging-1.1.3.jar
+│   ├── commons-validator-1.3.1.jar
+│   ├── core-0.6.2.jar
+│   ├── dwr-1.1.1.jar
+│   ├── ezmorph-1.0.6.jar
+│   ├── freemarker-2.3.28.jar
+│   ├── google-collections-1.0.jar
+│   ├── google-gxp-0.2.4-beta.jar
+│   ├── guava-r09.jar
+│   ├── jackson-core-asl-1.9.2.jar
+│   ├── jackson-mapper-asl-1.9.2.jar
+│   ├── javassist-3.11.0.GA.jar
+│   ├── jcl-over-slf4j-1.5.8.jar
+│   ├── json-lib-2.3-jdk15.jar
+│   ├── juli-6.0.18.jar
+│   ├── mvel2-2.0.11.jar
+│   ├── ognl-3.0.21.jar
+│   ├── org.apache.felix.framework-4.0.3.jar
+│   ├── org.apache.felix.main-4.0.3.jar
+│   ├── org.apache.felix.shell-1.4.3.jar
+│   ├── org.apache.felix.shell.tui-1.4.1.jar
+│   ├── org.osgi.compendium-4.0.0.jar
+│   ├── org.osgi.core-4.1.0.jar
+│   ├── oro-2.0.8.jar
+│   ├── oval-1.31.jar
+│   ├── plexus-container-default-1.0-alpha-10.jar
+│   ├── plexus-utils-1.2.jar
+│   ├── sitemesh-2.4.2.jar
+│   ├── slf4j-api-1.7.12.jar
+│   ├── spring-aop-3.0.5.RELEASE.jar
+│   ├── spring-asm-3.0.5.RELEASE.jar
+│   ├── spring-beans-3.0.5.RELEASE.jar
+│   ├── spring-context-3.0.5.RELEASE.jar
+│   ├── spring-core-3.0.5.RELEASE.jar
+│   ├── spring-expression-3.0.5.RELEASE.jar
+│   ├── spring-test-3.0.5.RELEASE.jar
+│   ├── spring-web-3.0.5.RELEASE.jar
+│   ├── struts2-cdi-plugin-2.3.37.jar
+│   ├── struts2-codebehind-plugin-2.3.37.jar
+│   ├── struts2-config-browser-plugin-2.3.37.jar
+│   ├── struts2-convention-plugin-2.3.37.jar
+│   ├── struts2-core-2.3.37.jar
+│   ├── struts2-dojo-plugin-2.3.37.jar
+│   ├── struts2-dwr-plugin-2.3.37.jar
+│   ├── struts2-embeddedjsp-plugin-2.3.37.jar
+│   ├── struts2-gxp-plugin-2.3.37.jar
+│   ├── struts2-jasperreports-plugin-2.3.37.jar
+│   ├── struts2-javatemplates-plugin-2.3.37.jar
+│   ├── struts2-jfreechart-plugin-2.3.37.jar
+│   ├── struts2-jsf-plugin-2.3.37.jar
+│   ├── struts2-json-plugin-2.3.37.jar
+│   ├── struts2-junit-plugin-2.3.37.jar
+│   ├── struts2-osgi-admin-bundle-2.3.37.jar
+│   ├── struts2-osgi-demo-bundle-2.3.37.jar
+│   ├── struts2-osgi-plugin-2.3.37.jar
+│   ├── struts2-oval-plugin-2.3.37.jar
+│   ├── struts2-pell-multipart-plugin-2.3.37.jar
+│   ├── struts2-plexus-plugin-2.3.37.jar
+│   ├── struts2-portlet-plugin-2.3.37.jar
+│   ├── struts2-rest-plugin-2.3.37.jar
+│   ├── struts2-sitegraph-plugin-2.3.37.jar
+│   ├── struts2-sitemesh-plugin-2.3.37.jar
+│   ├── struts2-spring-plugin-2.3.37.jar
+│   ├── struts2-struts1-plugin-2.3.37.jar
+│   ├── struts2-testng-plugin-2.3.37.jar
+│   ├── struts2-tiles3-plugin-2.3.37.jar
+│   ├── struts2-tiles-plugin-2.3.37.jar
+│   ├── struts-core-1.3.10.jar
+│   ├── tiles-api-2.2.2.jar
+│   ├── tiles-compat-3.0.1.jar
+│   ├── tiles-core-2.2.2.jar
+│   ├── tiles-el-2.2.2.jar
+│   ├── tiles-extras-3.0.1.jar
+│   ├── tiles-freemarker-2.2.2.jar
+│   ├── tiles-jsp-2.2.2.jar
+│   ├── tiles-mvel-3.0.1.jar
+│   ├── tiles-ognl-2.2.2.jar
+│   ├── tiles-request-api-1.0.1.jar
+│   ├── tiles-request-mustache-1.0.1.jar
+│   ├── tiles-request-servlet-1.0.1.jar
+│   ├── tiles-request-servlet-wildcard-1.0.1.jar
+│   ├── tiles-request-velocity-1.0.1.jar
+│   ├── tiles-servlet-2.2.2.jar
+│   ├── tiles-template-2.2.2.jar
+│   ├── tiles-velocity-3.0.1.jar
+│   ├── velocity-1.6.4.jar
+│   ├── velocity-tools-1.3.jar
+│   ├── xmlpull-1.1.3.1.jar
+│   ├── xpp3_min-1.1.4c.jar
+│   ├── xstream-1.4.10.jar
+│   └── xwork-core-2.3.37.jar
+├── LICENSE.txt
+├── NOTICE.txt
+├── OGNL-LICENSE.txt
+├── OVAL-LICENSE.txt
+├── SITEMESH-LICENSE.txt
+├── src // Struts源代码
+│   ├── apps
+│   ├── assembly
+│   ├── core
+│   ├── plugins
+│   ├── pom.xml
+│   ├── src
+│   └── xwork-core
+├── XPP3-LICENSE.txt
+└── XSTREAM-LICENSE.tx
+```
+
+## §7.2 配置环境
+
+在Struts的`./WEB-INF/web.xml`中，我们不再使用传统的`<servlet>`和`<servlet-mapping>`，而是使用Struts定义的`<filter>`和`<filter-mapping>`。
+
+```xml
+<!-- web.xml -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<web-app xmlns="http://java.sun.com/xml/ns/j2ee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd"
+         version="2.4">
+    
+    // 配置过滤器
+    <filter>
+        <filter-name>Struts 2</filter-name>
+        <filter-class>org.apache.struts2.dispatcher.FilterDispatcher</filter-class>
+    </filter>
+    
+    // 配置过滤器拦截
+    <filter-mapping>
+        <filter-name>Struts 2</filter-name>
+        <url-pattern>/</url-pattern>
+    </filter-mapping>
+</web-app>
+```
+
+Struts还需要单独设置自己的配置文件——`struts.xml`和`struts.properties`、这两个文件直接放在`/src`目录下：
+
+```xml
+<!-- struts.xml -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE struts PUBLIC "//Apache Software Foundation//DTD Struts Configuration 2.1//EN" "http://struts.apache.org/dtds/struts-2.1.dtd">
+<struts>
+    <package name="" extends="">
+        <global-results>
+            <result name="">/xxx.jsp</result>
+        </global-results>
+        <action name="" class="">
+            <result name="">/xxx.jsp</result>
+            <result name="">/xxx.jsp</result>
+        </action>
+        <action name="">
+            <result>//xxx.jsp</result>
+        </action>
+    </package>
+</struts>
+```
+
+```properties
+// struts.properties
+struts.custom.i18n.resource = messageResource
+```
+
+```properties
+// messageResource.properties
+user.required = 请输入用户名
+pass.required = 请输入密码
+```
+
+## §7.3 实战：登录界面
+
+Struts 2的核心部分是`Action`类，而配置`Action`类行为的正是`struts.xml`。下面是一个简单的例子：
+
+```xml
+<!-- struts.xml -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE struts PUBLIC "//Apache Software Foundation//DTD Struts Configuration 2.1//EN" "http://struts.apache.org/dtds/struts-2.1.dtd">
+<struts>
+    <package name="Demo" extends="strutsdefault">
+        <global-results>
+            <result name="global">/jsp/login.jsp</result>
+        </global-results>
+        <action name="Login" class="com.example.struts.action.LoginAction">
+            <result name="input">/jsp/login.jsp</result>
+            <result name="success">/jsp/success.jsp</result>
+        </action>
+        <action name="index">
+            <result>/jsp/login.jsp</result>
+        </action>
+    </package>
+</struts>
+```
+
+- `<struts>`是根标签。
+- `<package>`用于定义`Action`类的映射声明，一个`<package>`可以包含多个`Action`类。`name`属性表示开发中的WebApp名称。
+- `<action>`就是`Action`类的映射声明。`name`属性代表JSP文档上定义的Action名称，`class`属性代表Java类的软件包路径。
+- `<result>`用于设置转发路由。`name`属性代表配置对象`Action`的唯一标识。
+
+下面我们编写`com.example.action.LoginAction`类：
+
+```java
+// LoginAction.java
+package com.example.action;
+import com.opensymphony.xwork2.ActionContext;
+public class LoginAction {
+    
+    private static String FORWARD;
+    private String username;
+    private String password;
+
+    public String getUsername() {return username;}
+    public void setUsername(String username) {this.username = username;}
+    public String getPassword() {return password;}
+    public void setPassword(String password) {this.password = password;}
+
+    public String execute() {
+        if (username != null && !username.equals("") && password != null) {
+            Map<String,Object> attributes = 
+                ActionContext.getContext().getSession();
+            attributes.put("user", username);
+            FORWARD = "success";
+        } else {
+            FORWARD = "input";
+        }
+        return FORWARD;
+    }
+}
+```
+
+> 注意：传统JSP开发设置参数时调用的类如下所示：
+>
+> ```mermaid
+> flowchart LR
+> 	HttpServletRequest["HttpServletRequest<br>request"]
+> 	--"request.getSession()"-->HttpSession["HttpSession<br>session"]
+> 	--"session.setAttribute(String,Object)"-->Arrtibute["设置Session参数"]
+> ```
+>
+> 而Struts 2设置参数时调用的类如下所示：
+>
+> ```mermaid
+> flowchart LR
+> 	ActionContextClass["ActionContext"]
+> 		--"ActionContext.getContext()"-->ActionContext["ActionContext<br>context"]
+> 		--"context.getSession()"-->Map["Map&lt;String,Object&gt;<br>attributes"]
+> 		--"attributes.put(String,String)"-->Attribute["设置Session参数"]
+> ```
+
+目前我们没有对用户的输入进行校验。Struts 2提供了`ActionSupport`类用于校验数据，因此我们需要让自定义的`LoginActivity`类继承自`ActionSupport`类：
+
+```java
+// LoginAction.java
+// ...
+import com.opensymphony.xwork2.ActionSupport;
+public class LoginAction extends ActionSupport {
+
+    // ...
+
+    public void validate(){
+        if(username==null || username.trim().equals("")){
+            addFieldError("username",getText("user.required"));
+            // user.required资源定义于messageResource.properties
+        }
+    }
+    
+}
+```
+
+在`struts.properties`和`messageResource.properties`中添加字符串资源：
+
+```properties
+// struts.properties
+struts.custom.i18n.resource = messageResource
+```
+
+```properties
+// messageResource.properties
+user.required = 请输入用户名
+pass.required = 请输入密码
+```
+
+定义`login.jsp`和`success.jsp`：
+
+```jsp
+<!-- login.jsp -->
+<%@ page language="java" pageEncoding="UTF-8" %>
+<%@ taglib prefix="s" uri="/struts-tags" %>
+<html>
+<head>
+    <title>登录界面</title>
+</head>
+    <body>
+        <s:form action="Login">
+            <table>
+                <s:textfield name="username" label="用户名"/>
+                <s:password name="password" label="密码"/>
+                <s:submit value="登录" align="center"/>
+            </table>
+        </s:form>
+    </body>
+</html>
+```
+
+```jsp
+
+```
 
