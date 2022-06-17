@@ -2714,6 +2714,8 @@ yaner@DESKTOP-UVBN0SD:/mnt/c/struts-2.3.37$ tree -L 2
 
 ## §7.2 配置环境
 
+> 捏麻麻滴IDEA导包真是太有意思啦:sweat_smile:，项目结构→平台设置→全局库导入了Tomcat和Struts的Jar包，结果糊一脸404，改了Facet的Web资源目录，结果日志里全是`部署工件时出错，请参阅服务器日志`。尝试改回来，日志变成了`至少有一个JAR被扫描用于TLD但尚未包含TLD`。把`web.xml`从`/META-INF`拖到`/WEB-INF`，这下整个项目全崩了，全是`ClassNotFoundException`。离谱的是外部库清清楚楚地导了JDK 18，结果编辑器里面连`String`类都识别不出来。无奈之下再导一遍局部库，终于正常了，运行Tomcat一看，又回到了全局404。Maven一套配置文件，IDEA一套配置文件，浪费了一个下午都没解决，真把我搞破防了，Java Web MVC框架配环境真是太你马的好玩辣:sweat_smile:，你他妈把多少人的生活，都他妈毁了，，，！！！
+
 在Struts的`./WEB-INF/web.xml`中，我们不再使用传统的`<servlet>`和`<servlet-mapping>`，而是使用Struts定义的`<filter>`和`<filter-mapping>`。
 
 ```xml
@@ -2745,10 +2747,21 @@ Struts还需要单独设置自己的配置文件——`struts.xml`和`struts.pro
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE struts PUBLIC "//Apache Software Foundation//DTD Struts Configuration 2.1//EN" "http://struts.apache.org/dtds/struts-2.1.dtd">
 <struts>
+    <!--
+        <package>配置控制器的包结构
+            name:用于区分<package>
+            extends:用于继承某个<package>,其中struts-default是Struts框架的核心
+            namespace:注明命名空间，缺省为根目录(/)
+    -->
     <package name="" extends="">
         <global-results>
             <result name="">/xxx.jsp</result>
         </global-results>
+        <!--
+            <action>配置控制器的包结构
+                name:访问路径,与JSP的<form action="login.action">保持一致
+                class:执行的控制器类
+        -->
         <action name="" class="">
             <result name="">/xxx.jsp</result>
             <result name="">/xxx.jsp</result>
@@ -2771,7 +2784,13 @@ user.required = 请输入用户名
 pass.required = 请输入密码
 ```
 
-## §7.3 实战：登录界面
+到目前为止，以上介绍的配置方法什么用也没有:innocent:。迫不得已观看了B站的[2020最新Struts2框架教程——SSH系列](https://www.bilibili.com/video/BV1tp4y1v7gc)视频教程，实测有效。其步骤如下：
+
+1. 新建空白项目，然后在项目视图中添加模块，选择Maven Archetype，其中Archetype一行选择`org.apache.maven.archetypes:maven-archetype-webapp`，点击创建。
+2. 在项目的`pom.xml`中导入Struts 2的Jar包，在[MVNRepository](https://mvnrepository.com/artifact/org.apache.struts/struts2-core/2.3.37)官网查找相应版本的XML格式的`<dependency>`标签，点击右上角的“同步”按钮下载Jar包。此时Jar包并不会显示在项目视图的外部类一栏中，而是会显示在Maven视图的依赖项一栏中。
+3. 在项目视图中选中`./src/main`文件夹，右键创建目录，在弹出的窗口中忽略文本框，直接点击下面的Maven推荐，创建`resources`和`java`两个文件夹，这两个文件夹的图标与其它普通文件夹有显著的区别。
+4. 在IDEA的插件市场中，安装Struts 2的[官方插件](https://plugins.jetbrains.com/plugin/1698-struts-2)、[JPA Support](https://plugins.jetbrains.com/plugin/10707-jpa-support)，然后**必须点击右下角的“确定”或“应用”按钮**，才能保存更改。
+5. 在项目视图中选中`./src/main/resources`文件夹，右键新建XML配置文件→Struts配置，在弹出的对话框中输入`struts.xml`，即可创建Struts的配置文件。
 
 Struts 2的核心部分是`Action`类，而配置`Action`类行为的正是`struts.xml`。下面是一个简单的例子：
 
@@ -2906,6 +2925,392 @@ pass.required = 请输入密码
 ```
 
 ```jsp
+<!-- success.jsp -->
+<%@ page language="java" pageEncoding="UTF-8" %>
+<html>
+    <head>
+        <title>登录成功</title>
+    </head>
+    <body>
+        {sessionScope.user},欢迎您
+    </body>
+</html>
+```
+
+## §7.3 拦截器（Interceptor）
+
+拦截器本质上是一种Java类，用于控制其它业务逻辑的Java类。它涉及到了Java的反射机制，其大致原理如下：
+
+```mermaid
+flowchart LR
+	subgraph ExecuteFunctionInterface ["逻辑功能接口"]
+        ExecuteInterface["public void execute()"]
+    end
+    subgraph ExecuteFunctionClass ["逻辑功能类 implements 逻辑功能接口"]
+        direction LR
+        Execute["public void execute()"]
+    end
+	subgraph Interceptor ["拦截器类"]
+        direction LR
+        BeforeDoing["public void beforeDoing()"]
+        AfterDoing["public void afterDoing()"]
+	end
+    subgraph InterceptorHandler ["拦截器处理类 implements InvocationHandler"]
+        direction LR
+        InterceptorInstance["private 拦截器类 拦截器实例"]
+        Object["private Object object,具备Getter和Setter方法"]
+        subgraph Invoke ["public Object invoke(Object proxy,Method method,Object[] args)"]
+            BeforeDoingInvoke["拦截器实例.beforeDoing()"]
+                -->Reflect["return (Object) method.invoke(object,args)"]
+                -->AfterDoingInvoke["拦截器实例.afterDoing()"]
+        end
+    end
+    subgraph ProxyClass ["代理类"]
+        direction LR
+        InterceptorHandlerInstance["private 拦截器处理类 拦截器处理实例"]
+        subgraph GetProxy ["public Object getProxy(Object object)"]
+            direction TB
+            SetHandlerObject["拦截器处理实例.setObject(object)"]
+                -->ReturnProxy["return Proxy.newProxyInstance(<br>逻辑功能类.class.getClassLoader(),<br>object.getClass.getInterfaces(),<br>拦截器处理实例<br>)"]
+        end
+    end
+    subgraph MainThread ["主进程"]
+        Instance["逻辑功能接口 instance = new 逻辑功能类()"]
+            -->ProxyInstance["逻辑功能接口 proxyInstance = <br>(逻辑功能接口) new 代理类().getProxy(instance)"]
+            -->ExecuteByProxyInstance["instance.execute()<br>proxyInstance.execute()<br>效果完全一致"]
+    end
+    ExecuteFunctionInterface-->ExecuteFunctionClass
+    Interceptor-->InterceptorInstance
+    ExecuteFunctionClass-->Object
+    InterceptorHandler-->InterceptorHandlerInstance
+    ProxyClass-->MainThread
+```
+
+Struts 2设计了自己的拦截器类，定义于`com.opensymphont.xwork2.interceptor.Interceptor`。下面我们来写一个自己的拦截器：
+
+```java
+package com.example.interceptor;
+
+import com.opensymphony.xwork2.ActionInvocation;
+import com.opensymphony.xwork2.interceptor.Interceptor;
+
+public class TestInterceptor implements Interceptor {
+
+    private String parameter;
+    public String getParameter() {return parameter;}
+    public void setParameter(String parameter) {this.parameter = parameter;}
+
+    @Override
+    public void destroy() {
+        System.out.println("Destorying...");
+    }
+
+    @Override
+    public void init() {
+        System.out.println("Start initializing...");
+        System.out.println("Given parameter is: " + parameter);
+    }
+
+    @Override
+    public String intercept(ActionInvocation invocation) throws Exception {
+        System.out.println("Start invoking...");
+        String result = invocation.invoke();
+        System.out.println("End invoking...");
+        return result;
+    }
+}
 
 ```
+
+配置相应的`web.xml`、`struts.xml`：
+
+```xml
+<!-- web.xml -->
+<!DOCTYPE web-app PUBLIC
+ "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd" >
+<web-app>
+  <display-name>Archetype Created Web Application</display-name>
+  <filter>
+    <filter-name>Struts2</filter-name>
+    <filter-class>org.apache.struts2.dispatcher.ng.filter.StrutsPrepareAndExecuteFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>Struts2</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+</web-app>
+```
+```xml
+<!-- struts.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts PUBLIC
+        "-//Apache Software Foundation//DTD Struts Configuration 2.3//EN"
+        "http://struts.apache.org/dtds/struts-2.3.dtd">
+<struts>
+    <package name="default" extends="struts-default" namespace="/">
+        <interceptors>
+            <interceptor name="example" class="com.example.interceptor.TestInterceptor">
+                <param name="parameter">test</param>
+            </interceptor>
+        </interceptors>
+        <action name="Login" class="com.example.action.LoginAction">
+            <result name="input">/jsp/login.jsp</result>
+            <result name="success">/jsp/login.jsp</result>
+            <interceptor-ref name="example">
+                <param name="parameter">another test</param>
+            </interceptor-ref>
+        </action>
+    </package>
+</struts>
+```
+
+> 注意：自Struts 2.1.3版本之后，`org.apache.struts2.dispatcher.FilterDispatcher`已被弃用，取而代之的是`org.apache2.struts2.dispatcher.ng.filter`包中的`StrutsPrepareAndExecuteFilter`/`StrutsPrepareFilter`/`StrutsExecuteFilter`。如果强行使用，则Tomcat日志会有如下警告：
+>
+> ```
+> ***********************************************************************
+> *                               WARNING!!!                            *
+> *                                                                     *
+> * >>> FilterDispatcher <<< is deprecated! Please use the new filters! *
+> *                                                                     *
+> *           This can be a source of unpredictable problems!           *
+> *                                                                     *
+> *              Please refer to the docs for more details!             *
+> *            http://struts.apache.org/2.x/docs/webxml.html            *
+> *                                                                     *
+> ***********************************************************************
+> ```
+
+?????????？？？？？？？？？？TODO：
+
+
+
+将Jar包解压，会在`/src`目录中发现一个`strutsdefault.xml`的配置文件，里面包含了大量默认预置的拦截器栈应用：
+
+```xml
+<struts>
+	<!-- ... -->
+    <package name="struts-default" abstract="true">
+        <!-- ... -->
+        <interceptors>
+            <interceptor name="alias" class="com.opensymphony.xwork2.interceptor.AliasInterceptor"/>
+            <interceptor name="autowiring" class="com.opensymphony.xwork2.spring.interceptor.ActionAutowiringInterceptor"/>
+            <interceptor name="chain" class="com.opensymphony.xwork2.interceptor.ChainingInterceptor"/>
+            <interceptor name="conversionError" class="org.apache.struts2.interceptor.StrutsConversionErrorInterceptor"/>
+            <interceptor name="cookie" class="org.apache.struts2.interceptor.CookieInterceptor"/>
+            <interceptor name="cookieProvider" class="org.apache.struts2.interceptor.CookieProviderInterceptor"/>
+            <interceptor name="clearSession" class="org.apache.struts2.interceptor.ClearSessionInterceptor" />
+            <interceptor name="createSession" class="org.apache.struts2.interceptor.CreateSessionInterceptor" />
+            <interceptor name="debugging" class="org.apache.struts2.interceptor.debugging.DebuggingInterceptor" />
+            <interceptor name="execAndWait" class="org.apache.struts2.interceptor.ExecuteAndWaitInterceptor"/>
+            <interceptor name="exception" class="com.opensymphony.xwork2.interceptor.ExceptionMappingInterceptor"/>
+            <interceptor name="fileUpload" class="org.apache.struts2.interceptor.FileUploadInterceptor"/>
+            <interceptor name="i18n" class="com.opensymphony.xwork2.interceptor.I18nInterceptor"/>
+            <interceptor name="logger" class="com.opensymphony.xwork2.interceptor.LoggingInterceptor"/>
+            <interceptor name="modelDriven" class="com.opensymphony.xwork2.interceptor.ModelDrivenInterceptor"/>
+            <interceptor name="scopedModelDriven" class="com.opensymphony.xwork2.interceptor.ScopedModelDrivenInterceptor"/>
+            <interceptor name="params" class="com.opensymphony.xwork2.interceptor.ParametersInterceptor"/>
+            <interceptor name="actionMappingParams" class="org.apache.struts2.interceptor.ActionMappingParametersInteceptor"/>
+            <interceptor name="prepare" class="com.opensymphony.xwork2.interceptor.PrepareInterceptor"/>
+            <interceptor name="staticParams" class="com.opensymphony.xwork2.interceptor.StaticParametersInterceptor"/>
+            <interceptor name="scope" class="org.apache.struts2.interceptor.ScopeInterceptor"/>
+            <interceptor name="servletConfig" class="org.apache.struts2.interceptor.ServletConfigInterceptor"/>
+            <interceptor name="timer" class="com.opensymphony.xwork2.interceptor.TimerInterceptor"/>
+            <interceptor name="token" class="org.apache.struts2.interceptor.TokenInterceptor"/>
+            <interceptor name="tokenSession" class="org.apache.struts2.interceptor.TokenSessionStoreInterceptor"/>
+            <interceptor name="validation" class="org.apache.struts2.interceptor.validation.AnnotationValidationInterceptor"/>
+            <interceptor name="workflow" class="com.opensymphony.xwork2.interceptor.DefaultWorkflowInterceptor"/>
+            <interceptor name="store" class="org.apache.struts2.interceptor.MessageStoreInterceptor" />
+            <interceptor name="checkbox" class="org.apache.struts2.interceptor.CheckboxInterceptor" />
+            <interceptor name="datetime" class="org.apache.struts2.interceptor.DateTextFieldInterceptor" />
+            <interceptor name="profiling" class="org.apache.struts2.interceptor.ProfilingActivationInterceptor" />
+            <interceptor name="roles" class="org.apache.struts2.interceptor.RolesInterceptor" />
+            <interceptor name="annotationWorkflow" class="com.opensymphony.xwork2.interceptor.annotations.AnnotationWorkflowInterceptor" />
+            <interceptor name="multiselect" class="org.apache.struts2.interceptor.MultiselectInterceptor" />
+            <interceptor name="deprecation" class="org.apache.struts2.interceptor.DeprecationInterceptor" />
+
+            <!-- Basic stack -->
+            <interceptor-stack name="basicStack">
+                <interceptor-ref name="exception"/>
+                <interceptor-ref name="servletConfig"/>
+                <interceptor-ref name="prepare"/>
+                <interceptor-ref name="checkbox"/>
+                <interceptor-ref name="datetime"/>
+                <interceptor-ref name="multiselect"/>
+                <interceptor-ref name="actionMappingParams"/>
+                <interceptor-ref name="params"/>
+                <interceptor-ref name="conversionError"/>
+                <interceptor-ref name="deprecation"/>
+            </interceptor-stack>
+
+            <!-- Sample validation and workflow stack -->
+            <interceptor-stack name="validationWorkflowStack">
+                <interceptor-ref name="basicStack"/>
+                <interceptor-ref name="validation"/>
+                <interceptor-ref name="workflow"/>
+            </interceptor-stack>
+
+            <!-- Sample file upload stack -->
+            <interceptor-stack name="fileUploadStack">
+                <interceptor-ref name="fileUpload"/>
+                <interceptor-ref name="basicStack"/>
+            </interceptor-stack>
+
+            <!-- Sample model-driven stack  -->
+            <interceptor-stack name="modelDrivenStack">
+                <interceptor-ref name="modelDriven"/>
+                <interceptor-ref name="basicStack"/>
+            </interceptor-stack>
+
+            <!-- Sample action chaining stack -->
+            <interceptor-stack name="chainStack">
+                <interceptor-ref name="chain"/>
+                <interceptor-ref name="basicStack"/>
+            </interceptor-stack>
+
+            <!-- Sample i18n stack -->
+            <interceptor-stack name="i18nStack">
+                <interceptor-ref name="i18n"/>
+                <interceptor-ref name="basicStack"/>
+            </interceptor-stack>
+
+            <interceptor-stack name="paramsPrepareParamsStack">
+                <interceptor-ref name="exception"/>
+                <interceptor-ref name="alias"/>
+                <interceptor-ref name="i18n"/>
+                <interceptor-ref name="checkbox"/>
+                <interceptor-ref name="datetime"/>
+                <interceptor-ref name="multiselect"/>
+                <interceptor-ref name="params"/>
+                <interceptor-ref name="servletConfig"/>
+                <interceptor-ref name="prepare"/>
+                <interceptor-ref name="chain"/>
+                <interceptor-ref name="modelDriven"/>
+                <interceptor-ref name="fileUpload"/>
+                <interceptor-ref name="staticParams"/>
+                <interceptor-ref name="actionMappingParams"/>
+                <interceptor-ref name="params"/>
+                <interceptor-ref name="conversionError"/>
+                <interceptor-ref name="validation">
+                    <param name="excludeMethods">input,back,cancel,browse</param>
+                </interceptor-ref>
+                <interceptor-ref name="workflow">
+                    <param name="excludeMethods">input,back,cancel,browse</param>
+                </interceptor-ref>
+            </interceptor-stack>
+            <interceptor-stack name="defaultStack">
+                <interceptor-ref name="exception"/>
+                <interceptor-ref name="alias"/>
+                <interceptor-ref name="servletConfig"/>
+                <interceptor-ref name="i18n"/>
+                <interceptor-ref name="prepare"/>
+                <interceptor-ref name="chain"/>
+                <interceptor-ref name="scopedModelDriven"/>
+                <interceptor-ref name="modelDriven"/>
+                <interceptor-ref name="fileUpload"/>
+                <interceptor-ref name="checkbox"/>
+                <interceptor-ref name="datetime"/>
+                <interceptor-ref name="multiselect"/>
+                <interceptor-ref name="staticParams"/>
+                <interceptor-ref name="actionMappingParams"/>
+                <interceptor-ref name="params"/>
+                <interceptor-ref name="conversionError"/>
+                <interceptor-ref name="validation">
+                    <param name="excludeMethods">input,back,cancel,browse</param>
+                </interceptor-ref>
+                <interceptor-ref name="workflow">
+                    <param name="excludeMethods">input,back,cancel,browse</param>
+                </interceptor-ref>
+                <interceptor-ref name="debugging"/>
+                <interceptor-ref name="deprecation"/>
+            </interceptor-stack>
+            <interceptor-stack name="completeStack">
+                <interceptor-ref name="defaultStack"/>
+            </interceptor-stack>
+            <interceptor-stack name="executeAndWaitStack">
+                <interceptor-ref name="execAndWait">
+                    <param name="excludeMethods">input,back,cancel</param>
+                </interceptor-ref>
+                <interceptor-ref name="defaultStack"/>
+                <interceptor-ref name="execAndWait">
+                    <param name="excludeMethods">input,back,cancel</param>
+                </interceptor-ref>
+            </interceptor-stack>
+        </interceptors>
+        <default-interceptor-ref name="defaultStack"/>
+        <default-class-ref class="com.opensymphony.xwork2.ActionSupport" />
+    </package>
+    <!-- ... -->
+</struts>
+```
+
+与项目内的`struts.xml`局部配置文件相比，我们可以发现很多相似之处：
+
+- 根标签都是`<struts>`，里面都包含`<package>`
+
+？？？？？？？？？？？？TODO：
+
+## §7.4 OGNL表达式
+
+OGNL（对象导航语言，Object Graph Navigating Language）是一种可以存取对象任意属性、调用对象方法、遍历对象结构图、实现类型转化的表达式语言。
+
+
+
+
+
+## §7.5 标签库
+
+将Struts 2的Jar包进行解压，可以在`/META-INF`目录下发现`strutstags.tld`文件。该文件包含了Struts 2中所有自带的标签库定义。该文件的根目录为`<taglib>`，其下属的各个`<tag>`标签用于定义单个标签，`<tlibversion>`表示该标签库的版本，`<jspversion>`表示该标签库支持的JSP版本，`<shortname>`表示标签库的默认名或昵称，`<uri>`表示标签库的URI，用于JSP文件中，`<attribute>`标签用语定义单个标签的各个属性。在各个属性标签内，`<required>`表示该属性是否必须设置，`<rtexprvalue>`表示是否禁止使用表达式。
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<taglib xmlns="http://java.sun.com/xml/ns/j2ee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0" xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-jsptaglibrary_2_0.xsd">
+    <description>......</description>
+    <display-name>Struts Tags</display-name>
+    <tlib-version>2.3</tlib-version>
+    <short-name>s</short-name>
+    <uri>/struts-tags</uri>
+    <!-- 很多<tag>标签 -->
+    <tag>
+        <description>......</description>
+        <name>action</name>
+        <tag-class>org.apache.struts2.views.jsp.ActionTag</tag-class>
+        <body-content>JSP</body-content>
+        <!-- 很多<attribute>标签 -->
+        <attribute>
+            <description>......</description>
+            <name>executeResult</name>
+            <required>false</required>
+            <rtexprvalue>false</rtexprvalue>
+        </attribute>
+        <attribute>
+            <description>......</description>
+            <name>flush</name>
+            <required>false</required>
+            <rtexprvalue>false</rtexprvalue>
+        </attribute>
+        <!-- 很多<attribute>标签 -->
+        <dynamic-attributes>false</dynamic-attributes>
+    </tag>
+    <!-- 很多<tag>标签 -->
+</taglib>
+```
+
+> 注意：现在的Servlet包已经可以自动导入标签库了。在Servlet 2.3之前的版本，必须要在`web.xml`中显示声明标签库才能使用：
+>
+> ```xml
+> <!-- web.xml -->
+> <web-app>
+>     <taglib>
+>         <taglib-uri>...</taglib-uri>			(Jar包内部tld文件的相对路径)
+>         <taglib-location>...</taglib-location>	(Jar包路径)
+>     </taglib>
+> </web-app>
+> ```
+
+
+
+
+
+（6.18的目标：12w字+）
 
