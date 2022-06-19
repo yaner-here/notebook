@@ -2937,6 +2937,13 @@ pass.required = 请输入密码
 </html>
 ```
 
+一个简单的登录界面就做好了。下面我们剖析刚才发生的过程：
+
+1. Tomcat首先访问`web.xml`，发现所有的链接（`/*`）都必须经过Struts 2定义的`<filter-class>`，于是将请求交给Struts 2。
+2. 由于表单`<form>`的`action`属性为`login`，所以Struts 2就会到自己的配置文件`struts.xml`中查找`name`属性为`login`的`<action>`标签。
+3. 找到的`<action>`标签带有`class`和`method`两个属性，Struts会调用相应的类的指定方法，根据该函数返回的`String`作为路由依据。
+4. 这里我们输入的用户名或密码均正确，于是该方法返回了字符串`success`。Servlet再根据`<action>`标签下的`<result>`标签，查到哪个`<result>`标签的`name`属性为`success`，并将路由导向该`<result>`标签的值指定的路径。
+
 ## §7.3 拦截器（Interceptor）
 
 拦截器本质上是一种Java类，用于控制其它业务逻辑的Java类。它涉及到了Java的反射机制，其大致原理如下：
@@ -2986,7 +2993,11 @@ flowchart LR
     ProxyClass-->MainThread
 ```
 
-Struts 2设计了自己的拦截器类，定义于`com.opensymphont.xwork2.interceptor.Interceptor`。下面我们来写一个自己的拦截器：
+Struts 2设计了自己的拦截器类，定义于`com.opensymphont.xwork2.interceptor.Interceptor`。
+
+### §7.3.1 拦截器原理
+
+下面我们来写一个自己的拦截器：
 
 ```java
 package com.example.interceptor;
@@ -3064,28 +3075,39 @@ public class TestInterceptor implements Interceptor {
     </package>
 </struts>
 ```
+### §7.3.2 拦截器栈
 
-> 注意：自Struts 2.1.3版本之后，`org.apache.struts2.dispatcher.FilterDispatcher`已被弃用，取而代之的是`org.apache2.struts2.dispatcher.ng.filter`包中的`StrutsPrepareAndExecuteFilter`/`StrutsPrepareFilter`/`StrutsExecuteFilter`。如果强行使用，则Tomcat日志会有如下警告：
->
-> ```
-> ***********************************************************************
-> *                               WARNING!!!                            *
-> *                                                                     *
-> * >>> FilterDispatcher <<< is deprecated! Please use the new filters! *
-> *                                                                     *
-> *           This can be a source of unpredictable problems!           *
-> *                                                                     *
-> *              Please refer to the docs for more details!             *
-> *            http://struts.apache.org/2.x/docs/webxml.html            *
-> *                                                                     *
-> ***********************************************************************
-> ```
+Struts 2允许把多个拦截器合并在一起，组合成一个新的拦截器，这种拦截器被称为拦截器栈。相应的`struts.xml`文件如下所示：
 
-?????????？？？？？？？？？？TODO：
+```xml
+<struts>
+	<package name="...">
+    	<interceptors>
+        	
+            <interceptor name="拦截器名称" class="Java类路径"/>
+            <interceptor name="拦截器名称" class="Java类路径"/>
+            <interceptor name="拦截器名称" class="Java类路径"/>
+
+            <interceptor-stack name="拦截器栈名称">
+            	<interceptor-ref name="拦截器名称"/>
+                <interceptor-ref name="拦截器名称"/>
+                <interceptor-ref name="拦截器名称"/>
+            </interceptor-stack>
+            
+            <action name="..." class="...">
+            	<result name="...">...</result>
+                <interceptor-ref name="拦截器名称"/> (使用拦截器)
+                <interceptor-ref name="defaultStack"/> (使用默认拦截器)
+            </action>
+            
+        </interceptors>
+    </package>
+</struts>
+```
 
 
 
-将Jar包解压，会在`/src`目录中发现一个`strutsdefault.xml`的配置文件，里面包含了大量默认预置的拦截器栈应用：
+
 
 ```xml
 <struts>
@@ -3244,11 +3266,105 @@ public class TestInterceptor implements Interceptor {
 </struts>
 ```
 
+
+
+> 注意：自Struts 2.1.3版本之后，`org.apache.struts2.dispatcher.FilterDispatcher`已被弃用，取而代之的是`org.apache2.struts2.dispatcher.ng.filter`包中的`StrutsPrepareAndExecuteFilter`/`StrutsPrepareFilter`/`StrutsExecuteFilter`。如果强行使用，则Tomcat日志会有如下警告：
+>
+> ```
+> ***********************************************************************
+> *                               WARNING!!!                            *
+> *                                                                     *
+> * >>> FilterDispatcher <<< is deprecated! Please use the new filters! *
+> *                                                                     *
+> *           This can be a source of unpredictable problems!           *
+> *                                                                     *
+> *              Please refer to the docs for more details!             *
+> *            http://struts.apache.org/2.x/docs/webxml.html            *
+> *                                                                     *
+> ***********************************************************************
+> ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+将Jar包解压，会在`/src`目录中发现一个`strutsdefault.xml`的配置文件，里面包含了大量默认预置的拦截器栈应用：
+
+
+
 与项目内的`struts.xml`局部配置文件相比，我们可以发现很多相似之处：
 
 - 根标签都是`<struts>`，里面都包含`<package>`
 
 ？？？？？？？？？？？？TODO：
+
+
+
+
+
+
+
+## §7.4 业务控制器（Action）
+
+`Action`是Struts 2的核心，所有的HTTP请求都会被直接封装在`Action`实例中。自定义的`Action`类需要满足以下条件：
+
+- 类内的所有与请求参数相关的字段，都必须有对应的Getter和Setter方法
+- 类必须实现`Action`接口，尤其是`public String execute() throws Exception`方法
+
+在实际工程中，`Action`需要进行复杂的业务处理，例如鲁棒性、国际化等。为了规范与简化`Action`的开发过程，Struts 2提供了`ActionSupport`类，它也实现了`Action`接口。以下是`ActionSupport`的各方法用途（因为原代码没有给出注释，故列表说明）：
+
+| 方法名                                                       | 作用                     |
+| ------------------------------------------------------------ | ------------------------ |
+| `public void setActionErrors(Collection<String> errorMessages)` | 设置Action的校验错误信息 |
+| `public Collection<String> getActionErrors()`                | 返回Action的校验错误信息 |
+| `public setActionMessage(Collection<String> messages)`       | 设置Action信息           |
+| `public Collection<String> getActionMessage()`               | 返回Action信息           |
+| `public Collection<String> getErrorMessages()`               | 返回校验错误信息         |
+| `public Map<String,List<String>> getErrors()`                | 返回错误信息             |
+| `public void setFiledErrors(Map<String,List<String>>)`       | 设置错误信息             |
+| `public Map<String,List<String>> getFiledErrors()`           |                          |
+| `public Locale getLocale()`                                  |                          |
+| `public boolean hasKey(String key)`                          |                          |
+| `public String getText(...)`                                 |                          |
+| `public String getFormatted()`                               |                          |
+| `public ResourceBundle getTexts([String aBundleName])`       |                          |
+| `public void addActionError(String anErrorMessage)`          |                          |
+| `public void addActionMessage(String aMessage)`              |                          |
+| `public void addFieldError(String filedName,String errorMessage)` |                          |
+| `public String input()`                                      |                          |
+| `public String execute()`                                    |                          |
+| `public boolean hasActionErrors()`                           |                          |
+| `public boolean hasActionMessages()`                         |                          |
+| `public boolean hasErrors()`                                 |                          |
+| `public boolean hadFiledErrors`                              |                          |
+| `public void clearFiledErrors()`                             |                          |
+| `public void clearActionErrors()`                            |                          |
+| `public void clearMessages()`                                |                          |
+| `public void clearErrors()`                                  |                          |
+| `public void clearErrorsAndMessages()`                       |                          |
+| `public void validate()`                                     |                          |
+| `public Object clone()`                                      |                          |
+| `public void pause(String result)`                           |                          |
+| `private TextProvider getTextProvider()`                     |                          |
+| `public void setContainer(Container container)`              |                          |
+
+在后续开发中，我们新建自定义`Action`类时，一律让其继承自`ActionSupport`类，而非手动实现`Action`接口。
+
+
+
+
+
+
 
 ## §7.4 OGNL表达式
 
@@ -3313,4 +3429,12 @@ OGNL（对象导航语言，Object Graph Navigating Language）是一种可以�
 
 
 （6.18的目标：12w字+）
+
+（6.19的目标：13w字+）
+
+（6.20的目标：14w字+）
+
+（6.21的目标：15w字+）
+
+（6.22的目标：16w字+）
 
