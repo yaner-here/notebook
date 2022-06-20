@@ -3321,60 +3321,362 @@ Struts 2允许把多个拦截器合并在一起，组合成一个新的拦截器
 - 类内的所有与请求参数相关的字段，都必须有对应的Getter和Setter方法
 - 类必须实现`Action`接口，尤其是`public String execute() throws Exception`方法
 
+### §7.4.1 ActionSupport
+
 在实际工程中，`Action`需要进行复杂的业务处理，例如鲁棒性、国际化等。为了规范与简化`Action`的开发过程，Struts 2提供了`ActionSupport`类，它也实现了`Action`接口。以下是`ActionSupport`的各方法用途（因为原代码没有给出注释，故列表说明）：
 
-| 方法名                                                       | 作用                     |
-| ------------------------------------------------------------ | ------------------------ |
-| `public void setActionErrors(Collection<String> errorMessages)` | 设置Action的校验错误信息 |
-| `public Collection<String> getActionErrors()`                | 返回Action的校验错误信息 |
-| `public setActionMessage(Collection<String> messages)`       | 设置Action信息           |
-| `public Collection<String> getActionMessage()`               | 返回Action信息           |
-| `public Collection<String> getErrorMessages()`               | 返回校验错误信息         |
-| `public Map<String,List<String>> getErrors()`                | 返回错误信息             |
-| `public void setFiledErrors(Map<String,List<String>>)`       | 设置错误信息             |
-| `public Map<String,List<String>> getFiledErrors()`           |                          |
-| `public Locale getLocale()`                                  |                          |
-| `public boolean hasKey(String key)`                          |                          |
-| `public String getText(...)`                                 |                          |
-| `public String getFormatted()`                               |                          |
-| `public ResourceBundle getTexts([String aBundleName])`       |                          |
-| `public void addActionError(String anErrorMessage)`          |                          |
-| `public void addActionMessage(String aMessage)`              |                          |
-| `public void addFieldError(String filedName,String errorMessage)` |                          |
-| `public String input()`                                      |                          |
-| `public String execute()`                                    |                          |
-| `public boolean hasActionErrors()`                           |                          |
-| `public boolean hasActionMessages()`                         |                          |
-| `public boolean hasErrors()`                                 |                          |
-| `public boolean hadFiledErrors`                              |                          |
-| `public void clearFiledErrors()`                             |                          |
-| `public void clearActionErrors()`                            |                          |
-| `public void clearMessages()`                                |                          |
-| `public void clearErrors()`                                  |                          |
-| `public void clearErrorsAndMessages()`                       |                          |
-| `public void validate()`                                     |                          |
-| `public Object clone()`                                      |                          |
-| `public void pause(String result)`                           |                          |
-| `private TextProvider getTextProvider()`                     |                          |
-| `public void setContainer(Container container)`              |                          |
+| 方法名                                                       | 作用                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `public void setActionErrors(Collection<String> errorMessages)` | 来源于`ValidationAware`接口，设置Action的校验错误信息        |
+| `public Collection<String> getActionErrors()`                | 来源于`ValidationAware`接口，返回Action的校验错误信息        |
+| `public setActionMessage(Collection<String> messages)`       | 来源于`ValidationAware`接口，设置Action信息                  |
+| `public Collection<String> getActionMessage()`               | 来源于`ValidationAware`接口，返回Action信息                  |
+| `public Collection<String> getErrorMessages()`               | 来源于`ValidationAware`接口，返回校验错误信息                |
+| `public Map<String,List<String>> getErrors()`                | 返回错误信息                                                 |
+| `public void setFiledErrors(Map<String,List<String>>)`       | 在指定的`Filed`内设置错误信息                                |
+| `public Map<String,List<String>> getFiledErrors()`           | 在指定的`Filed`内获取错误信息                                |
+| `public Locale getLocale()`                                  | 来源于`LocaleProvider`接口返回`Locale`实例                   |
+| `public boolean hasKey(String key)`                          | 来源于`TextProvider`接口，检测是否存在指定键名的键值对       |
+| `public String getText(...)`                                 | 来源于`TextProvider`接口，根据键名返回相应的值               |
+| `public String getFormatted(String key,String expression)`   | 将字符串`key`按照i10n标准提供的表达式`expression`进行转化    |
+| public ResourceBundle getTexts([String aBundleName])`        | 来源于`TextProvider`接口，返回包含所有键值对的`ResourceBundle`实例 |
+| `public void addActionError(String anErrorMessage)`          | 来源于`ValidationAware`接口，                                |
+| `public void addActionMessage(String aMessage)`              | 来源于`ValidationAware`接口，                                |
+| `public void addFieldError(String filedName,String errorMessage)` | 来源于`ValidationAware`接口，                                |
+| `public String input()`                                      | 返回`Action.INPUT`常量                                       |
+| `public String execute()`                                    | 返回`Action.SUCCESS`常量                                     |
+| `public boolean hasActionErrors()`                           | 来源于`ValidationAware`接口，检查是否有`Action`层级的错误    |
+| `public boolean hasActionMessages()`                         | 来源于`ValidationAware`接口，检查是否有`Action`层级的消息    |
+| `public boolean hasErrors()`                                 | 来源于`ValidationAware`接口，返回`hasActionErrors() || hasFiledErros()` |
+| `public boolean hasFiledErrors()`                            | 来源于`ValidationAware`接口，检查是否有`Filed`层级的错误     |
+| `public void clearFiledErrors()`                             | 清除`Filed`层级的错误                                        |
+| `public void clearActionErrors()`                            | 清除`Action`层级的错误                                       |
+| `public void clearMessages()`                                | 清除信息                                                     |
+| `public void clearErrors()`                                  | 清除错误                                                     |
+| `public void clearErrorsAndMessages()`                       | 清除错误和信息                                               |
+| `public void validate()`                                     | 用于校验输入合法性的方法，常常在子类中被重载                 |
+| `public Object clone()`                                      | 克隆当前实例的方法，常常在子类中被重载                       |
+| `public void pause(String result)`                           | 立即终止`Action`实例的运行，并抛出`PauseException`，使得`Action`的其他方法立即返回`Action.SUCCESS`等常量 |
+| `private TextProvider getTextProvider()`                     | 返回`TextProvider`实例                                       |
+| `public void setContainer(Container container)`              | 设置`Container`实例                                          |
 
 在后续开发中，我们新建自定义`Action`类时，一律让其继承自`ActionSupport`类，而非手动实现`Action`接口。
 
+### §7.4.2 ActionContext
 
+Struts 2将Servlet API全部封装起来了，这意味着用户只需调用Struts 2 API就能完成大部分功能。但是如果遇到特殊情况，必须访问Servlet中的`session`、`request`、`application`时，我们就必须使用Struts 2提供的`ActionContext`类，才能调用Servlet API。
 
+```java
+import com.opensymphony.xwork2.ActionContext;
 
+ActionContext actionContext = ActionContext.getContext();
+```
 
+以下是`ActionContext`提供的API：
 
+| 方法名                                                | 作用                                                         |
+| ----------------------------------------------------- | ------------------------------------------------------------ |
+| `Object get(Object key)`                              |                                                              |
+| `Map<String,Object> getApplication()`                 | **将`ServletContext`中的参数转化为`Map<String,Object>`实例** |
+| `HttpParameters getParameters()`                      | **将`HttpServletRequest`中的参数转化成`HttpParameters`实例** |
+| `Map<String,Object> getSession()`                     | **将`HttpSession`中的参数转化成`Map<String,Object>`实例**    |
+| `void put(Object key,Object value)`                   | 在当前`ActionContext`实例中添加键值对                        |
+| `void setApplication(Map<String,Object> application)` | 设置`application`                                            |
+| `void setSession(Map<String,Object> session)`         | 设置`session`                                                |
 
-## §7.4 OGNL表达式
+利用`ActionContext`完善登录类：
 
-OGNL（对象导航语言，Object Graph Navigating Language）是一种可以存取对象任意属性、调用对象方法、遍历对象结构图、实现类型转化的表达式语言。
+```java
+public class LoginAction extends ActionSupport {
+    // ...
+    public String checkLogin(){
+        ActionContext actionContext = ActionContext.getContext();
+        actionContext.getSession().put("login",this.username);
+        actionContext.getApplication().put("login",this.username);
+        return SUCCESS;
+    }
+}
+```
 
+### §7.4.3 IoC
 
+IoC（Inversion of Control，控制反转）指的是在Java开发中，将设计好的类交给外部控制，而不是在类内部控制。在Struts 2中，可以使用IoC的方式将Servlet实例注入到Action中，这要求`Action`必须实现以下任何一个接口：
 
+- `ApplicationAware`：将`ServletContext`中的`Attribute`转为`Map`并注入到`Action`
+- `SessionAware`：将`HttpSession`中的`Attribute`转为`Map`并注入到`Action`
+- `CookiesAware`：将`Cookie`转为`Map`并注入到`Action`
+- `ParameterAware`：直接向`Action`注入键值对
+- `ServletContextAware`：直接访问`ServletContext`实例，必须实现`void setServletRequest(HttpServletRequest request)`方法
+- `ServletRequestAware`：直接访问`HttpServletRequest`实例，必须实现`void setServletRequest(HttpServletRequest request)`方法
+- `ServletResponseAware`：直接访问`HttpServletResponse`实例，必须实现`void setServletResponse(HttpServletResponse response)`方法
 
+例如让登录类实现`ServletRequestAware`接口：
+
+```java
+public class LoginAction extends ActionSupport implements ServletRequestAware {
+    // ...
+    private HttpServletRequest request;
+    @Override public void setServletRequest(HttpServletRequest request){
+        this.request = request;
+    }
+    public String checkLogin(){
+        HttpSession session = request.getSession();
+        session.setAttribute("login",this.name);
+        return SUCCESS;
+    }
+}
+```
+
+### §7.4.4 ServletActionContext
+
+利用`ServletActionContext`类也是一种直接访问Servlet API的方式，但是这是非IOC的方式。其常用的静态方法有以下几种：
+
+- `getPageContext()`：返回`HttpServletRequest`实例
+- `getRequest()`：返回`HttpServletResponse`实例
+- `getResponse()`：返回`HttpServletResponse`实例
+- `getServletContext()`：返回`ServletContext`实例
+
+到目前为止，我们总共了解了三种调用Servlet API的方法，各自优缺点如下：
+
+- `ActionContext`（间接访问Servlet）：只能获得`HttpServletRequest`实例，不能获得`HttpServletResponse`实例，不推荐使用。
+- 一系列`Aware`接口（直接访问Servlet，IoC）：需要手动声明和实现大量的接口，步骤繁琐，大幅度提高代码量，与Servlet API耦合程度高，不推荐使用。
+- `ServletActionContext`（直接访问Servlet，非IoC）：实现方式简单，推荐使用。
+
+### §7.4.5 Action配置
+
+众所周知，Action的配置由`struts.xml`中的`<action>`标签决定。
+
+```xml
+<action name="..." class="..." method="..." converter="...">
+	<result name="error" type="...">/jsp/success.jsp</result>
+</action>
+```
+
+`<action>`标签定义了四种属性：
+
+- `name`：指定Client发送请求的地址映射名称
+- `class`：指定业务逻辑处理的Action类的路径
+- `method`：指定业务逻辑处理的Action类调用的方法，缺省为`execute`
+- `converter`：？？？？？？？？？？？？？？？TODO：
+
+内部的`<result>`标签用于指定视图。
+
+#### §7.4.5.1 全局视图
+
+当一个视图被多个Action引用时，可以考虑全局视图：
+
+```xml
+<global-results>
+	<result name="error">/error.jsp</result>
+</global-results>
+<action name="..." class="..." method="..." converter="...">
+	<!-- ... -->
+</action>
+```
+
+#### §7.4.5.2 动态方法调用
+
+在实际开发中，每个Action都包含多个处理业务逻辑的方法，以满足不同业务的要求。然而`struts.xml`告诉我们，一个Action只能对应Action类中的唯一一个方法（默认为`execute()`），这显然不能满足业务需要。因此，我们需要动态方法调用。
+
+- 不指定`method`属性（减少了`struts.xml`，但是逻辑结构不清晰）
+
+  ```xml
+  <!-- struts.xml -->
+  <action name="..." class="..."></action>
+  ```
+
+  ```jsp
+  <s:form action="Action名称!方法名称"/>
+  <s:form action="Action名称!方法名称.action"
+  ```
+
+- 指定`method`属性（`struts.xml`难以管理，但逻辑结构清晰）
+
+  ```xml
+  <!-- struts.xml -->
+  <action name="Action名称" class="Action类路径" method="方法名称"></action>
+  ```
+
+  ```jsp
+  <s:form action="Action名称" method="方法名称"/>
+  	<!-- 与struts.xml必须一致 -->
+  ```
+
+#### §7.4.5.3 通配符
+
+```xml
+<!-- struts.xml -->
+<action name="login_*_*" class="com.example.{1}" method="{2}">
+	<result>/{1}.jsp</result>
+</action>
+```
+
+当用于发送形如`login_vip_check.action`的请求时，它将会被解析成名称为`login_vip_check`的Action，其类名取第一个通配符的匹配值，也就是`com.example.vip`，其执行的方法名取第二个通配符的匹配值，也就是`check`，其匹配的路由取第一个通配符的匹配值，也就是`/vip.jsp`。
+
+### §7.4.6 类型转换
+
+在MVC架构中，用户在视图层输入的数据都是字符串类型，而Struts 2提供了一系列方便的类型转换方法，用户不需要手动调用，Struts 2会自动调用类型转换器。
+
+#### §7.4.6.1 基本类型转换
+
+```jsp
+<%@ page language="java" pageEncoding="UTF-8" %>
+<%@ taglib prefix="s" uri="/struts-tags" %>
+<h1>添加商品</h1>
+<s:form action="GoodAction" namespace="/good" method="addGood">
+	<s:textfiled name="name" label="商品名称"/>
+    <s:textfiled name="price" label="商品单价"/>
+    <s:textfiled name="inventory" label="库存"/>
+    <s:submit value="添加"/>
+</s:form>
+```
+
+```java
+public class GoodAction extends ActionSupport {
+    
+    // 均配备Getter和Setter方法
+    private String name;
+    private float price;
+    private int inventory;
+    
+    public addGood(){
+        return SUCCESS;
+    }
+    
+}
+```
+
+```jsp
+<a>添加成功</a>
+<a>货物信息如下：</a>
+<s:property value="name"/>
+<s:property value="value"/>
+<s:property value="inventory"/>
+```
+
+用户输入的三个字符串参数`name`、`price`、`inventory`将会被依次转换为`String`、`float`、`int`。
+
+我们也可以用JavaBean的思想，将模型类与控制类分离：
+
+```java
+class Good {
+    // name,price,inventory均配备Getter和Setter
+}
+public class GoodAction extends ActionSupport {
+    private Good good;
+    public Good getGood(){
+        return this.good;
+    }
+    public Good setGood(Good good){
+        this.good = good;
+    }
+    public String addBook(){
+        return SUCCESS;
+    }
+}
+```
+
+```jsp
+<%@ page language="java" pageEncoding="UTF-8" %>
+<%@ taglib prefix="s" uri="/struts-tags" %>
+<h1>添加商品</h1>
+<s:form action="GoodAction" namespace="/good" method="addGood">
+	<s:textfiled name="good.name" label="商品名称"/>
+    <s:textfiled name="good.price" label="商品单价"/>
+    <s:textfiled name="good.inventory" label="库存"/>
+    <s:submit value="添加"/>
+</s:form>
+```
+
+#### §7.4.6.2 集合类型转换
+
+上面的例子中，一次只能添加一种货物。在Action类中使用集合类型可以进行批量数据转换。
+
+```java
+public class GoodListAction extends ActionSupport {
+    private List<Good> goodList;
+    public List<Good> getGoodList(){
+        return this.goodList;
+    }
+    public void setGoodList(List<Good> goodList){
+        this.goodList = goodList;
+    }
+    public void addGoods(){
+        return SUCCESS;
+    }
+}
+```
+
+```jsp
+<s:form action="addListGood" namespace="/good">
+    <s:iterator value="new int[3]" status="stat">
+        <s:textfiled name="goodList['+#stat.index+'].name" label="商品名称"/>
+        <s:textfiled name="goodList['+#stat.index+'].price" label="商品单价"/>
+        <s:textfiled name="goodList['+#stat.index+'].inventory" label="库存"/>
+        <s:submit value="添加"/>
+    </s:iterator>
+</s:form>
+```
+
+这里用到了OGNL表达式：
+$$
+\overset{\text{GoodListAction.goodList}}{\overbrace{\text{goodList}}}
+\overset{取数组}{
+	\overbrace{\text{.['+\#}
+		\underset{\text{<s:textfiled>定义的status=“stat”}}{\underbrace{\text{stat.index}}}
+	\text{+']}}
+}
+$$
+
+#### §7.4.6.3 异常处理
+
+考虑到用户输入的数据类型可能与目标类型不符，Struts 2在`struts-default.xml`中默认提供了`conversionError`拦截器。
+
+```xml
+<!-- struts.xml -->
+<include file="struts-default.xml"/>
+其余部分原封不动。
+```
+
+出现异常时，JSP页面的对应位置将会显示`Invalid field value for filed "..."`。也可以新建资源国际化文件实现汉化：
+
+```properties
+xwork.default.invalid.filedvalu=数据类型不正确！
+```
 
 ## §7.5 标签库
+
+传统HTML用到了大量繁琐的标签，再结合JSP的`<%=...%>`表达式，整个视图文件会变得非常大。虽然JSP提供了JSTL（JSP标准标签库，JSP Standard Library），但是仍然逃离不了手动编写`<%...%>`Java脚本的限制。
+
+Struts 2提供了一系列标签库，支持OGNL（对象导航语言，Object Graph Navigating Language）。使用时需要在`web.xml`中加载`FilterDispatcher`类，然后在JSP页面中使用`<%@ taglib prefix="s" uri-"/struts-tags" %>`导入即可。
+> 注意：现在的Servlet包已经可以自动导入标签库了。在Servlet 2.3之前的版本，必须要在`web.xml`中显示声明标签库才能使用：
+>
+> ```xml
+> <!-- web.xml -->
+> <web-app>
+> <taglib>
+> <taglib-uri>...</taglib-uri>			(Jar包内部tld文件的相对路径)
+> <taglib-location>...</taglib-location>	(Jar包路径)
+> </taglib>
+> </web-app>
+> ```
+
+Struts 1标签库总共提供`html`、`bean`、`logic`、`tiles`、`nested`这五个标签库。从Struts 2开始，官方不再对标签严格分类，而是把所有标签都整合到一个标签库中。为方便初学者理解，这里我们自行对标签库进行分类：
+$$
+\text{Struts 2}标签
+\begin{cases}
+	非\text{UI}标签:数据逻辑输出与访问
+        \begin{cases}
+            数据标签:数据存储和处理\\逻辑控制标签:条件和循环等流程控制
+        \end{cases}\\
+    \text{Ajax}标签:支持\text{Ajax}技术\\
+    \text{UI}标签:生成\text{HTML}标签
+        \begin{cases}
+    		表单标签:生成\text{HTML}表单\\非表单标签:其它功能(日期显示/树状菜单...)
+    	\end{cases}
+\end{cases}
+$$
+
 
 将Struts 2的Jar包进行解压，可以在`/META-INF`目录下发现`strutstags.tld`文件。该文件包含了Struts 2中所有自带的标签库定义。该文件的根目录为`<taglib>`，其下属的各个`<tag>`标签用于定义单个标签，`<tlibversion>`表示该标签库的版本，`<jspversion>`表示该标签库支持的JSP版本，`<shortname>`表示标签库的默认名或昵称，`<uri>`表示标签库的URI，用于JSP文件中，`<attribute>`标签用语定义单个标签的各个属性。在各个属性标签内，`<required>`表示该属性是否必须设置，`<rtexprvalue>`表示是否禁止使用表达式。
 
@@ -3412,21 +3714,13 @@ OGNL（对象导航语言，Object Graph Navigating Language）是一种可以�
 </taglib>
 ```
 
-> 注意：现在的Servlet包已经可以自动导入标签库了。在Servlet 2.3之前的版本，必须要在`web.xml`中显示声明标签库才能使用：
->
-> ```xml
-> <!-- web.xml -->
-> <web-app>
->     <taglib>
->         <taglib-uri>...</taglib-uri>			(Jar包内部tld文件的相对路径)
->         <taglib-location>...</taglib-location>	(Jar包路径)
->     </taglib>
-> </web-app>
-> ```
 
 
 
 
+## §7.4 OGNL表达式
+
+OGNL（对象导航语言，Object Graph Navigating Language）是一种可以存取对象任意属性、调用对象方法、遍历对象结构图、实现类型转化的表达式语言。
 
 （6.18的目标：12w字+）
 
