@@ -3676,8 +3676,6 @@ $$
     	\end{cases}
 \end{cases}
 $$
-
-
 将Struts 2的Jar包进行解压，可以在`/META-INF`目录下发现`strutstags.tld`文件。该文件包含了Struts 2中所有自带的标签库定义。该文件的根目录为`<taglib>`，其下属的各个`<tag>`标签用于定义单个标签，`<tlibversion>`表示该标签库的版本，`<jspversion>`表示该标签库支持的JSP版本，`<shortname>`表示标签库的默认名或昵称，`<uri>`表示标签库的URI，用于JSP文件中，`<attribute>`标签用语定义单个标签的各个属性。在各个属性标签内，`<required>`表示该属性是否必须设置，`<rtexprvalue>`表示是否禁止使用表达式。
 
 ```xml
@@ -3714,21 +3712,762 @@ $$
 </taglib>
 ```
 
+### §7.5.1 逻辑控制标签
+
+逻辑控制标签包含以下九种标签：`<s:if>`、`<s:elseif>`、`<s:else>`、`<s:append>`、`<s:generator>`、`<s:iterator>`、`<s:merge>`、`<s:sort>`、`<s:subset>`。
+
+`<s:if>`、`<s:elseif>`、`<s:else>`组合使用可以表示条件控制结构：
+
+```jsp
+// 以下三种方式完全等价，其中使用Struts 2标签库的方式最简单
+
+<s:if test="布尔表达式">...</s:if>
+<s:elseif test="布尔表达式">...</s:elseif>
+<s:else>...</s:else>
+
+<%
+	if (布尔表达式) {
+        out.println(,,,);
+    } else if (布尔表达式) {
+        out.println(...);
+    } else {
+        out.println(...);
+    }
+%>
+
+<%	if(布尔表达式){
+%>	...	<%
+	} else if (布尔表达式) {
+%>	...	<%
+    } else {
+%>	... <%
+    }
+%>
+
+```
+
+`<s:append>`、`<s:generator>`、`<s:iterator>`、`<s:merge>`、`<s:sort>`、`<s:subset>`用于对集合进行操作。
+
+`<s:iterator>`包含三个属性：`value`用于指定进行迭代操作的集合，可以通过OGNL表达式或Action返回值来指定一个集合类型；`id`用于表示集合中的元素名称，供`<s:property>`等标签使用；`status`用于表示当前元素的状态，每个状态都对应着一个`IteratorStatus`实例，包含了`int getCount()`、`int getIndex()`、`boolean inEven()`、`boolean isOdd()`、`boolean isFirst()`、`boolean isLast()`等实用方法。
+
+```jsp
+<s:iterator value="{'Alice','Bob','Carol'}" id="username" status="stat">
+    <a>你好,<s:property value="username"/>,你是第{#stat.getIndex}名</a><br>
+    	// 你好,Alice,你是第0名
+    	// 你好,Bob,你是第1名
+    	// 你好,Carol,你是第2名
+</s:iterator>
+```
+
+`<s:append>`和`<s:merge>`都用于将多个集合对象拼接成一个新集，其中属性`id`用于表示新集合的名称，但是两者的顺序有所不同：
+
+```jsp
+<s:append id="newList">
+	<s:param value="{'Alice'}"/>
+    <s:param value="{'Bob'}"/>
+    <s:param value="{'Carol'}"/>
+</s:append>
+<s:iterator value="#newList" id="username" status="stat">
+	......
+</s:iterator>
+```
+
+```
+伪代码：
+function <s:append> (List[] lists){
+	List newList;
+	foreach(List list(i) : lists){
+		foreach(Item item(j) : list){
+			newList.append(第i个List的第j个元素);
+		}
+	}
+}
+function <s:merge> (List[] lists){
+	List newList;
+	for(第i个位置){
+		for(第j个List){
+			newList.append(第j个List的第i个元素);
+		}
+	}
+}
+```
+
+`<s:generator>`用于将字符串按照指定的分隔符分割成多个子串，生成的子串可以用`<s:iterator>`输出。它包含四个属性：`count`表示生成集合中元素的总数，`val`指定要分割的字符串，`separator`制定分隔符，`converter`指定一个将字符串转换为对象的转换器类，`id`表示以其为键，以生成的集合为值，添加到`pageContext`作用域中。
+
+```jsp
+<s:generator val="'Alice,Bob,Carol'" separator=",">
+	<s:iterator status="stat">
+    	<s:property/> // value属性缺省时为栈顶
+    </s:iterator>
+</s:generator>
+```
+
+`<s:subset>`用于截取集合，包含以下属性：`source`指定源集合，`count`指定子集合中元素的个数，缺省为所有元素，`start`指定从第几个元素开始截取（从0开始数，缺省为0），`decider`指定一个`SubsetIteratorFilter.Decider`实例用于进一步筛选：
+
+```jsp
+<s:subset source="{'Alice','Bob','Carol'}" start="1" count="1">
+	<s:iterator><s:property/></s:iterator>
+</s:subset>
+```
+
+`<s:sort>`用于对集合进行排序，包含以下属性：`source`指定要进行排序操作的集合，`comparator`指定规定了排序规则的`Comparator`实例：
+
+```java
+package com.example.comparator;
+import java.util.Comparator;
+public class Decresing implements Comparator {
+    @Override int compare(Object element1,Object element2){
+        return element1.toString().length - element2.toString().length();
+    }
+}
+```
+
+```jsp
+<s:bean id="DecresingComparator" name="com.example.Comparator.DecresingComparator"/>
+<s:sort source="{'Alice','Bob','Carol'}" comparator="#DecresingComparator">
+	<s:property/>
+</s:sort>
+```
+
+### §7.5.2 数据标签
+
+数据标签包含以下11种标签：`<s:action>`、`<s:bean>`、`<s:debug>`、`<s:i18n>`、`<s:include>`、`<s:param>`、`<s:property>`、`<s:set>`、`<s:text>`、`<s:url>`、`<s:date>`。
+
+`<s:action>`可以在JSP中直接调用Action，包含以下属性：`id`表示引用ID，`name`指定要调用的Action名称，`namespace`指定Action所在的命名空间，`executeResult`指定Action的Result路由返回的结果是否要包含在当前JSP页面之内，`ignoreContextParams`指定是否将当前JSP页面的参数传到Action中：
+
+```java
+package com.example.action.TagAction;
+public class TagAction extends ActionSupport {
+    
+    private String name;
+    public void setName(String name){this.name=name;}
+    public String getName(){return this.name;}
+    
+    public String login() throws Exception{
+        ServletActionContext.getRequest.setAttribute("name",getName());
+        return SUCCESS;
+    }
+    @Override public String execute() throws Exception{
+        return SUCCESS;
+    }
+    
+}
+```
+
+```xml
+<!-- struts.xml -->
+<struts>
+	<include file="struts-default.xml"/>
+    <package name="Struts2Tag" extends="struts-default" namespace="/tags">
+    	<action name="tag1" class="com.example.action.TagAction">
+        	<result name="success">/jsp/success.jsp</result>
+        </action>
+        <action name="tag2" class="com.example.action.TagAction" method="login">
+        	<result name="success">/jsp/login_success.jsp</result>
+        </action>
+    </package>
+</struts>
+```
+
+```xml
+<!-- /jsp/success.jsp -->
+调用了Action.execute()
+```
+
+```jsp
+<!-- /jsp/login_success.jsp -->
+调用了Action.login()，用户名为<s:property value="#request.name"/>
+```
+
+```jsp
+<!-- actionTag.jsp，访问时添加GET参数?name=Alice -->
+// 调用名为tag1的Action，并将结果包含到本页面中，将本页面参数传入Action
+<s:action name="tag1" executeResult="true" namespace="/tags"/>
+	// 输出"调用了Action.execute()"
+
+// 调用名为tag2的Action，并将结果包含到本页面中，但是不将本页面参数传入Action
+<s:action name="tag2" executeResult="true" namespace="/tags" ignoreContextParams="true"/>
+	// 输出"调用了Action.login()，用户名为"
+	// 因为指定了ignoreContextParams=true的属性，所以Action收不到参数
+
+// 调用名为tag2的Action，不将结果包含到本页面中，但是将本页面参数传入Action
+<s:action name="tag2" executeResult="false" namespace="/tags"/>
+	// 什么也不输出，因为指定了executeResult="false"的属性
+```
+
+`<s:bean>`标签用于在当前JSP页面中创建JavaBean实例，可以在该标签内部嵌套`<s:param>`为实例指定字段值。该标签包含两个属性：`name`指定将要实例化的JavaBean类的路径，`id`表示该实例的名称，可以在JSP内调用：
+
+```java
+package com.example.bean;
+public class Person {
+    
+    //全部配备Getter和Setter方法
+    private String name;
+    private boolean sex;
+    private int age;
+    
+}
+```
+
+```jsp
+<s:bean name="com.example.bean.Person" id="p">
+	<s:param name="name" value="'Alice'"/>
+    <s:param name="sex" value="true"/>
+    <s:param name="age" value="20"/>
+</s:bean>
+姓名：<s:property value="#p.name"/><br>
+性别：<s:if test="#p.sex">女</s:if><s:else>男</s:else><br>
+年龄：<s:property value="#p.age"/><br>
+```
+
+> 注意：使用`<s:param value="...">`给字符串类型赋值时，必须在双引号内部**再嵌套一对单引号**。
+
+`<s:debug>`用于辅助调试，可以在JSP页面上生成一个链接，点击后可以查看当前`ValueStack`和`StackContext`的所有信息。
+
+`<s:include>` 用于预加载JSP和Servlet资源到当前页面，其中`value`属性用于指定资源的路径，`id`属性表示引用ID。
+
+```jsp
+<!-- page1.jsp -->
+用户名为<% out.println(request.getParameter("username"));
+```
+
+```jsp
+<!-- page2.jsp -->
+<s:include value="page1.jsp">
+	<s:param name="username" value="Alice"/>
+</s:include>
+	// 输出"用户名为Alice"
+	// page2.jsp显示了page1的信息
+```
+
+`<s:param>`负责为其他标签提供参数，因此不能单独使用。该标签有两种形式：
+
+```jsp
+// 两种形式完全等价
+<s:param name="..." value="..." />
+<s:param name="...">...</s:param>
+```
+
+> 注意：`name`属性是可选的。如果声明`name`属性，则要求对应组件必须包含该属性的Setter方法；如果不声明，则要求外层标签必须实现`UnnamedParametric`接口。
+
+`<s:property>`用于输出指定属性的值，其属性有：`default`指定属性值为`null`时输出的值，`escape`表示是否显示标签代码，缺省为`false`，`value`指定属性名称，`id`指定元素的ID：
+
+```jsp
+<%
+	session.setAttribute("username","Alice");
+	session.setAttribute("age",18);
+%>
+
+// 完全等价
+<s:property value="#session.username"/>
+<s:property value="#session['username']"/>
+
+<s:property value="nothing" default="value missing"/> // 输出value missing
+```
+
+`<s:set>`用于定义新变量。与`<s:param>`只能配合其它标签使用不同，该标签可以独立使用。其属性有：`name`指定新变量的名称，`scope`指定新变量的作用域，可选值有（`request`、`page`、`session`、`application`、`action`、`response`），`value`指定新变量的值，`id`指定新变量的引用ID。
+
+```jsp
+<s:set name="username" value="%{'Alice'}"/>
+<s:property value="#username"/>
+
+<s:bean name="com.example.bean.Person" id="p">
+	<s:param name="name" value="'Alice'"/>
+</s:bean>
+
+<s:set value="#p" name="user" scope="action"/>
+<s:property value="#attr.user.name"/>
+
+<s:set value="#p" name="user" scope="session"/>
+<s:property value="#session.user.name"/>
+```
+
+`<s:url>`标签用于生成URL地址，可以嵌套`<s:param>`为URL设置参数。其属性有：`includePath`指定是否包含请求参数，可选值有`none`、`get`、`all`，`value`指定URL地址，`action`指定一个Action作为URL地址，`namespace`指定命名空间，`method`指定调用的Action方法名，`encode`表示是否对请求参数进行编码，`includeContext`表示是否将当前JSP页面的上下文包含在URL地址中，`id`表示引用ID：
+
+```jsp
+<s:url action="showPerson"> // 仅指定action属性
+	<s:param name="name" value="'Alice'"/>
+</s:url>
+
+<s:url value="/showPerson.jsp" id="showPersonJSP"> // 仅指定value属性
+	<s:param name="name" value="'Alice'"/>
+</s:url>
+
+<s:url includeParams="get"> // 仅指定includeParams属性，前两个属性缺省时默认访问当前页面
+	<s:param name="name" value="%{'Alice'}"/>
+</s:url>
+
+<a href="%{showPersonJSP}">点我跳转到/showPerson.jsp</a>
+```
+
+`<s:date>`用于按照指定格式输出日期和计算时间差。其属性有：`format`指定日期格式化自字符串，`nice`指定是否输出指定时间与当前时间的时间差，缺省为`false`，`name`指定待转化的日期值，`id`指定引用ID：
+
+```jsp
+<a>dd/MM/yyyy</a> <s:date name="currentDate" format="dd/MM/yyyy"/>
+<a>MM/dd/yyyy</a> <s:date name="currentDate" format="MM/dd/yyyy"/>
+<a>dd/MM/yyyy Hour Minute：</a> <s:date name="currentDate" format="MM/dd/yyyy hh:mm"/>
+<a>dd/MM/yyyy Hour Minute Second：</a> <s:date name="currentDate" format="MM/dd/yyyy hh:mm:ss"/>
+```
+
+### §7.5.3 主题模版
+
+Struts 2的所有UI标签都有主题和模版。一个UI标签的样式称为模版，一系列样式相同的UI标签共同组成一个主题。
+
+在部署项目时，Struts 2会将JSP源文件中的标签库扩展成标准而繁琐的HTML文档：
+
+```jsp
+<!-- 扩展前的JSP源文件 -->
+<s:form action="checkLogin" namespace="/user">
+	<s:textfiled name="username" label="用户名"/>
+    <s:password name="password" label="密码"/>
+    <s:submit value="登录"/>
+</s:form>
+```
+
+```html
+<!-- 扩展后的HTML源文件 -->
+<form id="checkLogin" name="checkLogin" onsubmit="return true;"
+      action="/demo/user/checkLogin.action" method="post">
+    <table class="wwFormTable">
+        <tr>
+        	<td class="tdLabel">
+            	<label for="checkLogin_username" class="label">用户名</label>
+            </td>
+            <td>
+            	<input type="text" name="username" value="" id="checkLogin_username"/>
+            </td>
+        </tr>
+        <tr>
+        	<td class="tdLabel">
+            	<label for="checkLogin_password" class="label">密码</label>
+            </td>
+            <td>
+            	<input type="password" name="password" id="checkLogin_password"/>
+            </td>
+        </tr>
+        <tr>
+        	<td colspan="2">
+            	<div align="right">
+                    <input type="submit" id="checkLogin_0" value="登录"/>
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>
+```
+
+Struts 2默认提供了四种主题，以文件夹的形式存储在Struts的Jar包的`/template`目录中：
+
+- `simple`主题：最简单的主题，每个UI标签只生成一个HTML标签。
+- `xhtml`主题：默认主题，为UI标签使用表格布局，每个UI标签可以使用`labelposition`属性调整显示的位置；可以自动生成前端JavaScript校验代码，自动输出错误提示。
+- `css_xhtml`主题：对`xhtml`主题的扩展，在其基础上添加了CSS样式。
+- `Ajax`主题：对``xhtml`主题的扩展，为UI标签提供了Ajax支持。
+
+每个主题文件夹中都有一个基于`FreeMarkder`实现的`.ftl`模版文件。
+
+标签的`theme`属性值决定着主题。设置主题的方法有以下四种（优先级递减排列）：
+
+- 指定UI标签的`theme`属性
+- 指定`<s:form>`标签的`theme`属性
+- 指定`page`/`request`/`session`/`application`范围内的`theme`属性
+- 在`struts.xml`/`struts.properties`中的`struts.ui.theme`指定`theme`属性
+
+### §7.5.4 表单标签
+
+表单标签是一类UI标签的统称，其种类繁多，使用方法多样。这里我们先介绍表单标签的通用属性：
+
+| 模版相关属性  | 作用             |
+| ------------- | ---------------- |
+| `templateDir` | 指定模版文件目录 |
+| `theme`       | 指定主题         |
+| `template`    | 指定模版         |
+
+| JavaScript相关属性                                           | 作用                          |
+| ------------------------------------------------------------ | ----------------------------- |
+| 事件属性（`onclick`、`ondbclick`、`onmousedown`、`onmouseup`、`onmouseover`、`onmouseout`、`onfocus`、`onblur`、`onkeypress`、`onkeyup`、`onkeydown`、`onselect`、`onchange`等） | JavaScript提供的EventListener |
+| `tooltip`相关属性（`tooltip`、`tooltipIcon`、`tooltipBorderColor`、`tooltipFontColor`、`tooltipFontSize`等） | 为表单元素设置提示信息        |
+
+| 表单标签通用属性 | 作用                                           |
+| ---------------- | ---------------------------------------------- |
+| `title`          | 设置表单元素的标题                             |
+| `disabled`       | 设置表单元素是否可用                           |
+| `label`          | 设置表单元素的标签内容                         |
+| `labelPosition`  | 设置表单元素的标签位置                         |
+| `name`           | 设置表单元素的名称，与Action类中的字段名相对应 |
+| `value`          | 设置表单元素的值                               |
+
+#### §7.5.4.1 `<s:checkboxlist>`
+
+`<s:checkboxlist>`用于批量生成多选框，效果等价于HTML的`<input type="checkbox">`。其属性如下：
+
+- `list`：多选框的值集合。传入字符串集合时无需指定其他属性，传入Java对象时需要制定`listKey`和`listValue`属性。
+- `listKey`：指定复选框的`value`
+- `listValue`：指定复选框的`label`
+
+```java
+package com.example.com.bean;
+public class Book {
+    // 均配备Getter和Setter方法
+    private String name;
+    private float price;
+    public Book(){}
+    public Book(String name,float price){
+        this.name = name;
+        this.price = price;
+    }   
+}
+```
+
+```java
+package com.example.com.service;
+public class BookService {
+    public Book[] getBooks(){
+        return new Book[]{
+            new Book("The Room on The Roof",20.99),
+            new Book("...",...),
+            ......
+        };
+    }
+}
+```
+
+```jsp
+<s:form>
+    <!-- 三种<s:checkboxlist>的调用方式 -->
+	<s:checkboxlist list="{'Romantic','fiction','Technology','History'}"
+                    name="kind" label="分类" labelposition="top"/>
+    <s:checkboxlist name="price" label="价格区间" labelposition="top"
+                    list="#{'0~20':'0','20~40':'1','40~60':'2'}"
+                    listKey="key" listValue="value"/>
+    <s:bean name="com.example.service.BookService" id="bookService"/>
+    <s:checkboxlist name="books" label="选择图书" labelposition="top"
+                    list="#bs.books" listKey="name" listValue="name"/>
+</s:form>
+```
+
+#### §7.5.4.2 `<s:radio>`
+
+`<s:radio>`用于批量生成单选框，效果等价于HTML的`<input type="radio">`，调用方式与`<s:checkboxlist>`完全一致。
+
+#### §7.5.4.3 `<s:combobox>`
+
+`<s:combobox>`用于生成下拉菜单，该菜单由一个单行文本框和一个下拉列表框构成，用户既可以在单行文本框中输入，也可以在下拉列表框中选择推荐值。
+
+```jsp
+<s:form>
+	<s:combobox label="图书列表" labelposition="left" size="20"
+                maxlength="20" name="books"
+                list="{'...':'...',......}"/>
+    <s:bean name="com.example.service.BookService" id="bookService"/>
+    <s:combobox name="book" label="图书列表" labelposition="left"
+                list="#bookService.books" listKey="name" listValue="name"/>
+</s:form>
+```
+
+#### §7.5.4.4 `<s:select>`
+
+`<s:select>`用于创建下拉菜单，与`<s:combobox>`不同的是，`<s:select>`只允许用户选择事先设定好的值，不能自行输入。
+
+#### §7.5.4.5 `<s:doubleselect>`
+
+`<s:doubleselect>`用于创建两个互相关联的下拉列表框。
+
+```jsp
+<s:
+```
 
 
 
 
-## §7.4 OGNL表达式
 
-OGNL（对象导航语言，Object Graph Navigating Language）是一种可以存取对象任意属性、调用对象方法、遍历对象结构图、实现类型转化的表达式语言。
+## §7.6 OGNL表达式
 
-（6.18的目标：12w字+）
+OGNL（对象导航语言，Object Graph Navigating Language）是一种可以存取对象任意属性、调用对象方法、遍历对象结构图、实现类型转化的表达式语言。它为访问值栈中的对象设置了统一的方式，是Struts 2的默认表达式语言。
 
-（6.19的目标：13w字+）
+OGNL处理的顶级对象（跟对象）是一个`Map`类型的Context。
 
-（6.20的目标：14w字+）
+OGNL表达式的基本单位是导航链，简称为链，由以下部分构成：
+$$
+\overset{\color{red}属性名称}{\overbrace{\text{name}}}
+\overset{\color{red}方法调用}{\overbrace{\text{.toCharArray()}}}
+\overset{\color{red}数组索引}{\overbrace{\text{[0]}}}
+\overset{\color{red}属性名称}{\overbrace{\text{.numericValue}}} 
+\overset{\color{red}方法调用}{\overbrace{\text{.toString()}}}
+$$
+以上式为例，OGNL的解析步骤如下：
+
+1. 首先尝试提取`name`，因为没加`#`，所以这是一个作为根对象的字符串，然后将自字符串传给下一个链。
+2. 对字符串调用`toCharArray()`函数，得到`char[]`数组，然后将数组传给下一个链。
+3. 对数组进行索引，取出第一个`char`字段，然后将字符传给下一个链。
+4. 调取`char`字段的`numericValue`的值，将该`int`值传给下一个链。
+5. 调用`int`字段的`toString()`方法，返回字符串。
+
+### §7.6.1 常量
+
+- 字符串常量
+
+  字符串常量是**由单引号或双引号进行定界的字符序列（包括转义字符）**。
+
+  ```jsp
+  "Hello World"
+  "\'Failure is the last test of tenacity\', Otto von Bismarck said."
+  ```
+
+- 字符常量
+
+  字符常量是由单引号定界的单个字符（包括转义字符）。
+
+  ```jsp
+  'H'
+  '\''
+  ```
+
+- 数值常量
+
+  除了Java中规定的`int`、`long`、`float`、`double`等类型外，OGNL还允许在数字后面使用`b`/`B`作为后缀，表示`BigDecimals`型常量，或者使用`h`/`H`作为后缀，表示`BigIntegers`型常量。
+
+  ```jsp
+  3.14f
+  1145141919810H
+  ```
+
+- 布尔型常量
+
+  ```jsp
+  true
+  false
+  ```
+
+- `null`常量
+
+  ```jsp
+  null
+  ```
+
+### §7.6.2 操作符
+
+OGNL的操作符大部分是从Java中直接搬过来的：
+
+- 括号表达式
+
+  一个用小括号包围的表达式被视为一个完整独立的单元进行计算，常用于强行改变OGNL运算符的运算顺序，经常配合逗号表达式一起使用。
+
+- 链接子表达式
+
+  在一个`.`符号之后使用括号表达式，则`.`传过来的值将会被依次传到括号表达式的每个部分中：
+  
+  ```jsp
+  // 以下两种表达式完全等价：
+  元素.(函数1(),函数2(),子元素)
+  元素.函数1(),元素.函数2(),元素.子元素
+  // 对于根元素，可以进一步简化：
+  函数1(),函数2(),子元素
+  ```
+  
+- 链接子表达式变种
+
+  如果把链接子表达式中的`.`符号去掉，就得到了链接子表达式的变种。它将返回逗号表达式中**第一个元素**的值。
+
+下面是一小部分OGNL独有的操作符：
+
+- 逗号操作符/序列操作符
+
+  这一运算符类似于C语言中的逗号表达式，也就是从前到后顺序执行函数，最终返回的是最后一个表达式的值。然而Java没有逗号表达式，所以说这是OGNL”独有“的。
+
+  ```xml
+  CustomizeFunction(),expression // 先执行函数，再返回表达式的值
+  ```
+
+- 大括号操作符
+
+  这一运算符类似于Python中的集合。该运算符用于创建列表，值与值之间用逗号分隔。
+
+  ```jsp
+  {null,true,'a',"\'",3.14}
+  ```
+
+- `in`、`not in`操作符
+
+  判断一个值是否在一个集合中，返回布尔值。
+
+  ```xml
+  name in {null,"Untitled"} ? null : name // 仅当name不为null和"Untitled"时，才输出name本身
+  ```
+
+### §7.6.3 访问类方法与类字段
+
+可以使用下列OGNL表达式调用一个类的静态方法：
+
+```jsp
+@Class路径@方法名(参数列表)
+```
+
+其中Class路径缺省为`java.lang.Math`。实例如下：
+
+```java
+@java.lang.Runtime@getRuntime.exec("calc") // 经典RCE
+@@min(2,5); // 使用min()或max()可以简化
+```
+
+同理，OGNL也能访问类的静态字段：
+
+```jsp
+@class路径@字段名
+```
+
+### §7.6.4 索引
+
+数组和列表的索引与Java一致，都是使用`[]`运算符并指定一个`index`整型数：
+
+```jsp
+array[0]
+{null,true,false}[1]
+```
+
+OGNL支持JavaBean内数组与列表的索引，前提是这一字段实现了以下方法：
+
+```java
+public PropertyType[] getPropertyName();
+public void setPropertyType(PropertyType[] array);
+public PropertyType getPropertyName(int index);
+public void setPropertyName(int index,PropertyType value);
+```
+
+```jsp
+propertyname[2] // Struts 2将其解析成Java的getPropertyType(2)
+```
+
+我们已经知道OGNL内部的`session`对象实质上是一个`Map<String,Object>`实例，`Map`支持按键名索引，这种索引称为OGNL对象索引：
+
+```java
+public PropertyType getPropertyName(IndexType index);
+public void setPropertyName(IndexType index,PropertyType value);
+public Object getAttribute(String name);
+public void setAttribute(String name,Object value);
+```
+
+```
+PropertyType.["username"]
+```
+
+### §7.6.5 全局变量
+
+OGNL中的所有变量都是全局变量。访问指定名称的变量时，需要在名称前加上`#`。特殊的，如果该变量恰好为根对象，则可以忽略`#`。
+
+```jsp
+#variableName
+#variableName = "赋值语句"
+```
+
+前面我们提到，OGNL沿导航链依次传递值，此时OGNL会将其赋给临时全局变量`#this`：
+
+```jsp
+<!-- ... -->
+#variableName.size().(#this > 100 : "大于100" : "不大于100")
+```
+
+### §7.6.6 表达式计算
+
+
+
+### §7.6.7 Lambda表达式
+
+```jsp
+#fact=:[#this<=1?1:#this*#fact(#this-1)],#fact(30H)
+```
+
+？？？？？？？？？？？？TODO：
+
+
+
+
+
+### §7.6.8 集合操作
+
+OGNL支持创建Java中的集合类型（`List`、数组、`Map`）：
+
+```jsp
+{"Alice","Bob","Carol"} // 列表
+new int[]{1,2,3} // 数组
+new int[5] // 数组
+#{"username":"admin","password":"admin"} // Map
+#@java.util.LinkedHashMap@{"id":"1","username":"admin"} //手动指定HashMap
+```
+
+OGNL支持**投影**，也就是遍历集合，调用或访问每个元素的方法或属性，将结果保存在新集合中。这一过程类似于数据库中选择**指定的列**（`select colomns`）得到子集：
+
+```jsp
+persons.{name}
+objects.{#this instanceof String ? #this : #this.toString()}
+```
 
 （6.21的目标：15w字+）
 
 （6.22的目标：16w字+）
+
+（6.23的目标：17w字+）
+
+（6.24的目标：18w字+）
+
+（6.25的目标：19w字+）
+
+（6.26的目标：20w字+）
+
+OGNL支持**选择**，也就是按条件筛选，这一过程类似于数据库中选择**指定的行**（`where ...=...`）得到子集：
+
+```jsp
+persons.{? #this.age < 30} // 选择所有符合条件(年龄小于30)的人
+persons.{^ #this.age < 30} // 选择第一个符合条件(年龄小于30)的人
+persons.{$ #this.age < 30} // 选择最后一个符合条件(年龄小于30)的人
+```
+
+### §7.6.9 值栈
+
+我们知道，Struts 2框架将OGNL的Context抽象为`ActionContext`实例，并将其设置为OGNL的根对象，其中保存着**值栈**和`application`、`session`、`request`等`Map`实例。
+
+当获取属性或调用方法时，程序会从栈顶开始向后查找，直到找到第一个拥有此属性或方法的对象为止。如果知道值栈中各元素的相对顺序，那么可以使用索引的方式直接选中该对象对应的`CompoundRoot`实例，该实例与原对象的用法是相同的：
+
+```jsp
+[0].name
+[1].name
+```
+
+也可以使用`top`直接获取原对象，而不是与其对应的`CompoundRoot`实例：
+
+```jsp
+[0].top
+[1].top
+```
+
+### §7.6.10 `vs`前缀
+
+前面我们学过，标准OGNL表达式要访问类的静态成员时，需要使用`@Class路径@方法名(参数列表)`语句。但是在Struts 2框架中，我们可以不给出完整的Class路径，只需使用`vs`前缀就可以。其中`vs`是Value Stack的缩写，后面加数字可以指定其他位置的对象：
+
+```jsp
+@vs@属性名称
+@vs@方法名称(参数列表)
+@vs1@属性名称
+@vs2@属性名称
+@vs3@属性名称
+```
+
+### §7.6.11 命名对象
+
+既然`ActionContext`中保存着值栈与其它`request`、`session`、`application`等`Map`实例，我们也可以用OGNL访问这些`Map`实例中的参数。因为这些`Map`实例不储存在值栈中，所以引用时必须加`#`：
+
+| OGNL表达式                                                   | 等价的Java语句                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `#parameters['PropertyName']`<br />`#parameters.PropertyName` | `request.getParameter("PropertyName")`                       |
+| `#request['PropertyName']`<br />`#request.PropertyName`      | `request.getAttribute("PropertyName")`                       |
+| `#session['PropertyName']`<br />`#session.PropertyName`      | `session.getAttribute("PropertyName")`                       |
+| `#application['PropertyName']`<br />`#applicaiton.PropertyName` | `application.getAttribute("PropertyName")`                   |
+| `#attr['PropertyName']`<br />`#attr.PropertyName`            | 当`pageContext`有效时搜索`pageContext`，无效时依次搜索`request`、`session`、`application` |
+
+### §7.6.12 访问Action字段
+
+Action的实例通常被压入值栈中，而且值栈时OGNL的根，所以访问Action类中的字段时可以省略`#`：
+
+```jsp
+<s:property value="username"/>
+```
 
