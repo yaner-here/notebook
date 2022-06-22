@@ -4252,7 +4252,146 @@ public class BookService {
 
 正常情况下，用户提交表单后被重定向至`success.jsp`。如果用于此时单击浏览器的返回按钮，尝试重新提交表单时，再次提交按钮后，页面就会显示`The form has already been processed or no token was supplied, please try aggin`。用户完全可以返回上级页面后先刷新，再提交，以绕过该限制。
 
-#### §7.5.5.3 `<s:>`
+#### §7.5.5.3 `<s:updownselect>`
+
+`<s:updownselect>`在`<s:select>`的基础上增加了三个按钮：上移、下移、全选。其包含的属性如下：
+
+| 属性名           | 作用                            |
+| ---------------- | ------------------------------- |
+| `allowMoveUp`    | 是否显示上移按钮                |
+| `allowMoveDown`  | 是否显示下移按钮                |
+| `allowSelectAll` | 是否显示全选按钮                |
+| `moveUpLabel`    | 设置上移按钮的内容，缺省值为`v` |
+| `moveDownLabel`  | 设置下移按钮的内容，缺省值为`^` |
+| `selectAllLabel` | 设置全选按钮的内容，缺省值为`*` |
+
+```jsp
+<s:form>
+	<s:updownselect label="图书列表" list="{'书1','书2','书3'}" name="books"
+                    headerKey="-1" headerValue="---请选择---"
+                    emptyOption="true" selectAllLabel="全选" 
+                    moveUpLabel="上移" moveDownLabel="下移"/>
+</s:form>
+```
+
+#### §7.5.5.4 `<s:optiontransferselect>`
+
+`<s:optiontransferselect>`生成了两个列表框，每个列表框都是等价于`<s:updownselect>`，功能类似于变速齿轮中选择变速程序的左右两列。其属性非常多：
+
+| 属性名               | 作用                     | 属性名            | 作用                                           |
+| -------------------- | ------------------------ | ----------------- | ---------------------------------------------- |
+| `addAllToLeftLabel`  | 设置“全部左移”按钮的文本 | `name`            | 设置右列表框的`name`属性                       |
+| `addAllToRightLabel` | 设置“全部右移”按钮的文本 | `value`           | 设置右列表框的`value`属性                      |
+| `addToLeftLabel`     | 设置“左移”按钮的文本     | `multiple`        | 设置右列表框是否可以多选                       |
+| `addToRightLabel`    | 设置“右移”按钮的文本     | `list`            | 设置左列表框的集合                             |
+| `allowAddAllToLeft`  | 是否显示“全部左移”按钮   | `listKey`         | 设置左列表框的键集合                           |
+| `allowAddAllToRight` | 是否显示“全部右移”按钮   | `listValue`       | 设置左列表框的值集合                           |
+| `allowAddToLeft`     | 是否显示“左移”按钮       | `doubleList`      | 设置右列表框的集合                             |
+| `allowAddToRight`    | 是否显示“右移”按钮       | `doubleListKey`   | 设置右列表框的键集合（当`doubleList`为集合时） |
+| `leftTitle`          | 设置左列表框的标题       | `doubleListValue` | 设置右列表框的值集合（当`doubleList`为集合时） |
+| `rightTitle`         | 设置右列表框的标题       | `doubleName`      | 设置右列表框的`name`属性                       |
+| `allowSelectAll`     | 是否显示“全部选择”按钮   | `doubleValue`     | 设置右列表框的`value`属性                      |
+| `selectAllLabel`     | 设置“全部选择”按钮的文本 | `doubleMultiple`  | 设置右列表框的集合（当`doubleList`为集合时）   |
+
+```jsp
+<s:form>
+	<s:optiontransferselect label="变速齿轮界面" name="ProgramShifter"
+                            leftTitle="待选列表" rightTitle="已变速的程序列表"
+                            list="{'cmd.exe','calc.exe','word.exe'}"
+                            multiple="true" headerKey="headerKey"
+                            headerValue="---请选择---" emptyOption="true"
+                            doubleList="" doubleName="ShfitedProgram"
+                            doubleHeaderKey="doubleHeaderKey"
+                            doubleHeaderValue="---请选择---"
+                            doubleEmptyOption="true" doubleMultiple="true"
+                            addAllToLeftLabel="全部左移" 
+                            addAllToRightLabel="全部右移"
+                            addToLeftLabel="左移"
+                            addToRightLabel="右移"
+                            selectAllLabel="全选"
+                            rightDownLabel="右侧列表下移"
+                            rightUpLabel="右侧列表上移"
+                            leftDownLabel="左侧列表下移"
+                            leftUpLabel="左侧列表上移"/>
+</s:form>
+```
+
+### §7.5.6 非表单UI标签
+
+#### §7.5.6.1 `<s:actionerror>`/`<s:actionmessage>`
+
+这两个标签的分别调用Action中的`getActionError()`和`getActionMessage()`方法，然后讲其返回的字符串显示到JSP页面上。
+
+```java
+public class InfoAction extends ActionSupport {
+    @Override public String execute(){
+        addActionError("This is a error.");
+        addActionError("This is another error");
+        addActionMessage("This is a message");
+        addActionMessage("This is a message");
+        return SUCCESS;
+    }
+}
+```
+
+```xml
+<action name="info" class="InfoAction">
+	<result>/info.jsp</result>
+</action>
+```
+
+```jsp
+<s:actionerror/>
+<s:actionmessage/>
+```
+
+#### §7.5.6.2 `<s:component>`
+
+`<s:component>`用于自定义组件。
+
+| 属性名        | 作用                                    |
+| ------------- | --------------------------------------- |
+| `theme`       | 指定自定义组件使用的主题，缺省为`xhtml` |
+| `templateDir` | 指定自定义组件使用的主题的目录          |
+| `template`    | 指定自定义组件使用的模版文件            |
+
+```jsp
+<!-- component_list.jsp -->
+<%@ page languague="java" contentType="text/html" %>
+<%@ taglib prefix="s" uri="/struts-tags" %>
+<div>
+    <b>列表：</b>
+    <s:select list="parameter.list"/>
+</div>
+```
+
+```jsp
+<!-- index.jsp -->
+<s:component template="component_list.jsp">
+	<s:param name="list" value="{'...','...','...'}"/>
+</s:component>
+```
+
+#### §7.5.6.3 `<s:tree>`/`<s:treenode>`
+
+`<s:tree>`和`<s:treenode>`用于生成树状结构，类似于命令行中的`tree`命令。
+
+```jsp
+<s:tree label="编程语言" id="ProgrammingLanguage" theme="ajax"
+        showRootGrid="true" showGrid="true"
+        treeSelectedTopic="treeSelected">
+    <s:treenode theme="ajax" label="面向对象" id="ObjectOriented">
+    	<s:treenode theme="ajax" label="C++" id="C++"/>
+        <s:treenode theme="ajax" label="Java" id="Java"/>
+    </s:treenode>
+    <s:treenode theme="ajax" label="面向对象" id="ProcessOriented">
+    	<s:treenode theme="ajax" label="C" id="C"/>
+        <s:treenode theme="ajax" label="Basic" id="Basic"/>
+    </s:treenode>
+</s:tree>
+```
+
+> 注意：所有`<s:tree>`和`<s:treenode>`的`theme`属性必须设成`ajax`，某则JSP页面无法正常显示。
 
 ## §7.6 OGNL表达式
 
@@ -4533,11 +4672,115 @@ Action的实例通常被压入值栈中，而且值栈时OGNL的根，所以访�
 <s:property value="username"/>
 ```
 
+## §7.7 输入校验
 
+从Client得到数据后，要对数据依次进行两步操作：数据转换和数据校验。其中数据转换已在[§7.4.6 类型转换](#§7.4.6 类型转换)中介绍过。
 
+数据校验可分为客户端校验和服务器端校验两类。其中客户端校验就是我们熟悉的JavaScrpt脚本，下面是一个简单的例子：
 
+```jsp
+<form action="LoginAction" method="post" onSubmit="return check(this)">
+    <input type="text" name="username" label="用户名"/><br>
+    <input type="password" name="password" label="强密码"/><br>
+    <input type="submit" value="登录"/><br>
+</form>
+<script language="JavaScript">
+	function check(form){
+        var pattern = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]$/;
+        var password = form.password.value;
+        if(pattern.test(password)){
+            return true;
+        }else{
+            alert("密码强度弱，需同时包含大写字母、小写字母和数字，不包含特殊字符");
+            return false;
+        }
+    }
+</script>
+```
 
+然而用户在前端可以轻松绕过这类限制，这就需要我们在后端也进行校验：
 
+```java
+public class LoginAction extends ActionSupport {
+    // 省略各字段以及Getter和Setter方法
+	@Override public String execute(){
+        String pattern = "^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]$";
+        if(Pattern.matches(pattern,password)){
+            return SUCCESS;
+        }else{
+            return INPUT;
+        }
+    }
+}
+```
+
+然而在MVC中，Action应该单独提供一个数据校验方法，而不是与`execute()`方法混在一起。本章介绍Struts 2框架中的输入校验方法。
+
+### §7.7.1 重写`validate()`
+
+Struts 2在`ActionSupport`类内预置了一个`validate()`方法，专门用于进行数据校验。开发者可在`ActionSupport`的子类中重载该方法，其执行顺序如下：
+
+```mermaid
+flowchart LR
+	HTMLForm[/"JSP的form标签"/]
+	ActionValidate["Action.validate()"]
+	ActionIsFiledErrorExist{"是否存在<br>filedError"}
+	ActionExecute["Action.execute()"]
+	StrutsXML[/"匹配&lt;result&gt;路由"/]
+	
+	HTMLForm-->ActionValidate
+		-->ActionIsFiledErrorExist
+		--"是<br>return INPUT"-->StrutsXML
+	ActionValidate--"否"-->ActionExecute
+		--"return SUCCESS"-->StrutsXML
+```
+
+```java
+public class LoginAction extends ActionSupport {
+    // 省略各字段以及Getter和Setter方法
+    @Override public void execute(){
+        return SUCCESS;
+    }
+    @Override public void validate(){
+        String pattern = "^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]$";
+        if(!Pattern.matches(pattern,password)){
+            addFiledError("password","密码强度过低"); 
+            	// 这里的password与JSP标签中的<input name="password">相匹配
+        }
+    }
+}
+```
+
+```xml
+<!-- struts.xml -->
+<action name="login" class="com.example.action.LoginAction">
+	<result name="input">/login.jsp</result>
+    <result name="success">/success.jsp</result>
+</action>
+```
+
+```jsp
+<s:form action="login.action" method="post">
+	......
+</s:form>
+```
+
+### §7.7.2 重写`validateXXX()`
+
+```java
+public class LoginAction extends ActionSupport {
+    // 省略各字段以及Getter和Setter方法
+    @Override public void login(){
+        return SUCCESS;
+    }
+	public void validateLogin(){
+        String pattern = "^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]$";
+        if(!Pattern.matches(pattern,password)){
+            addFiledError("password","密码强度过低"); 
+        }
+    }
+}
+```
 
 
 
