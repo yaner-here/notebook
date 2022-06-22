@@ -4173,12 +4173,86 @@ public class BookService {
 `<s:doubleselect>`用于创建两个互相关联的下拉列表框。
 
 ```jsp
-<s:
+<s:form action="SubmitCity">
+	<s:set name="province" 
+           value="#{
+                  '北京市':{'朝阳区','西城区','海淀区'},
+                  '上海市':{'黄浦区','徐汇区','南汇区'}}"/>
+    <s:doubleselect name="city" list="#province.keySet()" label="所在城市"
+                    doubleName="area" doubleList="#province[top]"/>
+</s:form>
 ```
 
+#### §7.5.4.6 `<s:optgroup>`
 
+`<s:optgroup>`用于生成选项组，常配合`<s:select>`标签一起使用。
 
+```jsp
+<s:select name="major" label="major"
+          list="#{
+                '测绘':'测绘',
+                '人文':'人文'}"
+                >
+	<s:optgroup label="电气"
+                list="#{
+                      '计算机':'计算机',
+                      '大数据':'大数据',
+                      '人工智能':'人工智能',
+                      '网络安全':'网络安全'
+                      }"
+                />
+</s:select>
+```
 
+### §7.5.5 Ajax标签
+
+> 注意：自从Struts 2.2开始，Ajax标签库被官方`deprecated`了。如果在之后的版本仍然要使用这些标签，则不仅需要`<%@ page prefix="s" uri="/struts-tags"%>`，还需要将整个页面包裹在`<s:head></s:head>`中。
+
+####  §7.5.5.1 `<s:datetimepicker>`
+
+`<s:datetimepicker>`用于生成动态日历，单击文本框时可以显示日历选择框。属性如下：
+
+| 属性名           | 作用                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| `displayFormat`  | 指定日期的格式化字符串，例如`yyyy-MM-dd`                     |
+| `displayWeeks`   | 限制日历选择框一次性不翻页的情况下显示的星期数               |
+| `endDate`        | 限制所选日期的最晚时间，例如`2022-6-22`                      |
+| `language`       | 指定日历现实的语言，例如`zh_CN`                              |
+| `startDate`      | 限制所选日期的最早时间，例如`2022-6-21`                      |
+| `toogleDruation` | 指定日历选择框出现和消失的耗时                               |
+| `toggleType`     | 指定日历选择框出现和消失的方法（`plain`、`wipe`、`explode`、`fade`） |
+| `type`           | 指定日历选择框的类型（`date`、`time`）                       |
+| `value`          | 指定日历默认选择的时间                                       |
+| `weekStartsOn`   | 指定星期几作为日历的第一列（缺省为0，即星期日）              |
+
+> 注意：该标签的官方文档虽然仍然存在于[Github的文档Repo目录](https://github.com/apache/struts-site/blob/master/source/tag-developers/dojo-datetimepicker-tag.md)中，但是并没有在[Github Pages的Tag索引页面](https://struts.apache.org/tag-developers/tag-reference.html)中被列出来。:sweat_smile:
+
+#### §7.5.5.2 `<s:token>`
+
+`<s:token>`用于防止用户多次提交表单，常与`<s:form>`配套使用。
+
+```jsp
+<s:form action="checkLogin">
+	<s:textfiled .../>
+    <s:password .../>
+    <s:submit .../>
+    <s:token/><s:actionerror/>
+</s:form>
+```
+
+```xml
+<!-- struts.xml -->
+<action name="checkLogin" class="com.example.action.LoginAction">
+	<interceptor-ref name="defaultStack"/>
+    <interceptor-ref name="token"/> // 添加Token拦截器
+    <result name="invalid.token">/tokenTag.jsp</result>
+    <result name="success">/suceess.jsp</result>
+</action>
+```
+
+正常情况下，用户提交表单后被重定向至`success.jsp`。如果用于此时单击浏览器的返回按钮，尝试重新提交表单时，再次提交按钮后，页面就会显示`The form has already been processed or no token was supplied, please try aggin`。用户完全可以返回上级页面后先刷新，再提交，以绕过该限制。
+
+#### §7.5.5.3 `<s:>`
 
 ## §7.6 OGNL表达式
 
@@ -4401,18 +4475,6 @@ persons.{name}
 objects.{#this instanceof String ? #this : #this.toString()}
 ```
 
-（6.21的目标：15w字+）
-
-（6.22的目标：16w字+）
-
-（6.23的目标：17w字+）
-
-（6.24的目标：18w字+）
-
-（6.25的目标：19w字+）
-
-（6.26的目标：20w字+）
-
 OGNL支持**选择**，也就是按条件筛选，这一过程类似于数据库中选择**指定的行**（`where ...=...`）得到子集：
 
 ```jsp
@@ -4471,3 +4533,26 @@ Action的实例通常被压入值栈中，而且值栈时OGNL的根，所以访�
 <s:property value="username"/>
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+（6.22的目标：16w字+）
+
+（6.23的目标：17w字+）
+
+（6.24的目标：18w字+）
+
+（6.25的目标：19w字+）
+
+（6.26的目标：20w字+）
