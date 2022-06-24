@@ -2714,7 +2714,7 @@ yaner@DESKTOP-UVBN0SD:/mnt/c/struts-2.3.37$ tree -L 2
 
 ## §7.2 配置环境
 
-> 捏麻麻滴IDEA导包真是太有意思啦:sweat_smile:，项目结构→平台设置→全局库导入了Tomcat和Struts的Jar包，结果糊一脸404，改了Facet的Web资源目录，结果日志里全是`部署工件时出错，请参阅服务器日志`。尝试改回来，日志变成了`至少有一个JAR被扫描用于TLD但尚未包含TLD`。把`web.xml`从`/META-INF`拖到`/WEB-INF`，这下整个项目全崩了，全是`ClassNotFoundException`。离谱的是外部库清清楚楚地导了JDK 18，结果编辑器里面连`String`类都识别不出来。无奈之下再导一遍局部库，终于正常了，运行Tomcat一看，又回到了全局404。Maven一套配置文件，IDEA一套配置文件，浪费了一个下午都没解决，真把我搞破防了，Java Web MVC框架配环境真是太你马的好玩辣:sweat_smile:，你他妈把多少人的生活，都他妈毁了，，，！！！
+> 捏麻麻滴IDEA导包真是太有意思啦:sweat_smile:，项目结构→平台设置→全局库导入了Tomcat和Struts的Jar包，结果糊一脸404，改了Facet的Web资源目录，结果日志里全是`部署工件时出错，请参阅服务器日志`。尝试改回来，日志变成了`至少有一个JAR被扫描用于TLD但尚未包含TLD`。把`web.xml`从`/META-INF`拖到`/WEB-INF`，这下整个项目全崩了，全是`ClassNotFoundException`。离谱的是外部库清清楚楚地导了JDK 18，结果编辑器里面连`String`类都识别不出来。无奈之下再导一遍局部库，终于正常了，运行Tomcat一看，又回到了全局404。Maven一套配置文件，IDEA一套配置文件，浪费了一个下午都没解决，真把我搞破防了，Java Web MVC框架配环境真是太你马的好玩辣:sweat_smile:，你他妈把多少人的生活，都他妈毁了！！！
 
 在Struts的`./WEB-INF/web.xml`中，我们不再使用传统的`<servlet>`和`<servlet-mapping>`，而是使用Struts定义的`<filter>`和`<filter-mapping>`。
 
@@ -4678,25 +4678,36 @@ Action的实例通常被压入值栈中，而且值栈时OGNL的根，所以访�
 
 数据校验可分为客户端校验和服务器端校验两类。其中客户端校验就是我们熟悉的JavaScrpt脚本，下面是一个简单的例子：
 
-```jsp
-<form action="LoginAction" method="post" onSubmit="return check(this)">
-    <input type="text" name="username" label="用户名"/><br>
-    <input type="password" name="password" label="强密码"/><br>
-    <input type="submit" value="登录"/><br>
-</form>
-<script language="JavaScript">
-	function check(form){
-        var pattern = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]$/;
-        var password = form.password.value;
-        if(pattern.test(password)){
-            return true;
-        }else{
-            alert("密码强度弱，需同时包含大写字母、小写字母和数字，不包含特殊字符");
-            return false;
-        }
-    }
-</script>
-```
+- 手写JavaScript
+
+  ```jsp
+  <form action="LoginAction" method="post" onSubmit="return check(this)">
+      <input type="text" name="username" label="用户名"/><br>
+      <input type="password" name="password" label="强密码"/><br>
+      <input type="submit" value="登录"/><br>
+  </form>
+  <script language="JavaScript">
+  	function check(form){
+          var pattern = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]$/;
+          var password = form.password.value;
+          if(pattern.test(password)){
+              return true;
+          }else{
+              alert("密码强度弱，需同时包含大写字母、小写字母和数字，不包含特殊字符");
+              return false;
+          }
+      }
+  </script>
+  ```
+
+- 自动生成JavaScript
+
+  ```jsp
+  <s:form action="LoginAction" validate="true"> 
+      // 指定validate属性，按配置文件生成JavaScript
+      ......
+  </s:form>
+  ```
 
 然而用户在前端可以轻松绕过这类限制，这就需要我们在后端也进行校验：
 
@@ -4724,14 +4735,25 @@ Struts 2在`ActionSupport`类内预置了一个`validate()`方法，专门用于
 flowchart LR
 	HTMLForm[/"JSP的form标签"/]
 	ActionValidate["Action.validate()"]
+	ActionIsValidateExist{"是否存在<br>validate()"}
+	ActionValidateXXX["Action.validateXXX()"]
 	ActionIsFiledErrorExist{"是否存在<br>filedError"}
 	ActionExecute["Action.execute()"]
 	StrutsXML[/"匹配&lt;result&gt;路由"/]
 	
-	HTMLForm-->ActionValidate
+	HTMLForm-->ActionValidateXXX
+		-->ActionIsValidateExist
+		--"否"-->ActionIsFiledErrorExist
+	ActionIsValidateExist--"是"-->ActionValidate
 		-->ActionIsFiledErrorExist
-		--"是<br>return INPUT"-->StrutsXML
-	ActionValidate--"否"-->ActionExecute
+	
+	
+	ActionIsFiledErrorExist--"是<br>return INPUT"-->StrutsXML
+		
+		
+		
+		
+	ActionIsFiledErrorExist--"否"-->ActionExecute
 		--"return SUCCESS"-->StrutsXML
 ```
 
@@ -4767,6 +4789,8 @@ public class LoginAction extends ActionSupport {
 
 ### §7.7.2 重写`validateXXX()`
 
+在上一节，我们知道在执行`execute()`之前先执行`validate()`进行校验。但是一个Action包含多个逻辑处理的方法，不可能全部塞到`execute()`和`validate()`内，我们需要其它的校验方法。Struts 2支持为`XXX()`提供独立的`validateXXX()`校验方法：
+
 ```java
 public class LoginAction extends ActionSupport {
     // 省略各字段以及Getter和Setter方法
@@ -4782,6 +4806,198 @@ public class LoginAction extends ActionSupport {
 }
 ```
 
+```xml
+<!-- struts.xml -->
+<action name="login" class="com.example.action.LoginAction" method="login">
+	......
+</action>
+```
+
+### §7.7.3 内置校验器
+
+Struts 2提供了大量的内置校验器。
+
+```jsp
+<s:form action="LoginAction.action" method="post">
+	<s:textfiled label="用户名" name="username"/>
+    <s:password label="密码" name="password"/>
+    <s:submit value="登录"/>
+</s:form>
+```
+
+> 注意：校验文件的命名规则是`<ActionName>-validation.xml`。
+
+```xml
+<!-- LoginAction-validation.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE validators PUBLIC "-//OpenSymphony Group//XWork Validator 1.0.2//EN" "http://www.opensymphony.com/xwork/xwork-validator-1.0.2.dtd">
+<validators>
+	<filed name="username">
+    	<filed-validator type="requiredstring">
+        	<message>用户名不能为空</message>
+        </filed-validator>
+    </filed>
+    <filed name="password"> // 与Action中的属性名相对应
+    	<filed-validator type="requiredstring">
+        	<message>密码不能为空</message>
+        </filed-validator>
+    </filed>
+</validators>
+```
+
+#### §7.7.3.1 字段校验器配置风格
+
+校验文件以`<filed>`标签为基本元素，以`<validator>`标签为根标签，一个`<filed>`标签控制着一个字段，因此成为字段校验器配置风格。
+
+```xml
+<validators>
+	<filed name="被校验的字段名">
+    	<filed-validator type="校验器类型名">
+            <param name="参数名">参数值</param>
+            <message key="I18Nkey">校验失败时的提示信息</message>
+        </filed-validator>
+    </filed>
+</validators>
+```
+
+#### §7.7.3.2 非字段校验器配置风格
+
+一个`<validator>`
+
+```xml
+<validators>
+	<validator type="校验器类型名">
+    	<param name="filedName">被校验的字段名</param> // 与Action的属性名相对应
+        <message key="I18Nkey">校验失败时的提示信息</message>
+    </validator>
+</validators>
+```
+
+#### §7.7.3.3 常用内置校验器
+
+在Struts 2的Jar包解压目录`/src/xwork-core/src/main/resources/com/opensymphony/xwork2/validator/validators`，或`xwork`的Jar包中，有一个`default.xml`，定义了Struts 2框架的内置校验器：
+
+```xml
+<!-- default.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE validators PUBLIC
+        "-//Apache Struts//XWork Validator Definition 1.0//EN"
+        "http://struts.apache.org/dtds/xwork-validator-definition-1.0.dtd">
+
+<!-- START SNIPPET: validators-default -->
+<validators>
+    <validator name="required" class="com.opensymphony.xwork2.validator.validators.RequiredFieldValidator"/>
+    <validator name="requiredstring" class="com.opensymphony.xwork2.validator.validators.RequiredStringValidator"/>
+    <validator name="int" class="com.opensymphony.xwork2.validator.validators.IntRangeFieldValidator"/>
+    <validator name="long" class="com.opensymphony.xwork2.validator.validators.LongRangeFieldValidator"/>
+    <validator name="short" class="com.opensymphony.xwork2.validator.validators.ShortRangeFieldValidator"/>
+    <validator name="double" class="com.opensymphony.xwork2.validator.validators.DoubleRangeFieldValidator"/>
+    <validator name="date" class="com.opensymphony.xwork2.validator.validators.DateRangeFieldValidator"/>
+    <validator name="expression" class="com.opensymphony.xwork2.validator.validators.ExpressionValidator"/>
+    <validator name="fieldexpression" class="com.opensymphony.xwork2.validator.validators.FieldExpressionValidator"/>
+    <validator name="email" class="com.opensymphony.xwork2.validator.validators.EmailValidator"/>
+    <validator name="url" class="com.opensymphony.xwork2.validator.validators.URLValidator"/>
+    <validator name="visitor" class="com.opensymphony.xwork2.validator.validators.VisitorFieldValidator"/>
+    <validator name="conversion" class="com.opensymphony.xwork2.validator.validators.ConversionErrorFieldValidator"/>
+    <validator name="stringlength" class="com.opensymphony.xwork2.validator.validators.StringLengthFieldValidator"/>
+    <validator name="regex" class="com.opensymphony.xwork2.validator.validators.RegexFieldValidator"/>
+    <validator name="conditionalvisitor" class="com.opensymphony.xwork2.validator.validators.ConditionalVisitorFieldValidator"/>
+</validators>
+<!--  END SNIPPET: validators-default -->
+```
+
+|    校验器类型    |    校验器名称     | 作用                             |       非字段校验器配置风格<br />`<param>`的`name`属性        |
+| :--------------: | :---------------: | -------------------------------- | :----------------------------------------------------------: |
+|    必填校验器    |    `required`     | 确保字段值非`null`               |                  `filedName`：被校验的字段                   |
+| 字符串长度校验器 |  `stringlength`   | 检测字段长度是否在指定范围内     | `filedName`：被校验的字段<br />`minLength`：最小值，缺省代表不限制<br />`maxLength`：最大值，缺省代表不限制<br />`trim`：是否先删除字段前后两端的空格 |
+|    整数校验器    |       `int`       | 检测整数字段是否在指定范围内     | `filedName`：被校验的字段<br />`min`：最小值，缺省代表不限制<br />`max`：最大值，缺省代表不限制 |
+|    日期验证器    |      `date`       | 检测日期字段是否在指定范围内     | `filedName`：被校验的字段<br />`min`：最小值，缺省代表不限制<br />`max`：最大值，缺省代表不限制 |
+|   表达式校验器   |   `expression`    | 检测OGNL表达式是否为`true`       |                   `expression`：OGNL表达式                   |
+| 字段表达式校验器 | `fieldexpression` | 检测字段值是否满足某个逻辑表达式 | `filedName`：被校验的字段<br />`expression`：Java风格的逻辑表达式 |
+|  邮件地址校验器  |      `email`      | 检测字段是否为合法的邮箱地址     |                  `filedName`：待校验的字段                   |
+|    网址校验器    |       `url`       | 检测字段是否为合法的URL地址      |                  `filedName`：待校验的字段                   |
+|    转换校验器    |   `conversion`    | 检测字段是否发生过转换错误       |               `filedName`：待转换的字段<br />                |
+| 正则表达式校验器 |      `regex`      | 检测字段是否符合正则表达式       | `filedName`：待校验的字段<br>`expression`：正则表达式<br /> `caseSensitive`：是否大小写敏感 |
+
+### §7.7.4 自定义校验器类
+
+目前为止，我们使用的校验方法要么是在Action类中基于函数，要么是用内置的校验器类。事实上，我们也可以自己编写校验器类。
+
+```java
+package com.example.validator;
+public class MyValidator extends FieldValidatorSupport {
+    private String data;
+
+    @Override public void validate(Object object) throws ValidationException {
+        String name = super.getFieldName(); // 获取校验的字段名
+        String value = super.getFieldValue(name,object).toString(); // 获得校验的字段值
+        if(!data.equals(value)){
+            super.addFieldError(name,object);
+        }
+    }
+}
+```
+
+```xml
+<!-- validators.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE validators PUBLIC "-//OpenSymphony Group//XWork Validator Config 1.0//EN" "http://www.opensymphony.com/xwork/xwork-validator-config-1.0/dtd">
+<validators>
+	<validator name="test" class="com.example.validator.MyValidator"
+</validators>
+```
+
+## §7.8 国际化
+
+国际化（Internaltionalization，去除两侧字母还有18个字符，简写为I18N）是指为不同地区、不同语言的用户提供自适应的界面。Struts 2的国际化标准建立在Java国际化标准的基础之上，并对其进一步优化和封装。
+
+Struts 2默认提供I18N拦截器，获得HTTP报文中`request_locale`的值，将其转化为Java的`Locale`实例，并储存在用户的`session`中。
+
+```java
+package com.example.action;
+public class ChangeLanguageAction extends SupportAction {
+    
+    private Locale current;
+    public void setCurrent(Locale current){ this.current = current; }
+    public Locale getCurrent(){ return this.current; }
+    
+    public Map getLocales(){
+        Map locales = new Hashtable(2);
+        ResourceBundle bundle = ResourceBundle.getBungle(
+            "globalMessages",current
+        );
+        locales.put(bundle.getString("hello.en"),Locale.US);
+        locales.put(bundle.getString("hello.cn"),Locale.CHINA);
+        retutn locales;
+    }
+    
+    @Override public String execute(){
+        return SUCCESS;
+    }
+    
+}
+```
+
+```jsp
+<%@ page language="java" pageEncoding="UTF-8" %>
+<%@ taglib prefix="s" uri="/struts-tags" %>
+<script language="javascript">
+	function changeLocale(){
+        document.langForm.submit();
+    }
+</script>
+<s:set name="SESSION_LOCALE" value="#session['WW_TRANS_I18N_LOCALE']"/>
+<s:bean id="localeList" name="com.example.action.ChosenLanguageAction">
+	<s:param name="current" value="#SESSION_LOCALE==null?locale:#SESSION_LOCALE"/>
+</s:bean>
+<form action="<s:url/>" name="langForm">
+    <s:selectcss style="width:100px" list="#localeList.locales"
+                 name="request_locale" 
+                 value="#SESSION_LOCALE==null?locale:#SESSION_LOCALE"
+                 id="langSelecter" listKey="value" listValue="key"
+                 onchange="changeLocale()"/>
+</form>
+```
 
 
 
@@ -4790,9 +5006,34 @@ public class LoginAction extends ActionSupport {
 
 
 
-（6.22的目标：16w字+）
 
-（6.23的目标：17w字+）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 （6.24的目标：18w字+）
 
