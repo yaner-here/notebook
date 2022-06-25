@@ -5035,8 +5035,8 @@ public class ChangeLanguageAction extends SupportAction {
 
 
 
-（6.24的目标：18w字+）
+（6.25的目标：18w字+）
 
-（6.25的目标：19w字+）
+（6.26的目标：19w字+）
 
-（6.26的目标：20w字+）
+（6.27的目标：20w字+）
