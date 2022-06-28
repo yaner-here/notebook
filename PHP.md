@@ -386,7 +386,397 @@ class Animal {
     }
 }
 class Cat extends Animal{}
-class Dog extends Animal{}
-Dog::createInsatnce();
+class Dog extends Animal{
+    public function greet(){print("Woof!");}
+}
+$dog = Dog::createInstance("Hello");
+$dog->greet();
+    // 输出错误"Uncaught Error: Call to undefined method Animal::greet()"
 ```
 
+这是因为`self`指向的是引用该关键字的`DomainObject`，而不是对其进行调用的`Document`。PHP 5.3引入了延迟静态绑定，用`static`代替`self`：
+
+```php
+class Animal {
+    public $name;
+    private function __construct(string $name){
+        $this->name = $name;
+    }
+    public static function createInstance(string $name):Animal{
+        return new static($name); // 更改了此处
+    }
+}
+class Cat extends Animal{}
+class Dog extends Animal{
+    public function greet(){print("Woof!");}
+}
+$dog = Dog::createInstance("Hello");
+$dog->greet();
+	// 输出"Woof!"
+```
+
+再例如下面的代码：
+
+```php
+abstract class Book {
+    private $group;
+    public function __construct(){
+        // $this->group = self::getDefaultGroup();
+        // $this->group = static::getDefaultGroup();
+    }
+    public static function getDefaultGroup():string{
+        return "Default";
+    }
+    public function getGroup():string{
+        return $this->group;
+    }
+}
+class Fiction extends Book {
+    public static function getDefaultGroup():string{
+        return "Fiction";
+    }
+}
+$fiction = new Fiction();
+print($fiction->getGroup());
+    // self->gerDefaultGroup()输出"Default"
+	// static::getDefaultGourp()输出"Fiction"
+```
+
+## §3.10 异常处理
+
+PHP 5引入了异常这一概念，类似于Java中的``Exception`和`Error`。
+
+| `Exception`方法名  | 作用                                   |
+| ------------------ | -------------------------------------- |
+| `getMessage()`     | 获取Exception消息字符串                |
+| `getCode()`        | 获取Exception错误代码                  |
+| `getFile()`        | 获取发生异常的文件                     |
+| `getLine()`        | 获取发生异常额行号                     |
+| `getPrevious()`    | 获取一个嵌套异常对象                   |
+| `getTrace()`       | 获取一个包含方法调用跟踪信息的多维数组 |
+| `getTraceAsString` | 获取`getTrace()`的字符串版本           |
+| `__toString()`     | 将Exception实例转为字符串              |
+
+| `Error`子类           | 作用                   |
+| --------------------- | ---------------------- |
+| `ArithmeticError`     | 数学运算错误           |
+| `AssertionError`      | `assert()`断言失败错误 |
+| `DivisionByZeroError` | 除以0错误              |
+| `ParseError`          | `eval()`语句解析错误   |
+| `TypeError`           | 传参类型不匹配错误     |
+
+
+
+```php
+function isFileExist(string $filePath){
+    try{
+        if(!file_exists($file)){
+        	throw new Exception("File '{$file}' doesn't exist.");
+    	}
+    } catch(Exception e) {
+        print("文件未找到");
+    } finally {
+        
+    }
+}
+```
+
+PHP也同样支持创建Exception的子类：
+
+```
+class FileNotFoundException extends Exception{
+    
+}
+```
+
+## §3.11 final
+
+被`final`修饰的类无法被继承，被`final`修饰的方法无法被重写：
+
+```php
+final class A {}
+class B extends A {}
+	// 输出错误"Class IllegalCheckout may not inherit from final class A"
+```
+
+```php
+class A{
+    public final function func(){}
+}
+class B extends A {
+    public function func(){}
+    	// 输出错误"Cannot override final method A::func()"
+}
+```
+
+## §3.12 拦截器
+
+设想一个这样的函数`getParameter(string $parameter)`，当类中存在该变量时就返回变量，不存在时就返回`null`。要在Java做到这一点，必须手写一遍反射和异常处理的轮子。而PHP将其封装成了拦截器：
+
+| 拦截器方法                         | 作用                                  |
+| ---------------------------------- | ------------------------------------- |
+| `__get($property)`                 | 尝试访问未定义属性时被调用            |
+| `__set($property,$value)`          | 尝试对未定义属性赋值时被调用          |
+| `__isset($property)`               | 尝试对未定义属性调用`isset()`时被调用 |
+| `__unset($property)`               | 尝试对未定义属性调用`unset()`时被调用 |
+| `__call($method,$arg_array)`       | 尝试调用未定义实例方法时被调用        |
+| `__callStatic($method,$arg_array)` | 尝试调用未定义静态方法时被调用        |
+
+```php
+class Person {
+    private $name;
+    public function __get(string $property){
+        $method = "get{$property}";
+        if(method_exists($this,$method)){
+            return $this->$method();
+        }else{
+            print("{$property}属性不存在！");
+        }
+    }
+    public function setName(string $name):void{
+        $this->name = $name;
+    }
+    public function getName():string{
+        return $this->name;
+    }
+}
+$person = new Person();
+$person->setName("Alice");
+print($person->__get("name"));
+	// 输出"Alice"
+print($person->getName());
+	// 输出"Alice"
+print($person->__get("age"));
+	// 输出"age属性不存在！"
+print($person->getAge());
+	// 输出报错"Uncaught Error: Call to undefined method Person::getAge()"
+```
+
+## §3.13 析构方法
+
+PHP 5引入了`__destruct()`，当对一个实例被`unset()`调用时就会执行。
+
+```php
+class A{
+    public function __destruct(){
+        print("Destructing instance...");
+    }
+}
+$a = new A();
+unset($a);
+	// 输出"Destructing instance..."
+```
+
+## §3.14 `__clone()`
+
+将一个实例赋给另一个变量是很常见的操作。PHP 4时，这一过程会导致对象被复制了一份，两个变量指向两个不同的实例。PHP 5以后，这一过程会导致两个变量指向同一个实例，如果要复制对象的话，必须使用`clone`关键字：
+
+```php
+class A{
+    public $data = 1;
+}
+$a = new A();
+print($a->data); // 输出"1"
+$b = clone $a;
+print($b->data); // 输出"1"
+```
+
+这一过程调用了类内的`__clone()`方法，我们可以重写该方法：
+
+```php
+class A{
+    public $data = 1;
+    public function __clone(){
+        $this->data = 0;
+    }
+}
+$a = new A();
+print($a->data); // 输出"1"
+$b = clone $a;
+print($b->data); // 输出"0"
+```
+
+## §3.15 `__toString()`
+
+在PHP 5.1之前，`print()`可以直接输出实例的ID：
+
+```php
+class A{}
+$a = new A();
+print($a);
+	// Object id #1
+```
+
+在PHP 5.2以后，实例不能直接被输出，必须通过显示声明并定义`__toString()`才能转为字符串:
+
+```php
+class A{
+    public $data = 1;
+}
+$a = new A();
+print($a);
+	// Object of class A could not be converted to string 
+```
+
+```php
+class A{
+    public $data = 1;
+    public function __toString(){
+        return "The data is ".$this->data;
+    }
+}
+$a = new A();
+print($a);
+	// 输出"The data is 1"
+```
+
+## §3.16 回调函数
+
+PHP 4引入了Lambda表达式，调用`create_function(string args,string commands)`会返回一个Lambda表达式。该函数功能堪比`eval()`，所以经常被用来攻击。自PHP 7.2开始，该函数被deprecated了，取而代之的是匿名函数：
+
+```php
+// create_function()
+$function1 = create_function(
+	'string $name',
+    'print("Hello,{$name}!")'
+);
+
+// 匿名函数
+$function = function($name){
+	print("Hello,{$name}");
+}
+```
+
+匿名函数是一个`callback`类型的变量，既然这是一个变量，那么它就可以当作函数的实参，也可以当作函数的返回值：
+
+```php
+class Student {}
+class School{
+    private $callbacks;
+    public function registerCallback(callable $callback):void{
+        if(!is_callable($callback)){
+            throw new Exception("callback not callable");
+        }
+        $this->callbacks[] = $callback;
+    }
+    public function startNewDay(Student $student){
+        foreach ($this->callbacks as $callback){
+            call_user_func($callback,$student);
+        }
+    }
+}
+
+// 匿名函数
+$gotoSchool = function(){print("已到达学校\n");};
+$doExam = function(){print("分数为".random_int(0,100));};
+$leaveSchool = function(){print("已离开学校");};
+
+$school = new School();
+$school->registerCallback($gotoSchool);
+$school->registerCallback($doExam);
+$school->registerCallback($leaveSchool);
+
+$student = new Student();
+$school->startNewDay($student);
+```
+
+```php
+function getGreetFunction(string $name):callable{
+    return function() use ($name){
+        print("Hello,".$name);
+    };
+}
+$AliceGreetFunction = getGreetFunction("Alice");
+$AliceGreetFunction();
+	// 输出"Hello,Alice"
+```
+
+## §3.17 匿名类
+
+匿名类常用于简单且特定于局部的上下文，可以看作是某个接口的“实例”。
+
+```php
+interface Describable {
+    public function getDescription(Person $person):string;
+}
+
+class Person {
+    public $name;
+    public function Person(string $name){
+        $this->name = $name;
+    }
+    public function printDescription(Describable $describable){
+        $describable->getDescription($this);
+    }
+}
+$person = new Person("Alice");
+$person->printDescription(
+        new class implements Describable{
+            public function getDescription(Person $person):string{
+                return "姓名".$person->name;
+            }
+        }
+);
+```
+
+## §3.18 命名空间
+
+在Java中，为了区分同名类，我们使用形如`package com.example`的软件包来管理这些类。在C++中，面对同样的问题，我们使用`namespace std`的命名空间，并且允许在一个命名空间中`use`另一个命名空间进行嵌套。
+
+PHP没有原生的“包”的概念，但是PHP 5.3引入了命名空间这一概念，从这一点上来说它像C++。然而要理清C++的命名空间嵌套关系，就只能层层向上地手动跳转到各个命名空间，并且在创建命名空间的时候还要时刻提防循环嵌套。而PHP的命名空间比较奇妙，它可以使用`namespace com\example;`的方式来管理命名空间的嵌套，从这一点上来说它又像Java。更加奇妙的是，PHP的命名空间路径支持绝对路径`\com\example`和相对路径`com\example`，从这一点上来说它比Java还高级。
+
+`use`关键字是从根命名空间开始查找的，因此不需要在路径开头加`\`：
+
+```php
+// a.php
+namespace view_1;
+class MainFrame {
+    static function sayHello(){print("Hello World! From view_1.");}
+}
+```
+
+```php
+// b.php
+namespace view_@;
+class MainFrame {
+    static function sayHello(){print("Hello World! From view_2.");}
+}
+```
+
+```php
+// index.php
+function sayHello(){ // 分别调用，开头必须加反斜杠
+    \view_1\MainFrame::sayHello(); // 输出"Hello World! From view_1."
+    \view_2\MainFrame::sayHello(); // 输出"Hello World! From view_2."
+}
+
+use view_1\MainFrame; // 使用use关键字，开头不加反斜杠
+function sayHello(){
+    MainFrame::sayHello();
+}
+
+use view_2\MainFrame as View2MainFrame; // 使用use和as关键字起别名
+function test(){
+    View2MainFrame::sayHello();
+}
+```
+
+## §3.19 文件包含
+
+与C语言的`#include<>`类似，PHP支持以下方法来包含文件：
+
+| 函数                                 | 作用                                              |
+| ------------------------------------ | ------------------------------------------------- |
+| `include()`或`include ...`           | 包含文件，若文件不存在则抛出`E_WARNING`，继续执行 |
+| `include_once()`或`include_once ...` | 对于重复包含的文件，仅包含一次，文件不存在则同上  |
+| `require(...)`或`require ...`        | 包含文件，若文件不存在则抛出`E_ERROR`，停止执行   |
+| `require_once()`或`require_once ...` | 对于重复包含的文件，仅包含一次，文件不存在则同上  |
+
+PHP 5引入了自动加载功能，只需调用`spl_autoload_register()`即可：
+
+```php
+spl_autoload_register();
+$object = new CustomizeClass();
+```
+
+自动加载将尝试
