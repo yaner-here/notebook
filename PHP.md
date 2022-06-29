@@ -29,7 +29,9 @@
 
 2004年，PHP 5.0正式发布，支持面向对象编程的所有特性。
 
-## §3.1 类与对象
+## §3.1 基本概念
+
+### §3.1.1 类与对象
 
 在PHP中，类的声明和实例化语句与其它语言非常相似：
 
@@ -82,7 +84,7 @@ print("商品单价：{$product->price}");
 	// 输出"商品单价：9.9"
 ```
 
-## §3.2 构造方法
+### §3.1.2 构造方法
 
 > 注意：在PHP 5之前的版本中，构造方法的名称必须与类名相同，这一点类似于C++和Java。在PHP 7之后的版本中，构造方法的名称只有`__construct()`这一种，这一点类似于Python的`__new__()`。
 
@@ -100,7 +102,7 @@ class Commodity {
 $product = new Commodity("Apple","100","9.9")
 ```
 
-## §3.3 弱类型检查/强类型检查
+### §3.1.3 弱类型检查/强类型检查
 
 我们知道，C++与Java中对参数的类型有明确的限制，而PHP 5也引入了类类型声明，本质上是强类型声明。
 
@@ -146,7 +148,7 @@ PHP支持的类型声明如下所示：
 |  [类类型]  |     类或接口的类型     |     5.0      |
 |   `void`   |         `null`         |     7.1      |
 
-## §3.4 继承
+### §3.1.4 继承
 
 PHP中的继承使用关键字`extends`。
 
@@ -177,7 +179,7 @@ $book->printName();
 
 > 注意：在父类中可以直接使用`$param`调用定义在父类中的变量，不必使用`$this->param`的形式，这一点类似于Java。但是不能在子类中直接使用父类的变量`$param`，必须通过`$this->param`或`parent::$param`调用。
 
-## §3.5 常量
+### §3.1.5 常量
 
 PHP支持将类内的字段设为常量，而且不需要以`$`开头，习惯全为大写字母：
 
@@ -193,7 +195,7 @@ function sendErrorCode(){
 }
 ```
 
-## §3.6 抽象类
+### §3.1.6 抽象类
 
 抽象类由关键字`abstract`定义，本身无法被实例化，除非其子类实现了抽象类声明的所有方法，不然其子类也不能被实例化。
 
@@ -214,7 +216,7 @@ class PrintablePerson extends Person{
 }
 ```
 
-## §3.7 接口
+### §3.1.7 接口
 
 接口的关键字是`interface`和`implements`与抽象类相比，接口只能声明方法，而不能实现方法。
 
@@ -240,7 +242,7 @@ $person->setName("Alice");
 $person->print();
 ```
 
-## §3.8 trait
+### §3.1.8 trait
 
 继承和接口都能复用代码。然而继承限制类与类之间必须存在继承关系，接口只能复用方法的声明，而不能复用方法的定义。
 
@@ -347,7 +349,7 @@ $obj->secretFunction();
 	// 输出"secret function"
 ```
 
-## §3.9 延迟静态绑定
+### §3.1.9 延迟静态绑定
 
 下面的这段工厂模式的代码存在着代码重复的问题：
 
@@ -442,7 +444,7 @@ print($fiction->getGroup());
 	// static::getDefaultGourp()输出"Fiction"
 ```
 
-## §3.10 异常处理
+### §3.1.10 异常处理
 
 PHP 5引入了异常这一概念，类似于Java中的``Exception`和`Error`。
 
@@ -489,7 +491,7 @@ class FileNotFoundException extends Exception{
 }
 ```
 
-## §3.11 final
+### §3.1.11 final
 
 被`final`修饰的类无法被继承，被`final`修饰的方法无法被重写：
 
@@ -509,7 +511,7 @@ class B extends A {
 }
 ```
 
-## §3.12 拦截器
+### §3.1.12 拦截器
 
 设想一个这样的函数`getParameter(string $parameter)`，当类中存在该变量时就返回变量，不存在时就返回`null`。要在Java做到这一点，必须手写一遍反射和异常处理的轮子。而PHP将其封装成了拦截器：
 
@@ -552,7 +554,7 @@ print($person->getAge());
 	// 输出报错"Uncaught Error: Call to undefined method Person::getAge()"
 ```
 
-## §3.13 析构方法
+### §3.1.13 析构方法
 
 PHP 5引入了`__destruct()`，当对一个实例被`unset()`调用时就会执行。
 
@@ -567,7 +569,7 @@ unset($a);
 	// 输出"Destructing instance..."
 ```
 
-## §3.14 `__clone()`
+### §3.1.14 `__clone()`
 
 将一个实例赋给另一个变量是很常见的操作。PHP 4时，这一过程会导致对象被复制了一份，两个变量指向两个不同的实例。PHP 5以后，这一过程会导致两个变量指向同一个实例，如果要复制对象的话，必须使用`clone`关键字：
 
@@ -596,7 +598,7 @@ $b = clone $a;
 print($b->data); // 输出"0"
 ```
 
-## §3.15 `__toString()`
+### §3.1.15 `__toString()`
 
 在PHP 5.1之前，`print()`可以直接输出实例的ID：
 
@@ -630,7 +632,7 @@ print($a);
 	// 输出"The data is 1"
 ```
 
-## §3.16 回调函数
+### §3.1.16 回调函数
 
 PHP 4引入了Lambda表达式，调用`create_function(string args,string commands)`会返回一个Lambda表达式。该函数功能堪比`eval()`，所以经常被用来攻击。自PHP 7.2开始，该函数被deprecated了，取而代之的是匿名函数：
 
@@ -691,7 +693,7 @@ $AliceGreetFunction();
 	// 输出"Hello,Alice"
 ```
 
-## §3.17 匿名类
+### §3.2.17 匿名类
 
 匿名类常用于简单且特定于局部的上下文，可以看作是某个接口的“实例”。
 
@@ -719,7 +721,7 @@ $person->printDescription(
 );
 ```
 
-## §3.18 命名空间
+### §3.1.18 命名空间
 
 在Java中，为了区分同名类，我们使用形如`package com.example`的软件包来管理这些类。在C++中，面对同样的问题，我们使用`namespace std`的命名空间，并且允许在一个命名空间中`use`另一个命名空间进行嵌套。
 
@@ -761,7 +763,7 @@ function test(){
 }
 ```
 
-## §3.19 文件包含
+### §3.1.19 文件包含
 
 与C语言的`#include<>`类似，PHP支持以下方法来包含文件：
 
@@ -779,4 +781,334 @@ spl_autoload_register();
 $object = new CustomizeClass();
 ```
 
-自动加载将尝试
+自动加载将尝试从工作目录中查找`CustomizeClass.php`或`CustomizeClass.inc`的文件。
+
+### §3.1.20 类函数和对象函数
+
+PHP提供了一组用于检查类和对象的函数，用于运行时查看类的信息。
+
+利用字符串动态加载类文件并将其实例化：
+
+```php
+// ./a.php
+namespace user;
+class Greeter {
+    public function greet(){
+        print("Hello World!");
+    }
+}
+```
+
+```php
+// ./index.php
+require_once("a.php");
+$namespace = "user";
+$className = "Greeter";
+$classPath = $namespace."\\".$className;
+$obj = new $classPath();
+$obj->greet();
+	// 输出"Hello World!"
+```
+
+`class_exists(string)`用于检测在当前上下文中，指定的类是否存在，并返回一个布尔值：
+
+```php
+$workspace = __DIR__;
+$namespace = "user";
+$fileName = "a.php";
+$className = "Greeter";
+$filePath = $workspace."/".$fileName;
+$classPath = $namespace."\\".$className;
+
+class_exists($classPath) ? print("{$className}类存在") : print("{$className}类不存在");
+	// 输出"Greeter类存在"
+require_once($filePath);
+class_exists($classPath) ? print("{$className}类存在") : print("{$className}类不存在");
+	// 输出"Greeter类不存在"
+```
+
+`get_declared_classes()`以数组的形式返回当前上下文定义的所有类：
+
+```php
+print_r(get_declared_classes());
+//	Array (
+//    	[0] => stdClass 
+//    	[1] => Exception 
+//    	[2] => ErrorException 
+//   	[3] => Error 
+//    	[4] => ParseError 
+//    	[5] => TypeError 
+//    	[6] => ArgumentCountError
+//    	[7] => ArithmeticError 
+//    	[8] => DivisionByZeroError 
+//		...
+//    	[139] => mysqli_stmt 
+//    	[140] => SQLite3 
+//    	[141] => SQLite3Stmt 
+//    	[142] => SQLite3Result 
+//    	[143] => XSLTProcessor 
+//    	[144] => user\Greeter 
+//		)
+```
+
+`get_class(object)`用于返回对象的类型：
+
+```php
+require_once("a.php");
+$object = new \user\Greeter();
+print(get_class($object));
+	// 输出"user\Greeter"
+```
+
+为了判断某个类是否为另一个类的子类，PHP 4及以上版本使用的是`is_a()`函数，PHP 5及以上版本使用的是`instanceof`运算符：
+
+```php
+class A {}
+class B extends A {}
+
+$b = new B();
+print($b instanceof B); // 输出"1"
+print($b instanceof A); // 输出"1"
+```
+
+`instanceof`运算符也可用于判断某个类是否实现了某个接口：
+
+```php
+interface A{}
+class B implements A{}
+$b = new B();
+print($b instanceof A ? "true" : "false");
+	// 输出"true"
+```
+
+类名后添加`::class`可以得到该类的绝对路径：
+
+```php
+namespace Index;
+class A {}
+print(A::class); // 输出“Index\A”
+```
+
+`get_class_methods(string|object|class)`返回类中**向外公开**的全部方法名称（不包括形参列表）。这一函数可用于判断某个类方法是否可以被调用，功能类似于`is_callable(array[object|class,string])`：
+
+```php
+class A {
+    private function func_1(int $a){}
+    protected function func_2(float $b){}
+    public function func_3(string $c){}
+}
+print_r(get_class_methods(A::class));
+	// 输出"Array([0]=>func_3)"
+print(is_callable(array(new A(),"func_1")) ? "true" : "false");
+	// 输出"false"
+print(in_array("func_1",get_class_methods(A::class)) ? "true" : "false");
+	// 输出"false"
+```
+
+`method_exists(object|class,string)`只关注类中是否存在制定的方法，而不管这个方法是否被`private`或`protected`修饰而无法被调用：
+
+```php
+class A {
+    private function func_1(int $a){}
+    protected function func_2(float $b){}
+    public function func_3(string $c){}
+}
+print(method_exists(A::class,"func_1") ? "true" : "false");
+	// 输出"true"
+```
+
+`get_class_vars(class|object)`以数组形式返回这个类中的所有字段：
+
+```php
+class A {
+    private $a = "private";
+    protected $b = "protected";
+    public $c = "public";
+}
+print_r(get_class_vars(A::class));
+	// 输出"Array([c]=>public)"
+```
+
+`get_parent_class(string)`用于返回某个类的**亲**父类：
+
+```php
+namespace Index;
+class A {}
+class B extends A {}
+class C extends B {}
+$c = new C();
+print(get_parent_class($c)); // 输出"IIndex\B"
+```
+
+`is_subclass_of(class|object,class|object|string)`用于判断前者是否继承了后者：
+
+```php
+class A {}
+class B extends A {}
+class C extends B {}
+$a = new A();
+print(is_subclass_of(C::class,A::class) ? "true" : "false");
+	// 输出"true"
+```
+
+要判断某个类是否实现了某个接口，除了`instanceof`关键字外，还可以用PHP标准库（Standard PHP Library，SPL）中的`class_implements()`：
+
+```php
+interface A{}
+class B implements A{}
+$b = new B();
+print(class_implements($b,A::class) ? "true" : "false");
+	// 输出"true"
+```
+
+要动态调用方法或函数，除了`$a->$b()`以外，还可以用`call_user_func()`：
+
+```php
+class A {
+    public function func_A(): string{
+        return "This is func_A()";
+    }
+}
+function func_B(): string{
+    return "This is func_B()";
+}
+$a = new A();
+
+// 调用函数时，call_user_func("函数名",参数1,参数2,...)
+print(call_user_func("func_B"));
+
+// 调用方法时，call_user_func(array(object|class))
+print(call_user_func(array($a,"func_A"),参数1,参数2,...));
+```
+
+之前我们介绍过`__call()`方法，但是它有一个弊端，就是无法处理变长形参：
+
+```php
+class A {
+    public function add(float $num1,float $num2): float{
+        return $num1 + $num2;
+    }
+    public function opposite(float $num): float{
+        return -$num;
+    }
+    public function __call($method,float $args){
+        if(method_exists($this,$method)){
+            return $this->$method($args); // 传递的只能是列表
+        } else {
+            return null;
+        }
+    }
+}
+
+$a = new A();
+print($a->__call("add",1,2)); // 无法处理两个及以上的形参
+```
+
+为了解决这一问题，PHP使用`call_user_func_array()`处理变长参数：
+
+```php
+class A {
+	// ...
+    public function __call($method,array $args){
+        if(method_exists($this,$method)){
+            return call_user_func_array(
+            	[$this,$method],
+                $args // 必须为array
+            );
+        } else {
+            return null;
+        }
+    }
+}
+```
+
+## §3.2 反射API
+
+> “学PHP不学反射，就像学Python不学`hasattr()`/`getattr()`/`setattr()`/`delattr()`，学Java不学`java.lang.reflect`，相当于没有接触过高级OOP，整个人就卡在C++这个层次上了，只能度过一个相对失败的人生。”
+
+PHP提供了一系列用于反射的类：
+
+| 类名                      | 作用                                     |
+| ------------------------- | ---------------------------------------- |
+| `Reflection`              | 提供静态方法`export()`，输出类的摘要信息 |
+| `ReflectionClass`         | 输出类的信息                             |
+| `ReflectionMethod`        | 输出类方法的信息                         |
+| `ReflectionParameter`     | 输出类方法参数的信息                     |
+| `ReflectionProperty`      | 输出类字段的信息                         |
+| `ReflectionFunction`      | 输出函数的信息                           |
+| `ReflectionExtension`     | 输出PHP扩展的信息                        |
+| `ReflectionException`     | 输出`Exception`实例的信息                |
+| `ReflectionZendExtension` | 输出PHP Zend扩展的信息                   |
+
+相比于[§3.1.20 类函数和方法函数](#§3.1.20 类函数和方法函数)和`var_dump(object)`，反射API的功能更强大，能提供的信息更多，甚至被广泛用于生成文档和图表，所以开发时应该优先使用反射API。
+
+反射API的思路是，先按照需求创建一个`ReflectionXXX`实例，然后将其作为实参，调用`Reflection`类的静态方法：
+
+```php
+namespace index;
+
+class A {
+    private function func_1(){}
+    protected function func_2(){}
+    public function func_3(){}
+}
+$targetClass = new \ReflectionClass("index\A");
+\Reflection::export($targetClass);
+/*
+Class [ class index\A ] { 
+    @@ C:\index.php 5-9
+        - Constants [0] { } 
+    	- Static properties [0] { } 
+    	- Static methods [0] { } 
+    	- Properties [0] { } 
+    	- Methods [3] { 
+            Method [ private method func_1 ] { @@ C:\index.php 6 - 6 } 
+            Method [ protected method func_2 ] { @@ C:\index.php 7 - 7 } 
+            Method [ public method func_3 ] { @@ C:\index.php 8 - 8 } 
+        } 
+}
+*/
+```
+
+### §3.2.1 `ReflectionClass`
+
+`ReflectionClass`实例提供下列实例方法：
+
+| 方法名                     | 作用                                   | 方法名                      | 作用 |
+| -------------------------- | -------------------------------------- | --------------------------- | ---- |
+| `getAttributes():array`    | 获得上下文所有被`#[Attribute]`标记的类 | `isAbstract():bool`         |      |
+| `getConstant()`            |                                        | `isAnonymous():bool`        |      |
+| `getConstants()`           |                                        | `isCloneable():bool`        |      |
+| `getConstructor()`         |                                        | `isEnum():bool`             |      |
+| `getDefaultProperties()`   |                                        | `isFinal():bool`            |      |
+| `getDocComment()`          |                                        | `isInstance():bool`         |      |
+| `getEndLine()`             |                                        | `isInstantiable():bool`     |      |
+| `getExtension()`           |                                        | `isInterface():bool`        |      |
+| `getExtensionName()`       |                                        | `isInternal():bool`         |      |
+| `getFileName()`            |                                        | `isIterateable():bool`      |      |
+| `getInterfaceNames()`      |                                        | `isSubclassOf(string):bool` |      |
+| `getInterfaces()`          |                                        | `isTrait():bool`            |      |
+| `getMethod()`              |                                        | `isUserDefined():bool`      |      |
+| `getMethods()`             |                                        |                             |      |
+| `getModifiers()`           |                                        | `hasConstant()`             |      |
+| `getName()`                |                                        | `hasMethod()`               |      |
+| `getNamespaceName()`       |                                        | `hasProperty()`             |      |
+| `getParentClass()`         |                                        |                             |      |
+| `getProperties()`          |                                        | `newInstance()`             |      |
+| `getProperty()`            |                                        | `newInstanceArgs()`         |      |
+| `getReflectionConstant()`  |                                        | `newInstanceWithoutConst()` |      |
+| `getReflectionConstants()` |                                        |                             |      |
+| `getShortName()`           |                                        |                             |      |
+| `getStartLine()`           |                                        |                             |      |
+| `getStaticProperties()`    |                                        |                             |      |
+| `getStaticPropertyValue()` |                                        |                             |      |
+| `getTraitAliases()`        |                                        |                             |      |
+| `getTraitNames()`          |                                        |                             |      |
+| `getTraits()`              |                                        |                             |      |
+
+
+
+```php
+
+```
+
