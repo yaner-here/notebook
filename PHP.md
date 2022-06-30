@@ -1042,8 +1042,6 @@ PHP提供了一系列用于反射的类：
 
 相比于[§3.1.20 类函数和方法函数](#§3.1.20 类函数和方法函数)和`var_dump(object)`，反射API的功能更强大，能提供的信息更多，甚至被广泛用于生成文档和图表，所以开发时应该优先使用反射API。
 
-反射API的思路是，先按照需求创建一个`ReflectionXXX`实例，然后将其作为实参，调用`Reflection`类的静态方法：
-
 ```php
 namespace index;
 
@@ -1072,43 +1070,307 @@ Class [ class index\A ] {
 
 ### §3.2.1 `ReflectionClass`
 
-`ReflectionClass`实例提供下列实例方法：
+`ReflectionClass`类用于检查类，其实例提供下列实例方法：
 
-| 方法名                     | 作用                                   | 方法名                      | 作用 |
-| -------------------------- | -------------------------------------- | --------------------------- | ---- |
-| `getAttributes():array`    | 获得上下文所有被`#[Attribute]`标记的类 | `isAbstract():bool`         |      |
-| `getConstant()`            |                                        | `isAnonymous():bool`        |      |
-| `getConstants()`           |                                        | `isCloneable():bool`        |      |
-| `getConstructor()`         |                                        | `isEnum():bool`             |      |
-| `getDefaultProperties()`   |                                        | `isFinal():bool`            |      |
-| `getDocComment()`          |                                        | `isInstance():bool`         |      |
-| `getEndLine()`             |                                        | `isInstantiable():bool`     |      |
-| `getExtension()`           |                                        | `isInterface():bool`        |      |
-| `getExtensionName()`       |                                        | `isInternal():bool`         |      |
-| `getFileName()`            |                                        | `isIterateable():bool`      |      |
-| `getInterfaceNames()`      |                                        | `isSubclassOf(string):bool` |      |
-| `getInterfaces()`          |                                        | `isTrait():bool`            |      |
-| `getMethod()`              |                                        | `isUserDefined():bool`      |      |
-| `getMethods()`             |                                        |                             |      |
-| `getModifiers()`           |                                        | `hasConstant()`             |      |
-| `getName()`                |                                        | `hasMethod()`               |      |
-| `getNamespaceName()`       |                                        | `hasProperty()`             |      |
-| `getParentClass()`         |                                        |                             |      |
-| `getProperties()`          |                                        | `newInstance()`             |      |
-| `getProperty()`            |                                        | `newInstanceArgs()`         |      |
-| `getReflectionConstant()`  |                                        | `newInstanceWithoutConst()` |      |
-| `getReflectionConstants()` |                                        |                             |      |
-| `getShortName()`           |                                        |                             |      |
-| `getStartLine()`           |                                        |                             |      |
-| `getStaticProperties()`    |                                        |                             |      |
-| `getStaticPropertyValue()` |                                        |                             |      |
-| `getTraitAliases()`        |                                        |                             |      |
-| `getTraitNames()`          |                                        |                             |      |
-| `getTraits()`              |                                        |                             |      |
+| 方法名                                                   | 作用                                                         | 方法名                         | 作用                                                         |
+| -------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------ |
+| `getAttributes():array`                                  | 返回上下文所有被`#[Attribute]`标记的类                       | `isAbstract():bool`            | 检查该类是否为抽象类                                         |
+| `getConstant($string):mixed`                             | 返回类中指定名称的`const`常量，找不到则返回`false`           | `isAnonymous():bool`           | 检查该类是否为匿名类                                         |
+| `getConstants():array`                                   | 获取类中所有`const`常量，以数组形式返回                      | `isCloneable():bool`           | 检查该类的`__clone()`是否能克隆类中的全部信息                |
+| `getConstructor():ReflectionMethod`                      | 返回类的构造函数                                             | `isEnum():bool`                | 检查是否为枚举类                                             |
+| `getDefaultProperties():array`                           | 返回类中的所有字段                                           | `isFinal():bool`               | 检测该类是否被`final`修饰                                    |
+| `getDocComment():string`                                 | 返回类的文档注释（由类之前的`/** */`文档注释定义）           | `isInstance(Object):bool`      | 检测该对象是否为这个类的实例                                 |
+| `getEndLine():int`                                       | 获取定义该类的文件中，该类定义部分的结束行号                 | `isInstantiable():bool`        | 检测该类是否可以实例化                                       |
+| `getExtension():ReflectionExtension`                     | 返回定义该类的扩展的`ReflectionExtension`实例                | `isInterface():bool`           | 检测该类是否为接口                                           |
+| `getExtensionName():strng`                               | 返回定义该类的扩展的名称                                     | `isInternal():bool`            | 检测该类是否由扩展括内部核心定义                             |
+| `getFileName():string`                                   | 返回定义该类的文件的文件名                                   | `isIterateable():bool`         | 检测该类是否实现`Iterator`接口，是否可以被用在`foreach`语句中 |
+| `getInterfaceNames():array[string]`                      | 返回该类实现的所有接口名称构成的数组                         | `isSubclassOf(string):bool`    | 检测该类是否为指定类的子类                                   |
+| `getInterfaces(): array[ReflectionClass]`                | 返回该类实现的所有接口构成的数组                             | `isTrait():bool`               | 检测该类是否为`trait`                                        |
+| `getMethod(string):ReflectionMethod`                     | 返回该类中指定名称的方法                                     | `isUserDefined():bool`         | 检测该类是否由用户自定义，与`inInternal()`相反               |
+| `getMethods():array`                                     | 返回该类中的所有方法构成的数组                               |                                |                                                              |
+| `getModifiers():int`                                     | 返回该类占用的内存空间字节数，也就是修饰符常量的位掩码（缺省为`1048576`，即1MB） | `hasConstant(string):bool`     | 检测该类是否定义了指定的`const`常量                          |
+| `getName():string`                                       | 返回带有命名空间的类名                                       | `hasMethod(string):bool`       | 检测该类是否声明了指定的方法                                 |
+| `getNamespaceName():string`                              | 获取该类所在的命名空间                                       | `hasProperty(string)`          | 检测该类是否定义了指定的字段                                 |
+| `getParentClass():ReflectionClass`                       | 获取该类的亲父类                                             |                                |                                                              |
+| `getProperties():array`                                  | 获取所有的字段的值组成的数组                                 | `newInstance(mixed,mixed,...)` | 根据给定的参数调用相应的构造方法                             |
+| `getProperty(string): ReflectionPerperty`                | 获取指定名称的值                                             | `newInstanceArgs(array)`       | 根据给定的参数数组调用相应的构造方法                         |
+| `getReflectionConstant(string): ReflectionClassConstant` | 获取指定名称的`const`常量的值                                | `newInstanceWithoutConst()`    | 调用无参的构造方法                                           |
+| `getReflectionConstants():array`                         | 获取所有的字段的`const`常量组成的数组                        |                                |                                                              |
+| `getShortName():string`                                  | 忽略命名空间，直接返回该类的类名                             |                                |                                                              |
+| `getStartLine():int`                                     | 获取定义该类的文件中，该类定义部分的起始行号                 |                                |                                                              |
+| `getStaticProperties():array`                            | 获取所有的静态字段的值                                       |                                |                                                              |
+| `getStaticPropertyValue(string) :mixed`                  | 获取指定名称的静态字段的值                                   |                                |                                                              |
+| `getTraitAliases():array`                                | 获取该类通过`use`关键字使用的`trait`类在经过关键字`as`改名后的名称数组 |                                |                                                              |
+| `getTraitNames():array`                                  | 获取该类通过`use`关键字使用的`trait`类名称数组               |                                |                                                              |
+| `getTraits():array`                                      | 获取该类通过`use`关键字使用的`trait`类数组                   |                                |                                                              |
 
+### §3.2.2 `ReflectionMethod`
 
+`ReflectionClass`类继承于`ReflectionFunctionAbstract`类，用于检查方法。其实例有以下三种获取方式：
+
+- `ReflectionClass::getMethods()["方法名"]`
+- ``ReflectionClass::getMethods()`
+- `new ReflectionMethod(object|string,string|null)`
+
+其实例提供下列实例方法：
+
+| 方法名                                             | 作用                                                         | 方法名                          | 作用                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------ | ------------------------------- | ------------------------------------------------------------ |
+| `getAttributes(string):array[ReflectionAttribute]` | 返回该类中所有被`#[Attribute]`标记的方法                     | `isClosure():bool`              | 检查该方法是否为匿名函数                                     |
+| `getClosureScopeClass():ReflectionClass`           | 返回该匿名函数所在的类                                       | `isDeprecated():bool`           | 检查该方法是否被`#[Deprecated]`修饰                          |
+| `getClosureThis():object`                          | 返回该匿名函数内的`$this`变量                                | `isGenerator():bool`            | 检查该方法是否为生成器方法（形参列表形如`$start,$limit,$step=1$`，内含关键字`yield`） |
+| `getClosureUsedVariables():array[string,mixed]`    | 返回该匿名函数通过`use`关键字引用的外部变量构成的数组        | `isInternal():bool`             | 检测该方法是否由扩展括内部核心定义                           |
+| `getDocComment():string`                           | 获取由`/** */`指定的文档注释                                 | `isUserDefined():bool`          | 检测该方法是否由用户自定义，与`inInternal()`相反             |
+| `getEndLine():int`                                 | 获取定义该方法的文件中，该方法定义部分最后一行的行号         | `isVariadic():bool`             | 检测该方法是否包含变长形参列表                               |
+| `getExtension():ReflectionExtension`               | 返回定义该方法的扩展的`ReflectionExtension`实例              | `isAbstract():bool`             | 检测该方法是否为抽象方法                                     |
+| `getExtensionName():string`                        | 返回定义该方法的扩展的名称                                   | `isConstructor():bool`          | 检测该方法是否为其类的构造器方法                             |
+| `getFileName():string`                             | 返回定义该方法的文件名                                       | `isDestructor():bool`           | 检测该方法是否为其类的析构器方法                             |
+| `getName():string`                                 | 返回带有命名空间的类名                                       | `isFinal():bool`                | 检测该方法是否被`final`修饰                                  |
+| `getNamespaceName():string`                        | 返回命名空间                                                 | `isPrivate():bool`              | 检测该方法是否被`private`修饰                                |
+| `getNumberOfParameters():int`                      | 返回该方法需要的形参个数（包括可选参数）                     | `isProtected():bool`            | 检测该方法是否被`protected`修饰                              |
+| `getNumberOfRequiredParameters():int`              | 返回该方法必须需要的参数个数（不包括可选参数）               | `isPublic():bool`               | 检测该方法是否被`public`修饰                                 |
+| `getParameters():array[ReflectionParameter]`       | 返回该方法的`ReflectionParameter`实例组成的形参列表          | `isStatic():bool`               | 检测该方法是否为静态方法                                     |
+| `getReturnType():ReflectionType`                   | 返回该方法的返回值类型，`ReflectionType`自带`__toString()`方法 |                                 |                                                              |
+| `getShortName():string`                            | 忽略命名空间，直接返回类名                                   | `hasReturnType():bool`          | 检查该方法是否显示指定了返回类型                             |
+| `getStartLine():int`                               | 获取定义该方法的文件中，该方法定义部分第一行的行号           | `hasTentativeReturnType():bool` | 检查该方法是否被`#[TentativeType]`修饰                       |
+| `getStaticVariables():array`                       | 返回该方法中定义的所有`static`静态变量                       |                                 |                                                              |
+| `getTentativeReturnType():bool`                    | 返回该方法的不确定返回类型（例如`mixed`或`string|null`）     | `invoke(object,mixed,mixed...)` | 为指定的实例提供实参，执行相应的反射方法                     |
+| `getClosure(object):Closure`                       | 接受一个定义该方法的类的实例，以匿名函数的形式返回实例中的这个方法，可以由`call_user_func_array($closure,$args)`调用，并且无视`private`和`protected`的限制 | `invoke(object,array)`          | 为指定的实例提供实参列表，执行相应的反射方法                 |
+| `getDeclaringClass():ReflectionClass`              | 返回定义方法的类的`ReflectionClass`反射实例                  |                                 |                                                              |
+| `getModifiers():int`                               | 返回该方法的[权限修饰符常量](https://www.php.net/manual/zh/class.reflectionmethod.php#reflectionmethod.constants.modifiers) |                                 |                                                              |
+| `getPrototype():ReflectionMethod()`                | 返回该方法在亲父类中的同名方法                               |                                 |                                                              |
+
+## §3.3 代码设计
+
+### §3.3.1 UML图
+
+UML（Unified Modeling Language，统一建模语言）是一种用于描述面向对象系统的图形化语法，包含类图、时序图等图形。
+
+类是类图的主要组成部分，用带有类名的方框表示。方框由三部分组成：上部分展示类/接口的名称和修饰符，中部分展示该类定义的字段，下部分展示该类定义的方法
+
+```mermaid
+classDiagram
+	direction TB
+	class CustomizeClass{
+		<<abstract>>
+		+string $parameter
+		-__construct(string $parameter)
+	}
+	class CustomizeInterface{
+		<<interface>>
+		+const ERROR = -1
+		+void execute()
+	}
+```
+
+其中`+`表示`public`，`#`表示`protected`，`-`表示`private`。
+
+UML使用实线三角箭头表示超类与子类的继承关系，使用虚线三角箭头表示类与接口的实现关系：
+
+```mermaid
+classDiagram
+	direction LR
+	class ClassA{
+	
+	}
+	class ClassB{
+	
+	}
+	class ClassC{
+	
+	}
+	class InterfaceA{
+		<<interface>>
+	}
+	ClassA..|>InterfaceA
+	ClassA--|>ClassB
+	ClassA--|>ClassC
+```
+
+当一个类保存了另一个类的引用 
+
+### §3.3.2 工厂模式
+
+以下图为例，`Staff`类既是员工的抽象化概念，又由静态方法`recruit(string $name)`承担实例化员工的任务，借助`fire()`实现多态：
+
+```mermaid
+classDiagram
+	direction LR
+	class Person{
+		<<abstract>>
+		+string $name
+		+__construct(string $name)
+	}
+	class Staff{
+		-static array~string~ types
+		+static Staff recruit(string $name)
+		+void fire()
+	}
+	class Leader{
+		-array~Staff~ staffs
+		+void createEmployee(string $name)
+		+void addEmployee(Staff $staff)
+	}
+	class EngineerStaff{
+		+void fire()
+	}
+	class SaleStaff{
+		+void fire()
+	}
+	Person--|>Staff
+	Person--|>Leader
+	Staff--|>EngineerStaff
+	Staff--|>SaleStaff
+```
 
 ```php
+abstract class Person {
+    protected $name;
+    public function __construct(string $name){
+        $this->name = $name;
+    }
+}
 
+class Staff extends Person {
+    public function fire(){print("{$this->name}:I'm fired :(");}
+}
+
+class StaffFactory {
+    private static $types = ['Staff','EngineerStaff','SaleStaff'];
+    public static function recruit(string $name):Staff{
+        $className = __NAMESPACE__."\\".self::$types[rand(0,count(self::$types)-1)];
+        return new $className($name);
+    }
+}
+
+class Leader extends Person {
+    private $staffs = [];
+    public function createStaff(string $name){
+        $this->staffs[] = new Staff($name);
+    }
+    public function addStaff(Staff $staff){
+        $this->staffs[] = $staff;
+    }
+    public function goBankrupt(){
+        while(!empty($this->staffs)){
+            $staff = array_pop($this->staffs);
+            $staff->fire();
+        }
+    }
+}
+class EngineerStaff extends Staff {
+    public function fire(){print("{$this->name}, as a engineer, is fired :(");}
+}
+class SaleStaff extends Staff {
+    public function fire(){print("{$this->name}, as a salesperson, is fired :(");}
+}
+
+$leader = new Leader("Boss");
+$leader->addStaff(StaffFactory::recruit("Alice"));
+$leader->addStaff(StaffFactory::recruit("Bob"));
+$leader->addStaff(StaffFactory::recruit("Carol"));
+$leader->goBankrupt();
+	// Carol, as a salesperson, is fired :(
+	// Bob, as a salesperson, is fired :(
+	// Alice, as a salesperson, is fired :(
+```
+
+### §3.3.3 单例模式
+
+全局变量非常好用，但是破坏了封装性。有没有一种方法，能够避免命名冲突，同时保留全局变量的下列优点呢？
+
+- 该变量可以被任何类、任何方法、任何函数调用
+- 该变量有且仅有一个实例
+
+答案是：将所有功能压缩在一个类中。
+
+```php
+class Configuration {
+    private $properties = [];
+    private static $instance;
+    private function __construct(){
+
+    }
+    public static function getInstance(){
+        if(empty(self::$instance)){
+            self::$instance = new Configuration();
+        }
+        return self::$instance;
+    }
+    public function setProperty(string $key,string $value){
+        $this->properties[$key] = $value;
+    }
+    public function getProperty(string $key):string{
+        return $this->properties[$key];
+    }
+}
+
+$conf = Configuration::getInstance();
+$conf->setProperty("url","127.0.0.1");
+print $conf->getProperty("url");
+```
+
+### §3.3.4 抽象工厂模式
+
+在Java中，我们已经见识过`InputStream`的各种子类：`ByteArrayInputStream`、`FileInputStream`、`StringBufferInputStream`.......这些子类内部的同名方法肯定存在着茶杯。假如这些子类全都是单例模式，那么一个工厂显然是不够用的，因为同一个工厂产生的实例无法实现方法的多态。基于此，我们把这些`XXXInputFactory`看成是`InputStream`这个抽象类的子类。
+
+```mermaid
+classDiagram
+	direction LR
+	class InputStreamFactory{
+		<<abstract>>
+	}
+	class ByteArrayInputStreamFactory{
+
+	}
+	class FileInputStreamFactory{
+
+	}
+	class StringBufferInputStreamFactory{
+	}
+	InputStreamFactory--|>ByteArrayInputStreamFactory
+	InputStreamFactory--|>FileInputStreamFactory
+	InputStreamFactory--|>StringBufferInputStreamFactory
+```
+
+### §3.3.5 原型模式
+
+原型模式与单例模式相比，最大的区别是，返回的实例是一个克隆的对象：
+
+```php
+class Sea {}
+class WarmSea extends Sea {}
+class ColdSea extends Sea {}
+class Plain {}
+class WarmPlain extends Plain {}
+class ColdPlain extends Plain {}
+class Forest {}
+class WarmForest extends Forest {}
+class ColdForest extends Forest {}
+class MapFactory {
+    private $sea;
+    private $forest;
+    private $plain;
+    public function __construct(Sea $sea,Forest $forest,Plain $plain){
+        $this->sea = $sea;
+        $this->forest = $forest;
+        $this->plain = $plain;
+    }
+    public function getSea():Sea{
+        return clone $this->sea; // 克隆的对象
+    }
+    public function getPlain():Plain{
+        return clone $this->plain; // 克隆的对象
+    }
+    public function getForest():Forest{
+        return clone $this->forest; // 克隆的对象
+    }
+    public __clone(){
+        $this->sea = clone $this->sea;
+        $this->forset = clone $this->forest;
+        $this->plain = clone $this->plain;
+    }
+}
+$factory = new MapFactory(new Sea(),new WarmPlain(),new ColdForest());
 ```
 
