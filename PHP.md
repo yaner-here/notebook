@@ -1187,7 +1187,46 @@ classDiagram
 	ClassA--|>ClassC
 ```
 
-当一个类保存了另一个类的引用 
+当一个类保存了另一个类的引用时，这两个类就会产生**关联**关系，用实线小于号表示。远离小于号的一侧可以标注数字或`*`，表示关联的对象个数。
+
+```mermaid
+classDiagram
+	direction LR
+	class Student_A{
+		
+	}
+	class StudentList_A{
+		+list~Student_A~ $students
+	}
+	StudentList_A"1"-->"*"Student_A
+	class Student_B{
+		+StudentList_B inWhichList
+	}
+	class StudentList_B{
+		+list~Student_B~ $students
+	}
+	StudentList_B"1"<-->"5...10"Student_B
+```
+
+**组合**关系指的是一个类依附于另一个类的存在而存在，用实线实心菱形箭头表示。**聚合**关系指的是一个类可以同时依附于多个类的存在和存在，用实线空心箭头表示：
+
+```mermaid
+classDiagram
+	class Person{
+		-List~House~ $house
+		-PersonalHealth $healthStatement
+	}
+	class PersonalHealth{
+		人死了，对应的生命体征也会消失
+	}
+	class House{
+		人死了，但是房产不会消失
+	}
+	PersonalHealth --o Person
+	House --* Person
+```
+
+
 
 ### §3.3.2 工厂模式
 
@@ -1372,5 +1411,233 @@ class MapFactory {
     }
 }
 $factory = new MapFactory(new Sea(),new WarmPlain(),new ColdForest());
+```
+
+### §3.3.6 组合模式
+
+组合模式的核心思想是让所有类都为一个抽象类的子类。
+
+设想下面的战队模型：
+
+```mermaid
+classDiagram-v2
+    direction LR
+    class Solider{
+        <<abstract>>
+        +abstract int getAggressivity()
+        +abstract void attack()
+    }
+    class Archer{
+        -int $aggressivity
+        +int getAggressivity()
+        +void attack()
+    }
+    class Commando{
+        -int $aggressivity
+        +int getAggressivity()
+        +void attack()
+    }
+    class Guerrilla{
+        -int $aggressivity
+        +int getAggressivity()
+        +void attack()
+    }
+    Archer--|>Solider
+    Commando--|>Solider
+    Guerrilla--|>Solider
+    class Army{
+        -List~Solider~ $soliders
+        +void addSolider(Solider &solider)
+        +void addArmy(Army &army)
+        +int getAggressivity()
+        +void attack()
+    }
+    Solider-->Army
+    Army--|>Solider
+```
+
+从某种程度上说，客户端其实根本不关心传来的实例到底是什么，只关心它是否实现了`getAggressivity()`和`attack()`。因此，干脆直接把`Army`也看成一个`Solider`。
+
+这种模式有以下优点：
+
+1. 所有类共享同一个抽象类父类，因此添加新的类时，只需要实现抽象类父类的方法即可，对其它类没有任何影响。
+2. 客户端无需通过`instanceof`判断操作的示例属于哪个类，只需无脑调用抽象类提供的方法即可。（从这一点上来看，抽象类的作用包含了接口的作用）
+
+### §3.3.7 装饰器模式
+
+装饰器模式的关键在于，实例化一个对象时，将其作为某个修饰器类构造函数的参数。
+
+```mermaid
+classDiagram-v2
+    class Mesh{
+        <<abstract>>
+        +abstract int getReward()
+    }
+    class Plain{
+        +int getReward()
+    }
+    Plain-->Mesh
+    class MeshDecorator{
+        #Mesh $mesh
+        +__construct(Mesh &mesh)
+    }
+    MeshDecorator-->Mesh
+    class RichDecorator{
+        +int getReward()
+    }
+    RichDecorator-->MeshDecorator
+    class PoorDecorator{
+        +int getReward()
+    }
+    PoorDecorator-->MeshDecorator
+	MeshDecorator*--Plain
+```
+
+```php
+$plain = new Plain();
+$plain = new RichDecorator(new Plain());
+$plain = new PoorDecorator(new Plain());
+```
+
+### §3.3.8 外观模式
+
+我们知道，编写函数时应该遵循“一个函数只执行一种功能”的原则。但是这样的话写出来的函数就会特别多，需要同上到下依次调用一遍。为了简化这个流程，我们还需要编写一个函数。
+
+外观模式将这一流程封装成某个类中的某个方法。
+
+### §3.3.9 解释器模式
+
+PHP语言可以让我们编写自己的编程语言（即迷你语言）。例如很多人不知道正则表达式，我们想将其改写成大家一看就懂的语言。
+
+
+
+EBNF（Extended Backus Naur Form，扩展巴斯克范式）是一种用于描述语言语法的符号。
+
+| 数据类型   | EBNF名            | 类名                   | 示例                               |
+| ---------- | ----------------- | ---------------------- | ---------------------------------- |
+| 变量       | `variable`        | `VariableExpression`   | `$input`                           |
+| 字面字符串 | `<stringLiteral>` | `LiteralExpression`    | `"abc"`                            |
+| 布尔与     | `andExpr`         | `BooleanAndExpression` | `$a equals '1' and $b equals '2' ` |
+| 布尔或     | `orExpr`          | `BooleanOrExpression`  | `$a equals '1' or $a equals '2'`   |
+| 相等       | `eqExpr`          | `EqualExpression`      | `$input equals 1$`                 |
+
+
+
+
+
+
+
+```mermaid
+classDiagram
+	class InterpreterContext{
+	}
+	class Expression{
+	}
+	class LiteralExpression{
+	}
+	class VariableExpression{
+	}
+	class OperatorExpression{
+	}
+	class BooleanOrExpression{
+	}
+	class BooleanAndExpression{
+	}
+	class EqualsExpression{
+	}
+	LiteralExpression--|>Expression
+	VariableExpression--|>Expression
+	OperatorExpression--|>Expression
+	BooleanOrExpression--|>OperatorExpression
+	BooleanAndExpression--|>OperatorExpression
+	EqualsExpression--|>OperatorExpression
+	Expression..>InterpreterContext
+```
+
+```php
+abstract class Expression {
+    private static $keycount = 0;
+    private $key;
+    abstract public function interpret(InterpreterContext $context);
+    public function getKey(){
+        if(!isset($this->key)){
+            self::$keycount++;
+            $this->key = self::$keycount;
+        }
+        return $this->key;
+    }
+}
+class LiteralExpression extends Expression {
+    private $value;
+    public function __construct($value){
+        $this->value = $value;
+    }
+    public function interpret(InterpreterContext $context){
+        $context->replace($this,$this->value);
+    }
+}
+class InterpreterContext {
+    private $expressionStore = [];
+    public function replace(Expression $expression,$value){
+        $this->expressionStore[$expression->getKey()] = $value;
+    }
+    public function lookup(Expression $expression){
+        return $this->expressionStore[$expression->getKey()];
+    }
+}
+class VariableExpression extends Expression {
+    private $name;
+    private $val;
+    public function __construct($name,$val=null){
+        $this->name = $name;
+        $this->val = $val;
+    }
+    public function interpret(InterpreterContext $context){
+        if(!is_null($this->val)){
+            $context->replace($this,$this->val);
+            $this->val = null;
+        }
+    }
+    public function setValue($value){
+        $this->val = $value;
+    }
+    public function getKey(){
+        return $this->name;
+    }
+}
+
+abstract class OperatorExpression extends Expression {
+    protected $l_op;
+    protected $r_op;
+    public function __construct(Expression $l_op,Expression $r_op){
+        $this->l_op = $l_op;
+        $this->r_op = $r_op;
+    }
+    public function interpret(InterpreterContext $context){
+        $this->l_op->interpret($context);
+        $this->r_op->interpret($context);
+        $this->doInterpret(
+            $context,
+            $context->lookup($this->l_op),
+            $context->lookup($this->r_op)
+        );
+    }
+    abstract protected function doInterpret(InterpreterContext $context,$result_l,$result_r);
+}
+class EqualsExpression extends OperatorExpression {
+    protected function doInterpret(InterpreterContext $context,$result_l,$result_r){
+        $context->replace($this,$result_l==$result_r);
+    }
+}
+class BooleanOrExpression extends OperatorExpression {
+    protected function doInterpret(InterpreterContext $context,$result_l,$result_r){
+        $context->replace($this,$result_l||$result_r);
+    }
+}
+class BooleanAndExpression extends OperatorExpression {
+    protected function doInterpret(InterpreterContext $context,$result_l,$result_r){
+        $context->replace($this,$result_l&&$result_r);
+    }
+}
 ```
 
