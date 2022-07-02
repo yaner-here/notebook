@@ -1509,9 +1509,7 @@ $plain = new PoorDecorator(new Plain());
 
 PHP语言可以让我们编写自己的编程语言（即迷你语言）。例如很多人不知道正则表达式，我们想将其改写成大家一看就懂的语言。
 
-
-
-EBNF（Extended Backus Naur Form，扩展巴斯克范式）是一种用于描述语言语法的符号。
+EBNF（Extended Backus Naur Form，扩展巴斯克范式）是一种用于描述语言语法的符号：
 
 | 数据类型   | EBNF名            | 类名                   | 示例                               |
 | ---------- | ----------------- | ---------------------- | ---------------------------------- |
@@ -1521,29 +1519,48 @@ EBNF（Extended Backus Naur Form，扩展巴斯克范式）是一种用于描述
 | 布尔或     | `orExpr`          | `BooleanOrExpression`  | `$a equals '1' or $a equals '2'`   |
 | 相等       | `eqExpr`          | `EqualExpression`      | `$input equals 1$`                 |
 
-
-
-
-
-
-
 ```mermaid
 classDiagram
 	class InterpreterContext{
+		-List expressionStore
+		+replace(Expression $expression,$value)
+		+lookup(Expression $expression)
 	}
 	class Expression{
+		<<abstract>>
+		-static $keycount;
+		-$key
+		+abstract interpret(InterpreterContext $context)
+		+getKey()
 	}
 	class LiteralExpression{
+		-$value
+		+__construct($value)
+		+interpret(InterpreterContext $context)
 	}
 	class VariableExpression{
+		-$name
+		-$val
+		+__construct($name,$val=null)
+		+interpret(InterpreterContext $context)
+		+setValue($value)
+		+getKey()
 	}
 	class OperatorExpression{
+		#$l_op
+		#$r_op
+		+__construct(Expression $l_op,Expression $r_op)
+		+interpret(InterpreterContext $context)
+		+abstract doInterpret(InterpreterContext $context,$result_l,$result_r)
 	}
 	class BooleanOrExpression{
+		#doInterpret(InterpreterContext $context,$result_l,$result_r)
 	}
 	class BooleanAndExpression{
+		#doInterpret(InterpreterContext $context,$result_l,$result_r)
 	}
 	class EqualsExpression{
+		#doInterpret(InterpreterContext $context,$result_l,$result_r)
 	}
 	LiteralExpression--|>Expression
 	VariableExpression--|>Expression
@@ -1605,7 +1622,6 @@ class VariableExpression extends Expression {
         return $this->name;
     }
 }
-
 abstract class OperatorExpression extends Expression {
     protected $l_op;
     protected $r_op;
@@ -1640,4 +1656,272 @@ class BooleanAndExpression extends OperatorExpression {
     }
 }
 ```
+
+编写测试集：
+
+```php
+$context = new InterpreterContext();
+$input = new VariableExpression("input");
+$statement = new BooleanOrExpression(
+    new EqualsExpression($input,new LiteralExpression("four")),
+    new EqualsExpression($input,new LiteralExpression(4))
+); // 等价于$input=="four" || $input == 4
+foreach(["four","4"] as $value){
+    $input->setValue($value);
+    $statement->interpret($context);
+    if($context->lookup($statement)){
+        print("true");
+    }else{
+        print("false");
+    }
+}
+```
+
+### §3.3.10 策略模式
+
+设想以下情景：分别为试卷上的选择题、填空题、主观题新建一个类，并且让这三个类都是`Question`的子类。现在要增加需求，有些题目可能包含音频、视频，需要实现`play()`方法。一种朴素的思想是将这三个类按照是否包含多媒体而分裂成六个类。这种方案导致类的数量增加，并且引入了重复代码。
+
+策略模式的核心是将`play()`方法单独提取到`Player`类中，然后在抽象父类`Question`中保存`Player`的一个实例：
+
+```mermaid
+classDiagram-v2
+	direction BT
+    class Question{
+        <<abstract>>
+        +abstract show()
+    }
+    class MultipleChoiceQuestion{
+        +show()
+    }
+    class BlankFillingQuestion{
+        +show()
+    }
+    class SubjectiveQuestion{
+        +show()
+    }
+    class Player{
+        <<abstract>>
+        +abstract show()
+    }
+    class VideoPlayer{
+        +show()
+    }
+    class AudioPlayer{
+        +show()
+    }
+    MultipleChoiceQuestion --|> Question
+    BlankFillingQuestion --|> Question
+    SubjectiveQuestion --|> Question
+    VideoPlayer --|> Player
+    AudioPlayer --|> Player
+    Player --o Question
+```
+
+### §3.3.11 观察者模式
+
+设想下面的情景：我们编写了一个很简单的登录类`Login`：
+
+```php
+class Login {
+    const LOGIN_SUCCESS = 0;
+    const LOGIN_WRONG_PASSWORD = 1;
+    private $status = [];
+    private function setStatus(int $statusCode,string $username,string $ip){
+        $this->status = [$statusCode,$username,$ip];
+    }
+    public function getStatus():array{
+        return $this->status;
+    }
+    private function validate(string $username,string $password):int{
+        return rand(0,1);
+    }
+    public function handleLogin(string $username,string $password,string $ip):bool{
+        $isValid = false;
+        switch($this->validate($username,$password)){
+            case 0:
+                $this->setStatus(self::LOGIN_SUCCESS,$username,$ip);
+                $isValid = true;
+                break;
+            case 1:
+                this->setStatus(self::LOGIN_WRONG_PASSWORD,$username,$ip);
+                $isValid = false;
+                break;
+        }
+        return $isValid;
+    }
+}
+```
+
+随着项目的发展，我们需要与其它类进行交互。例如与办公软件的第三方SDK交互，当账户密码错误时就提醒用户有人尝试登录；与审计部门交互，将本次登录行为交给日志数据库......很快这个`Login`类就会与整个系统耦合起来。
+
+观察者模式的核心就是将其它组件从当前类中分离出来，构成一个观察者类。当登录类发生了某个事件时，观察者类负责捕获并调用其它方法：
+
+```php
+interface Observer {
+    public function update(Observable $observable);
+}
+interface Observable {
+    public function attach(Observer $observer);
+    public function detach(Observer $observer);
+    public function notify();
+}
+
+class Login implements Observable {
+    const LOGIN_SUCCESS = 0;
+    const LOGIN_WRONG_PASSWORD = 1;
+    private $observers = [];
+    private $status;
+    public function attach(Observer $observer){
+        $this->observers[] = $observer;
+    }
+    public function detach(Observer $observer){
+        $this->observers = array_filter(
+            $this->observers,
+            function ($i) use ($observer){
+                return !($i===$observer);
+            }
+        );
+    }
+    public function notify(){
+        foreach ($this->observers as $observer){
+            $observer->update($this);
+        }
+    }
+
+    private function setStatus(int $statusCode,string $username,string $ip){
+        $this->status = [$statusCode,$username,$ip];
+    }
+    public function getStatus():array{
+        return $this->status;
+    }
+    private function validate(string $username,string $password):int{
+        return rand(0,1);
+    }
+    public function handleLogin(string $username,string $password,string $ip):bool{
+        $isValid = false;
+        switch($this->validate($username,$password)){
+            case 0:
+                $this->setStatus(self::LOGIN_SUCCESS,$username,$ip);
+                $isValid = true;
+                break;
+            case 1:
+                $this->setStatus(self::LOGIN_WRONG_PASSWORD,$username,$ip);
+                $isValid = false;
+                break;
+        }
+        return $isValid;
+    }
+}
+class LoginAnalyse implements Observer {
+    public function update(Observable $observable){
+        $status = $observable->getStatus();
+        // ...
+    }
+}
+abstract class LoginObserver implements Observer {
+    private $login;
+    public function __construct(Login $login){
+        $this->login = $login;
+        $login->attach($this);
+    }
+    public function update(Observable $observable){
+        if($observable === $this->login){
+            $this->doUpdate($observable);
+        }
+    }
+    abstract public function doUpdate(Login $login);
+}
+class SecurityMonitor extends LoginObserver {
+    public function doUpdate(Login $login){
+        if($login->getStatus()[0] == Login::LOGIN_WRONG_PASSWORD){
+            print("有用户尝试登录该系统，且密码输入错误\n");
+        }
+    }
+}
+class GeneralLogger extends LoginObserver {
+    public function doUpdate(Login $login){
+        $status = $login->getStatus()[0];
+        printf("(%s,%s,%s)日志已记录\n",$status[0],$status[1],$status[2]);
+    }
+}
+
+$login = new Login();
+new SecurityMonitor($login);
+new GeneralLogger($login);
+```
+
+```mermaid
+classDiagram-v2
+    direction LR
+    class Observable{
+        <<interface>>
+        +attach(Observable $observable)
+        +detach(Observable $observable)
+        +notify()
+    }
+    class Login{
+        +attach(Observable $observable)
+        +detach(Observable $observable)
+        +notify()
+        +getStatus()
+    }
+    class Observer{
+        <<interface>>
+        +update(Observable $observable)
+    }
+    class LoginObserver{
+        +Login $login
+        +update(Observable $observable)
+        +doUpdate(Login $login)
+        +__construct(Login $login)
+    }
+    class SecurityMonitor{
+        +doUpdate(Login $login)
+    }
+    class GeneralLogger{
+        +doUpdate(Login $login)
+    }
+    Login ..|>Observable
+    Login --* LoginObserver
+    Observer --o Observable
+    LoginObserver ..|> Observer
+    SecurityMonitor ..|> LoginObserver
+    GeneralLogger ..|> LoginObserver
+```
+
+事实上，PHP标准库（Standard PHP Library，SPL）原生支持观察者模式，提供了`SplObserver`、`SqlSubject`接口用于提供观察者模式所需的接口，以及和`SplObjectStorage`类实现了`Countable`、` Iterator`、`Serializable`、`ArrayAccess`接口，负责提供一个从`object`映射到`mixed`的Map：
+
+```php
+/* SPL_c1.php */
+interface SplObserver{
+    public function update(SplSubject $subject): void;
+}
+interface SplSubject{
+    public function attach(SplObserver $observer): void;
+    public function detach(SplObserver $observer): void;
+    public function notify(): void;
+}
+```
+
+| `SqlObjectStorage`类方法                | 作用                                                         |
+| --------------------------------------- | ------------------------------------------------------------ |
+| `addAll(SplObjectStorage):int`          | 将另一个`SplObjectStorage`实例中的所有`object`-`mixed`键值对添加到当前实例中 |
+| `attach(object,mixed=null):void`        |                                                              |
+| `contains(object):bool`                 |                                                              |
+| `count(int=COUNT_NORMAL):int`           |                                                              |
+| `detach(object):void`                   |                                                              |
+| `getHash(object):void`                  |                                                              |
+| `getInfo():mixed`                       |                                                              |
+| `key():int`                             |                                                              |
+| `next():void`                           |                                                              |
+| `offsetExists(object):bool`             |                                                              |
+| `offsetGet(object):mixed`               |                                                              |
+| `offsetSet(object,mixed=null):void`     |                                                              |
+| `offsetUnset(object):void`              |                                                              |
+| `removeAll(SplObjectStorage):int`       |                                                              |
+| `removeAllExcpet(SqlObjectStorage):int` |                                                              |
+| `rewind():void`                         |                                                              |
+| `serialize(mixed):string`               |                                                              |
+| `unserializable(string):void`           |                                                              |
+| `valid():bool`                          |                                                              |
 
