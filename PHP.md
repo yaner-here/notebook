@@ -1906,22 +1906,497 @@ interface SplSubject{
 | `SqlObjectStorage`类方法                | 作用                                                         |
 | --------------------------------------- | ------------------------------------------------------------ |
 | `addAll(SplObjectStorage):int`          | 将另一个`SplObjectStorage`实例中的所有`object`-`mixed`键值对添加到当前实例中 |
-| `attach(object,mixed=null):void`        |                                                              |
-| `contains(object):bool`                 |                                                              |
-| `count(int=COUNT_NORMAL):int`           |                                                              |
-| `detach(object):void`                   |                                                              |
-| `getHash(object):void`                  |                                                              |
-| `getInfo():mixed`                       |                                                              |
-| `key():int`                             |                                                              |
-| `next():void`                           |                                                              |
-| `offsetExists(object):bool`             |                                                              |
-| `offsetGet(object):mixed`               |                                                              |
-| `offsetSet(object,mixed=null):void`     |                                                              |
-| `offsetUnset(object):void`              |                                                              |
-| `removeAll(SplObjectStorage):int`       |                                                              |
-| `removeAllExcpet(SqlObjectStorage):int` |                                                              |
-| `rewind():void`                         |                                                              |
-| `serialize(mixed):string`               |                                                              |
-| `unserializable(string):void`           |                                                              |
-| `valid():bool`                          |                                                              |
+| `attach(object,mixed=null):void`        | 将`object`添加到当前实例中                                   |
+| `contains(object):bool`                 | 检查该实例是否包含指定的`object`，完全等价于`SqlObjectStorage::offsetExists()` |
+| `count(int=COUNT_NORMAL):int`           | 返回该实例保存的`object`总数                                 |
+| `detach(object):void`                   | 删除该实例中指定的`object`，完全等价于`SqlObjectStorage::offsetUnset()` |
+| `getHash(object):void`                  | 指定该实例中保存的一个`object`，返回它的哈希值               |
+| `getInfo():mixed`                       | 根据迭代器当前的位置，返回相应的`object`-`mixed`键值对的值   |
+| `key():int`                             | 返回当前迭代器的位置                                         |
+| `next():void`                           | 将迭代器移至下一个位置                                       |
+| `offsetExists(object):bool`             | 检查该实例是否包含指定的`object`，完全等价于`SqlObjectStorage::contains()` |
+| `offsetGet(object):mixed`               | 根据`object`查找该实例保存的`object`-`mixed`键值对，返回该键值对的值 |
+| `offsetSet(object,mixed=null):void`     | 根据`object`查找或创建该实例保存的`object`-`mixed`键值对，以`mixed`为新值 |
+| `offsetUnset(object):void`              | 删除该实例中指定的`object`，完全等价于`SqlObjectStorage::detach()` |
+| `removeAll(SplObjectStorage):int`       | 根据另一个`SplObjectStorage`实例中的键值对，删除该实例中包含的键值对 |
+| `removeAllExcpet(SqlObjectStorage):int` | 根据另一个`SplObjectStorage`实例中的键值对，删除该实例中不包含的键值对 |
+| `rewind():void`                         | 重置迭代器到第一个位置                                       |
+| `serialize(mixed):string`               | 将该实例序列化成字符串                                       |
+| `unserializable(string):void`           | 将字符串反序列化成该实例                                     |
+| `valid():bool`                          | 检查当前实例的迭代器实例是否不为空                           |
 
+### §3.3.12 访问者模式
+
+访问者模式的核心是：将访问者请进自己类内部，在类内部调用访问者的`visit()`方法：
+
+```mermaid
+classDiagram-v2
+	direction TB
+    class Element{
+        <<abstract>>
+        +accpet(Visitor $visitor)
+        +do()
+    }
+    class ConcreteElement1{
+        +accept(Visitor $visitor)
+        +do()
+    }
+    class ConcreteElement2{
+        +accept(Visitor $visitor)
+        +do()
+    }
+    ConcreteElement1--|>Element
+    ConcreteElement2--|>Element
+    class Visitor{
+        <<interface>>
+        +visit(Element $element)
+    }
+    class ConcreteVisitor{
+        +visit(ConcreteElement1 $element)
+        +visit(ConcreteElement2 $element)
+    }
+    ConcreteVisitor-->Visitor
+```
+
+```php
+abstract class Element{
+    public function accept(Visitor $visitor){
+        $visitor->visit($this);
+    }
+    public abstract function do();
+}
+class ConcreteElement1 extends Element {
+    public function do(){
+        print("ConcreteElement1工作中");
+    }
+}
+class ConcreteElement2 extends Element {
+    public function do(){
+        print("ConcreteElement2工作中");
+    }
+}
+interface Visitor{
+    public function visit(Element $element);
+}
+class ConcreteVisitor implements Visitor {
+    public function visit(Element $element){
+        $element->do();
+    }
+}
+
+$elements = [
+    new ConcreteElement1(),
+    new ConcreteElement2()
+];
+foreach($elements as $element){
+    $element->accept(new ConcreteVisitor());
+}
+```
+
+### §3.3.13 命令模式
+
+命令模式的核心在于：命令类必须实现命令接口中的`execute()`方法：
+
+```mermaid
+classDiagram-v2
+	direction LR
+    class CommandContext{
+        -List~string~ $params
+        -string $error
+        +void __construct()
+        +void addParam(string $key,string $val)
+        +void setError(string $error)
+        +string getError()
+    }
+    class Command{
+        <<abstract>>
+        +abstract execute(CommandContext $context)
+    }
+    class LoginCommand{
+        +execute(CommandContext $context)
+    }
+    class CommandFactory{
+        +Command getCommand(string $command)
+    }
+    LoginCommand --|> Command
+    Command --o CommandContext
+    CommandFactory --* LoginCommand
+```
+
+```php
+class CommandContext {
+    private $params = [];
+    private $error = "";
+    public function __construct(){
+        $this->params = $_REQUEST;
+    }
+    public function addParam(string $key,string $val){
+        $this->params[$key] = $val;
+    }
+    public function get(string $key):?string{
+        if(isset($this->params[$key])){
+            return $this->params[$key];
+        }else{
+            return null;
+        }
+    }
+    public function setError(string $error):void{
+        $this->error = $error;
+    }
+    public function getError():string{
+        return $this->error;
+    }
+}
+abstract class Command {
+    abstract public function execute(CommandContext $context):bool;
+}
+class LoginCommand extends Command {
+    public function execute(CommandContext $context): bool{
+        $username = $context->get("username");
+        $password = $context->get("password");
+        if($username == "admin" && $password == "admin"){
+            $context->addParam("status","success");
+            return true;
+        }else{
+            $context->setError("Wrong password");
+            return false;
+        }
+    }
+}
+class CommandFactory {
+    private static $dir = "commands";
+    public static function getCommand(string $action):Command{
+        if(preg_match('/\w/',$action)){
+            throw new Exception("Illegal Characters in Action");
+        }
+        $classPath = __NAMESPACE__."\\".$action;
+        if(!class_exists($classPath)){
+            throw new Exception("Command not found");
+        }
+        return new $classPath();
+    }
+}
+```
+
+### §3.3.14 空对象模式
+
+空对象模式指的是：如果目标对象不存在，那么不返回`null`空值，而是返回一个专门用于表示“空值”概念的实例：
+
+```php
+abstract class Mesh {
+    protected $x;
+    protected $y;
+    public function __construct(int $x,int $y){
+        $this->x = $x;
+        $this->y = $y;
+    }
+    abstract public function getTemperature():int;
+    abstract public function getHeight():int;
+}
+class PlainMesh extends Mesh {
+    public function getTemperature():int{
+        return ($this->x + $this->y) % 10 + 20;
+    }
+    public function getHeight():int{
+        return ($this->x - $this->y) % 10 * 500 + 100;
+    }
+}
+class NullMesh extends Mesh {
+    private function printError(){
+        print("坐标超出地图范围！");
+    }
+    public function getTemperature():int{$this->printError();return -1;}
+    public function getHeight():int{$this->printError();return -1;}
+}
+class MeshFactory {
+    private $xMin,$xMax,$yMin,$yMax;
+    public function __construct(int $xMin,int $xMax,int $yMin,int $yMax){
+        $this->xMin = $xMin;
+        $this->xMax = $xMax;
+        $this->yMin = $yMin;
+        $this->yMax = $yMax;
+    }
+    public function getMesh(int $x,int $y):Mesh{
+        if($x>=$this->xMin && $x<=$this->xMax && $y>=$this->yMin && $y<=$this->yMax){
+            return new PlainMesh($x,$y);
+        }else{
+            return new NullMesh($x,$y);
+        }
+    }
+}
+
+$meshes = [];
+$meshFactory = new MeshFactory(0,100,0,100);
+for($i = 0 ; $i < 120 ; $i = $i + 10){
+    $meshes[] = $meshFactory->getMesh($i,$i);
+}
+foreach ($meshes as $mesh){
+    print($mesh->getHeight()."\n");
+}
+```
+
+# §4 企业级系统架构
+
+企业级Web系统的分层模型大致可以表示如下：
+
+```mermaid
+graph LR
+	ViewFrame["视图层"]
+	CommandControlFrame["命令控制层"]
+	VocationalProcessFrame["业务逻辑层"]
+	DataFrame["数据层"]
+	ViewFrame--"生成请求"-->CommandControlFrame
+	CommandControlFrame--"处理请求并选择合适的视图"-->ViewFrame
+	CommandControlFrame--"处理业务问题"-->VocationalProcessFrame
+	VocationalProcessFrame--"返回结果"-->CommandControlFrame
+	VocationalProcessFrame--"写入数据"-->DataFrame
+	DataFrame--"读取数据"-->VocationalProcessFrame
+```
+
+## §4.1 注册表
+
+注册表是一种系统级的全局变量。我们之前介绍过单例模式，它将应用级的全局变量放到一个单例类内。然而这种方式会诱导开发者在每个新增类都使用单例类，从而增强系统的耦合性。
+
+回想一下注册表，它其实就是**一组**位于`C:\Windows\System32\config`目录下的文件。注意不是一个，而是一组。受此启发，我们对单例模式进一步改进：将单例命为抽象类，在此基础上延伸出各组件的“单例类”：
+
+```mermaid
+classDiagram
+	class Registry{
+		<<abstract>>
+		-static $instance
+		-$values
+		+Registry instance()
+		+get(strinig $key)
+		+set(string $key,string $value)
+	}
+	Registry"<<creates>>"..>Registry
+```
+
+```php
+abstract class Registry {
+    private static $instance = null;
+    private $values = [];
+    private function __construct(){}
+    public static function instance():Registry{
+        if(is_null(self::$instance)){
+            self::$instance = new self();
+        }
+        return self::instance();
+    }
+    public function get(string $key){
+         return $this->values[$key] ?? null; // PHP7.0的合并运算符,完全等价于上列语句
+    }
+    public function set(string $key,$value){
+        $this->values[$key] = $value;
+    }
+}
+```
+
+## §4.2 表示层
+
+### §4.2.1 前端控制器
+
+传统PHP页面的思路是：URL的层级与服务器文件层级相对应，一个WebApp存在多个入口，文件内部的超链接组成整个站点的拓扑结构。
+
+前端控制器的思路是：为所有请求定义一个访问中心点，命令控制层的路由配置文件组成整个站点的拓扑结构。
+
+```php
+class Controller{
+    private function __construct(){
+        // 获取注册表实例
+    }
+    public static function run(){
+        $instance = new Controller();
+        $instance->init();
+        $instance->handleRequest();
+    }
+    private function init(){
+        // 在注册表中获取ApplicationHelper实例，并调用其init()方法
+    }
+    private function handleRequest(){
+        // 获取注册表中的$request
+        // 根据$request解析得到Command实例
+        // 调用Command实例的execute($request)方法
+    }
+}
+
+class ApplicationHelper {
+    private $config = __DIR__."/data/woo_options.ini";
+    public function __construct(){
+        // 获取注册表实例
+    }
+    private function init(){
+        $this->setupOptions();
+        if(isset($_SERVER['REQUEST_METHOD'])){
+            $request = new HttpRequest();
+        }else{
+            $request = new CliRequest();
+        }
+        // 绑定$request到注册表中
+    }
+    private function setupOptions(){
+        if(!file_exists($this->config)){
+            throw new Exception("Couldn't find options file");
+        }
+        $options = parse_ini_file($this->config,true);
+        // 添加到注册表中
+    }
+}
+abstract class Command {
+    final public function __construct(){}
+    public function execute(Request $request){
+        $this->doExecute($request);
+    }
+    abstract public function doExecute(Request $request);
+}
+class CommandResolver {
+    private static $reflectCommand = null;
+    public function __construct(){
+        self::$referenceCommand = new ReflectionClass(Command::class);
+    }
+    public function getCommand(Request $request):Command{
+        // 从注册表中获取类路径
+        // $class = ...
+        if(is_null($class)){
+            $request->addFeedback("Path Not Found");
+        }
+        if(!class_exists($class)){
+            $request->addFeedback("Class Not Found");
+        }
+        return new $class();
+    }
+}
+```
+
+### §4.2.2 应用控制器
+
+### §4.2.3 页面控制器
+
+？？？？？？？？？？？？？？？TODO：
+
+## §4.3 业务逻辑层
+
+## §4.4 数据库
+
+
+
+
+
+# §5 PSR
+
+PHP标准规范（PHP Standard Recommandatons，PSR）是由多位PHP框架开发人员组成的民间组织PHP-Fig（PHP Framework Interop Group，PHP互操作性框架制定小组）指定的编码标准。
+
+
+
+| PSR编号 | 英文标题                    | 中文标题         |
+| :-----: | --------------------------- | ---------------- |
+|  PSR-0  | Autoloading Standard        |                  |
+|  PSR-1  | Basic Coding Standard       | 基础编码规范     |
+|  PSR-2  | Coding Style Guide          | 编码风格孤帆     |
+|  PSR-3  | Logger Interface            | 日志接口规范     |
+|  PSR-4  | Autoloading Standard        | 自动加载规范     |
+|  PSR-5  | PHPDoc Standard             | PHP文档规范      |
+|  PSR-6  | Caching Interface           | 缓存接口规范     |
+|  PSR-7  | HTTP Message Interface      | HTTP消息接口规范 |
+|  PSR-8  | Huggable Interface          |                  |
+|  PSR-9  | Security Advisories         |                  |
+| PSR-10  | Security Reporting Process  |                  |
+| PSR-11  | Container Interface         |                  |
+| PSR-12  | Extended Coding Style Guide |                  |
+| PSR-13  | Hypermedia Links            |                  |
+| PSR-14  | Event Dispatcher            |                  |
+| PSR-15  | HTTP Handlers               |                  |
+| PSR-16  | Simple Cache                |                  |
+| PSR-17  | Http Factories              |                  |
+| PSR-18  | Http Client                 |                  |
+| PSR-19  | PHPDoc Tags                 |                  |
+| PSR-20  | Clock                       |                  |
+| PSR-21  | Internationalization        |                  |
+| PSR-22  | Application Tracing         |                  |
+
+## §5.1 PSR-1
+
+1. 开闭标签
+
+   PHP代码必须以`<?php`或`<?=`开头，可以不设结束标志`?>`。
+
+2. 文件功能
+
+   PHP文件要么用于声明类、接口和函数，要么执行逻辑操作，禁止同时用于两种情景。这意味着我们不能用`require_once()`来包含其他文件。
+
+3. 命名
+
+   类名需要遵循大驼峰命名法，方法名需要遵循驼峰命名法，属性名没有强制要求，但是必须保持一致，类常量必须全部大写，单词之间用`_`分开。
+
+## §5.2 PSR-2
+
+1. 开闭标签
+
+   在PSR-1的基础上，PSR-2规定纯PHP文件严禁以`?>`结尾。
+
+   `namespace`与`use`声明语句块之后应该紧跟一行空白行。
+
+2. 类的开始与结束
+
+   `class`关键字、类名、`extends`关键字、`implements`关键字必须在同一行中，除非一个类实现了多个接口，每个接口名可以独占一行。
+
+   类的定义部分的`{}`必须各占一行。
+
+   ```php
+   class CustomizeGame extends Game implements Executeable,Savable
+   {
+       // 类体
+   }
+   class CustomizeGame extends Game implements
+       Executeable,
+   	Savable
+   {
+       // 类体
+   }
+   ```
+
+3. 属性声明
+
+   每个属性必须显示注明访问修饰符，不允许使用`var`(自PHP 5开始，等价于`public`)。
+
+4. 方法声明
+
+   所有方法必须显示注明访问修饰符，且必须放在`abstract`和`final`之后，必须放在`static`之前：
+
+   ```php
+   abstract public static func()
+   {
+   
+   }
+   ```
+
+   如果方法的形参过多，可以考虑将每个参数放在单独的缩进的一行中，此时允许昨花括号`{`与右小括号`)`在同一行上，但是两者之间必须隔着一个空格：
+
+   ```php
+   public function __construct(
+   	int $a,
+   	string $b,
+   	bool $c = false
+   ) {
+   
+   }
+   ```
+
+5. 行与缩进
+
+   代码应该使用4个空格来缩进，而不是用制表符`\t`，每行代码不应超过120个字符。
+
+6. 调用方法与函数
+
+   每个参数之后紧跟一个逗号，逗号应该有一个空格。
+
+   ```
+   $obj = new A(
+   	1,
+   	"abc",
+   	true
+   );
+   $obj = new A(1, "abc", true);
+   ```
+   
+7. 流程控制
