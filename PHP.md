@@ -2292,7 +2292,7 @@ PHP标准规范（PHP Standard Recommandatons，PSR）是由多位PHP框架开�
 | :-----: | --------------------------- | ---------------- |
 |  PSR-0  | Autoloading Standard        |                  |
 |  PSR-1  | Basic Coding Standard       | 基础编码规范     |
-|  PSR-2  | Coding Style Guide          | 编码风格孤帆     |
+|  PSR-2  | Coding Style Guide          | 编码风格规范     |
 |  PSR-3  | Logger Interface            | 日志接口规范     |
 |  PSR-4  | Autoloading Standard        | 自动加载规范     |
 |  PSR-5  | PHPDoc Standard             | PHP文档规范      |
@@ -2314,7 +2314,7 @@ PHP标准规范（PHP Standard Recommandatons，PSR）是由多位PHP框架开�
 | PSR-21  | Internationalization        |                  |
 | PSR-22  | Application Tracing         |                  |
 
-## §5.1 PSR-1
+## §5.1 PSR-1 基础编码规范
 
 1. 开闭标签
 
@@ -2328,7 +2328,7 @@ PHP标准规范（PHP Standard Recommandatons，PSR）是由多位PHP框架开�
 
    类名需要遵循大驼峰命名法，方法名需要遵循驼峰命名法，属性名没有强制要求，但是必须保持一致，类常量必须全部大写，单词之间用`_`分开。
 
-## §5.2 PSR-2
+## §5.2 PSR-2 编码风格规范
 
 1. 开闭标签
 
@@ -2398,5 +2398,418 @@ PHP标准规范（PHP Standard Recommandatons，PSR）是由多位PHP框架开�
    );
    $obj = new A(1, "abc", true);
    ```
-   
+
 7. 流程控制
+
+   流程控制关键字（`if`、`for`、`while`）后面紧跟一个空格，然后再使用括号：
+
+   ```php
+   for ($i = 0; $i < 10; $i++){
+       print($i);
+   }
+   ```
+
+## §5.3 PSR-4 自动加载规范
+
+我们之前介绍过`spl_autoload_register()`函数允许PHP在当前PHP上下文找不到指定的类时，从根目录开始遍历文件系统。可想而知这种机制很容易导致架构混乱。PSR-4对自动加载机制作出了一系列规范。
+
+假设组件供应商使用的命名空间为`Rainbow`，编写`composer.json`用于映射，将`Rainbow\library`中的所有库映射到文件系统的`./mylib`：
+
+```json
+{
+    "autoload":{
+        "psr-4":{
+            "Rainbow\\library\\":"mylib"
+        }
+    }
+}
+```
+
+接下来就可以在文件系统的工作目录下创建`mylib`文件夹：
+
+```php
+/* mylib/Greeter.php */
+class Greeter
+{
+    public static function greet(string $name=null)
+    {
+        print("Hello,".$name);
+    }
+}
+```
+
+命名空间与文件系统甚至可以是一对多的关系：
+
+```json
+{
+    "autoload":{
+        "psr-4":{
+            "Rainbow\\library\\":["mylib","anotherlib"]
+        }
+    }
+}
+```
+
+使用Composer生成自动加载文件，并放在`./vendor/autoload.php`中，现在PHP程序就可以调用这些类了：
+
+```php
+/* index.php */
+require_once("vendor/autoload.php");
+use Rainbow\mylib\Greeter;
+Greeter::greet();
+```
+
+## §5.4 PHP CodeSniffer
+
+[PHP CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer)是一款用于检测PHP源代码是否符合PSR标准的开源工具。它有两个Release：`phpcs.phar`用于检查代码并输出报告，`phpcbf.phar`用于修改代码。
+
+例如我们先编写一段不符合PSR-2标准的代码：
+
+```php
+/* demo.php */
+<?php
+class demo{ // 类名全小写，没有空格
+	function __construct(int $a,int $b){ // 参数分隔时没有空格，花括号没有另起一行
+		print("Hello");
+	}
+}
+```
+
+```shell
+C:\> php.exe .\phpcs.phar --standard=PSR2 .\demo.php
+
+FILE: C:\demo.php
+----------------------------------------------------------------------
+FOUND 12 ERRORS AFFECTING 6 LINES
+----------------------------------------------------------------------
+ 1 | ERROR | [x] End of line character is invalid; expected "\n" but
+   |       |     found "\r\n"
+ 2 | ERROR | [ ] Each class must be in a namespace of at least one
+   |       |     level (a top-level vendor name)
+ 2 | ERROR | [ ] Class name "demo" is not in PascalCase format
+ 2 | ERROR | [x] Opening brace of a class must be on the line after
+   |       |     the definition
+ 3 | ERROR | [x] Spaces must be used to indent lines; tabs are not
+   |       |     allowed
+ 3 | ERROR | [ ] Visibility must be declared on method "__construct"
+ 3 | ERROR | [x] Expected 1 space between comma and type hint "int";
+   |       |     0 found
+ 3 | ERROR | [x] Opening brace should be on a new line
+ 3 | ERROR | [x] Opening brace must be the last content on the line
+ 4 | ERROR | [x] Spaces must be used to indent lines; tabs are not
+   |       |     allowed
+ 5 | ERROR | [x] Spaces must be used to indent lines; tabs are not
+   |       |     allowed
+ 6 | ERROR | [x] Expected 1 newline at end of file; 0 found
+----------------------------------------------------------------------
+PHPCBF CAN FIX THE 9 MARKED SNIFF VIOLATIONS AUTOMATICALLY
+----------------------------------------------------------------------
+
+Time: 61ms; Memory: 6MB
+```
+
+接着我们尝试修正该文件：
+
+```shell
+C:\> php.exe .\phpcbf.phar --standard=PSR2 .\demo.php
+
+PHPCBF RESULT SUMMARY
+----------------------------------------------------------------------
+FILE                                                  FIXED  REMAINING
+----------------------------------------------------------------------
+C:\demo.php                                           9      3
+----------------------------------------------------------------------
+A TOTAL OF 9 ERRORS WERE FIXED IN 1 FILE
+----------------------------------------------------------------------
+
+Time: 72ms; Memory: 6MB
+```
+
+重新打开该文件：
+
+```php
+class demo
+{
+    function __construct(int $a, int $b)
+    {
+        print("Hello");
+    }
+}
+```
+
+# §6 Composer
+
+> 再 放 送：
+>
+> “学PHP不用Composer，就像学Python不用`pip`，学Java没接触过`Maven`，学Linux不用`apt`/`pkg`，学Node JavaScript不学`npm`，说明这个人理解不了包管理器的强大之处，整个人的层次就卡在这儿了，只能度过一个相对失败的人生。”
+
+Composer是PHP平台上的依赖管理器。之所以不能说它是包管理器，是因为它在本地的工作目录内部管理组建关系，而不是像`apt`那样集中管理组件关系。Composer会将包下载到工作目录的`./vendor`目录下，然后通过自动加载机制加载到项目中。
+
+Composer的本体是``composer.phar`，与此同时官方还提供了全自动安装的PHP脚本。该脚本负责检查`php.ini`的正确性，然后下载`composer.phar`到当前目录：
+
+```sh
+cd /workspace
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+php -r "if (hash_file('sha384', 'composer-setup.php') === '55ce33d7678c5a611085589f1f3ddf8b3c52d662cd01d4ba75c0ee0459970c2200a51f492d557530c71c15d8dba01eae') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+php composer-setup.php
+php -r "unlink('composer-setup.php');"
+```
+
+在装有PHP的Linux环境中，也可以将`composer.phar`移动到`/usr/local/bin/`目录中，使之成为全局命令：
+
+```shell
+root:~$ sudo mv composer.phar /usr/local/bin/composer
+root:~$ composer
+   ______
+  / ____/___  ____ ___  ____  ____  ________  _____
+ / /   / __ \/ __ `__ \/ __ \/ __ \/ ___/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ (__  )  __/ /
+\____/\____/_/ /_/ /_/ .___/\____/____/\___/_/
+                    /_/
+Composer version 2.3.8 2022-07-01 12:10:47
+
+Usage:
+  command [options] [arguments]
+
+Options:
+  -h, --help                     Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                    Do not output any message
+  -V, --version                  Display this application version
+      --ansi|--no-ansi           Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction           Do not ask any interactive question
+      --profile                  Display timing and memory usage information
+      --no-plugins               Whether to disable plugins.
+      --no-scripts               Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR  If specified, use the given directory as working directory.
+      --no-cache                 Prevent use of the cache
+  -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Available commands:
+  about                Shows a short information about Composer.
+  archive              Creates an archive of this composer package.
+  browse               [home] Opens the package's repository URL or homepage in your browser.
+  check-platform-reqs  Check that platform requirements are satisfied.
+  clear-cache          [clearcache|cc] Clears composer's internal package cache.
+  completion           Dump the shell completion script
+  config               Sets config options.
+  create-project       Creates new project from a package into given directory.
+  depends              [why] Shows which packages cause the given package to be installed.
+  diagnose             Diagnoses the system to identify common errors.
+  dump-autoload        [dumpautoload] Dumps the autoloader.
+  exec                 Executes a vendored binary/script.
+  fund                 Discover how to help fund the maintenance of your dependencies.
+  global               Allows running commands in the global composer dir ($COMPOSER_HOME).
+  help                 Display help for a command
+  init                 Creates a basic composer.json file in current directory.
+  install              [i] Installs the project dependencies from the composer.lock file if present, or falls back on the composer.json.
+  licenses             Shows information about licenses of dependencies.
+  list                 List commands
+  outdated             Shows a list of installed packages that have updates available, including their latest version.
+  prohibits            [why-not] Shows which packages prevent the given package from being installed.
+  reinstall            Uninstalls and reinstalls the given package names
+  remove               Removes a package from the require or require-dev.
+  require              Adds required packages to your composer.json and installs them.
+  run-script           [run] Runs the scripts defined in composer.json.
+  search               Searches for packages.
+  self-update          [selfupdate] Updates composer.phar to the latest version.
+  show                 [info] Shows information about packages.
+  status               Shows a list of locally modified packages.
+  suggests             Shows package suggestions.
+  update               [u|upgrade] Updates your dependencies to the latest version according to composer.json, and updates the composer.lock file.
+  validate             Validates a composer.json and composer.lock.
+```
+
+PHPStorm的菜单栏→工具→Composer自带集成，可以方便地进行配置。
+
+> JetBrains，我真的好喜欢你啊:heart_eyes:，你是我爹，爹你带我走吧爹:sob:
+>
+> 反转了，靠嫩娘，PHPStorm在Windows平台疑似是直接在终端调用`php.exe`，这一点可以从[有人把`php.ini`放在`C:\Windows`就正常](https://stackoverflow.com/questions/52594477/composer-not-working-on-windows-gives-composer-exception-nosslexception-error#comment110076298_61361052)可以得出。这要求用户必须配置全局变量。然而我用的是XAMPP和PHPStudy啊，配个锤子的全局变量:sweat_smile:
+>
+> ```shell
+> install --no-interaction --no-ansi
+>  
+> In Factory.php line 644:
+>    The openssl extension is required for SSL/TLS protection but is not available. If you can not enable the openssl extension, you can disable this error, at your own risk, by setting the 'disable-tls' option to true.
+>    
+>  install [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-suggest] [--no-dev] [--no-autoloader] [--no-progress] [--no-install] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<packages>...]
+>  
+>  Failed to install packages for  ./composer.json.
+> ```
+>
+> 反转了，[StackOverflow的另一个回答](https://stackoverflow.com/a/40690510/16366622)说，需要在`~/.composer/config.json`中添加下列配置：
+>
+> ```json
+> {
+>     "config": {
+>         "disable-tls": true,
+>         "secure-http": false
+>     }
+> }
+> ```
+>
+> 但是毕竟我们用的是PHPStorm配的`composer.phar`，在Windows的用户目录下找不到这个貌似是全局配置文件`config.json`，但是我惊奇的发现把它添加到项目中的`composer.json`也可以起到同样的效果：
+>
+> ```json
+> {
+>   "name": "vendor_name/php",
+>   "description": "description",
+>   "minimum-stability": "stable",
+>   "disable-tls": "true",
+>   "license": "proprietary",
+>   "authors": [
+>     {
+>       "name": "...",
+>       "email": "..."
+>     }
+>   ],
+>   "require": {
+>   },
+>   "config": {			// 在这个地方添加配置
+>     "disable-tls": true,
+>     "secure-http": false
+>   }
+> }
+> ```
+>
+> 这时Composer只会弹出警告，而不会终止运行了：
+>
+> ```shell
+>  install --no-interaction --no-ansi
+>  You are running Composer with SSL/TLS protection disabled.
+>  Composer is operating significantly slower than normal because you do not have the PHP curl extension enabled.
+>  No composer.lock file present. Updating dependencies to latest instead of installing from lock file. See https://getcomposer.org/install for more information.
+>  Loading composer repositories with package information
+>  Updating dependencies
+>  Nothing to modify in lock file
+>  Writing lock file
+>  Installing dependencies from lock file (including require-dev)
+>  Nothing to install, update or remove
+>  Generating autoload files
+>  All packages for ./composer.json have been installed.
+>        
+>  Composer 软件包已被更改. PHPUnit 配置已根据 composer.json 更新
+>        
+>  Composer 软件包已更改，因此更新了 PHP include 路径。
+>        
+>  Composer 软件包已更改，因此更新了排除的文件夹。
+> ```
+>
+> StackOverflow，我喜欢的原来是你啊:heart_eyes:，你是我爹，爹你带我走吧爹:sob:
+
+## §6.1 安装包
+
+这里我们以推特的`abraham/twitter`库为例：
+
+首先在工作目录初始化：
+
+```shell
+yaner@DESKTOP-UVBN0SD:~/test$ composer init
+
+                                            
+  Welcome to the Composer config generator  
+                                            
+
+
+This command will guide you through creating your composer.json config.
+
+Package name (<vendor>/<name>) [yaner/test]: yaner/TwitterCLI
+The package name yaner/TwitterCLI is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+
+Package name (<vendor>/<name>) [yaner/test]: yaner/twittercli
+Description []: 
+Author [n to skip]: n
+Minimum Stability []: 
+Package Type (e.g. library, project, metapackage, composer-plugin) []: library
+License []: 
+
+Define your dependencies.
+
+Would you like to define your dependencies (require) interactively [yes]? 
+Search for a package: 
+Would you like to define your dev dependencies (require-dev) interactively [yes]? 
+Search for a package: 
+Add PSR-4 autoload mapping? Maps namespace "Yaner\Twittercli" to the entered relative path. [src/, n to skip]: 
+
+{
+    "name": "yaner/twittercli",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Yaner\\Twittercli\\": "src/"
+        }
+    },
+    "require": {}
+}
+
+Do you confirm generation [yes]? 
+Generating autoload files
+Generated autoload files
+PSR-4 autoloading configured. Use "namespace Yaner\Twittercli;" in src/
+Include the Composer autoloader with: require 'vendor/autoload.php';
+```
+
+编辑`composer.json`文件，添加依赖项，这里我们使用[`Packagist.org`提供的`abraham/twitteroauth`的第三方库](https://repo.packagist.org/packages/abraham/twitteroauth)：
+
+```
+
+```
+
+执行`composer install`：
+
+```shell
+$ composer install
+Loading composer repositories with package information
+Updating dependencies (including require-dev)
+	Installing abraham/twitteroauth(0.6.4)
+	Downloading: 100%
+Writing lock file
+Generating autoload files
+```
+
+此时工作目录的文件如下：
+
+```shell
+(base) PS C:\ToolsForEnvironmentPath\phpstudy\PHPTutorial\WWW\php> tree /?
+以图形显示驱动器或路径的文件夹结构。
+
+TREE [drive:][path] [/F] [/A]
+
+   /F   显示每个文件夹中文件的名称。
+   /A   使用 ASCII 字符，而不使用扩展字符。
+
+(base) PS C:\ToolsForEnvironmentPath\phpstudy\PHPTutorial\WWW\php> tree /F
+卷 OS 的文件夹 PATH 列表
+卷序列号为 7ACC-FF86
+C:.
+│  composer.json
+│  composer.lock
+│  composer.phar
+└─vendor
+    │  autoload.php
+    └─composer
+            autoload_classmap.php
+            autoload_namespaces.php
+            autoload_psr4.php
+            autoload_real.php
+            autoload_static.php
+            ClassLoader.php
+            installed.json
+            installed.php
+            InstalledVersions.php
+            LICENSE
+```
+
+Composer下载的所有包都放在`./vendor`目录下。`composer.lock`记录了安装的所有软件包的保本好
+
+# Phar文件？？？？？？？？TODO：
+
+
+
+
+
+
+
+7月4日目标：8w+字
+
+7月5日目标：9w+字
+
+7月6日目标：10w+字
