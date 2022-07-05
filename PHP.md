@@ -1,9 +1,5 @@
 # PHP
 
-
-
-
-
 # §1 语法基础
 
 
@@ -2545,6 +2541,57 @@ class demo
 
 Composer是PHP平台上的依赖管理器。之所以不能说它是包管理器，是因为它在本地的工作目录内部管理组建关系，而不是像`apt`那样集中管理组件关系。Composer会将包下载到工作目录的`./vendor`目录下，然后通过自动加载机制加载到项目中。
 
+> 注意：WSL2虽然走的是Windows主系统的网络，但是不会使用Windows配置的全局代理，这导致在WSL2内使用Composer会报错：
+>
+> ```shell
+> $ composer require knplabs/github-api # repo.packagist.org连不上
+> 	https://repo.packagist.org could not be fully loaded (curl error 28 while downloading https://repo.packagist.org/packages.json: SSL connection timeout), package information was loaded from the local cache and may be out of date
+> 	In CurlDownloader.php line 377:               
+> 	curl error 28 while downloading https://repo.packagist.org/p2/knplabs/github-api.json: Failed to connect to repo.packagist.org port 443 after 5205 ms: Connection timed out
+> 
+> $ curl google.com # Google连不上
+>     ^C
+> 
+> $ curl baidu.com # 百度能连上
+>     <html>
+>     <meta http-equiv="refresh" content="0;url=http://www.baidu.com/">
+>     </html>
+> ```
+>
+> 在WSL1中，Linux子系统与Windows主系统共享网络端口。然而在WSL2中，受制于底层Hyper-V引擎，子系统和主系统注定无法共享同一个`localhost`，但是Linux毕竟还是要通过Windows才能上网，毕竟Windows一旦断网，Linux不可能自己联网。
+>
+> 
+>
+> 为了解决Linux的联网需求，WSL2解决方案是将网关指向Windows的Hyper-V内的IP地址，这使得Windows的代理不能再只接受`localhost`的请求，而是还得接受Hyper-V创建的虚拟网卡`Hyper-V Virtual Ethernet Adapter`接收到的局域网请求了。
+>
+> - 一方面，我们需要在Windows中允许代理软件接受局域网请求：打开V2rayN，点击菜单栏的设置→参数设置，在弹出的窗口中选择`Core:基础设置`，勾选`允许来自局域网的连接`。
+>
+> - 另一方面，我们还要在Linux配置代理。Composer大量使用了`curl`命令，而该命令可以默认查找并使用`HTTP_PROXY`和`HTTPS_PROXY`环境变量，不用每次都手动调用`-x`参数指定代理，因此我们编辑`~/.bashrc`添加全局变量：
+>
+>   ```bash
+>   # Customize Proxy
+>   export ProxyAddress=$(ip route | grep default | awk '{print $3}')
+>   export proxyHttpPort=10811
+>   export HTTPS_PROXY="http://${ProxyAddress}:${proxyHttpPort}";
+>   export HTTP_PROXY="http://${ProxyAddress}:${proxyHttpPort}";
+>   export ALL_PROXY="http://${ProxyAddress}:${proxyHttpPort}";
+>   ```
+>
+> 这样我们就能在WSL2中保证Composer的连接了：
+>
+> ```sh
+> $ source ~/.bashrc 
+> $ curl google.com
+>     <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+>     <TITLE>301 Moved</TITLE></HEAD><BODY>
+>     <H1>301 Moved</H1>
+>     The document has moved
+>     <A HREF="http://www.google.com/">here</A>.
+>     </BODY></HTML>
+> ```
+
+## §6.1 安装与初始化
+
 Composer的本体是``composer.phar`，与此同时官方还提供了全自动安装的PHP脚本。该脚本负责检查`php.ini`的正确性，然后下载`composer.phar`到当前目录：
 
 ```sh
@@ -2696,14 +2743,16 @@ PHPStorm的菜单栏→工具→Composer自带集成，可以方便地进行配�
 >
 > StackOverflow，我喜欢的原来是你啊:heart_eyes:，你是我爹，爹你带我走吧爹:sob:
 
-## §6.1 安装包
+
+
+## §6.2 安装包
 
 这里我们以推特的`abraham/twitter`库为例：
 
 首先在工作目录初始化：
 
 ```shell
-yaner@DESKTOP-UVBN0SD:~/test$ composer init
+$ composer init
 
                                             
   Welcome to the Composer config generator  
@@ -2747,68 +2796,121 @@ PSR-4 autoloading configured. Use "namespace Yaner\Twittercli;" in src/
 Include the Composer autoloader with: require 'vendor/autoload.php';
 ```
 
-编辑`composer.json`文件，添加依赖项，这里我们使用[`Packagist.org`提供的`abraham/twitteroauth`的第三方库](https://repo.packagist.org/packages/abraham/twitteroauth)：
+### §6.1.1 编辑`composer.json`
 
-```
+这种方式类似于Python的`pip install -r requirements.txt`——我们可以编辑`composer.json`文件，添加依赖项，这里我们使用[`Packagist.org`提供的`abraham/twitteroauth`的第三方库](https://repo.packagist.org/packages/abraham/twitteroauth)：
 
+```json
+{
+    "name": "yaner/twittercli",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Yaner\\Twittercli\\": "src/"
+        }
+    },
+    "require": {
+        "abraham/twitteroauth": "3.*"
+    }
+}
 ```
 
 执行`composer install`：
 
 ```shell
 $ composer install
+
+No composer.lock file present. Updating dependencies to latest instead of installing from lock file. See https://getcomposer.org/install for more information.
 Loading composer repositories with package information
-Updating dependencies (including require-dev)
-	Installing abraham/twitteroauth(0.6.4)
-	Downloading: 100%
+Info from https://repo.packagist.org: #StandWithUkraine
+Updating dependencies
+Lock file operations: 2 installs, 0 updates, 0 removals
+  - Locking abraham/twitteroauth (4.0.0)
+  - Locking composer/ca-bundle (1.3.2)
 Writing lock file
+Installing dependencies from lock file (including require-dev)
+Package operations: 2 installs, 0 updates, 0 removals
+As there is no 'unzip' nor '7z' command installed zip files are being unpacked using the PHP zip extension.
+This may cause invalid reports of corrupted archives. Besides, any UNIX permissions (e.g. executable) defined in the archives will be lost.
+Installing 'unzip' or '7z' (21.01+) may remediate them.
+  - Downloading composer/ca-bundle (1.3.2)
+  - Downloading abraham/twitteroauth (4.0.0)
+  - Installing composer/ca-bundle (1.3.2): Extracting archive
+  - Installing abraham/twitteroauth (4.0.0): Extracting archive
 Generating autoload files
+1 package you are using is looking for funding.
+Use the `composer fund` command to find out more!
 ```
 
 此时工作目录的文件如下：
 
 ```shell
-(base) PS C:\ToolsForEnvironmentPath\phpstudy\PHPTutorial\WWW\php> tree /?
-以图形显示驱动器或路径的文件夹结构。
-
-TREE [drive:][path] [/F] [/A]
-
-   /F   显示每个文件夹中文件的名称。
-   /A   使用 ASCII 字符，而不使用扩展字符。
-
-(base) PS C:\ToolsForEnvironmentPath\phpstudy\PHPTutorial\WWW\php> tree /F
-卷 OS 的文件夹 PATH 列表
-卷序列号为 7ACC-FF86
-C:.
-│  composer.json
-│  composer.lock
-│  composer.phar
-└─vendor
-    │  autoload.php
-    └─composer
-            autoload_classmap.php
-            autoload_namespaces.php
-            autoload_psr4.php
-            autoload_real.php
-            autoload_static.php
-            ClassLoader.php
-            installed.json
-            installed.php
-            InstalledVersions.php
-            LICENSE
+$ tree
+.
+├── a
+├── a.cpp
+├── composer.json
+├── composer.lock
+├── src
+└── vendor
+    ├── abraham
+    │   └── twitteroauth
+    │       ├── autoload.php
+    │       ├── composer.json
+    │       ├── composer.lock
+    │       ├── LICENSE.md
+    │       ├── rector.php
+    │       └── src
+    │           ├── Config.php
+    │           ├── Consumer.php
+    │           ├── HmacSha1.php
+    │           ├── Request.php
+    │           ├── Response.php
+    │           ├── SignatureMethod.php
+    │           ├── Token.php
+    │           ├── TwitterOAuthException.php
+    │           ├── TwitterOAuth.php
+    │           ├── Util
+    │           │   └── JsonDecoder.php
+    │           └── Util.php
+    ├── autoload.php
+    └── composer
+        ├── autoload_classmap.php
+        ├── autoload_namespaces.php
+        ├── autoload_psr4.php
+        ├── autoload_real.php
+        ├── autoload_static.php
+        ├── ca-bundle
+        │   ├── composer.json
+        │   ├── LICENSE
+        │   ├── README.md
+        │   ├── res
+        │   │   └── cacert.pem
+        │   └── src
+        │       └── CaBundle.php
+        ├── ClassLoader.php
+        ├── installed.json
+        ├── installed.php
+        ├── InstalledVersions.php
+        ├── LICENSE
+        └── platform_check.php
 ```
 
-Composer下载的所有包都放在`./vendor`目录下。`composer.lock`记录了安装的所有软件包的保本好
+Composer下载的所有包都放在`./vendor`目录下。`composer.lock`记录了安装的所有软件包的版本号。
+
+### §6.1.2 `composer require`
+
+这种方法类似于`pip install <包名>`：
+
+```
+$
+```
+
+
 
 # Phar文件？？？？？？？？TODO：
 
 
-
-
-
-
-
-7月4日目标：8w+字
 
 7月5日目标：9w+字
 
