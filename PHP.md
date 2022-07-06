@@ -2900,11 +2900,370 @@ Composer下载的所有包都放在`./vendor`目录下。`composer.lock`记录�
 
 ### §6.1.2 `composer require`
 
-这种方法类似于`pip install <包名>`：
+这种方法类似于`pip install <包名>`，这里我们以`guzzlegttp/guzzle`为例
 
+```php
+$ composer require guzzlehttp/guzzle
+    Using version ^7.4 for guzzlehttp/guzzle
+    ./composer.json has been updated
+    Running composer update guzzlehttp/guzzle
+    Loading composer repositories with package information
+    Updating dependencies
+    Lock file operations: 8 installs, 0 updates, 0 removals
+      - Locking guzzlehttp/guzzle (7.4.5)
+      - Locking guzzlehttp/promises (1.5.1)
+      - Locking guzzlehttp/psr7 (2.4.0)
+      - Locking psr/http-client (1.0.1)
+      - Locking psr/http-factory (1.0.1)
+      - Locking psr/http-message (1.0.1)
+      - Locking ralouphie/getallheaders (3.0.3)
+      - Locking symfony/deprecation-contracts (v3.1.1)
+    Writing lock file
+    Installing dependencies from lock file (including require-dev)
+    Package operations: 8 installs, 0 updates, 0 removals
+      - Downloading symfony/deprecation-contracts (v3.1.1)
+      - Downloading psr/http-message (1.0.1)
+      - Downloading psr/http-client (1.0.1)
+      - Downloading ralouphie/getallheaders (3.0.3)
+      - Downloading psr/http-factory (1.0.1)
+      - Downloading guzzlehttp/psr7 (2.4.0)
+      - Downloading guzzlehttp/promises (1.5.1)
+      - Downloading guzzlehttp/guzzle (7.4.5)
+      - Installing symfony/deprecation-contracts (v3.1.1): Extracting archive
+      - Installing psr/http-message (1.0.1): Extracting archive
+      - Installing psr/http-client (1.0.1): Extracting archive
+      - Installing ralouphie/getallheaders (3.0.3): Extracting archive
+      - Installing psr/http-factory (1.0.1): Extracting archive
+      - Installing guzzlehttp/psr7 (2.4.0): Extracting archive
+      - Installing guzzlehttp/promises (1.5.1): Extracting archive
+      - Installing guzzlehttp/guzzle (7.4.5): Extracting archive
+    3 package suggestions were added by new dependencies, use `composer suggest` to see details.
+    Generating autoload files
+    5 packages you are using are looking for funding.
+    Use the `composer fund` command to find out more!
 ```
-$
+
+此时`composer.json`的`require`值也发生了变化：
+
+```json
+{
+    "name": "yaner/twittercli",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Yaner\\Twittercli\\": "src/"
+        }
+    },
+    "require": {
+        "abraham/twitteroauth": "4.*",
+        "guzzlehttp/guzzle": "^7.4" // 新增的一行
+    }
+}
 ```
+
+## §6.3 语义化版本
+
+如何给程序的版本号命名呢？现在通用的做法是用主版本号、次版本号、补丁号这三个数字表示，按顺序排成一行，每个数字之间用小数点隔开。
+
+- 主版本号：破坏了向后兼容性
+- 次版本号：只添加了新功能，没有破坏向后兼容性
+- 补丁号：只修复了Bug，没有添加新功能，没有破坏向后兼容性
+
+Composer使用语义化版本管理第三方库的版本：
+
+- 精确指定：只安装制定的版本，例如`1.2.2`
+- 通配符指定：在通配符允许的范围内，安装最新的版本，例如`1.2.*`，`*`
+- 范围指定：同时指定可安装的最低版本与最高版本，例如`1.0.0-1.2.5`
+- 比较指定：单独指定可安装的最低版本或最高版本，例如`>1.1.0`/`<=1.5.0`
+- 波浪号指定：指定可安装的最低版本，但是只允许提供的最后一个数字变化，例如`~1.3`代表`[1.3~2.0)`、`1.3.2~`代表`[1.3.2,1.4)`
+- 插入符号指定：指定可安装的最低版本，但是主版本号不能变，例如`^1.3.2`代表`[1.3.2,2.0.0]`
+
+我们已经学会使用`"require":[]`导入第三方包，事实上也可以用`"require-dev":[]`转为开发环境导入包。这里以开发环境常用的第三方单元测试库`phpunit/phpunit`为例：
+
+```json
+{
+	......
+    "require-dev": {
+        "phpunit/phpunit": "*"
+    }
+    ......
+}
+```
+
+```sh
+$ composer install # 开发环境
+$ composer install --no-dev # 生产环境
+```
+
+## §6.4 自动加载
+
+回想一下Python的pip装好包以后，在`.python`内还是不能直接调用，必须`import`一下才行。PHP也是同样的道理，必须`require_once("./vendor/autoload.php")`才能导入相应的命名空间。
+
+在[§5.3 PSR-4 自动加载规范](#§5.3 PSR-4 自动加载规范)我们讨论过命名空间与文件系统的映射关系与`autoload`值，可以参考该部分。
+
+## §6.5 封装包
+
+当执行`composer init`时，我们其实已经在创建一个包了。包的信息都会汇总到`composer.json`中：
+
+```json
+{
+    "name": "yaner/twittercli", // 供应商名/包名，其中供应商名会成为./vendor下的目录名
+    "type": "library",
+    "autoload": {
+        "psr-4": {"Yaner\\Twittercli\\": "src/"}
+    },
+    "require": {}
+}
+```
+
+并不是所有的包都是第三方包，还有PHP根目录的`./ext/*.dll`扩展等，我们也可以把以下组件打包到Composer的配置文件中的`require`值中：
+
+| 类型                               | 示例                  |
+| ---------------------------------- | --------------------- |
+| PHP版本                            | `"php":"7.*"`         |
+| PHP扩展                            | `"ext-扩展名称":">2"` |
+| HHVM（HipHop Virtual Machine）版本 | `"hhvm":"~2"`         |
+| PHP系统库                          | `"lib-库名称":"~2"`   |
+
+## §6.6 私有分发
+
+Packagist上的第三方包本质上是一个个Git项目，用户注册账户后可以直接从Github的项目链接中导入，Packagist会自动解析项目中的`composer.json`。
+
+Packagist有一个缺点，就是免费账户无法创建私有仓库。如果我们不想使用默认的Packagist，而是用其它平台的包，就要在`composer.json`中手动指定：
+
+```json
+{
+    ......
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "git@bitbucket.org:getinstance/api.util.git"
+        }
+    ],
+    "require": {
+        "popp5/megaquiz": "*",
+        "getinstance/api_util": "v1.0.3"
+    }
+    ......
+}
+```
+
+# §7 PHPUnit
+
+PHPUnit是一个著名的PHP单元测试工具。传统的测试流程都是自己手写一份过程式的测试代码，封装成函数或者类，而PHPUnit提供了这些抽象类模版。
+
+## §7.1 安装
+
+可以用Composer配置：
+
+```json
+{
+    ......
+    "require-dev":{
+        "phpunit/phpunit":"*"
+    }
+    ......
+}
+```
+
+执行`composer update`后，工作根目录的`./vendor/bin`将会有一个`phpunit`可执行二进制文件。
+
+## §7.2 目录结构
+
+PHPUnit使用`\PHPUnit\Framework\TestCase`类，其命名要求十分严格：
+
+- 使用PHPUnit运行测试类文件时，必须保证`require("./vendor/autoload.php")`查找的`composer.json`中的`autoload`/`autoload-dev`中，包含了待测试类的命名空间。
+- 测试类必须在待测试类的文件名之后添加`Test`
+- 测试类中的所有方法都必须为以`test`开头的无参方法
+
+```json
+{
+    "name": "yaner/twittercli",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "yaner\\twittercli\\": "./src"
+        }
+    },
+    "require": {
+        "abraham/twitteroauth": "4.*",
+        "guzzlehttp/guzzle": "^7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "*"
+    }
+}
+```
+
+```php
+<?php
+namespace yaner\twittercli;
+class User {
+    public readonly int $id;
+    public readonly string $username;
+    public readonly string $password;
+    private function __construct(int $id,string $username,string $password){
+        $this->id = $id;
+        $this->username = $username;
+        $this->password = $password;
+    }
+    public static function getInstance(int $id,string $username,string $password):?User{
+        if(strlen($password) < 6){
+            User::notiifyShortPassword();
+            return null;
+        }
+        return new User($id,$username,$password);
+    }
+    private static function notiifyShortPassword():void{
+        print("密码长度不能少于6位！\n");
+    }
+}
+```
+
+```php
+<?php
+namespace yaner\twittercli;
+
+class UserList {
+    private $users = [];
+    public function addUser(User|null $user):void{
+        if($user instanceof User){
+            $this->users[] = $user;
+        }
+    }
+    public function getUsersCount():int{
+        return(count($this->users));
+    }
+    public function findUser(int $id):?User{
+        foreach($this->users as $user){
+            if($user->id == $id){
+                return $user;
+            }
+        }
+        return null;
+    }
+}
+```
+
+```php
+<?php
+namespace yaner\twittercli;
+require_once("./vendor/autoload.php");
+class UserListTest extends \PHPUnit\Framework\TestCase {
+    private $userList;
+    public function setUp():void{
+        $this->userList = new UserList();
+    }
+    public function tearDown():void{
+    }
+    public function testAddUser(){
+        $this->userList->addUser(User::getInstance(1,"Alice","123456"));
+        if($this->userList->getUsersCount() != 1){
+            $this->fail("UserList::getUsersCount() failed!");
+        }
+    }
+    public function testFindUser(){
+        $this->userList->addUser(User::getInstance(1,"Alice","12345678"));
+        $this->userList->addUser(User::getInstance(2,"Bob","12345678"));
+        $this->userList->addUser(User::getInstance(3,"Carol","123"));
+        $user1 = $this->userList->findUser(1);
+        $user2 = $this->userList->findUser(2);
+        $user3 = $this->userList->findUser(3);
+        assert($user1->id == 1 && $user1->username == "Alice");
+        assert($user2->id == 2 && $user2->username == "Bob");
+        assert($user3 == null);
+    }
+}
+```
+
+执行单元测试：
+
+```sh
+$ ./vendor/bin/phpunit ./src/UserListTest.php
+    PHPUnit 9.5.21 #StandWithUkraine
+    2 / 2 (100%)密码长度不能少于6位！
+
+
+    Time: 00:00.004, Memory: 4.00 MB
+
+    There were 2 risky tests:
+
+    1) yaner\twittercli\UserListTest::testAddUser
+    This test did not perform any assertions
+
+    /home/yaner/test/src/UserListTest.php:12
+
+    2) yaner\twittercli\UserListTest::testFindUser
+    This test did not perform any assertions
+
+    /home/yaner/test/src/UserListTest.php:18
+
+    OK, but incomplete, skipped, or risky tests!
+    Tests: 2, Assertions: 0, Risky: 2.
+```
+
+## §7.3 断言
+
+`\PHPUnit\Framework\TestCase`定义了一系列静态的断言方法：
+
+| 断言方法名                                                 | 作用                                           |
+| ---------------------------------------------------------- | ---------------------------------------------- |
+| `assert($val1,$val2,$message,$delta)`                      | $|\text{val1}-\text{val2}|>\text{delta}$时报错 |
+| `assertFalse($expression,$message)`                        | 表达式不为`false`时报错                        |
+| `assertTrue($expression,$message)`                         | 表达式不为`true`时报错                         |
+| `assertNotNull($val,$message)`                             | 表达式为`null`时报错                           |
+| `assertNull($val,$message)`                                | 表达式不为`null`时报错                         |
+| `assertSame($val1,$val2,$message)`                         | $\text{val1}\ne\text{val2}$时报错              |
+| `assertNotSame($val1,$val2,$message)`                      | $\text{val1}=\text{val2}$时报错                |
+| `assertRegExp($regexp,$val,$message)`                      | `$val`不满足正则表达式时报错                   |
+| `assertAttributeSame($val,$attribute,$classname,$message)` | `$val !== $classname::$attribute`时报错        |
+| `fail($message='')`                                        | 直接报错                                       |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2912,6 +3271,12 @@ $
 
 
 
-7月5日目标：9w+字
-
 7月6日目标：10w+字
+
+7月7日目标：11w+字
+
+7月8日目标：12w+字
+
+7月9日目标：13w+字
+
+7月10日目标：14w+字
