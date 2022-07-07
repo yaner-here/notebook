@@ -2266,11 +2266,74 @@ class CommandResolver {
 
 ### §4.2.2 应用控制器
 
+为了进一步解耦视图类与命令类，我们在这两者中间插入一层应用控制器：
+
+```mermaid
+classDiagram
+	class Controller{
+		+void handleRequest($request)
+	}
+	class AppController{
+		+Command getCommand($request)
+		+View getView()
+	}
+	Controller "uses"..> AppController
+```
+
+```php
+// 伪代码
+class Controller {
+    public function handleRequest($request){
+        $controller = new AppController();
+        $command = $controller->getCommand($request);
+        $command->execute($request);
+        $view = $controller->getView($request);
+        $view->render($request);
+    }
+}
+```
+
 ### §4.2.3 页面控制器
 
-？？？？？？？？？？？？？？？TODO：
+对于一些需求简单、应用控制器和视图高度耦合的页面，不妨将应用控制器和视图合并到一个类中，我们称之为页面控制器。
+
+```php+HTML
+<?php
+	try{
+        // 调用其它类获取数据
+        $list = XXX->XXX();
+    }catch(\Exception $e){
+        include('./error.php');
+        exit(0);
+    }
+?>
+<html>
+    <body>
+        <?php foreach($list as $element){
+    		print($element."<br>");
+		}?>
+    </body>
+</html>
+```
 
 ## §4.3 业务逻辑层
+
+### §4.3.1 事务脚本
+
+在SQL中，我们接触过事务（Transction）的概念：事务由一条或多条SQL语句构成，并且**只有所有的SQL语句都执行成功，整个事务才算成功，否则应当立即回滚**。我们将这个概念应用到PHP中，就设计出了事务脚本。
+
+```php
+class DatabaseTransction {
+    public function addUser(){
+        $sqlCommand = "......";
+        ......
+    }
+}
+```
+
+### §4.3.2 领域模型
+
+领域模型的核心是：将现实中的角色抽象化为类，将参与者与表示层分离。例如：`Person`类不能自己发出动作，而是要将这些方法移动到`PersonInterface`类。
 
 ## §4.4 数据库
 
@@ -3048,7 +3111,7 @@ Packagist有一个缺点，就是免费账户无法创建私有仓库。如果�
 }
 ```
 
-# §7 PHPUnit
+# §7 PHPUnit单元测试
 
 PHPUnit是一个著名的PHP单元测试工具。传统的测试流程都是自己手写一份过程式的测试代码，封装成函数或者类，而PHPUnit提供了这些抽象类模版。
 
@@ -3219,59 +3282,499 @@ $ ./vendor/bin/phpunit ./src/UserListTest.php
 | `assertAttributeSame($val,$attribute,$classname,$message)` | `$val !== $classname::$attribute`时报错        |
 | `fail($message='')`                                        | 直接报错                                       |
 
+## §7.4 约束
+
+PHPUnit自3.0开始，在`PHPUnit/Framework/Constraint`提供众多自定义断言类：
+
+```mermaid
+flowchart TB
+    Constraint --> 
+        IsFalse & IsTrue & Callback & Count & GreaterThan & IsEmpty 
+    Constraint -->
+        LessThan & IsEqual & IsEqualCanonicalizing & IsEqualIgnoringCase
+    Constraint --> 
+        IsEqualWithDelta & Exception & Constraint & ExceptionMessage
+    Constraint -->
+        ExceptionMessageRegularExpression & DirectoryExists & FileExists
+    Constraint --> 
+        IsReadable & IsWritable & IsAnything & IsIdentical & JsonMatches
+    Constraint -->
+        IsFinite & IsInfinite & IsNan & ClassHasAttribute & ObjectEquals
+    Constraint --> 
+        BinaryOperator & LogicalNot & LogicalXor & UnaryOperator & IsJson
+    Constraint -->
+        RegularExpression & StringContains & StringEndsWith & StringStartsWiith
+    Constraint -->
+        ArrayHashKey & TraversableContains & IsInstanceOf & IsNull & IsType
+    Constraint -->
+        MethodNameConstraint
+
+```
+
+相应的，`TestCase`类的父类`Assert`类提供了创建相应自定义断言类的约束方法：
+
+| 方法名                                     | 返回值类型                 | 作用                         |
+| ------------------------------------------ | -------------------------- | ---------------------------- |
+| `greaterThan($num)`                        | `GreaterThan`              | 是否大于值                   |
+| `containsEqual($value)`                    | `TraversableContainsEqual` | 可遍历的集合是否包含指定元素 |
+| `identicalTo($value):`                     | `IsIdentical`              | `===`                        |
+| `greaterThanOrEqual($num)`                 | `LogicOr`                  | 是否大于等于值               |
+| `lessthan($num)`                           | `LessThan`                 | 是否小于值                   |
+| `lessThanOrEqual($num)`                    | `LogicOr`                  | 是否小于等于值               |
+| `equalTo($value,$delta,$depth=10)`         | `IsEqual`                  | 在误差范围能两个值是否相等   |
+| `stringContains($str,$casesensitive=true)` | `StringContains`           | 字符串中是否包含指定的字符串 |
+| `matchesRegularExpression($pattern)`       | `RegularExpression`        | 匹配正则表达式               |
+| `logicalAnd(Constraint $const,$const,...)` | `LogicalAnd`               | 通过所有的约束               |
+| `logicalOr(Constraint $const,$const,...)`  | `LogicalOr`                | 至少匹配一个约束             |
+| `logicalNot(Constraint $const,$const,...)` | `LogicNot`                 | 约束没有通过                 |
+
+例如我们自定义一个断言：
+
+```php
+class XXXTest extends \PHPUnit\Framework\TestCase {
+    public function isArrayContainsOnlyAlice(){
+        $customizeAssert = $this->logicalAnd(
+            $this->isType("array"),
+            $this->containsOnly("Alice")
+        );
+        self::assertThat($this->names,$customizeAssert);
+    }
+}
+```
+
+## §7.5 Mock与Stub
+
+测试一个类，总是要牵扯到其他类，这样我们编写的单元测试一点也不“单元”。为了测试类与整个系统尽可能的解耦，我们有时不需要调用系统中的其他类，而是自己仿作一个类出来。仿作的这个类根据用途可以分为以下几种：
+
+- Mock：将待测试类关联的其它类提取出来，自己编写一个类，**特指实现其他类的接口，而不关注接口的具体实现？**
+- Stub：将待测试类关联的其它类提取出来，自己编写一个类，**特指编写的这个类每次返回的值写死在测试类中**
+
+？？？？？？？？？？？getMock？getStub？TODO：
+
+## §7.6 Web测试
+
+？？？？？？？？？？？TODO：
 
 
 
 
 
+# §8 Phing自动化构建
+
+Phing是一个用于构建PHP项目的工具，类似于Java的Ant。
+
+## §8.1 安装
+
+一方面，我们可以按照官网的指示，使用`pear`包管理器全局安装：
+
+```sh
+$ wget http://pear.php.net/go-pear.phar
+$ php go-pear.phar
+    PHP Warning:  Private methods cannot be final as they are never overridden by other classes in /home/yaner/test/go-pear.phar on line 339
+
+    Below is a suggested file layout for your new PEAR installation.  To
+    change individual locations, type the number in front of the
+    directory.  Type 'all' to change all of them or simply press Enter to
+    accept these locations.
+
+     1. Installation base ($prefix)                   : /usr
+     2. Temporary directory for processing            : /tmp/pear/install
+     3. Temporary directory for downloads             : /tmp/pear/install
+     4. Binaries directory                            : /usr/bin
+     5. PHP code directory ($php_dir)                 : /usr/share/pear
+     6. Documentation directory                       : /usr/docs
+     7. Data directory                                : /usr/data
+     8. User-modifiable configuration files directory : /usr/cfg
+     9. Public Web Files directory                    : /usr/www
+    10. System manual pages directory                 : /usr/man
+    11. Tests directory                               : /usr/tests
+    12. Name of configuration file                    : /etc/pear.conf
+
+    1-12, 'all' or Enter to continue: // Enter
+    Beginning install...
+    Configuration written to /etc/pear.conf...
+    Initialized registry...
+    Preparing to install...
+    installing phar:///home/yaner/test/go-pear.phar/PEAR/go-pear-tarballs/Archive_Tar-1.4.14.tar...
+    installing phar:///home/yaner/test/go-pear.phar/PEAR/go-pear-tarballs/Console_Getopt-1.4.3.tar...
+    installing phar:///home/yaner/test/go-pear.phar/PEAR/go-pear-tarballs/PEAR-1.10.13.tar...
+    installing phar:///home/yaner/test/go-pear.phar/PEAR/go-pear-tarballs/Structures_Graph-1.1.1.tar...
+    installing phar:///home/yaner/test/go-pear.phar/PEAR/go-pear-tarballs/XML_Util-1.4.5.tar...
+    warning: pear/PEAR dependency package "pear/Archive_Tar" downloaded version 1.4.14 is not the recommended version 1.4.4
+    install ok: channel://pear.php.net/Archive_Tar-1.4.14
+    install ok: channel://pear.php.net/Console_Getopt-1.4.3
+    install ok: channel://pear.php.net/Structures_Graph-1.1.1
+    install ok: channel://pear.php.net/XML_Util-1.4.5
+    install ok: channel://pear.php.net/PEAR-1.10.13
+    PEAR: Optional feature webinstaller available (PEAR's web-based installer)
+    PEAR: Optional feature gtkinstaller available (PEAR's PHP-GTK-based installer)
+    PEAR: Optional feature gtk2installer available (PEAR's PHP-GTK2-based installer)
+    PEAR: To install optional features use "pear install pear/PEAR#featurename"
+
+    ******************************************************************************
+    WARNING!  The include_path defined in the currently used php.ini does not
+    contain the PEAR PHP directory you just specified:
+    </usr/share/pear>
+    If the specified directory is also not in the include_path used by
+    your scripts, you will have problems getting any PEAR packages working.
 
 
+    Would you like to alter php.ini </etc/php/8.1/cli/php.ini>? [Y/n] : y
+
+    php.ini </etc/php/8.1/cli/php.ini> include_path updated.
+
+    Current include path           : .:/usr/share/php
+    Configured directory           : /usr/share/pear
+    Currently used php.ini (guess) : /etc/php/8.1/cli/php.ini
+    Press Enter to continue: 
+
+    The 'pear' command is now at your service at /usr/bin/pear
+$ pear
+    Commands:
+    build                  Build an Extension From C Source
+    bundle                 Unpacks a Pecl Package
+    channel-add            Add a Channel
+	......
+$ pear channel-discover pear.phing.info 
+    Adding Channel "pear.phing.info" succeeded
+    Discovery of channel "pear.phing.info" succeeded
+$ pear config-get bin_dir
+	/home/yaner/pear/bin
+$ export PATH=$PATH:/usr/share/php/bin // 添加环境变量
+$ pear install phing/phing
+    phing/phing can optionally use package "phing/phingdocs" (version >= 2.17.3)
+    phing/phing can optionally use package "pear/VersionControl_SVN" (version >= 0.4.0)
+    phing/phing can optionally use package "pear/VersionControl_Git" (version >= 0.4.3)
+    phing/phing can optionally use package "pecl/Xdebug" (version >= 2.0.5)
+    phing/phing can optionally use package "pear/PEAR_PackageFileManager" (version >= 1.5.2)
+    phing/phing can optionally use package "pear/Services_Amazon_S3" (version >= 0.3.1)
+    phing/phing can optionally use package "pear/HTTP_Request2" (version >= 2.1.1)
+    phing/phing can optionally use package "channel://pear.pdepend.org/PHP_Depend" (version >= 0.10.0)
+    phing/phing can optionally use package "channel://pear.phpmd.org/PHP_PMD" (version >= 1.1.0)
+    phing/phing can optionally use package "channel://pear.phpdoc.org/phpDocumentor" (version >= 2.0.0b7)
+    phing/phing can optionally use package "pear/PHP_CodeSniffer" (version >= 1.5.0)
+    phing/phing can optionally use package "pear/Net_Growl" (version >= 2.6.0)
+    downloading phing-2.17.3.tgz ...
+    Starting to download phing-2.17.3.tgz (573,547 bytes)
+    ....................................................................................................................done: 573,547 bytes
+    install ok: channel://pear.phing.info/phing-2.17.3
+```
+
+也可以使用Composer局部安装：
+
+```json
+{
+    "require-dev": {
+        "phing/phing": "*"
+    }
+}
+```
+
+## §8.2 配置文件
+
+在根目录创建`build.xml`配置文件：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <target name="main"/>
+</project>
+```
+
+### §8.2.1 `<project>`
+
+`<project>`标签是整个XML配置文件的根标签。
+
+| `<project>`标签属性 | 作用             | 是否必需 | 默认值           |
+| ------------------- | ---------------- | -------- | ---------------- |
+| `name`              | 项目名称         | √        |                  |
+| `description`       | 项目描述         | ×        | `None`           |
+| `dafault`           | 默认执行的目标   | √        |                  |
+| `phingVersion`      | Phing的最低版本  | ×        | `None`           |
+| `basedir`           | 构建时使用的目录 | ×        | `./`（当前目录） |
+
+### §8.2.2 `<target>`
+
+`<target>`标签类似于函数，其`name`类似于函数名。在上面的例子中，我们给`<project>`指定了`default`属性`main`，这里的`<target>`的`name`属性也为`main`，那么Phing在执行自动构建的时候就会默认执行这个`<target>`：
+
+```SH
+$ ./vendor/bin/phing
+    Buildfile: /home/yaner/test/build.xml
+    test > main: # 这个地方，默认执行名为main的<target>
+    BUILD FINISHED
+    Total time: 0.0318 seconds
+```
+
+一个函数可以调用另一个函数，类似的，一个`<target>`也可以指定`depends`属性，调用另一个`<target>`：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main" description="This is a project.">
+    <target name="main" depends="sub1" description="This is main target."/>
+    <target name="sub1" depends="sub2" description="This is sub1 target."/>
+    <target name="sub2" description="This is sub2 target."/>
+</project>
+```
+
+```sh
+$ ./vendor/bin/phing
+    Buildfile: /home/yaner/test/build.xml
+    test > sub2:
+    test > sub1:
+    test > main:
+    BUILD FINISHED
+    Total time: 0.0322 seconds
+```
+
+我们也可以单独指定要运行的`<target>`：
+
+```sh
+$ ./vendor/bin/phing sub1
+    Buildfile: /home/yaner/test/build.xml
+    test > sub2:
+    test > sub1:
+    BUILD FINISHED
+    Total time: 0.0305 seconds
+```
+
+所有`<description>`都会被Phing的`-projecthelp`输出：
+
+```sh
+$ ./vendor/bin/phing -projecthelp
+    Buildfile: /home/yaner/test/build.xml
+    Warning: target 'sub2' has no tasks or dependencies
+    This is a project.
+    Default target:
+    ---------------------------------------------------------------------------
+     main  This is main target.
+
+    Main targets:
+    ---------------------------------------------------------------------------
+     main  This is main target.
+     sub1  This is sub1 target.
+     sub2  This is sub2 target.
+```
+
+也可以用`hidden`属性让该命令不输出指定的`description`属性：
+
+```xml
+......
+    <target name="sub1" depends="sub2" description="This is sub1 target."
+            hidden="true"/>
+......
+```
+
+```sh
+$ ./vendor/bin/phing -projecthelp
+	......
+     main  This is main target. # sub1消失了
+     sub2  This is sub2 target.
+    ......
+```
+
+| `<target>`标签属性 | 作用                                                    | 是否必需 | 默认值  |
+| ------------------ | ------------------------------------------------------- | -------- | ------- |
+| `name`             | 目标名称                                                | √        |         |
+| `depends`          | 依赖的目标                                              | ×        | `None`  |
+| `logskipped`       | 如果受`if`/`unless`影响而未能执行，则向`stdout`输出信息 | ×        | `false` |
+| `hidden`           | 是否允许`phing -projecthelp`输出`description`属性的内容 | ×        | `false` |
+| `description`      | 功能描述                                                | ×        | `None`  |
+| `if`               | 当指定的属性名被定义时则允许执行                        | ×        | `None`  |
+| `unless`           | 当指定的属性名被定义时则允许执行                        | ×        | `None`  |
+
+### §8.2.3 `<property>`
+
+`<property>`标签类似于全局变量：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <property name="DATABASE_IP" value="127.0.0.1"/>
+    <property name="DATABASE_PORT" value="3306"/>
+    <property name="DATABASE_USERNAME" value="admin"/>
+    <property name="DATABASE_PASSWORD" value="admin"/>
+    <target name="main">
+        <echo>Database Address: ${DATABASE_IP}:${DATABASE_PORT}</echo>
+        <echo>Database Username: ${DATABASE_USERNAME}</echo>
+        <echo>Database Password: ${DATABASE_PASSWORD}</echo>
+    </target>
+</project>
+```
+
+```sh
+$ ./vendor/bin/phing 
+    Buildfile: /home/yaner/test/build.xml
+    test > main:
+         [echo] Database Address: 127.0.0.1:3306
+         [echo] Database Username: admin
+         [echo] Database Password: admin
+    BUILD FINISHED
+    Total time: 0.0323 seconds
+```
+
+> 注意：`<property>`没有局部变量的概念，所有设置的属性全都是全局变量。
+
+使用`-D`参数可以外部指定"全局变量"，结合`<target>`的`if`和`unless`属性，我们就能实现以下效果：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <target name="main" unless="IGNORE" depends="communication">
+        <echo>Executing network test...</echo>
+    </target>
+    <target name="communication" if="NETWORK_ON">
+        <echo>Establish communications...</echo>
+    </target>
+</project>
+```
+
+```sh
+$ ./vendor/bin/phing 
+	# [echo] Executing network test...
+$ ./vendor/bin/phing -D IGNORE="abc"
+	# 什么也没有
+$ ./vendor/bin/phing -D NETWORK_ON="abc"
+    # [echo] Establish communications...
+    # [echo] Executing network test...
+```
+
+如果内部在`<project>`和`<target>`内部同时定义了同名`<property>`，那么到底听谁的呢？为解决这个问题，`<property>`提供`override`属性，设置为`"yes"`时就能以内部参数为先：
+
+```XML
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <property name="PARAM1" value="1"/>
+    <property name="PARAM2" value="1" override="yes"/>
+    <property name="PARAM3" value="1" override="no"/>
+    <target name="main">
+        <property name="PARAM1" value="2"/>
+        <property name="PARAM2" value="2" override="yes"/>
+        <property name="PARAM3" value="2" override="no"/>
+        <echo>Ignore Override: ${PARAM1}</echo>
+        <echo>Override "yes": ${PARAM2}</echo>
+        <echo>Override "no": ${PARAM3}</echo>
+    </target>
+</project>
+```
+
+```SH
+$ ./vendor/bin/phing
+    # [echo] Ignore Override: 1
+    # [echo] Override "yes": 2
+    # [echo] Override "no": 1
+```
+
+如果外部用`-D`参数和内部用`<property>`参数同时指定同一个名称的“全局变量”，那么到底听谁的呢？答案是无条件听外部的：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <property name="PLATFORM" value="old"/>
+    <property name="MODE" value="old" override="yes"/>
+    <property name="VERSION" value="old" override="no"/>
+    <target name="main">
+        <echo>Platform: ${PLATFORM}</echo>
+        <echo>Mode: ${MODE}</echo>
+        <echo>Version: ${VERSION}</echo>
+    </target>
+</project>
+```
+
+```sh
+$ ./vendor/bin/phing
+    # [echo] Platform: old
+    # [echo] Mode: old
+    # [echo] Version: old
+$ ./vendor/bin/phing -D PLATFORM="new" -D MODE="new" -D VERSION="new"
+    # [echo] Platform: new
+    # [echo] Mode: new
+    # [echo] Version: new
+```
+
+实际上，Phing提供了许多预置的变量用于`${...}`中，详见官方文档的[Built-In Properties](https://www.phing.info/guide/hlhtml/#sec.builtinprops)一节。举例如下：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <target name="main">
+        <echo>项目名称: ${phing.project.name}</echo>
+        <echo>项目根目录: ${project.basedir}</echo>
+        <echo>运行Phing的Shell所在目录: ${user.home}</echo>
+        <echo>Shell的环境变量HTTP_PROXY: ${env.HTTP_PROXY}</echo>
+        <echo>Shell的环境变量UNDEFINED_VAR: ${env.UNDEFINED_VAR}</echo>
+    </target>
+</project>
+```
+
+```shell
+$ ./vendor/bin/phing
+	# [echo] 项目名称: test
+    # [echo] 项目根目录: /home/yaner/test
+    # [echo] 运行Phing的Shell所在目录: /home/yaner
+    # [echo] Shell的环境变量HTTP_PROXY: http://127.0.0.1:10809
+    # [echo] Shell的环境变量UNDEFINED_VAR: ${env.UNDEFINED_VAR}
+```
+
+我们还可以将`<property>`全部迁移到另一个文件中，然后用`phing -propertyfile`参数指定该文件：
+
+```json
+<!-- build.xml -->
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <target name="main">
+        <echo>项目名称: ${LANGUAGE}</echo>
+    </target>
+</project> 
+```
+
+```properties
+# test.properties
+LANGUAGE="zh_CN"
+```
+
+```sh
+$ ./vendor/bin/phing
+	# [echo] 项目名称: ${LANGUAGE}
+$ ./vendor/bin/phing -propertyfile test.properties
+    # [echo] 项目名称: "zh_CN"
+```
+
+对于一些复杂的条件控制逻辑，仅仅依靠`<target>`的`if`和`unless`属性就会非常复杂。例如下面的例子，当Shell设置了`HTTP_PROXY`环境变量时，就将其添加到自己的`<property>`中，反之使用自己预设的值：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <target name="main" depends="setHttpProxy">
+        <echo>Proxy: ${proxy}</echo>
+    </target>
+    <target name="setHttpProxy" depends="setEnvHttpProxy" unless="proxy">
+        <property name="proxy" override="yes" value="127.0.0.1:10808"/>
+    </target>
+    <target name="setEnvHttpProxy" if="env.HTTP_PROXY" unless="proxy">
+        <property name="proxy" override="yes" value="${env.HTTP_PROXY}"/>
+    </target>
+</project> 
+```
+
+```mermaid
+flowchart LR
+    test["Project test<br>default=&quot;main&quot;"]
+    main1["Target main<br>depends=&quot;setHttpProxy&quot;"]
+    setHttpProxy1["Target setHttpProxy<br>depends=&quot;setEnvHttpProxy&quot;<br>unless=&quot;proxy&quot;"]
+    setEnvHttpProxy1["Target setEnvHttpProxy<br>if=&quot;env.HTTP_PROXY&quot;<br>unless=&quot;proxy&quot;"]
 
 
+    test--"查找Target main<br>main压入函数栈"-->main1
+    main1--"执行depends,查找Target setHttpProxy<br>setHttpProxy压入函数栈"-->setHttpProxy1
+    setHttpProxy1--"此时Property proxy未定义,符合unless要求<br>执行depends,查找Target setEnvHttpProxy<br>setEnvHttpProxy压入函数栈"-->setEnvHttpProxy1
 
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+？？？？？？？？？？Mermaid图还没画完
 
 # Phar文件？？？？？？？？TODO：
 
 
-
-7月6日目标：10w+字
 
 7月7日目标：11w+字
 
