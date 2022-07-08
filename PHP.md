@@ -3739,6 +3739,8 @@ $ ./vendor/bin/phing -propertyfile test.properties
     # [echo] 项目名称: "zh_CN"
 ```
 
+### §8.2.4 `<if>`
+
 对于一些复杂的条件控制逻辑，仅仅依靠`<target>`的`if`和`unless`属性就会非常复杂。例如下面的例子，当Shell设置了`HTTP_PROXY`环境变量时，就将其添加到自己的`<property>`中，反之使用自己预设的值：
 
 ```xml
@@ -3762,21 +3764,80 @@ flowchart LR
     main1["Target main<br>depends=&quot;setHttpProxy&quot;"]
     setHttpProxy1["Target setHttpProxy<br>depends=&quot;setEnvHttpProxy&quot;<br>unless=&quot;proxy&quot;"]
     setEnvHttpProxy1["Target setEnvHttpProxy<br>if=&quot;env.HTTP_PROXY&quot;<br>unless=&quot;proxy&quot;"]
+    isEnvHttpProxyDefined[/"是否设置环境变量HTTP_PROXY"/]
+    setHttpProxy2["Target setHttpProxy<br>depends=&quot;setEnvHttpProxy&quot;<br>unless=&quot;proxy&quot;"]
+    setEnvHttpProxy2["Target setEnvHttpProxy<br>if=&quot;env.HTTP_PROXY&quot;<br>unless=&quot;proxy&quot;"]
+    echo["输出内容"]
 
-
-    test--"查找Target main<br>main压入函数栈"-->main1
+    test--"查找Target main<br>main压入函A数栈"-->main1
     main1--"执行depends,查找Target setHttpProxy<br>setHttpProxy压入函数栈"-->setHttpProxy1
     setHttpProxy1--"此时Property proxy未定义,符合unless要求<br>执行depends,查找Target setEnvHttpProxy<br>setEnvHttpProxy压入函数栈"-->setEnvHttpProxy1
-
+    setEnvHttpProxy1--"unless=&quot;proxy&quot;一定还未设置"-->isEnvHttpProxyDefined
+    isEnvHttpProxyDefined--"是,符合if=&qout;env.HTTP_PROXY&qout;<br>执行Property标签"-->setEnvHttpProxy2
+    isEnvHttpProxyDefined--"否,不符合if=&qout;env.HTTP_PROXY&qout;<br>退出函数栈,执行Property标签"-->setHttpProxy2
+    setHttpProxy2-->echo
+    setEnvHttpProxy2-->echo
 ```
 
-？？？？？？？？？？Mermaid图还没画完
+```sh
+$ ./vendor/bin/phing
+	# [echo] Proxy: http://172.25.128.1:10811
+```
+
+我们可以使用`<if>`简化以上配置文件：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <if>
+        <not>
+            <isset property="env.HTTP_PROXY"/>
+        </not>
+        <then>
+            <property name="proxy" value="127.0.0.1:10808"/>
+        </then>
+        <else>
+            <property name="proxy" value="${env.HTTP_PROXY}"/>
+        </else>
+    </if>
+    <target name="main">
+        <echo>Proxy: ${proxy}</echo>
+    </target>
+</project> 
+```
+
+```shell
+$ ./vendor/bin/phing
+	# [echo] Proxy: http://172.25.128.1:10811
+```
+
+### §8.2.5 `<fileset>`
+
+不同的平台有着不同的文件系统路径，
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Phar文件？？？？？？？？TODO：
 
 
-
-7月7日目标：11w+字
 
 7月8日目标：12w+字
 
