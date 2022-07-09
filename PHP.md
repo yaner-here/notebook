@@ -3493,7 +3493,7 @@ $ pear install phing/phing
 | `phingVersion`      | Phing的最低版本  | ×        | `None`           |
 | `basedir`           | 构建时使用的目录 | ×        | `./`（当前目录） |
 
-### §8.2.2 `<target>`
+### §8.2.2 目标（`<target>`）
 
 `<target>`标签类似于函数，其`name`类似于函数名。在上面的例子中，我们给`<project>`指定了`default`属性`main`，这里的`<target>`的`name`属性也为`main`，那么Phing在执行自动构建的时候就会默认执行这个`<target>`：
 
@@ -3582,7 +3582,7 @@ $ ./vendor/bin/phing -projecthelp
 | `if`               | 当指定的属性名被定义时则允许执行                        | ×        | `None`  |
 | `unless`           | 当指定的属性名被定义时则允许执行                        | ×        | `None`  |
 
-### §8.2.3 `<property>`
+### §8.2.3 属性（`<property>`）
 
 `<property>`标签类似于全局变量：
 
@@ -3811,33 +3811,320 @@ $ ./vendor/bin/phing
 	# [echo] Proxy: http://172.25.128.1:10811
 ```
 
-### §8.2.5 `<fileset>`
+### §8.2.5 类型
 
-不同的平台有着不同的文件系统路径，
+#### §8.2.5.1 `<fileset>`
+
+不同的平台有着不同的文件系统路径，如果每次都用`<if>`对Linux/Windows分类讨论设置路径。`<fileset>`提供了一种和操作系统平台完全无关的的数据类型：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    
+    <!-- 将属性写到<fileset>属性中 -->
+    <fileset id="libPath"
+             dir="src/lib"
+             excludes="**/*Test.php **/test.php" 
+             includes="**/*.php"/><!-- **匹配所有子文件夹和文件,*匹配0或多个字符 -->
+    
+    <!-- 将属性写到<fileset>属性中 -->
+    <fileset id="vendorPath" dir="vendor/">
+    	<exclude name="**/*config*/**"/>
+        <include name="**"/>
+    </fileset>
+    
+</project> 
+```
+
+| `<fileset>`标签属性   | 作用                                                         | 是否必需 |
+| --------------------- | ------------------------------------------------------------ | -------- |
+| `id`                  | `<fileset>`的名称                                            | ×        |
+| `refid`               | 当前`<fileset>`是否是对指定`id`                              | ×        |
+| `dir`                 | 起始路径（Linux中`/`开头表示绝对路径，相对路径不需要添加`./`） | ×        |
+| `expandsymboliclinks` | 是否解析软链接                                               | ×        |
+| `includes`            | 匹配白名单列表，每项之间用空格隔开                           | ×        |
+| `excludes`            | 匹配黑名单列表，每项之间用空格隔开                           | ×        |
+
+#### §8.2.5.2 `<patternset>`
+
+随着项目的开发，我们使用的`<fileset>`将会越来越多，其中重复的`includes`和`excludes`也会越来越多。能不能把匹配规则提取出来，做成模版呢？`<patternset>`标签可以通过包含`<include>`和`<exclude>`的方式实现该功能：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <fileset id="vendorPath" dir="vendor/">
+    	<patternset refid="excludeConfigFile"/>
+    </fileset>
+    <patternset id="excludeConfigFile">
+        <exclude name="**/*.ini"/>
+        <exclude name="**/*.conf"/>
+        <exclude name="**/*.config"/>
+    </patternset>
+</project> 
+```
+
+| `<patternset>`标签属性 | 作用                                                 | 是否必需 |
+| ---------------------- | ---------------------------------------------------- | -------- |
+| `id`                   | `<patternset>`的名称                                 | ×        |
+| `excludes`             | 匹配黑名单列表，每项之间用空格隔开                   | ×        |
+| `includes`             | 匹配黑名单列表，每项之间用空格隔开                   | ×        |
+| `refid`                | 指定当前的`<patternset>`是对指定`id`的同类标签的引用 | ×        |
+
+#### §8.2.5.4 `<filterchain>`
+
+`<filterchain>`标签用于转换文件内容，内部可以包含多个过滤器标签，例如`<stripphpcomments>`用于去除PHP注释，`<striplinebreaks>`用于去除换行符：
+
+```php
+// ./src/index.php
+<?php 
+namespace yaner\test;
+require_once('./vendor/autoload.php');
+
+$list = new PersonList(); // 创建列表
+$list->addPerson(new Person("Alice")); // 创建人物
+$list->printPeople(); // 添加到列表中
+```
+
+```php
+// ./src/Person.php
+<?php 
+namespace yaner\test;
+require_once('./vendor/autoload.php');
+
+class Person {
+    public readonly string $name; // 姓名
+    public function __construct(string $name){ // 构造函数
+        $this->name = $name;
+    }
+}
+```
+
+```php
+// ./src/PersonList.php
+<?php 
+namespace yaner\test;
+require_once('./vendor/autoload.php');
+
+class PersonList {
+    public $list = []; // 人员列表
+    public function addPerson(Person $person){
+        $this->list[] = $person;
+    }
+    public function printPeople(){
+        foreach($this->list as $person){
+            print($person->name . "\n");
+        }
+    }
+}
+```
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <fileset id="srcPath" dir="src"/>
+    <target name="main">
+        <copy todir="build/src">
+            <fileset refid="srcPath"/>
+            <filterchain>
+				<stripphpcomments/>
+                <striplinebreaks/>
+            </filterchain>
+        </copy>
+    </target>
+</project>
+```
+
+```shell
+$ ./vendor/bin/phing
+	Buildfile: /home/yaner/test/build.xml
+	test > main:
+     [copy] Created 1 empty directory in /home/yaner/test/build/src
+     [copy] Copying 3 files to /home/yaner/test/build/src
+	BUILD FINISHED
+	Total time: 0.0354 seconds
+$ ls
+	......
+	drwxr-xr-x  build
+	......
+$ tree ./build
+    ./build
+    └── src
+        ├── index.php
+        ├── PersonList.php
+        └── Person.php
+    1 directory, 3 files
+$ cat ./build/src/index.php
+    <?php namespace yaner\test;require_once('./vendor/autoload.php');$list = new PersonList();$list->addPerson(new Person("Alice"));$list->printPeople();
+$ cat ./src/index.php
+    <?php 
+    namespace yaner\test;
+    require_once('./vendor/autoload.php');
+
+    $list = new PersonList(); // 创建列表
+    $list->addPerson(new Person("Alice")); // 创建人物
+    $list->printPeople(); // 添加到列表中
+```
+
+使用`<replacetokens>`过滤器可以实现全局替换：
+
+```php
+// ./src/index.php
+<?php 
+namespace yaner\test;
+require_once("./vendor/autoload.php");
+
+class UserDataBase {
+    private const DATABASE_HOST = "@DATABASE_HOST@"; // 在要替换的文字两侧加上@
+    private const DATABASE_USERNAME = "@DATABASE_USERNAME@"; // xml中指定名称不带@
+    private const DATABASE_PASSWORD = "@DATABASE_PASSWORD@";
+    private $connection;
+    public function connect(){
+        $connection = mysqli_connect(
+            self::DATABASE_HOST,
+            self::DATABASE_USERNAME,
+            self::DATABASE_PASSWORD
+        );
+    }
+}
+```
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <property name="DATABASE_HOST" value="127.0.0.1:3306"/>
+    <property name="DATABASE_USERNAME" value="admin"/>
+    <property name="DATABASE_PASSWORD" value="admin"/>
+    <fileset id="srcPath" dir="src"/>
+    <target name="main">
+        <echo>DATABASE_HOST: ${DATABASE_HOST}</echo>
+        <echo>DATABASE_HOST: ${DATABASE_USERNAME}</echo>
+        <echo>DATABASE_HOST: ${DATABASE_PASSWORD}</echo>
+        <copy todir="build/src">
+            <fileset refid="srcPath"/>
+            <filterchain>
+                <replacetokens>
+                    <token key="DATABASE_HOST" value="${DATABASE_HOST}"/>
+                    <token key="DATABASE_USERNAME" value="${DATABASE_USERNAME}"/>
+                    <token key="DATABASE_PASSWORD" value="${DATABASE_PASSWORD}"/>
+                </replacetokens>
+            </filterchain>
+        </copy>
+    </target>
+</project>
+```
+
+```sh
+$ ./vendor/bin/phing
+    Buildfile: /home/yaner/test/build.xml
+    test > main:
+         [echo] DATABASE_HOST: 127.0.0.1:3306
+         [echo] DATABASE_HOST: admin
+         [echo] DATABASE_HOST: admin
+         [copy] Copying 1 file to /home/yaner/test/build/src
+    BUILD FINISHED
+    Total time: 0.0321 seconds
+$ cat ./build/src/index.php
+    ......
+    class UserDataBase {
+        private const DATABASE_HOST = "127.0.0.1:3306";
+        private const DATABASE_USERNAME = "admin";
+        private const DATABASE_PASSWORD = "admin";
+        ......
+    }
+```
+
+### §8.2.6 任务
+
+#### §8.2.6.1 `<echo>`
+
+`<echo>`用于将信息输出到`stdout`中，有两种方法：
+
+- 将字符串作为`<echo>`的内容：
+
+  ```xml
+  <echo>Hello,${NAME}</echo>
+  ```
+
+- 将字符串作为`<echo>`的`msg`属性值：
+
+  ```xml
+  <echo msg="Hello,${NAME}"/>
+  ```
+
+#### §8.2.6.2 `<copy>`
+
+`<copy>`用于复制文件：
+
+```xml
+<!-- 将./src/index.php复制到./build/src目录中 -->
+<copy file="src/index.php" todir="build/src"/>
+
+<!-- 将./src/index.php复制到./build/src目录中，并改名为main.php -->
+<copy file="src/index.php" todir="build/src/main.php"/>
+
+<!-- 将./src/index.php复制到./build/src目录中，并改名为main.php -->
+<copy file="src/index.php" toFile="build/src/main.php"/>
+
+<!-- 将fileset的内容作为<copy>的file参数 -->
+<copy todir="build/src">
+	<fileset refid="..."/>
+</copy>
+```
+
+`<copy>`只会重复复制那些源PHP文件已经被修改过的PHP文件。为了复制未修改的PHP文件，我们可以设置`overwrite`属性，让Phing再复制一次：
+
+```xml
+<copy todir="build/src" overwrite="yes">
+	<fileset refid="srcPath"/>
+    <filterchain>
+    	<stripphpcomments/>
+    </filterchain>
+</copy>
+```
+
+| `<copy>`标签属性     | 作用                                     | 是否必需 | 默认值  |
+| -------------------- | ---------------------------------------- | -------- | ------- |
+| `todir`              | 把文件复制到哪个目录或文件               | √        |         |
+| `tofile`             | 把文件复制到哪个目录                     | √        |         |
+| `tstamp`             | 被复制的文件与源文件是否具有相同的时间戳 | ×        | `false` |
+| `preservemode`       | 被复制的文件与源文件是否具有相同的权限   | ×        | `false` |
+| `includedeemptydirs` | 是否复制空目录                           | ×        | `false` |
+| `mode`               | 设置八进制权限                           | ×        | `755`   |
+| `haltonerror`        | 如果报错，是否终止构建过程               | ×        | `true`  |
+| `overwrite`          | 是否覆盖已存在的目标文件                 | ×        | `no`    |
+
+#### §8.2.6.3 `<input>`
+
+之前我们介绍过用`-D`选项，在运行前为构建过程动态提供参数，这种方法类似于C语言的`void main(int argc,char *argv[])`中的`argv`字符串数组。有没有类似于`getchar()`/`scanf()`的方法，让我们在构建过程运行中输入参数呢？有的，这就是`<input>`标签。
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <target name="main">
+        <input message="Input a string:" 
+               propertyName="MESSAGE" 
+               defaultValue="You don't input anything." 
+               promptChar=">"/>
+        <echo>Your input: ${MESSAGE}</echo>        
+    </target>
+</project> 
+```
+
+```shell
+$ ./vendor/bin/phing
+    Buildfile: /home/yaner/test/build.xml
+    test > main:
+    Input a string: [You don't input anything.]> Hello World!
+         [echo] Your input: Hello World!
+    BUILD FINISHED
+    Total time: 48.7319 seconds
+```
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#### §8.2.6.4 `<delete>`
 
 # Phar文件？？？？？？？？TODO：
-
-
 
 7月8日目标：12w+字
 
