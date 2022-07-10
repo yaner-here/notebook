@@ -3342,23 +3342,6 @@ class XXXTest extends \PHPUnit\Framework\TestCase {
 }
 ```
 
-## §7.5 Mock与Stub
-
-测试一个类，总是要牵扯到其他类，这样我们编写的单元测试一点也不“单元”。为了测试类与整个系统尽可能的解耦，我们有时不需要调用系统中的其他类，而是自己仿作一个类出来。仿作的这个类根据用途可以分为以下几种：
-
-- Mock：将待测试类关联的其它类提取出来，自己编写一个类，**特指实现其他类的接口，而不关注接口的具体实现？**
-- Stub：将待测试类关联的其它类提取出来，自己编写一个类，**特指编写的这个类每次返回的值写死在测试类中**
-
-？？？？？？？？？？？getMock？getStub？TODO：
-
-## §7.6 Web测试
-
-？？？？？？？？？？？TODO：
-
-
-
-
-
 # §8 Phing自动化构建
 
 Phing是一个用于构建PHP项目的工具，类似于Java的Ant。
@@ -4120,14 +4103,182 @@ $ ./vendor/bin/phing
     Total time: 48.7319 seconds
 ```
 
-
+| `<input>`标签属性 | 作用                             | 是否必需 |
+| ----------------- | -------------------------------- | -------- |
+| `propertyName`    | 属性名称                         | √        |
+| `message`         | 输入提示信息                     | ×        |
+| `defaultValue`    | 默认值                           | ×        |
+| `validArgs`       | 是否以逗号分隔可输入的有效值列表 | ×        |
+| `promptChar`      | 输入提示符                       | ×        |
 
 #### §8.2.6.4 `<delete>`
 
-# Phar文件？？？？？？？？TODO：
+`<delete>`标签用于删除文件：
 
-7月8日目标：12w+字
+```xml
+<!-- 删除文件或目录 -->
+<delete dir="..."/>
 
-7月9日目标：13w+字
+<!-- 删除<file>或<fileset>指定的目录 -->
+<delete>
+	<file .... />
+    <fileset ... />
+</delete>
+```
+
+该标签常用于清理构建完成后的文件：
+
+```xml
+<?xml version="1.0"?>
+<project name="test" default="main">
+    <target name="main">
+        <copy todir="build/src">
+            <fileset id="srcPath" dir="src"/>
+        </copy>
+    </target>
+    <target name="clean">
+        <delete dir="build"/>
+    </target>
+</project> 
+```
+
+```shell
+$ ls ./build
+    ls: 无法访问 './build': 没有那个文件或目录
+$ ./vendor/bin/phing
+    Buildfile: /home/yaner/test/build.xml
+    test > main:
+         [copy] Created 1 empty directory in /home/yaner/test/build/src
+         [copy] Copying 1 file to /home/yaner/test/build/src
+    BUILD FINISHED
+    Total time: 0.0324 seconds
+$ ls ./build
+    src
+$ ./vendor/bin/phing clean
+    Buildfile: /home/yaner/test/build.xml
+    test > clean:
+       [delete] Deleting directory /home/yaner/test/build
+    BUILD FINISHED
+    Total time: 0.0311 seconds
+$ ls ./build
+    ls: 无法访问 './build': 没有那个文件或目录
+```
+
+# §9 Vagrant
+
+我们已经知道如何用Composer保证生产环境和运行环境安装的是同一个版本的PHP包，然而除了PHP包，我们在现实中还需要考虑PHP版本，甚至是其它中间件（MySql，Apache，Nginx）版本。在庞大的服务器集群面前，手动维护众多软件的版本肯定是不现实的。
+
+解决这一问题的其中一种思路就是虚拟化，Vagrant正是其中一种基于虚拟化平台实现的操作系统。
+
+> 注意：Vagrant不能安装在WSL平台上：
+>
+> ```sh
+> $ vagrant 
+>     Vagrant failed to initialize at a very early stage:
+> 
+>     Vagrant is unable to use the VirtualBox provider from the Windows Subsystem for
+>     Linux without access to the Windows environment. Enabling this access must be
+>     done with caution and an understanding of the implications. For more information
+>     on enabling Windows access and using VirtualBox from the Windows Subsystem for
+>     Linux, please refer to the Vagrant documentation:
+> 
+>       https://www.vagrantup.com/docs/other/wsl.html
+> ```
+
+## §9.1 安装
+
+```shell
+$ wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+$ sudo apt update && sudo apt install vagrant
+$ sudo apt-get install virtualbox
+$ vagrant
+    Usage: vagrant [options] <command> [<args>]
+        -h, --help                       Print this help.
+    Common commands:
+         autocomplete    manages autocomplete installation on host
+         box             manages boxes: installation, removal, etc.
+         cloud           manages everything related to Vagrant Cloud
+         destroy         stops and deletes all traces of the vagrant machine
+         global-status   outputs status Vagrant environments for this user
+         halt            stops the vagrant machine
+         help            shows the help for a subcommand
+	......
+```
+
+## §9.2 `vagrant init`
+
+`vagrant init`用于生成配置文件`Vagrantfile`
+
+```shell
+$ vagrant init bento/centos-6.7
+    A `Vagrantfile` has been placed in this directory. You are now
+    ready to `vagrant up` your first virtual environment! Please read
+    the comments in the Vagrantfile as well as documentation on
+    `vagrantup.com` for more information on using Vagrant.
+$ ls -la
+    ......
+    -rw-r--r--  1 root root 3022 Jul 10 08:22 Vagrantfile
+    ......
+```
+
+```vagrantfile
+root@iZ2vc9lbf9c4ac8quabtc6Z:~# cat Vagrantfile 
+    Vagrant.configure("2") do |config|
+      config.vm.box = "centos/7"
+    end
+```
+
+## §9.3 `vagrant up`
+
+`vagrant up`用于下载镜像并启动虚拟机，并将其保存在Linux的`~/.vagrant.d/boxes`：
+
+```
+
+```
+
+？？？？？？？？TODO：
+
+# §10 Phar
+
+Phar是PHP 5.3.0开始预置的一个扩展，可以将PHP应用打包成一个`.phar`单文件，经常用于软件包的分发，效果类似于Java的`.jar`文件。
+
+
+
+```php
+<?php
+try {
+    $pharFile = "app.phar";
+    $srcFile = "index.php";
+    if(file_exists($pharFile)){ // 如果app.phar已经存在，则将其删除
+        unlink($pharFile);
+    }
+    $phar = new Phar($pharFile);
+    $phar->startBuffering();
+    $defaultStub = $phar->createDefaultStub("main.php");
+    $phar->buildFromDirectory(__DIR__."/src");
+    $stub = "#!/usr/bin/env php \n".$defaultStub;
+    $phar->setStub($stub);
+    $phar->stopBuffering();
+    $phar->compressFiles(Phar::GZ);
+    chmod(__DIR__."/app.phar",0770);
+}catch(Exception $e){
+    echo $e->getMessage();
+}
+```
+
+
 
 7月10日目标：14w+字
+
+7月11日目标：15w+字
+
+7月12日目标：16w+字
+
+7月13日目标：17w+字
+
+7月14日目标：18w+字
+
+7月15日目标：19w+字
+
+7月16日目标：20w+字
