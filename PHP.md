@@ -4241,7 +4241,60 @@ root@iZ2vc9lbf9c4ac8quabtc6Z:~# cat Vagrantfile
 
 # §10 Phar
 
-Phar是PHP 5.3.0开始预置的一个扩展，可以将PHP应用打包成一个`.phar`单文件，经常用于软件包的分发，效果类似于Java的`.jar`文件。
+Phar（PHP Archive）是PHP 5.3.0开始预置的一个扩展，可以将PHP应用打包成一个`.phar`单文件，经常用于软件包的分发，效果类似于Java的`.jar`文件。
+
+我们知道，PHP的`include()`函数本质上是把文件作为Stream，使用`streamWrapper`类进行处理。这一过程中，PHP会对文件路径使用流包装器进行修饰：
+
+```php
+include("src/view/index.php"); // 相对路径
+include("file://src/view/index.php");
+
+include("/var/www/html/index.php"); // 绝对路径
+include("file:///var/www/html/index.php");
+```
+
+我们可以直接访问Phar内的文件：
+
+```php
+include("app.phar/file.php")
+include("phar://app.phar/file.php");
+```
+
+
+
+
+
+
+
+```
+
+```
+
+
+
+
+
+
+
+## § 10. 配置文件
+
+### §10. 禁用Phar
+
+如果要禁用Phar扩展，可以使用`--disable-phar`参数：
+
+```php
+$ php ./app.phar --disable-phar
+```
+
+### §10. 运行时配置
+
+`php.ini`中的以下参数控制着Phar的行为：
+
+| 属性名              | 属性值类型 | 作用                                                         | 缺省值 |
+| ------------------- | ---------- | ------------------------------------------------------------ | ------ |
+| `phar.readonly`     | `bool`     | 是否禁止Phar文件流和`Phar`类对`.phar`文件的创建与修改。<br />**该属性能增强安全性，不能通过`ini_set()`修改，应在生产环境中启用。** | `1`    |
+| `phar.require_hash` | `bool`     | 是否强制所有打开的`.phar`文件必须包含哈希校验，目前支持`MD5`、`SHA1`、`SHA256`、`SHA512`、`OpenSSL`，否则拒绝处理该`.phar`文件。<br />**该属性只能保证Phar的完整性，不能保证Phar的安全性，因为任何人都可以更新哈希值。** | `1`    |
+| `phar.cache_list`   | `string`   | 指定`.phar`文件的预加载目录，加快Phar的解析速度。不同操作系统的路径与路径分隔符也不相同：Windows为`phar.cache_list=C:\1.phar;C:\2.phar`，Linux为`phar.cache_list=/test/1.phar:/test/2.phar` | `""`   |
 
 
 
