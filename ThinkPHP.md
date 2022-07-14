@@ -18,6 +18,14 @@ $ ls
 
 
 
+```shell
+$ php -S localhost:8080 -t public
+```
+
+TODO：？？？？？？？？？？？？？
+
+# §2 配置
+
 配置加载顺序如下，优先级越来越低：
 
 1. 框架配置/惯例配置：框架自带的默认配置
@@ -169,27 +177,25 @@ $ ls
 
 2. 全局配置：`application/config.php`
 
-   先根据第3条设置“扩展配置”，然后在`application/`目录下新建`home.php`：
+   编辑`application/config.php`：
 
    ```php
-   /* 新建application/home.php */
+   /* 编辑application/config.php */
    <?php
    return [
-       'amqp' => [
-           'conn' => 'I am in home now!'
-       ]
-   ];
+       ......
+       "YanerMessage" => "Hello, World",
+       ......
+   ]
    ```
 
-   将`application/config.php`的`app_status`属性更改为`home`，刷新页面即可看到`amqp`扩展的输出发生变化：
+   刷新页面即可看到全局配置：
 
    ```json
    $ curl localhost:8080
-   {
+   { 
        ......
-       "amqp": {
-           "conn": "I am in home now!" 
-       },
+       "yanermessage": "Hello, World", 
        ......
    }
    ```
@@ -232,9 +238,174 @@ $ ls
 
 4. 场景配置：`app_status`常量
 
+   先根据第3条设置“扩展配置”，然后在`application/`目录下新建`home.php`：
+
+   ```php
+   /* 新建application/home.php */
+   <?php
+   return [
+       'amqp' => [
+           'conn' => 'I am in home now!'
+       ]
+   ];
+   ```
+
+   将`application/config.php`的`app_status`属性更改为`home`，刷新页面即可看到`amqp`扩展的输出发生变化：
+
+   ```json
+   $ curl localhost:8080
+   {
+       ......
+       "amqp": {
+           "conn": "I am in home now!" 
+       },
+       ......
+   }
+   ```
+
+   也可以接着在`application/index`目录下新建`home.php`：
+
+   ```php
+   /* 新建application/index/home.php */
+   <?php
+   return [
+       'amqp' => [
+           'conn' => 'I am index module home config'
+       ]
+   ];
+   ```
+
+   刷新页面即可看到变化：
+
+   ```json
+   $ curl localhost:8080
+   { 
+       ......
+       "amqp": { 
+           "conn": "I am index module home config" 
+       }, 
+   	......
+   }
+   ```
+
 5. 模块配置：`application/模块名/config.php`
+
+   在`application/index`目录下新建`config.php`：
+
+   ```php
+   /* 新建application/index/config.php */
+   <?php
+   return [
+       'amqp' => [
+           'conn' => 'I am in index module now!'
+       ]
+   ];
+   ```
+
+   刷新页面即可看到变化：
+
+   ```json
+   $ curl localhost:8080
+   {
+       ......
+       "amqp": {
+           "conn": "I am in index module now!" 
+       }, 
+   	......
+   }
+   ```
 
 6. 动态配置：自定义`Config`类
 
+   编辑`application/index/controller`目录下的`index.php`：
 
+   ```php
+   /* 编辑application/index/controller/index.php */
+   class Index {
+       public function index(){
+           ......
+       }
+       public function configTest(){
+           var_dump(Config::get("test"));
+           Config::set("test","Hello World");
+           var_dump(Config::get("test"));
+       }
+   }
+   ```
+   
+   访问`localhost:8080/index/index/coonfigTest`：
+   
+   ```shell
+   $ curl localhost:8080/index/index/configTest
+       C:\WWW\application\index\controller\Index.php:13:null
+       C:\WWW\application\index\controller\Index.php:15:string 'Hello World' (length=11)
+   ```
+   
+   
+   
+   
+   
+   
+
+# §3 路由
+
+ThinkPHP 5支持PATHINFO规则进行路由：
+
+   ```
+   http://server/module/controller/action/param/value/
+   ```
+
+## §3.1 路由模式
+
+ThinkPHP 5通过`application/config.php`中的`url_route_on`和`url_route_must`这两个布尔参数控制陆路由的行为，由此可以延伸出三种路由模式——**普通模式、混合模式、强制模式**：
+
+   | 路由模式                 | `url_route_on`参数值 | `url_route_must`参数值 | 含义                                  |
+   | ------------------------ | -------------------- | ---------------------- | ------------------------------------- |
+   | 普通模式（PATHINFO模式） | `false`              |                        | 只执行PATHINFO规则                    |
+   | 混合模式（默认）         | `true`               | `false`                | 优先执行自定义路由，然后PATHINIFO规则 |
+   | 强制模式                 | `true`               | `true`                 | 强制要求所有请求必须设置路由          |
+
+## §3.2 路由定义
+
+### §3.2.1 编码定义
+
+编码定义指的是在`application/route.php`中以硬编码的方式定义路由：
+
+```php
+/* 编辑applicationi/route.php */
+// \think\Route::rule(路由表达式,路由地址,请求方法,路由条件,变量规则);
+
+\think\Route::rule('news/:id','index/News/read','GET|POST');
+	// 将GET或POST方法访问news/123视作访问index模块的News控制器的read方法
+```
+
+ThinkPHP 5还支持单独指定HTTP请求方法：
+
+```php
+\think\Route::get	('news/:id','index/News/read'); // 匹配GET方法
+\think\Route::post	('news/:id','index/News/read'); // 匹配POST方法
+\think\Route::put	('news/:id','index/News/read'); // 匹配PUT方法
+\think\Route::delete('news/:id','index/News/read'); // 匹配DELETE方法
+\think\Route::any	('news/:id','index/News/read'); // 匹配任意方法
+```
+
+### §3.2.2 配置定义
+
+编码定义指的是在`application/route.php`中以返回数组的方式定义路由：
+
+```php
+
+<?php
+return [
+    'news/:id' => 'index/News/read',			// 定义必选变量
+    'news/[:id]' => 'index/News/read',			// 定义可选变量
+    'news/:id$' => 'index/News/read',			// 定义完全匹配
+    'news/:id' => 'index/News/read?status=1',	// 定义隐式传参
+    'news/:id' => [								// 限制变量类型
+        'index/News/read',
+        ['ext'=>'html'],
+        ['id'=>'\d{4}']
+    ]
+]
+```
 
