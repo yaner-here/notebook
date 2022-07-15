@@ -394,7 +394,6 @@ ThinkPHP 5还支持单独指定HTTP请求方法：
 编码定义指的是在`application/route.php`中以返回数组的方式定义路由：
 
 ```php
-
 <?php
 return [
     'news/:id' => 'index/News/read',			// 定义必选变量
@@ -408,4 +407,272 @@ return [
     ]
 ]
 ```
+
+在满足路由定义的前提下，路由条件负责是否接受/拒绝该请求：
+
+| 路由参数名称       | 数据类型   | 作用                                         |
+| ------------------ | ---------- | -------------------------------------------- |
+| `method`           | `string`   | 允许的HTTP请求方法（支持`|`匹配多个值）      |
+| `ext`              | `string`   | 允许的URL后缀（支持`|`匹配多个值）           |
+| `deny_ext`         | `string`   | 禁止的URL后缀（支持`|`匹配多个值）           |
+| `https`            | `bool`     | 是否接受https请求                            |
+| `domain`           | `string`   | 允许的域名                                   |
+| `before_behaviour` | `function` | 前置行为检测，通过返回的布尔值决定是否接受   |
+| `callback`         | `function` | 自定义条件函数，通过返回的布尔值决定是否接受 |
+| `merge_extra_vars` | `bool`     | 合并额外参数                                 |
+| `bind_model`       | `array`    | 绑定模型                                     |
+| `cache`            | `integer`  | 当前路由缓存的保存时长（秒）                 |
+| `param_depr`       | `string`   | 路由参数分隔符                               |
+| `ajax`             | `bool`     | 是否接受ajax请求                             |
+| `pjax`             | `bool`     | 是否接受pjax请求                             |
+
+```php
+/* application/route.php */
+return [
+    'news/:id' => [
+        'news/show/:name$',
+        [
+            'method' => 'get|post', // 只允许GET和POST方法
+            'ext' => 'shtml', // 只允许shtml后缀
+            'deny_ext' => 'shtml', // 不允许shtml后缀
+            'https' => true, // 只允许https
+            'domain' => 'www.example.com', // 只允许www.wxample.com域名
+            'before_behaviour' => 'app\index\behaviour\before', // 调用index模块的before()方法，根据布尔返回值决定是否匹配
+            'callback' => function(){return true;}, // 根据布尔返回值决定是否匹配
+            'merge_extra_vars' => true, // 合并额外参数，例如访问/news/show/a/b/c，得到的name仅为a/b/c
+            'bind_model' => ['User','name'], // 将绑定到User模型的name属性
+            'cache' => 3600, // 缓存当前路由一小时
+            'param_depr' => '///', // 使用///作为分隔符，而不是默认的/
+            'ajax' => true, // 允许ajax请求
+            'pjax' => true // 允许pjax请求
+        ]
+    ]
+]
+```
+
+## §3.3 路由地址
+
+路由地址指的是路由匹配成功后执行的操作，分为以下五种：
+
+### §3.3.1 路由到模块指定的控制器
+
+控制器定义如下：
+
+```shell
+$ tree ./application
+│  ......
+├─index
+│  └ ......  
+└─news
+    └─controller
+            News.php
+```
+
+```php
+/* 新建application/news/controller/News.php */
+<?php
+namespace app\news\controller; // 注意命名空间！
+class News{
+    public function read($id){
+        echo '您访问的是第'.$id.'号新闻';
+    }
+}
+```
+
+测试可以正常访问：
+
+```
+$ curl localhost:8080/news/news/show/id/000001
+	您访问的是第000001号新闻
+```
+
+现在设置路由：
+
+```php
+/* 修改application/route.php */
+'news/:id' => 'index/news/read'
+```
+
+测试路由：
+
+```shell
+$ curl localhost:8080/news/000001
+	您访问的是第000001号新闻
+```
+
+### §3.3.2 重定向
+
+这种方式会向浏览器发送301或302的HTTP状态码，路由配置如下：
+
+```php
+/* 修改application/route.php */
+'news/:id' => 'news/show/:id.html' // 站内跳转
+'news/:id' => 'http://www.example.com/news/show/:id.html' // 站外跳转
+```
+
+### §3.3.3 路由到直接指定的控制器方法
+
+这种方式不需要按照PATHINFO模式走一遍，也不用实例化控制器类，而是直接执行调用方法。因此不能获取到当前模块名、控制器名、方法名，因为ThinkPHP框架没有初始化这些变量，获取时会报错：
+
+```php
+/* 修改application/route.php */
+'news/:id' => '@news/news/show/'
+```
+
+测试路由：
+
+```shell
+$ curl localhost:8080/news/000001
+	您访问的是第000001号新闻
+```
+
+### §3.3.4 路由到类静态方法
+
+这种方式允许访问包括控制器类在内的**任何类的静态方法**：
+
+```php
+/* 修改application/route.php */
+'news/:id' => 'app\index\controller\News::show'
+```
+
+### §3.3.5 路由到闭包
+
+这种方式允许直接在`application/router.php`直接定义路由的内容：
+
+```php
+/* 修改application/route.php */
+Route::get(
+    'news/:id',
+	function($id){
+        return '您访问的是第'.$id.'号新闻';
+    }
+)
+```
+
+## §3.4 路由分组
+
+我们可以将多个路由合并到一个分组中：
+
+```php
+/* 修改application/route.php */
+// 两条独立的路由
+'news/:id' => ['index/news/show',['method'=>'get']],
+'news/post/:id' => ['index/news/post',['method'=>'post']]
+    
+// 一个路由分组
+'[news]' => [
+    ':id' => ['index/news/show',['method'=>'get']],
+    'post/:id' => ['index/news/post',['method'=>'post']]
+]
+```
+
+## §3.5 404路由
+
+404路由`__miss__`用于处理所有路由规则不匹配的情况：
+
+```php
+/* 修改application/route.php */
+'[news]' => [
+    ':id' => ['index/news/show',['method'=>'get']],
+    '__miss__' => 'index/index/notfound' // 局部404路由
+],
+'__miss__' => 'index/index/notfound' // 全局404路由
+```
+
+## §3.6 路由绑定
+
+如果当前的入口文件只使用一个模块，则可以使用路由绑定以简化路由定义，不用每次都声明模块名：
+
+```php
+/* 修改application/route.php */
+Route::bind('index'); // 绑定index模块
+'news/:id' => 'news/show'
+```
+
+## §3.7 URL生成
+
+可以通过`Url::build()`或`url()`生成路由：
+
+```php
+/* 修改application/route.php */
+Url::build(路由地址,参数,伪静态后缀,是否加上域名);
+url(路由地址,参数,伪静态后缀,是否加上域名);
+
+'news/:id' => 'news/show'
+url('news/show',['id'=>1],'html'); // 生成的URL为"/news/1.html"
+```
+
+# §4 控制器
+
+控制器（Controller）是MVC模式中负责协调视图和模型的一层。ThinkPHP 3要求所有控制器类必须继承`Controller`类，而ThinkPHP 5开始不再强制要求。
+
+我们之前已经接触过控制器了，最简单的例子在`application/index/controller/index.php`：
+
+```php
+/* 查看application/index/controller/index.php */
+<?php
+namespace app\index\controller;
+class Index{
+    public function index(){
+        return "......ThinkPHP 5 由亿速云提供......";
+    }
+}
+```
+
+> 注意：ThinkPHP 3的所有控制器类的方法全部使用`echo`进行输出，而ThinkPHP 5既可以使用`echo`，也可以使用`return`，其中官方更推荐`return`。
+
+## §4.1 初始化操作
+
+ThinkPHP框架使用类的反射来实例化控制类，这使得我们不能轻易更改`__construct()`方法的形参列表进行初始化。为弥补这一缺陷，ThinkPHP提供了`_initialize()`方法作为替代品。
+
+## §4.2 前置操作
+
+ThinkPHP框架在控制器中提供了`$beforeActionList`数组，用于为某个方法指定前置操作：
+
+```php
+public $beforeActionList = [
+	'方法名', // 所有方法都会预先执行该方法
+	'方法名'=>['except'=>'action1,action2,...'], // 数组内的action不预先执行该方法
+    '方法名'=>['only'=>['action1,action2,...']] // 只有数组内的action预先执行该方法
+]；
+```
+
+## §4.3 控制器嵌套
+
+我们到目前为止所用的控制器全都定义于`application/模块名/controller/控制器类名.php`。事实上，为了便于模块化开发，我们也可以在`application/模块名/controller`目录下新建文件夹，在文件夹内编写其它控制器类：
+
+```php
+/* 创建application/index/controller/user/Wallet.php */
+namespace app\index\controller\user;
+class Wallet{
+    public function index(){
+        return "用户钱包首页";
+    }
+}
+```
+
+```shell
+$ curl localhost:8080/index/user/wallet/index
+	用户钱包首页
+```
+
+## §4.4 Request
+
+
+
+| `Request`实例方法                            | 作用                                      |
+| -------------------------------------------- | ----------------------------------------- |
+| `param($name='',$default=null,$filter='')`   | 返回当前请求类型的参数、PATHINFO、`$_GET` |
+| `get($name='',$default=null,$filter='')`     | 返回`$_GET`                               |
+| `post($name='',$default=null,$filter='')`    | 返回`$_POST`                              |
+| `put($name='',$default=null,$filter='')`     | 返回PUT请求方法的数据                     |
+| `delete($name='',$default=null,$filter='')`  | 返回DELETE请求方法的数据                  |
+| `session($name='',$default=null,$filter='')` | 返回`$_SESSION`                           |
+| `cookie($name='',$default=null,$filter='')`  | 返回`$_COOKIE`                            |
+| `request($name='',$default=null,$filter='')` | 返回`$_REQUEST`                           |
+| `server($name='',$default=null,$filter='')`  | 返回`$_SERVER`                            |
+| `env($name='',$default=null,$filter='')`     | 返回`$_ENV`                               |
+| `route($name='',$default=null,$filter='')`   | 返回路由数据                              |
+| `file($name='')`                             | 返回`$_GET`                               |
+| `header($name='',$default=null)`             | 返回`$_GET`                               |
 
