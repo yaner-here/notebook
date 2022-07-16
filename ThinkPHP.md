@@ -658,7 +658,9 @@ $ curl localhost:8080/index/user/wallet/index
 
 ## §4.4 Request
 
+### §4.4.1 获取输入数据
 
+ThinkPHP 5对PHP的原始输入进行了包装：
 
 | `Request`实例方法                            | 作用                                      |
 | -------------------------------------------- | ----------------------------------------- |
@@ -673,6 +675,288 @@ $ curl localhost:8080/index/user/wallet/index
 | `server($name='',$default=null,$filter='')`  | 返回`$_SERVER`                            |
 | `env($name='',$default=null,$filter='')`     | 返回`$_ENV`                               |
 | `route($name='',$default=null,$filter='')`   | 返回路由数据                              |
-| `file($name='')`                             | 返回`$_GET`                               |
-| `header($name='',$default=null)`             | 返回`$_GET`                               |
+| `file($name='')`                             | 返回`$_FILES[$name]`                      |
+| `header($name='',$default=null)`             | 返回Header数据                            |
 
+```php
+$request = Request::instance();
+$username = $request->param('username');	// 筛选名为username的参数
+$allParam = $request->param();				// 获取经过过滤的所有参数
+$allParam = $request->param(false);			// 获取未经过滤的所有参数
+// $request->param()有以上三种用法，其它方法同理
+```
+
+### §4.4.2 过滤数据
+
+```php
+Request::instance()->get(
+	'username',
+    '',
+    'htmlspecialchars,strip_tags'
+);
+Request::instance()->only(
+	['username','password']
+); // 一次筛选多个数据
+Request::instance()->except(
+	['username','password']
+); // 一次排除多个数据
+```
+
+###  §4.4.3 数据类型转换
+
+我们知道，原生PHP使用强制类型转换（`(int)`/`(string)`/`(array)`/......）或类型转换函数（`intval()`/`floatval()`/`strval()`）进行数据类型之间的转换。为了简化这一过程，ThinkPHP框架提供了数据类型修饰符：
+
+```php
+Request::instance()->param('username/s');	// 字符串 
+Request::instance()->param('age/d');		// 整型
+Request::instance()->param('gender/b');		// 布尔型
+Request::instance()->param('price/f');		// 浮点型
+Request::instance()->param('list/a');		// 数组
+```
+
+## §4.5 页面缓存
+
+在实际场景中，高并发的网站为降低服务器压力，通常使用页面缓存：
+
+```php
+/* 编辑application/route.php */
+'tryYourLuck/:id' => ['index/index/index',['cache'=>5]]
+```
+
+```php
+/* 编辑application/index/controller/index.php */
+......
+class Index {
+    public function index(){
+        return "您的随机数是".rand(0,10);
+    }
+}
+```
+
+```shell
+$ curl localhost:8080/index/index/ (重复三次)
+	您的随机数是3
+	您的随机数是9
+	您的随机数是7
+$ curl localhost:8008/tryYourLuck (5秒内重复三次)
+	您的随机数是1
+	您的随机数是1
+	您的随机数是1
+$ curl localhost:8080/tryYourLuck (5秒后再试一次)
+	您的随机数是10
+```
+
+# §5 数据库操作层
+
+MVC的模型层可以再细分，其中DAO（Data Access Object）层用于进行底层数据库的操作，并不涉及业务逻辑。ThinkPHP框架实现了这一层，并且提供数据库的配置文件：
+
+```php
+/* 查看application/database.php */
+return [
+    // 数据库类型
+    'type'           => 'mysql',
+    // 服务器地址
+    'hostname'       => '127.0.0.1',
+    // 数据库名
+    'database'       => '',
+    // 用户名
+    'username'       => 'root',
+    // 密码
+    'password'       => '',
+    // 端口
+    'hostport'       => '',
+    // 连接dsn
+    'dsn'            => '',
+    // 数据库连接参数
+    'params'         => [],
+    // 数据库编码默认采用utf8
+    'charset'        => 'utf8',
+    // 数据库表前缀
+    'prefix'         => '',
+    // 数据库调试模式
+    'debug'          => true,
+    // 数据库部署方式:0 集中式(单一服务器),1 分布式(主从服务器)
+    'deploy'         => 0,
+    // 数据库读写是否分离 主从式有效
+    'rw_separate'    => false,
+    // 读写分离后 主服务器数量
+    'master_num'     => 1,
+    // 指定从服务器序号
+    'slave_no'       => '',
+    // 是否严格检查字段是否存在
+    'fields_strict'  => true,
+    // 数据集返回类型 array 数组 collection Collection对象
+    'resultset_type' => 'array',
+    // 是否自动写入时间戳字段
+    'auto_timestamp' => false,
+    // 是否需要进行SQL性能分析
+    'sql_explain'    => false,
+];
+```
+
+ThinkPHP允许模型类使用`$connection`来连接`database.php`定义之外的数据库：
+
+```php
+class User extends Model {
+    protected $connection = 'user'; // 自动读取user连接定义来连接数据库
+}
+```
+
+## §5.1 SQL语句的CURD
+
+数据库的基本操作离不开CURD（Create/Update/Read/Delete），ThinkPHP 5定义了`Db`类用于实现增删查改：
+
+```php
+$受影响行 = Db::execute( // 增
+    'INSERT INTO user (username,password) VALUES (?,?)',
+	['admin',md5('123456')]    
+);
+$受影响行 = Db::execute( // 改
+	'UPDATE user SET password=? WHERE username=?',
+    [md5('123456'),'admin']
+);
+$受影响行 = Db::execute( // 删
+	'DELETE FROM user WHERE username=?',
+    ['admin']
+);
+$查询结果 = Db::query(
+	'SELECT * FROM user WHERE username=?',
+    ['admin']
+);
+```
+
+如果要使用`database.php`定义的默认数据库之外的数据库，可以使用`Db::config()`方法：
+
+```php
+Db::config($connection)->query(
+	'SELECT * FROM user WHERE username=?',
+    ['admin']
+);
+```
+
+## §5.2 查询构造器的CURD
+
+实际项目中很少使用`Db::execute()`直接执行手写的SQL语句。ThinkPHP将CURD的SQL语句封装成了查询构造器，并且使用了设计模式中的建造者模式，因此支持链式调用：
+
+- 添
+
+  ```php
+  // 插入单行
+  Db::table('user')->insert(
+          ['username'=>'admin', 'password'=>md5('123456')]
+      );
+  
+  // 插入多行
+  Db::table('user')->insertAll(
+      [
+          ['username'=>'admin', 'password'=>md5('123456')],
+          ['username'=>'user1', 'password'=>md5('abcdef')],
+      ]
+  );
+  ```
+
+- 改：
+
+  ```php
+  // 更新数据
+  Db::table('user')->where('username','admin')->update(
+      ['password'=>md5('123456')]
+  );
+  
+  // 更新数据（特用于更新的数据中包含主键的情形）
+  Db::table('user')->update(
+      ['id'=>1,'password'=>md5('123456')]
+  );
+  
+  // 更新数据（特用于只更新某一行的某一个字段的情形）
+  Db::table('user')->where('username','admin')->setField(
+      'password',
+      md5('123456')
+  );
+  
+  // 让整型字段自增
+  Db::table('user')->where('username','admin')->setInc(
+      'visit',1
+  );
+  
+  // 让整型字段自减
+  Db::table('user')->where('username','admin')->setInc(
+      'money',1
+  );
+  ```
+
+- 查
+
+  ```php
+  // 查询单行数据
+  Db::table('user')->where('username','admin')->find();
+  
+  // 查询多行数据
+  Db::table('user')->where('gender',1)->select();
+  
+  // 查询单行数据的某个字段值
+  Db::table('user')->where('username','admin')->value('age');
+  
+  // 查询多行数据的某个字段值集合
+  Db::table('user')->where('gender',1)->column('username');
+  
+  // 批量查询（适用于服务器内存有限的情景，通过循环来降低资源占用）
+  Db::table('user')->where('gender',1)->chunk(
+      100,
+      function ($users){print_r($users);},
+      'username'
+  );
+  ```
+
+  MySQL自5.7版本开始支持JSON类型，可以像MongoDB一样存储非结构化数据。ThinkPHP 5也提供了对应的支持：
+
+  ```php
+  // admin为JSON类型的字段，在其名称后使用$符号
+  Db::table('user')->where('info$.email','admin@example.com')->find();
+  ```
+
+- 删
+
+  ```php
+  // 依据主键删除
+  Db::table('user')->delete([1,2,3]);
+  
+  // 删除
+  Db::table('user')->where('username','admin')->delete();
+  ```
+
+对于`WHERE`子句，ThinkPHP适配SQL语句中的所有逻辑运算符：
+
+|      SQL逻辑运算符      |     ThinkPHP逻辑运算符      |            作用            |             代码实例（省略`Db::table('...')->`）             |
+| :---------------------: | :-------------------------: | :------------------------: | :----------------------------------------------------------: |
+|           `=`           |             `=`             |            等于            | `where('username','=','admin')`/<br />`where('username','admin')` |
+|          `<>`           |            `<>`             |           不等于           |                     `where('id','<>',9)`                     |
+|           `>`           |             `>`             |            大于            |                     `where('id','>',9)`                      |
+|          `>=`           |            `>=`             |          大于等于          |                     `where('id','>=',9)`                     |
+|           `<`           |             `<`             |            小于            |                     `where('id','<',9)`                      |
+|          `<=`           |            `<=`             |          小于等于          |                     `where('id','<=',9)`                     |
+| `between`/`not between` |   `between`/`not between`   |          区间查询          |              `where('age','between',][18,24])`               |
+|      `in`/`not in`      |        `in`/`not in`        |        **列表查询**        |                 `where('age','in',[6,7,8])`                  |
+|    `null`/`not null`    |   `is null`/`is not null`   |      **是否为`null**`      |                     `where('列名',null)`                     |
+|  `exists`/`not exists`  | `is exists`/`is not exists` |        **是否存在**        |                                                              |
+|         `like`          |           `like`            |          模糊查询          |               `where('name','like','%Smith%')`               |
+|          `exp`          |                             | 表达式查询（ThinkPHP独有） |          `where('name','exp','between 18 and 24')`           |
+|                         |            `and`            |           逻辑与           |             `where(...)->where(...)->where(...)`             |
+
+## §5.3 连贯操作
+
+
+
+| 方法名                 | 作用                       | 方法名            | 作用                             |
+| ---------------------- | -------------------------- | ----------------- | -------------------------------- |
+| `table()`              | 指定表名                   | `relation()`      | 关联查询（可多次调用）           |
+| `alias()`              | 为当前表定义别名           | `page()`          | 分页查询（ThinkPHP独有）         |
+| `filed()`              | 查询指定字段（可多次调用） | `lock()`          | 数据库锁                         |
+| `order()`/`orderRaw()` | 查询结果排序（可多次调用） | `cache()`         | 缓存查询（ThinkPHP语法）         |
+| `limit()`              | 限制查询结果行数           | `with()`          | 关联查询预处理（可多次调用）     |
+| `group()`              | 分组查询                   | `bind()`          | 数据绑定（配合占位符使用）       |
+| `having()`             | 筛选结果集                 | `strict()`        | 是否严格检测字段名是否存在       |
+| `join()`               | 关联查询（可多次调用）     | `master()`        | 读写分离环境下从主服务器读取数据 |
+| `union()`              | 联合查询（可多次调用）     | `failException()` | 未查询到数据时是否抛出异常       |
+| `view()`               | 视图查询                   | `partition()`     | 数据库分表查询（ThinkPHP独有）   |
+| `distinct()`           | 过滤重复数据               |                   |                                  |
