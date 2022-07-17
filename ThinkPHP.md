@@ -960,3 +960,296 @@ Db::config($connection)->query(
 | `union()`              | 联合查询（可多次调用）     | `failException()` | 未查询到数据时是否抛出异常       |
 | `view()`               | 视图查询                   | `partition()`     | 数据库分表查询（ThinkPHP独有）   |
 | `distinct()`           | 过滤重复数据               |                   |                                  |
+
+### §5.3.1 `table()`
+
+```php
+// SELECT * FROM `user` LIMIT 1;
+Db::table('user')->find();
+
+// SELECT * FROM `think_user` LIMIT 1; (使用表前缀，假设为think_)
+Db::table('__USER__')->find();
+
+// SELECT * FROM `think`.`user` LIMIT 1; (指定数据库名)
+Db::table('think.user')->find();
+```
+
+### §5.3.2 `alias()`
+
+```php
+// SELECT * FROM `think_user` `user` INNER JOIN `think_post` `post` ON `post`.`user_id`=`user`.`user.id`;
+Db::table('__USER__')->alias(['think_user'=>'user','think_post'=>'post'])
+    ->join(['think_user'=>'user'],'post.user_id=user.user_id')
+    ->select();
+```
+
+### §5.3.3 `field()`
+
+```php
+// SELECT `username`,`password` FROM `user` LIMIT 1;
+Db::table('user')->field(['username','password'])->find();
+
+// SELECT `username` as `ShownName` FROM `user` LIMIT 1;
+Db::table('user')->field(['username'=>'ShownName'])->find();
+
+// SELECT SUM(`amount`) AS `amount` FROM `user` LIMIT 1;
+Db::table('user')->field(['SUM(amount)'=>'amount'])->find();
+
+// SELECT `article_id`,`title`,`desc` FROM `article` LIMIT 1; (常用于排除TEXT大字段)
+Db::table('user')->field('content',true)->find();
+
+// 安全写入
+Db::table('user')->field(['email','phone'])->insert(
+    ['email'=>'test@example.com','phone'=>'123-456789']
+);
+```
+
+### §5.3.4 `order()`
+
+```php
+// SELECT * FROM `user` ORDER BY `age` DESC, `user_id` DESC;
+Db::table('user')->order(
+    ['age'=>'desc','user_id'=>'desc']
+)->select();
+
+// SELECT * FROM `user` ORDER BY RAND();
+Db::table('user')->order('RAND()')->select();
+```
+
+### §5.3.5 `limit()`
+
+```php
+// SELECT * FROM `user` LIMIT 10;
+Db::table('user')->limit(10)->select();
+
+// SELECT * FROM `user` LIMIT 100,10; (指定起始行)
+Db::table('user')->limit(10)->select();
+
+// DELETE FROM `user` WHERE `gender`=1 LIMIT 1;
+Db::table('user')->where('gender',1)->limit(1)->delete();
+```
+
+### §5.3.6 `group()`
+
+```php
+// SELECT `user_id`,SUM(`score`) AS `score` FROM `exam` GROUP BY `user_id`;
+Db::table('exam')->field(
+    ['user_id','SUM(score)'=>'score']
+)->group('user_id')->select();
+```
+
+### §5.3.7 `having()`
+
+```php
+// SELECT `user_id`,SUM(`score`) AS `score`
+Db::table('exam')->field(
+    ['user_id','SUM(score)'=>'score']
+)->group('user_id')->having('score>=60')->select();
+```
+
+### §5.3.8 `join()`
+
+```php
+// SELECT * FROM `think_user`INNER JOIN `think post` ON `think_post`.`user_id`=`think_user`.`user_id`;
+Db::table('think_user')->join(
+    ['think post','think post.user id=think user.user id']
+)->select();
+
+// SELECT * FROM `think user` `user` INNER JOIN `think article` `article` ON `article`.`user_id`=`user`.`user_id` INNER JOIN `think_comment` `comment` ON `comment`.`user_id`=`user`.`user_id`;
+Db::table('think user')->alias('user')->join(
+    [
+        ['think article article','article.user id=user.user id'],
+        ['think_comment comment','comment.user id=user.user id']
+    ]
+)->select();
+```
+
+### §5.3.9 `union()`
+
+```php
+// SELECT `name` FROM `user` UNION SELECT `name` FROM `user1` UNION SELECT `name` FROM `user2`;
+Db::table('user')->field(['name'])->union([
+	'SELECT name FROM user1','SELECT name FROM user2'
+])->select();
+
+// SELECT `name` FROM `user` UNION SELECT `name` FROM `user1` UNION SELECT `name` FROM `user2`;
+Db::table('user')->field(['name'])
+    ->union(function($query){$query->table('user1')->filed(['name']);})
+    ->union(function($query){$query->table('user2')->filed(['nane']);})
+    ->select();
+
+// SELECT `name` FROM `user` UNION ALL SELECT `name` FROM `user1`;
+Db::table('user')->field(['name'])->union(
+    ['SELECT name FROM user1',true]
+)->select();
+```
+
+### §5.3.10 `distinct()`
+
+```php
+// SELECT DISTINCT `username` FROM `user`;
+Db::table('user')->distinct(true)->field(['username'])->select();
+```
+
+### §5.3.11 `page()`
+
+`page()`是ThinkPHP框架独有的一个方法，用于简化`limit()`方法的计算：
+
+```php
+// SELECT * FROM `user` LIMIT 0,10
+Db::table('user')->page(1,10)->select();
+```
+
+### §5.3.12 `lock()`
+
+```php
+// SELECT * FROM `user` WHERE `user_id`=1 FOR UPDATE;
+Db::table('user')->where('user_id',1)->lock(true)->find();
+
+// SELECT * FROM `user` WHERE `user_id`=1 LOCK IN SHARE MODE;
+Db::table('user')->where('user_id',1)->lock('lock in share mode')->find();
+```
+
+### §5.3.13 `cache()`
+
+```php
+Db::table('user')->cache(60)->find();
+
+// 指定缓存Key
+Db::table('user')->cache('tmp_user',60)->find();
+Cache::get('tmp_user');
+
+// 清除缓存
+Db::table('user')->update(['user_id'=>1,'name'=>'demo']);
+
+// 根据Key清除缓存
+Db::table('user')->cache('tmp_user')->where('user_id',1)->update(['name'=>'demo']);
+```
+
+## §5.4 查询事件
+
+ThinkPHP 5新增对SQL查询事件的支持，可以在执行数据库操作前后添加监听器。其声明为`Query::event(string $event,callable $callable)`，其中监听器`$event`的种类包含`before_select`、`before_find`、`after_insert`、`after_update`、`after_delete`。
+
+```php
+Query::event('after_delete',function($options){
+    return "删除成功！";
+});
+```
+
+## §5.5 SQL调试
+
+```php
+Db::listen(function($sql,$time,$explain,$isMaster){
+    // ......
+})
+```
+
+## §5.6 事务
+
+```php
+Db::transaction(function(){
+    Db::table('user')->insert($data1);
+    Db::table('user')->insert($data2);
+});
+```
+
+# §6 模型层
+
+模型层是对DAO层的进一步包装，基于对象之间的关系映射来操作数据库。
+
+一个模型的定义如下所示：
+
+```php
+/* 创建application/index/model/User.php */
+<?php
+namespace app\index\model;
+use think\Model;
+
+class User extends Model {
+    protected $pk = 'id'; // Primary Key名称
+    protected $table = 'users'; // 表名称
+    // protected $connection = 'db1'; //
+}
+```
+
+## §6.1 CURD
+
+- 增
+
+  ```php
+  $user = new User();
+  
+  // 对象方式
+  $user->username = 'admin';
+  $user->password = md5('123456');
+  $user->save();
+  
+  // 数组方式
+  $user->data([
+      'username'=>'admin'
+      'password'=>md5('123456')
+  ]);
+  $user->save();
+  ```
+
+- 改
+
+  ```php
+  // 查询条件方式
+  $user = new User();
+  $user->save(
+  	['password'=>md5('123456')],
+      ['username'=>'admin']
+  );
+  
+  // 对象方式
+  $user = User::get(['username'=>'admin']);
+  $user->password = md5('123456');
+  $user->save();
+  
+  // 根据主键批量更新
+  $user = new User();
+  $user->saveAll([
+      ['id'=>1,'password'=>md5('123456')],
+      ['id'=>1,'password'=>md5('654321')]
+  ]);
+  ```
+
+- 删
+
+  ```php
+  // 对象方式
+  $user = User::get(['username'=>'admin']);
+  $user->delete();
+  
+  // 主键方式
+  User::destory(1);
+  User::destory([2,3,4]);
+  
+  // 根据条件删除
+  User::where('id',1)->delete();
+  ```
+
+- 查
+
+  ```php
+  // 根据主键查询
+  $user = User::get(1);
+  
+  // 指定字段查询
+  $user = User::get(['username'=>'demo']);
+  
+  // where子句查询
+  $user = User::where('id',1)->find();
+  
+  // 闭包查询
+  $user = User::get(
+  	function($query){$query->where('id',1);}
+  );
+  
+  // 指定字段查询
+  $user = User::getByUsername('admin')
+  ```
+
+  
+
