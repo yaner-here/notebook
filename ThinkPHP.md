@@ -1236,20 +1236,308 @@ class User extends Model {
   // 根据主键查询
   $user = User::get(1);
   
+  // 根据主键批量查询
+  $users = User::get([1,2.3]);
+  
   // 指定字段查询
   $user = User::get(['username'=>'demo']);
   
+  // 指定字段批量查询
+  $users = User::get(['gender'=>1]);
+  
   // where子句查询
   $user = User::where('id',1)->find();
+  
+  // where子句批量查询
+  $users = User::where('gender',1);
+      ->page(1,10)
+      ->select();
   
   // 闭包查询
   $user = User::get(
   	function($query){$query->where('id',1);}
   );
   
-  // 指定字段查询
-  $user = User::getByUsername('admin')
+  // 指定字段查询(通过PHP魔术方法自动识别字段)
+  $user = User::getByUsername('admin');
   ```
 
-  
+## §6.2 `get()`/`set()`
+
+在[§6.1 CURD](#§6.1 CURD)的`User`类中，我们只在数据库中定义了`username`和`password`字段，但是没有在`User`类中定义。为什么我们可以直接调用`$user->username`，并且可以得到正确的值且不报错呢？这是因为ThinkPHP框架重写了`Model`类的魔术方法`__get()`/`__set()`
+
+```php
+abstract class Model implements \JsonSerializable, \ArrayAccess{
+	......
+    public function __get($name){
+        return $this->getAttr($name);
+    }
+    public function getAttr($name){
+        try {
+            $notFound = false;
+            $value    = $this->getData($name);
+        } catch (InvalidArgumentException $e) {
+            $notFound = true;
+            $value    = null;
+        }
+
+        // 检测属性获取器
+        $method = 'get' . Loader::parseName($name, 1) . 'Attr';
+        if (method_exists($this, $method)) {
+            $value = $this->$method($value, $this->data);
+        } elseif (isset($this->type[$name])) {
+            // 类型转换
+            $value = $this->readTransform($value, $this->type[$name]);
+        } elseif (in_array($name, [$this->createTime, $this->updateTime])) {
+            if (is_string($this->autoWriteTimestamp) && in_array(strtolower($this->autoWriteTimestamp), [
+                'datetime',
+                'date',
+                'timestamp',
+            ])
+            ) {
+                $value = $this->formatDateTime(strtotime($value), $this->dateFormat);
+            } else {
+                $value = $this->formatDateTime($value, $this->dateFormat);
+            }
+        } elseif ($notFound) {
+            $relation = Loader::parseName($name, 1, false);
+            if (method_exists($this, $relation)) {
+                $modelRelation = $this->$relation();
+                // 不存在该字段 获取关联数据
+                $value = $this->getRelationData($modelRelation);
+                // 保存关联对象值
+                $this->relation[$name] = $value;
+            } else {
+                throw new InvalidArgumentException('property not exists:' . $this->class . '->' . $name);
+            }
+        }
+        return $value;
+    }
+    ......
+}
+```
+
+## §6.3 时间戳
+
+ThinkPHP支持自动向数据库写入时间戳（默认字段名为`create_time`/`update_time`），可以通过以下两种方式
+
+- 更改配置文件`application/database.php`
+
+  ```php
+  'auto_timestamp'=>true; // 取值范围true|'datetime'|'timestamp'
+  ```
+
+- 通过模型类定义
+
+  ```php
+  class ... extends Model {
+      protected $autoWriteTimeStamp = true;
+      // protected $createTime = '自定义字段名';
+      // protected $updateTime = '自定义字段名';
+  }
+  ```
+
+## §6.4 软删除
+
+我们知道，有时我们在数据库中删除数据，并不是真的使用`DELETE`语句，而是标志一个删除位。
+
+```php
+class User extends Model {
+    use SoftDelete;
+    protected $deleteTime = '自定义字段名';
+    
+    // 配置后默认为软删除
+    User::destory([1,2,3]);
+    
+    // 硬删除
+    $user = User::get(1);
+    $user->delete();
+}
+```
+
+ThinkPHP在查询时默认不包含软删除的数据，如要需要，则应使用`Model::withTrashed()`方法：
+
+```php
+User::withTrashed()->select();
+User::withTrashed()->find();
+```
+
+只查询软删除数据应使用`Model::onlyTrashed()`方法：
+
+```php
+User::onlyTrashed()->select();
+User::onlyTrashed()->select();
+```
+
+## §6.5 自动完成
+
+ThinkPHP框架支持调用`Model::save()`自动更新某些字段的值：
+
+```php
+class User extends Model {
+    protected $auto = [];
+    protected $insert = ['created_ip','created_ua'];
+    protected $update = ['login_ip','login_at'];
+    protected function setCreatedIpAttr(){ // 插入时自动填充create_ip字段
+        return request()->ip();
+    }
+    protected function setCreatedUaAttr(){ // 插入时自动填充create_ua字段
+        return request()->header('user-agent');
+    }
+    protected function setLoginIpAttr(){ // 更新时自动填充login_ip字段
+        return request()->ip();
+    }
+    protected function setLoginAtAttr(){ // 更新时自动填充login_at字段
+        return time();
+    }
+}
+```
+
+## §6.6 数据类型字段转换
+
+我们知道PHP是一门弱类型语言，而Server通过Database收到的数据全都是字符串，需要开发者手动完成类型转换。ThinkPHP框架支持的数据库数据类型如下所示：
+
+| ThinkPHP数据类型 | 作用                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| `integer`        | 读写时转换为整型                                             |
+| `float`          | 读写时转换为浮点型                                           |
+| `boolean`        | 读写时转换为布尔型                                           |
+| `array`          | 写入时转换为JSON，读取时转换为array                          |
+| `object`         | 写入时转换为JSON，读取时转换为stdClass                       |
+| `serialize`      | 写入时序列化转换为字符串，读取时反序列化转换为前类型         |
+| `json`           | 写入时调用`json_encode()`转为字符串，读取时调用`json_decode()`转换为前类型 |
+| `timestamp`      | 写入时调用`strtotime()`，读取时调用`date()`，默认格式为`Y-m-d H:i:s`，受`$dateFormat`控制 |
+
+```php
+class User extends Model {
+    protected $type = [
+        'status'=>'integer',
+        'balance'=>'float',
+        'data'=>'json'
+    ];
+}
+
+$user = new User;
+$user->status = '1';
+$user->balance = '123.456';
+$user->data = ['username'=>'Alice'];
+$user->save();
+var_dump($user->status,$user->balance,$user->data);
+	// int(1) float(123.456) array(size=1) 'username'=>'Alice'
+```
+
+## §6.7 快捷查询
+
+ThinkPHP框架提供了`scopeXXX`的魔术方法：
+
+```php
+class User extends Model {
+    protected function scopeMale($query){
+        $query->where('gender',1);
+    }
+}
+
+$user = User::scope('male')->select();
+```
+
+## §6.8 全局查询条件
+
+在实际项目中，我们有时频繁地只希望查询符合某个条件的记录，例如只查询删除位为`false`的所有记录。如果每次使用`where()`都必须带上排除删除位的语句就太麻烦了。ThinkPHP提供了`base()`方法，我们可以重载该方法实现全局内的查询条件：
+
+```php
+class User extends Model {
+    protected function base($query){
+        $query->where('deleted',false);
+    }
+}
+
+User::useGolbalScope(true)->where('username','admin')->select(); // 开启全局查询条件
+User::useGolbalScope(false)->where('username','admin')->select(); // 关闭全局查询条件
+```
+
+## §6.9 模型事件
+
+我们已经在[§5.4 查询事件](#§5.4 查询事件)一节中得知如何为数据库操作绑定监听事件，那么如何为`Model`操作绑定鉴定事件呢？ThinkPHP在`Model`类中提供了静态方法`init()`用于注册以下监听事件，通过返回的布尔值控制后续代码是否执行：
+
+| 监听事件方法名   | 作用   | 监听事件方法名   | 作用   | 监听事件方法名  | 作用   | 监听事件方法名   | 作用   |
+| ---------------- | ------ | ---------------- | ------ | --------------- | ------ | ---------------- | ------ |
+| `beforeInsert()` | 插入前 | `beforeUpdate()` | 更新前 | `beforeWrite()` | 写入前 | `beforeDelete()` | 删除前 |
+| `afterInsert()`  | 插入后 | `afterUpdate()`  | 更新后 | `afterWrite()`  | 写入后 | `afterDelete()`  | 删除后 |
+
+```php
+class User extends Model {
+    protected function init(){
+        User::beforeInsert(
+            function($user){
+                return $user->age > 0;
+            }
+        );
+    }
+}
+```
+
+## §6.10 关联模型
+
+### §6.10.1 一对一关联
+
+```php
+class Wallet extends Model {
+    
+}
+class User extends Model {
+    protected function wallet(){
+        return $this->hasOne('Wallet','wallet_id','wallet_id');
+    }
+}
+
+$user = User::get(1);
+echo $user->wallet->balance;
+$user->wallet->save()
+```
+
+？？？？？？？？？？？TODO：
+
+
+
+# §7 视图
+
+ThinkPHP框架规定，如果一个类继承了`Controller`类，则可以直接通过`echo`/`return`输出视图；如果没有继承，则可以通过`view('模版文件','模版数据'，'模板替换数据')`输出内容。
+
+模版引擎配置在`application/config.php`的`template`键中：
+
+```php
+/* 查看application/confg.php */
+return [
+    ......
+    'template'               => [
+        // 模板引擎类型 支持 php think 支持扩展
+        'type'         => 'Think',
+        // 模板路径
+        'view_path'    => '',
+        // 模板后缀
+        'view_suffix'  => 'html',
+        // 模板文件名分隔符
+        'view_depr'    => DS,
+        // 模板引擎普通标签开始标记
+        'tpl_begin'    => '{',
+        // 模板引擎普通标签结束标记
+        'tpl_end'      => '}',
+        // 标签库标签开始标记
+        'taglib_begin' => '{',
+        // 标签库标签结束标记
+        'taglib_end'   => '}',
+    ],
+    ......
+]
+```
+
+
+
+
+
+```
+
+```
+
+
 
