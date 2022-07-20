@@ -1499,9 +1499,332 @@ $user->wallet->save()
 
 
 
-# §7 视图
+# §7 视图与模版
 
 ThinkPHP框架规定，如果一个类继承了`Controller`类，则可以直接通过`echo`/`return`输出视图；如果没有继承，则可以通过`view('模版文件','模版数据'，'模板替换数据')`输出内容。
+
+
+
+## §7.1 绑定视图
+
+`Controller->fetch()`方法负责为控制器类的某个方法绑定模版：
+
+```php
+<?php
+namespace app\index\controller;
+use think\Controller;
+class Index extends Controller {
+    public function index(){
+        return $this->fetch();
+    }
+}
+```
+
+其中模版路径默认为`当前模块/view/当前控制器类名小写/当前方法名小写.html`：
+
+```html
+/* 新建application/indes/view/index/index.html */
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <p>Hello World</p>
+    </body>
+</html>
+```
+
+访问路径即可看到模版：
+
+```shell
+$ curl localhost:8080/index/index
+	Hello World
+```
+
+如果需要绑定指定的模版，可以给`Controller->fetch()`传递相应的参数：
+
+| 作用                             | `Controller->fetch()`的`$template`参数 | 举例                                                         |
+| -------------------------------- | -------------------------------------- | ------------------------------------------------------------ |
+| 绑定当前模块默认路径下的其他模版 | `fetch('文件主名')`                    | `fetch('home')`绑定`application/模块名/view/控制器类名/文件主名开头的html文件` |
+| 绑定当前模块其他路径下的其他模版 | `fetch('目录/文件主名')`（支持`../`）  | `fetch('public/home')`绑定`application/模块名/view/public/home.html` |
+| 绑定其它模块其他路径下的其他模版 | `fetch('其它模块名@目录/主名')`        | `fetch('forum/public/home')`绑定`application/forum/view/public/home.html` |
+| 绑定`view_path`目录下的模版      | `fetch('/目录/主名')`                  | `view_path`缺省时为`application/模块名/view`                 |
+
+> 注意：如果当前控制器类没有继承`Controller`类，也可以使用助手函数`view()`实现上述效果，参数及其含义完全相同。
+>
+> ```php
+> return $this->fetch() // 继承Controller时
+> return view(...); // 助手函数
+> ```
+
+## §7.2 视图赋值
+
+当控制器类继承`Controller`类时，我们可以使用`Controller->assign()`方法向视图进行赋值。
+
+向模版传参的赋值的方法有：
+
+1. 传入一个键值对
+
+   ```php
+   $this->assign('键名','值');
+   ```
+
+2. 传入多个键值对（一个数组）
+
+   ```php
+   $this->assign(
+       [
+           '键名1'=>'值1',
+           '键名2'=>'值2',
+       ]
+   );
+   ```
+
+3. 直接传入`fetch()`方法的`$vars`形参
+
+   ```php
+   $this->fetch('index',
+       [
+           '键名1'=>'值1',
+           '键名2'=>'值2',
+       ]  
+   );
+   ```
+
+4. 直接使用`display()`方法，绕过模版直接输出
+
+   ```php
+   $content = '{$name}'
+   return $this->display($content,['name'=>'Alice']);
+   ```
+
+5. 使用助手函数`view()`的`$vars`形参
+
+   ```php
+   return view('index',
+       [
+           '键名1'=>'值1',
+           '键名2'=>'值2',
+       ]
+   );
+   
+   return view('index')->assign(
+       [
+           '键名1'=>'值1',
+           '键名2'=>'值2',
+       ]
+   );
+   ```
+
+6. 使用`View::share()`进行全局赋值
+
+   ```php
+   \think\facade\View::share('键名','值');
+   \think\facade\View::share(
+       [
+           '键名1'=>'值1',
+           '键名2'=>'值2',
+       ]
+   );
+   ```
+
+下面是一个简单的例子：
+
+```php
+class Index extends Controller {
+    public function index(){
+        $this->assign('name','Alice');
+        $this->assign([
+            'chinese'=>150,
+            'math'=>150,
+            'english'=>150
+        ]);
+        return $this->fetch('index',[
+            'classRank'=>2,'schoolRank'=>30,'provinceRank'=>3480
+        ]);
+    }
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Score List</title>
+    </head>
+    <body>
+        <h1>{$name|default='Null'}'s Score List</h1>
+        <ul>
+            <li>Chinese: {$chinese}</li>
+            <li>Math: {$math}</li>
+            <li>English: {$english}</li>
+        </ul>
+        <ul>
+            <li>Class Rank: {$classRank}</li>
+            <li>School Rank: {$schoolRank}</li>
+            <li>Province Rank: {$provinceRank}</li>
+        </ul>
+    </body>
+</html>
+```
+
+这里使用的`{$...}`是由`application/config.php`中的`template`数组中的`tpl_begin`与`tpl_end`决定的。
+
+ThinkPHP会在访问时，将HTML中的变量占位符`{$...}`替换成PHP语句，并把新生成的PHP文件放在`runtime/temp`目录中：
+
+```php+HTML
+/* 查看 */
+<?php 
+	if (!defined('THINK_PATH')) 
+        exit(); 
+	/*
+		a:1:{
+			s:101:"C:\WWW\public/../application/index\view\index\index.html";
+			i:1658219700;
+		}
+	*/ 
+?>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Score List</title>
+    </head>
+    <body>
+        <h1><?php echo $name; ?>'s Score List</h1>
+        <ul>
+            <li>Chinese: <?php echo $chinese; ?></li>
+            <li>Math: <?php echo $math; ?></li>
+            <li>English: <?php echo $english; ?></li>
+        </ul>
+        <ul>
+            <li>Class Rank: <?php echo $classRank; ?></li>
+            <li>School Rank: <?php echo $schoolRank; ?></li>
+            <li>Province Rank: <?php echo $provinceRank; ?></li>
+        </ul>
+    </body>
+</html>
+```
+
+### §7.2.1 模版内置变量
+
+ThinkPHP模版不仅支持获取原生PHP中的超全局变量、常量等变量，也支持获取ThinkPHP框架本身配置文件的数据：
+
+| PHP原生变量               | ThinkPHP框架模版的调用方法 |
+| ------------------------- | -------------------------- |
+| `$_SERVER`                | `{$Think.server.键名}`     |
+| `$_ENV`                   | `{$Think.env.键名}`        |
+| `$_POST`                  | `{$Think.post.键名}`       |
+| `$_GET`                   | `{$Think.get.键名}`        |
+| `$_COOKIE`                | `{$Think.cookie.键名}`     |
+| `$_SESSION`               | `{$Think.session.键名}`    |
+| `$_REQUEST`               | `{$Think.request.键名}`    |
+| 常量                      | `{$Think.const.常量名}`    |
+| ThinkPHP框架模版配置      | `{$Think.config.template}` |
+| ThinkPHP框架多语言配置    | `{$Think.lange.error}`     |
+| ThinkPHP框架`Reuqest`对象 | `{$Request.get.键名}`      |
+
+### §7.2.2 默认值
+
+在之前的例子中，如果我们没有给模版中的某个参数传值，那么ThinkPHP就会抛出`think\exception\ErrorException`。为避免这一情况，我们可以为其指定一个默认值：
+
+```html
+{$signature|default='该用户未填写个性签名'}
+```
+
+### §7.2.3 调用函数
+
+在视图中使用`|`表示将左边的结果作为右边函数的第一个参数。如果要强制指定参数的其它位置，可以使用`###`占位符：
+
+```html
+{$user.password|md5}
+	// 编译为<?php echo md5($user['password']) ?>
+{$user.name|substr=0,4}
+	// 编译为<?php echo substr($user['name'],0,20) ?>
+{$user.registerTime|date='y-m-d h:m:s',###}
+	// 编译为<?php echo date('y-m-d h:m:s',$user['registerTime'])
+```
+
+以此类推，我们可以嵌套多个函数：
+
+```html
+{$user.password|md5|substr=0,16|default="密码不能为空！"}
+```
+
+### §7.2.4 运算符
+
+```
+// 算术运算符
+{$user->score+10}
+{$user->score++}
+{$user->score*2}
+{pow($user->score,0.5)}
+
+// 三目运算符
+{$isVIP?'续费VIP':'成为VIP'}
+{$nam??'Null'}
+```
+
+### §7.2.5 不解析输出
+
+受制于其它模版引擎的特性，任何`{$...}`都可能会被明文输出。之前我们已经知道了如何让其不输出，如果我们就想让它明文输出的话，每次都指定默认值`{$...|default=...}`太麻烦了，我们可以使用`{literal}`标签：
+
+```html
+{literal}
+	Hello, {$name}! // 每次都输出'{$name}'字符串
+{/literal}
+```
+
+## §7.3 视图过滤
+
+视图过滤可以在页面显示之前对页面内容进行更改：
+
+```php
+class User extends Controller {
+    public function initialize(){
+        $this->filter(function($content){
+    		return str_replace('Alice','You\'re hacked!');
+		});
+    }
+    public function index(){
+        //  ......
+        return $this->fetch(...);
+    }
+}
+
+// 助手函数
+return view()->filter(function($content){
+    // ......
+});
+```
+
+## §7.4 布局文件
+
+实际项目中，许多页面的头部都是导航栏，底部都是版权说明。为了提高代码复用率，ThinkPHP 5提供了布局功能。
+
+- 全局配置
+
+  ```php
+  /* 查看application/config.php */
+  return [
+  	// ......
+      'template' => [
+          'layout_on' => true,
+          'layout_name' => 'layout_file'
+      ],
+      // ......
+  ];
+  ```
+
+  ????????TODO：？？？？？？？？？
+
+
+
+
+
+
 
 模版引擎配置在`application/config.php`的`template`键中：
 
@@ -1531,13 +1854,336 @@ return [
 ]
 ```
 
+????????TODO：？？？？？？？？？
 
 
 
+# §8 验证器
 
+ThinkPHP 5使用`\think\Validate`类对数据进行验证。在这之前，验证逻辑大多集成在控制器类中，而验证器的出现有利于项目的解耦。
+
+1. 验证器的代码模版可以通过在终端中执行`php think make:validate 模型类名`，自动在`applicaiton/validate`目录下创建`模型类名.php`：
+
+   ```php
+   <?php
+   namespace app\index\validate;
+   use think\Validate;
+   
+   class User extends Validate {
+       protected $rule = [];
+       protected $message = [];
+   }
+   ```
+
+2. 或者现场`new`一个验证器实例：
+
+   ```php
+   $validator = new Validate(
+   	$rule, // 数组
+       $message, // 信息
+   );
+   ```
+
+3. 或者使用`Controller`的`validate()`方法：
+
+   ```php
+   $result = $this->validate(
+   	$rule, // 数组
+       $message, // 信息
+   );
+   $result = $this->validate(XXXValidator::class)->save($data);
+   ```
+
+4. 或者使用`Model`的`validate()`方法：
+
+   ```php
+   $model = new User();
+   $result = $model->validate(XXXValidator::class)->save($data);
+   if($result !== true){
+       throw new Exception($result);
+   }
+   ```
+
+5. 甚至直接使用验证器类的静态方法进行便捷验证：
+
+   ```php
+   if(!Validate::length('username',1,127)){
+       thrown ew Exception('......');
+   }
+   ```
+
+`Validate->$rule`数组表示规则，`Validate->$message`数组表示报错提示信息：
+
+```php
+// ......
+class User extends Validate {
+    protected $rule = [
+    	'name' => 'require|max:128',
+        'age' => 'number|between:0,127'
+        'email' =? 'email'
+    ];
+    protected $message = [
+    	'name.require' => '姓名不能为空！',
+        'name.max' => '姓名长度不得大于128位！',
+        'age.number' => '年龄必须为数字！',
+        'age.between' => '年龄必须在0-127之间！',
+        'email' => '邮箱格式错误！'
+    ];
+}
 ```
 
+创建测试类：
+
+```php
+class Index extends Controller {
+    
+    public $data = [
+        'name'=>'Alice',
+        'age'=>20,
+        'email'=>'test@example.com'
+    ];
+    
+    // 手动实例化验证器类
+    public function verifyUser(){
+        $validate = new \app\index\validate\User();
+        if(!$validate->check($this->data)){
+            dump($validate->getError());
+        }
+    }
+    
+    // 使用自Controller类继承的validate()方法
+    public function verityUser(){
+    	$result = $this->validate($this->data,\app\index\validate\User::class);
+        if($result !== true{
+        	dump($result);
+        }
+    }
+}
 ```
 
+默认情况下，`Validate`类会顺序逐次验证数据是否符合要求，一旦发现不符之处就马上终止验证过程，不会验证后续数据。为了让`Validate`类把所有数据都验证一遍，找出所有错误，我们可以手动给`Controller`的`$batchValidate`字段设为`true`：
 
+```php
+class User extends Controller {
+	protected $batchValidate = true;
+    // ......
+}
+```
+
+默认情况下，`Validate`类发现不符之处就马上终止验证过程，返回错误信息。如果我们想让其直接抛出异常`ValidateException`，而不是返回错误信息的字符串或数组，可以手动给`Controller`的`$failException`字段设为`true`：
+
+```php
+class User extends Controller {
+	protected $faliException = true;
+    // ......
+}
+```
+
+除了使用预置规则外，我们也可以自定义新规则：
+
+```php
+class User extends Controller {
+	protected function checkName($value,$rule,$data,$field,$title){
+    	return $value != $rule ? true : '请填写真实姓名！'
+    }
+}
+```
+
+```html
+'name'=>'require|checkName:无名氏'
+```
+
+ThinkPHP框架内置了众多常用的规则：
+
+| ThinkPHP内置验证器  | 含义                                   | 举例                                                        |
+| ------------------- | -------------------------------------- | ----------------------------------------------------------- |
+| `require`           | 必填项                                 | `'username'=>'require'`                                     |
+| `integer`           | 整数                                   | `'age'=>'integer'`                                          |
+| `float`             | 浮点数                                 | `'percent'=>'float'`                                        |
+| `boolean`           | 布尔值                                 | `'isAdmin'=>'boolean'`                                      |
+| `email`             | 邮箱                                   | `'email'=>'email'`                                          |
+| `array`             | 数组                                   | `'list'=>'array'`                                           |
+| `date`              | 日期                                   | `'registerDate'=>'date'`                                    |
+| `alpha`             | 纯字母                                 | `'username'=>'alpha'`                                       |
+| `alphaNum`          | 字母+数字                              | `'username'=>'alphaNum'`                                    |
+| `alphaDash`         | 字母+数字+下划线+中划线                | `'username'=>'alphaDash'`                                   |
+| `chs`               | 纯中文                                 | `'username'=>'chs'`                                         |
+| `chsAlpha`          | 中文+字母                              | `'username'=>'chsAlpha'`                                    |
+| `chsAlphaNum`       | 中文+字母+数字                         | `'username'=>'chsAlphaNum'`                                 |
+| `chsDash`           | 中文+字母+数字+下划线+中划线           | `'username'=>'chsDash'`                                     |
+| `activeUrl`         | 主机名（包含域名和IP）                 | `'hostname'=>'activeUrl'`                                   |
+| `url`               | 链接                                   | `'homepage'=>'url'`                                         |
+| `ip`                | IPv4/IPv6地址                          | `'loginIP'=>'ip'`                                           |
+| `dateFormat:format` | 指定格式日期                           | `'loginTime'=>'dateFormat:y-m-d'`                           |
+| `in`                | 在列表中                               | `'gender'=>'in:0,1'`                                        |
+| `notIn`             | 不在列表中                             | `'gender'=>'notIn:0,1'`                                     |
+| `between`           | 在范围内                               | `'age'=>'between:20,60'`                                    |
+| `notbetween`        | 不在范围内                             | `'age'=>'nowBetween:20,60'`                                 |
+| `length:min,max`    | 字符串长度、数组元素数、文件大小的范围 | `'telephone'=>'length:11'`<br />`'username'=>'length:3,12'` |
+
+# §9 缓存
+
+ThinkPHP框架使用`\think\Cache`类实现缓存，缓存的配置文件在`application/config.php`的`cache`数组：
+
+```php
+/* 查看application/config.php */
+return [
+    // ......
+	'cache'                  => [
+        // 驱动方式
+        'type'   => 'File',
+        // 缓存保存目录
+        'path'   => CACHE_PATH,
+        // 缓存前缀
+        'prefix' => '',
+        // 缓存有效期 0表示永久缓存
+        'expire' => 0,
+    ],
+    // ......
+];
+```
+
+目前ThinkPHP框架缓存支持的驱动方式`type`包括`File`、`Memecache`、`wincache`、`sqlite`、`redis`、`xcache`。
+
+```php
+Cache::set('key','value',3600); // 存入缓存一个小时
+$value = Cache::get('key'); // 获取缓存
+Cache::rm('key'); // 删除缓存
+
+Cache::inc('number',1); // 自增1
+Cache::dec('number',2); // 自减2
+
+$value = Cache::pull('number'); // 获取缓存后删除缓存
+Cache::clear(); // 清空缓存
+Cache::remember('key',function(){ // 如果存在就返回，富国不存在就写入缓存之后缓存
+	return 'data';
+},3600);
+```
+
+# §10 Session和Cookie
+
+ThinkPHP 5将原生的Session和Cookie分别包装成`\think\Session`和`\think\Cookie`类，便于切换底层驱动。
+
+Session指的是会话信息，位于服务器中，负责与客户端的交互，当客户端中断连接时Session失效。Cookie位于客户端中，用于维护客户端的信息，在用户主动删除前Cookie一直有效。
+
+Session和Cookie的配置在`application/config.php`中：
+
+```php
+return [
+    // ......
+    'session'                => [
+        'id'             => '',
+        // SESSION_ID的提交变量,解决flash上传跨域
+        'var_session_id' => '',
+        // SESSION 前缀
+        'prefix'         => 'think',
+        // 驱动方式 支持redis memcache memcached
+        'type'           => '',
+        // 是否自动开启 SESSION
+        'auto_start'     => true,
+    ],
+    'cookie'                 => [
+        // cookie 名称前缀
+        'prefix'    => '',
+        // cookie 保存时间
+        'expire'    => 0,
+        // cookie 保存路径
+        'path'      => '/',
+        // cookie 有效域名
+        'domain'    => '',
+        //  cookie 启用安全传输
+        'secure'    => false,
+        // httponly设置
+        'httponly'  => '',
+        // 是否使用 setcookie
+        'setcookie' => true,
+    ],
+    // ......
+];
+```
+
+## §10.1 数据存取
+
+```php
+Session::set('key','value'); // 写入默认scope
+Session::has('key'); // 判断是否写入默认scope
+Session::get('name'); // 从默认scope中读取
+Session::delete('key'); // 删除默认scope中的值
+Session::pull('key'); // 返回默认scope的值并删除
+Session::clear(); // 清空默认scope中的所有值
+
+Session::set('key','value','user'); // 写入user scope
+Session::has('key','user'); // 判断是否写入user scope
+Session::get('name','user'); // 从user scope中读取
+Session::delete('key','user'); // 删除user scope中的值
+Session::pull('key','value'); // 范湖user scope的值并删除
+Session::clear('user'); // 删除user scope中的所有值
+
+Cookie::set('key','value',3600); // 设置Cookie有效期为一小时
+Cookie::set('key','value', // 设置Cookie前缀和有效期
+	[
+        'prefix'=>'forum_',
+        'expire'=>'3600'
+    ]
+);
+Cookie::get('name'); // 获取名为name的Cookie值
+Cookie::get('name','demo_'); //获取名为demo_name的Cookie值
+Cookie::has('name'); // 判断名为name的Cookie是否存在
+Cookie::has('name','demo_'); // 判断名为demo_name的Cookie是否存在
+Cookie::delete('name','demo_'); // 删除名为demo_name的Cookie
+Cookie::clear('demo_'); // 删除所有以demo_为前缀的Cookie
+```
+
+# §11 命令行应用
+
+对于一些对算力要求比较高的业务逻辑，指望PHP在用户提交请求后的几秒内就能返回预期界面是不现实的。这部分业务逻辑必须常驻内存持续运行。
+
+先在`application/command.php`配置文件中注册命令行应用：
+
+```php
+/* 编辑application/command.php */
+return [
+    'app\index\command\HelloWorld' // 新加的一行
+];
+```
+
+然后新建命令行应用类：
+
+```php
+/* 新建application/index/command/HelloWorld.php */
+<?php
+namespace app\index\command;
+
+use think\console\Input;
+use think\console\Output;
+
+class HelloWorld extends \think\console\Command{
+    protected function configure(){
+        $this->setName('hello_world')
+            ->setDescription('This is a Hello World Command');
+    }
+    protected function execute(Input $input, Output $output){
+        $output->writeln('Hello World');
+    }
+}
+```
+
+在终端中执行该命令行应用：
+
+```html
+$ php ./think hello_world
+    Hello World
+```
+
+PHP脚本可以直接调用命令行应用：
+
+```php
+class Index extends Controller {
+	public function index(){
+    	$output = Console::call('hello_world');
+	
+        return $this->fetch(......);
+    }
+}
+```
 
