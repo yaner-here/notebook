@@ -235,9 +235,197 @@ $ egrep "^(\<[a-zA-Z]+\>) +\1" info.csv
 
 > 注意；大多数编程语言都支持字符组内部的转义，但是大多说的`egrep`却不支持，它们会把`\`视为一个单独的文字。
 
-# §2 例题
+# §2 Perl
 
-### §2.1 时刻
+Perl一种用于Linux系统的脚本语言，可以看作升级版的`shell`。下面是一个简单的示例：
+
+```perl
+$i = 1;
+while($i <= 9){
+    $iSquare = $i * $i;
+    print "$i × $i = $iSquare\n";
+    $i++;
+}
+```
+
+```shell
+$ perl test.pl
+    1 × 1 = 1
+    2 × 2 = 4
+    3 × 3 = 9
+    4 × 4 = 16
+    5 × 5 = 25
+    6 × 6 = 36
+    7 × 7 = 49
+    8 × 8 = 64
+    9 × 9 = 81
+```
+
+Perl原生支持正则表达式，但是其语法与`egrep`有所区别。`=~`表示匹配正则表达式，正则表达式用`/.../`包起来，`m`告知Perl编译器这是一个正则表达式，由`=~`完成进行正则表达式匹配（Regular Expression Match）：
+
+```perl
+print "请输入数字：";
+$number = <STDIN>;
+if($number =~ m/^[0-9]+$/){
+    print "输入合法";
+}else{
+    print "输入非法，只能输入纯数字";
+}
+```
+
+```shell
+$ perl test.pl
+    请输入数字：123abc
+    输入非法，只能输入纯数字
+```
+
+Perl等编程语言及支持正则表达式的其它工具，都在正则表达式的基础上额外引入了自己的语法和元字符。本章重点介绍这些额外的语法。
+
+## §2.1 `(?:)` 非捕获型括号
+
+我们知道，Perl会自动将正则表达式中由括号匹配到的文本赋给`$1`、`$2`等变量。但是有时我们撰写正则表达式时，经常手动加括号以提升可读性。更关键的是，这种Perl程序也不容易维护，因为正则表达式的一个括号变了，脚本中的所有`$1`等变量都要更改序号。有没有什么元字符，既能像`()`一样可以创建子表达式，又不会让匹配的文字被Perl捕获呢？这就是非捕获型括号`(?:...)`：
+
+```perl
+print("Input a string: ");
+$string = <STDIN>;
+chomp($string);
+if($string =~ m/^([A-Za-z0-9]+) ([A-Za-z0-9]+)$/){
+    print "()() First Parameter: $1\n";
+}
+if($string =~ m/^(?:[A-Za-z0-9]+) ([A-Za-z0-9]+)$/){
+    print "(?:)() First Parameter: $1\n";
+}
+```
+
+```shell
+$ perl -w test.pl
+    Input a string: first second
+    ()() First Parameter:    first
+    (?:)() First Parameter:  second
+```
+
+## §2.2 其它转义字符
+
+Perl等编程语言额外提供了一些转义字符：
+
+| 转义字符 | 作用                                               |
+| -------- | -------------------------------------------------- |
+| `\t`     | 制表符                                             |
+| `\n`     | 换行符                                             |
+| `\r`     | 回车符                                             |
+| `\s`     | 任何空白字符（空格符、制表符、进纸符）             |
+| `\S`     | 除空白字符（空格符、制表符、进纸符）之外的任何字符 |
+| `\w`     | 等价于`[A-Za-z0-9]`                                |
+| `\W`     | 除`[A-Za-z0-9]`之外的任何字符                      |
+| `\d`     | 纯数字（`[0-9]`）                                  |
+| `\D`     | 除数字之外的任何字符                               |
+
+> 注意：在Perl中，`\b`表示单词分界符，在字符组`[]`中表示退格符。
+
+## §2.4 修饰符
+
+我们知道，原生的正则表达式本身没有忽略大小写的功能。为了忽略大小写，`egrep`提供了`-i`选项。类似的，Perl也提供了这一功能，但是不是基于命令行选项，而是在正则表达式的后面添加一些字符，这类字符称为**修饰符**（Modifier）。
+
+```perl
+if(string =~ m/[a-z]+/i){...}
+```
+
+上面使用的是`i`修饰符。虽然`/`并不属于修饰符的一部分，但是为了方便，实际中经常记为`/i`。
+
+修饰符有很多种：
+
+| 修饰符 | 英文全称             | 作用       |
+| ------ | -------------------- | ---------- |
+| `i`    | Case-insenitive      | 忽略大小写 |
+| `g`    | Global Match         | 全局匹配   |
+| `x`    | Free-form Expression | 宽松排列   |
+
+## §2.5 `/` 替换
+
+到目前为止，我们学习的正则表达式只有一个功能——查找。而且这个正则表达式在Perl中还得用`/.../`包起来，前面加上`m`表示匹配。Perl提供了替换功能，通过多个`/`组成`/a/b/`结构，并且在前面加上`s`表示查找和替换（Serach and Replace），将第一个匹配`a`表达式的文字替换为`b`。如果要全部替换，应该在末尾加上修饰符`g`：
+
+```perl
+print("Input a string: ");
+$string = <STDIN>;
+chomp($string);
+$string =~ s/\bAlice\b/Bob/;
+print "$string";
+```
+
+```shell
+$ perl -w test.pl
+    Input a string: Hello, Mike!
+    Hello, Mike!
+$ perl -w test.pl
+    Input a string: Hello, Alice!
+    Hello, Bob!
+```
+
+> 注意：Perl程序不仅可以写在文件中，也可以作为命令行参数传入：
+>
+> ```shell
+> $ cat info.csv 
+>     Hello, Alice!
+>     This is Alice.
+>     Where is Alice?
+> $ perl -p -i -e 's/Alice/Bob/g' info.csv 
+> $ cat info.csv 
+>     Hello, Bob!
+>     This is Bob.
+>     Where is Bob?
+> ```
+>
+> 其中`-p`表示逐行检查，`-i`表示将替换后的结果写入原文件，`-e`表示后面传入的是正则表达式。
+
+## §2.6 `(?=)`/`(?<=)` 环视
+
+如果要给一个大数加上数字分隔符，例如把`12345678`变成`12,345,678`，怎么用正则表达式实现呢？我们已经知道了数字分隔符的用法：从最后的个位数开始向前数，每经过三个数字就在左面添加一个逗号。要实现这个功能，我们需要用到**环视**（Lookahead）这一特性。
+
+环视是正则表达式中的一种只匹配位置，不匹配内容的元素。之前介绍的`\b`匹配单词的起始处、`^`和`$`匹配行首与行尾，也是只匹配位置，但是环视的通用性更强，分为四种种情形：
+
+- 肯定顺序环视（Positive Lookahead）：`(?=...)`按照当前位置右边的字符作为是否匹配的依据
+- 肯定逆序环视（Negative Lookhead）：`(?<=...)`按照当前位置左边的字符作为是否匹配的依据
+- 否定顺序环视：`(?!...)`按照当前位置右边的字符作为是否不匹配的依据
+- 否定逆序环视：`(?<!...)`按照当前位置左边的字符作为是否不匹配的依据
+
+结合环视，我们就能用另一种方式解决从`Alices`到`Alice's`：
+
+```perl
+$string = "Alices";
+$string =~ s/\bAlices\b/Alice's/; # 简单的替换
+print "$string";
+
+$string = "Alices";
+$string =~ s/Alice(?=s\b)/Alice'/; # 使用环视进行替换
+print "$string";
+```
+
+回到数字分隔符的问题，插入的位置必须符合两个要求：左边必须至少有一个数字，右边的数字个数必须是3的倍数，分别对应着`(?<=\d)`和`(?=(\d\d\d)+\b)`：
+
+```perl
+$number = <STDIN>;
+$number =~ s/(?<=\d)(?=(\d\d\d)+\b)/,/g;
+print "$number";
+```
+
+```shell
+$ perl -w test.pl
+    Input a number: 1234567
+    1,234,567
+$ perl -w test.pl
+    Input a number: 123456789
+    123,456,789
+```
+
+
+
+
+
+
+
+# §3 例题
+
+## §3.1 是否为时刻
 
 要求匹配形如`20:12:59`、`00:00:00`的时长字符串。
 
@@ -260,4 +448,161 @@ $ cat info.csv
 $ egrep "^([01][0-9]|[2][0-3]):[0-5][0-9]:[0-5][0-9]$" info.csv 
     12:30:59
 ```
+
+## §3.2 自动中美汇率转换
+
+已知中美汇率为$\frac{1}{6.75}$.要求根据输入的货币类型与数字，自动转换成另一种货币并输出数字（保留两位小数），例如输入`USD 10.5`，输出`CNY 70.89`。
+
+```perl
+print("中美汇率计算器\n请输入要转换的货币与面值:");
+$string = <STDIN>;
+chomp($string); # 删除末尾换行符
+if($string =~ m/^(USD|CNY) ([0-9]+(\.[0-9]+)?)$/){
+    $usd2cnyRatio = 6.75;
+    $type = $1;
+    $number = $2;
+    if($type eq "USD"){
+        $newType = "CNY";
+        $newNumber = $number / $usd2cnyRatio;
+    }elsif($type eq "CNY"){
+        $newType = "USD";
+        $newNumber = $number * $usd2cnyRatio;
+    }
+    printf "$string -> $newType %.2f",$newNumber;
+}else{
+    print "输入不合法！";
+    exit;
+}
+```
+
+```shell
+$ perl -w test.pl
+    中美汇率计算器
+    请输入要转换的货币与面值:CNY 2000
+    CNY 2000 -> USD 296.30
+$ perl -w test.pl
+    中美汇率计算器
+    请输入要转换的货币与面值:USD 1.2.3
+    输入不合法！
+$ perl -w test.pl
+    中美汇率计算器
+    请输入要转换的货币与面值:JPY 10000.00
+    输入不合法！
+```
+
+## §3.3 修正浮点数
+
+受制于浮点数的计算原理，部分小数从十进制转换到二进制时会产生误差，例如经典的`0.1+0.2!=0.3`：
+
+```python
+Python 3.10.4 [GCC 11.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> 0.1 + 0.2
+    0.30000000000000004
+```
+
+现在为修正这一问题，我们可以制定一种标准，假如小数点后连续出现8个`0`时，就忽略这之后的所有小数数字。假设所有输入都是需要修正的合法小数（例如不出现`000.123`/`123`/`1.00000000`的情况），试编写这一程序。
+
+```perl
+print("Input a string: ");
+$string = <STDIN>;
+chomp($string);
+if($string =~ /^(\d*\.\d*)0{8}\d*$/){
+    print "$1";
+}else{
+    print "$string";
+}
+```
+
+```shell
+$ perl test.pl 
+    Input a string: 123.456
+    123.456
+$ perl test.pl 
+    Input a string: 123.45600000000789
+    123.456
+$ perl test.pl 
+    Input a string: 123.456000789
+    123.456000789
+```
+
+## §3.4 文件逐行读取与写入
+
+现在`mail.txt`中包含以下内容：
+
+```
+From: hotel@example.com (Seasonal Hotel)
+To: alice@example.com (Alice)
+Subject: Hotel is booked successfully
+
+Mrs.Alice,
+	We have received your requestion of reservation on July 23th in Seasonal Hotel. Your room id is 1206.
+	Wish you a pleasant time in our hotel, and all of our staff are looking forward to your arrival.
+```
+
+我们的任务是根据上述内容，生成一份邮件回复的模版，并将内容写入到`reply.txt`：
+
+```
+From: alice@example.com (Alice)
+To: hotel@example.com (Seasonal Hotel)
+Subject: re: Hotel is booked successfully
+
+|> Mrs.Alice,
+|>     We have received your requestion of reservation on July 23th in Seasonal Hotel. Your room id is 1206.
+|>     Wish you a pleasant time in our hotel, and all of our staff are looking forward to your arrival.
+```
+
+Perl提供了`<>`运算符用于逐行读取数据，相当于`getline()`函数：
+
+```perl
+$from = ""; # 声明全局变量
+$to = ""; # 声明全局变量
+$subject = ""; # 声明全局变量
+while($line = <>){
+    if($line =~ m/^From:\s*(\w.*)$/i){
+        $from = $1;
+    }elsif($line =~ m/^To:\s*(\w.*)$/i){
+        $to = $1;
+    }elsif($line =~ m/^Subject:\s*(\w.*)$/i){
+        $subject = $1;
+    }elsif($line =~ m/^\s*$/){
+        last;
+    }
+}
+if(not defined($from) or not defined($to) or not defined($subject)){
+    die "Missing required information!";
+}
+print("From: $to\n");
+print("To: $from\n");
+print("Subject: re: $subject\n\n");
+while($line = <>){
+    print "|> $line";
+}
+```
+
+```shell
+$ cat info.csv
+    From: hotel@example.com (Seasonal Hotel)
+    To: alice@example.com (Alice)
+    Subject: Hotel is booked successfully
+
+    Mrs.Alice,
+            We have received your requestion of reservation on July 23th in Seasonal Hotel. Your room id is 1206.
+            Wish you a pleasant time in our hotel, and all of our staff are looking forward to your arrival.
+$ perl -w test.pl info.csv > reply.txt
+$ cat reply.txt 
+    From: alice@example.com (Alice)
+    To: hotel@example.com (Seasonal Hotel)
+    Subject: re: Hotel is booked successfully
+
+    |> Mrs.Alice,
+    |>      We have received your requestion of reservation on July 23th in Seasonal Hotel. Your room id is 1206.
+    |>      Wish you a pleasant time in our hotel, and all of our staff are looking forward to your arrival.
+```
+
+
+
+
+
+
 
