@@ -82,7 +82,9 @@ $ egrep "^(Alice|Bob)" info.csv
 
 ## §1.1 `^`/`$` 行的起始与结束
 
-`^`代表一行的开始，`$`代表一行的结束。本来正则表达式的匹配结果可能在行中，而`^`只寻找行首的内容，`$`只寻找行末的内容，这种以位置为依据，而非以文本为依据，限定匹配结果的过程称为**锚定**（Anchor）。
+在`egrep`中，`^`代表一行的开始，`$`代表一行的结束。本来正则表达式的匹配结果可能在行中，而`^`只寻找行首的内容，`$`只寻找行末的内容，这种以位置为依据，而非以文本为依据，限定匹配结果的过程称为**锚定**（Anchor）。
+
+在Perl等编程语言中，`^`和`$`通常只表示整个文本的起点和终点，而不是每一行的行首与行尾。如果要匹配，可以使用[`m`修饰符](#§2.4 修饰符)。
 
 ## §1.2 `[]` 字符组
 
@@ -334,11 +336,34 @@ if(string =~ m/[a-z]+/i){...}
 
 修饰符有很多种：
 
-| 修饰符 | 英文全称             | 作用       |
-| ------ | -------------------- | ---------- |
-| `i`    | Case-insenitive      | 忽略大小写 |
-| `g`    | Global Match         | 全局匹配   |
-| `x`    | Free-form Expression | 宽松排列   |
+| 修饰符 | 英文全称                       | 作用                                    |
+| ------ | ------------------------------ | --------------------------------------- |
+| `i`    | Case-insenitive                | 忽略大小写                              |
+| `g`    | Global Match                   | 全局匹配                                |
+| `x`    | Free-form Expression           | 宽松排列（忽略大多数空白字符和`#`注释） |
+| `m`    | Multiline/Enhanced Line Anchor | 多行/增强的行锚点                       |
+
+```perl
+# 宽松排列
+$email = "demo\@example.com";
+$email =~ s{
+    \b
+    # 这是一个注释
+    (
+        \w+
+        \@
+        [\w.]+
+    )
+    \b
+}{
+    <a href="mailto:$1">$1</a>
+}gix;
+print "$email";
+	# $ perl test.pl
+    	<a href="mailto:demo@example.com">demo@example.com</a>
+```
+
+
 
 ## §2.5 `/` 替换
 
@@ -377,16 +402,16 @@ $ perl -w test.pl
 >
 > 其中`-p`表示逐行检查，`-i`表示将替换后的结果写入原文件，`-e`表示后面传入的是正则表达式。
 
-## §2.6 `(?=)`/`(?<=)` 环视
+## §2.6 `(?=)`/`(?<=)`/`(?!)`/`(?<!)` 环视
 
 如果要给一个大数加上数字分隔符，例如把`12345678`变成`12,345,678`，怎么用正则表达式实现呢？我们已经知道了数字分隔符的用法：从最后的个位数开始向前数，每经过三个数字就在左面添加一个逗号。要实现这个功能，我们需要用到**环视**（Lookahead）这一特性。
 
 环视是正则表达式中的一种只匹配位置，不匹配内容的元素。之前介绍的`\b`匹配单词的起始处、`^`和`$`匹配行首与行尾，也是只匹配位置，但是环视的通用性更强，分为四种种情形：
 
 - 肯定顺序环视（Positive Lookahead）：`(?=...)`按照当前位置右边的字符作为是否匹配的依据
-- 肯定逆序环视（Negative Lookhead）：`(?<=...)`按照当前位置左边的字符作为是否匹配的依据
-- 否定顺序环视：`(?!...)`按照当前位置右边的字符作为是否不匹配的依据
-- 否定逆序环视：`(?<!...)`按照当前位置左边的字符作为是否不匹配的依据
+- 肯定逆序环视（Positive Lookbehind）：`(?<=...)`按照当前位置左边的字符作为是否匹配的依据
+- 否定顺序环视：（Negative Lookahead）`(?!...)`按照当前位置右边的字符作为是否不匹配的依据
+- 否定逆序环视：（Negative Lookbehind）`(?<!...)`按照当前位置左边的字符作为是否不匹配的依据
 
 结合环视，我们就能用另一种方式解决从`Alices`到`Alice's`：
 
@@ -400,7 +425,7 @@ $string =~ s/Alice(?=s\b)/Alice'/; # 使用环视进行替换
 print "$string";
 ```
 
-回到数字分隔符的问题，插入的位置必须符合两个要求：左边必须至少有一个数字，右边的数字个数必须是3的倍数，分别对应着`(?<=\d)`和`(?=(\d\d\d)+\b)`：
+回到数字分隔符的问题，插入的位置必须符合两个要求：左边必须至少有一个数字，右边的数字个数必须是3的倍数（不是右侧存在`(\d\d\d)+`，而是右侧到数字结束位置能匹配`(\d\d\d)+\b`），分别对应着`(?<=\d)`和`(?=(\d\d\d)+\b)`：
 
 ```perl
 $number = <STDIN>;
@@ -417,9 +442,50 @@ $ perl -w test.pl
     123,456,789
 ```
 
+如果禁用所用的环视元字符，那么思考这个正则表达式：`s/(\d)((\d\d\d)+\b)/$1,$2/g`，能不能实现相同的效果呢？答案是不能。我们知道，修饰符`g`表示全局，是用迭代的方式实现的。以`123456789`为例，首先匹配到了`3`和`456789`，两者之间加上了一个逗号。问题来了，我们知道`456789`已经曾经被匹配过了，于是根据迭代的原理，下一次迭代开始的位置一定是上一次迭代结束的位置，那么`6`和`789`就永远不可能被匹配了，因此得到的结果只能有一个逗号：`123,456789`。而使用环视的意义就在于此：只匹配位置，永远不匹配文字，这样就能不“使用”文字，让这些文字能够参与到下一次迭代中。
 
+难道真的没有办法了吗？既然一次替换解决不了，那我们就多次地替换，直到不能替换为止：
 
+```perl
+while($text =~ s/(\d)((\d\d\d)+\b)/$1,$2/g){
+	;
+}
+```
 
+## §2.7 其它分隔符
+
+到目前为止，我们在Perl中见过的所有用于替换的正则表达式，都是形如`s/regex/replacement/modifier`的结构。如果`regex`或`replacement`中出现大量的`/`，那么我们就需要对其进行转义，使用大量的`\/`。这无疑是非常麻烦的——凭什么就因为区区两个分隔符`/`，就需要其它所有文字`/`让路呢？如果能把分隔符换成其它字符，那么我们理论上就没有再对文字`/`转义的必要了。
+
+Perl支持的分隔符有`/`、`{}`和`!`：
+
+```perl
+$string = "Hello, Alice";
+$string =~ s/Alice/Bob    Look at this {}!/g; # 分隔符为/
+print "$string\n";
+
+$string = "Hello, Alice";
+$string =~ s{Alice}{Bob    Look at this //!}g; # 分隔符为{}
+print "$string\n";
+
+$string = "Hello, Alice";
+$string =~ s!Alice!Bob    Look at this {}\!!g; # 分隔符为!
+print "$string\n";
+```
+
+```shell
+$ perl -w test.pl
+    Hello, Bob    Look at this {}!
+    Hello, Bob    Look at this //!
+    Hello, Bob    Look at this {}!
+```
+
+## §2.8 正则表达式库
+
+对于一些重复使用的正则表达式，我们可以将其保存起来，并插入到其它正则表达式中：
+
+```
+
+```
 
 
 
@@ -599,6 +665,52 @@ $ cat reply.txt
     |>      We have received your requestion of reservation on July 23th in Seasonal Hotel. Your room id is 1206.
     |>      Wish you a pleasant time in our hotel, and all of our staff are looking forward to your arrival.
 ```
+
+## §3.5 HTML空行转换器
+
+HTML渲染时使用`<br>`来表示换行符。我们的目标是将HTML源文件中的一个或多个连续的空行全部换成单个`<br>`标签。
+
+首先让Perl使用文件读取模式（File-slurp），允许一次性读入多行文本，而不是每次只读入一行文本：
+
+```perl
+undef $/;
+$text = <>; # 一次性读取整个文件
+```
+
+为了让`^`和`$`代表行首与行尾，而不是整个文本的起始与末尾，我们使用`m`修饰符。
+
+```perl
+undef $/;
+$text = <>;
+$text =~ s/^\s*$/<br>/mg; # 正则表达式总是尝试匹配最长串
+print "$text";
+```
+
+```shell
+$ cat info.html
+    <html>
+        <body>
+            <h1>Hello!</h1>
+
+            <span>This is a simple webpage.</span>
+
+
+            <a>But the source file contains too much blank line.</a>
+        </body>
+    </html>
+$ perl -w test.pl info.html
+    <html>
+        <body>
+            <h1>Hello!</h1>
+    		<br>
+            <span>This is a simple webpage.</span>
+    		<br>
+            <a>But the source file contains too much blank line.</a>
+        </body>
+    </html>
+```
+
+
 
 
 
