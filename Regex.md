@@ -76,6 +76,103 @@ $ egrep "^(Alice|Bob)" info.csv
     Bob,19,CN
 ```
 
+## §0.3 正则表达式的流派
+
+各流派正则表达式支持情况：
+
+| 元字符           |     `grep`     |   `egrep`   |      `Emacs`       |      `Tcl`       |   `Perl`    |   `.NET`    |   `Java`    |
+| ---------------- | :------------: | :---------: | :----------------: | :--------------: | :---------: | :---------: | :---------: |
+| `*`/`^`/`$`/`[]` |       √        |      √      |         √          |        √         |      √      |      √      |      √      |
+| `?`/`+`/`|`      | `\?`/`\+`/`\|` | `?`/`+`/`|` |    `?`/`+`/`\|`    |   `?`/`+`/`|`    | `?`/`+`/`|` | `?`/`+`/`|` | `?`/`+`/`|` |
+| `()`             |     `\(\)`     |    `()`     |       `\(\)`       |       `()`       |    `()`     |    `()`     |    `()`     |
+| `(?:)`           |                |             |                    |                  |      √      |      √      |      √      |
+| 单词分界符       |                |   `\<\>`    | `\<\>`或`\b`或`\B` | `\n`或`\M`或`\y` | `\b`或`\B`  | `\b`或`\B`  | `\b`或`\B`  |
+| `\w`/`\W`        |                |      √      |         √          |        √         |      √      |      √      |      √      |
+| 反向引用         |       √        |      √      |         √          |        √         |      √      |      √      |      √      |
+
+## §0.4 正则表达式的处理方式
+
+一般来说，编程语言对正则表达式的处理方式分为集成式处理、程序式处理、面向对象式处理。
+
+### §0.4.1 集成式处理
+
+集成式处理（Integrated Handling）指的是正则表达式直接内建于编程语言中，例如Perl。这种处理方式隐藏了正则表达式的预处理、返回值等细节，降低了程序的繁琐程度。
+
+### §0.4.2 程序式处理
+
+程序式处理（Procedural Handling）指的是正则表达式并不属于编程语言基本元素，只能先接受字符串，然后才能将其作为正则表达式对待，真正负责处理表达式的是编程语言内置的函数或运算符。
+
+以Java为例，Java支持程序式处理：
+
+```java
+String input = "......";
+if(Pattern.matches("Hello"),input){ // Pattern类提供的matches()方法
+    // ......
+}
+if(input.matches("Hello")){ // String类提供的matches()方法
+	// ......
+}
+```
+
+微软的.NET平台也提供了相关API：
+
+```.net
+If Regex.IsMatch(Input,"Hello") Then
+	// ......
+End if
+```
+
+PHP原生内置`preg_match()`等函数：
+
+```php
+if(preg_match('/Hello/i',$input,$matches)){
+	echo $matches[1];
+}
+```
+
+
+
+### §0.4.3 面向对象式处理
+
+面向对象式处理（Object-Oriented Handling）指的是正则表达式并不属于编程语言基本元素，只能先接受字符串，然后才能将其作为正则表达式对待，真正负责处理表达式的是编程语言内置的对象中的方法，并没有专门用于负责处理正则表达式的运算符。
+
+以Java为例，Java也支持面向对象式处理：
+
+```java
+String input = "......";
+Pattern regex = Pattern.compile("Hello",Pattern.CASE_INSENSITIVE);
+Matcher matcher = regex.matcher(input);
+if(matcher.find()){
+	// ......
+}
+```
+
+VB.NET也提供了正则表达式的API：
+
+```vb
+Imports System.Text.RegularExpressions
+Dim input as string = "......"
+Dim regex as Regex = New Regex("^Subject: (.+)",RegexOptions.IgnoreCase)
+Dim match as Match = regex.Match(input);
+If match.Success
+    msgbox(match.Groups(1).Value)
+End if
+```
+
+Python使用的是`re`库：
+
+```python
+import re
+input = "......"
+regex = re.compile("Hello")
+match = regex.search(input)
+if match:
+    print(match.group(1))
+
+```
+
+
+
 # §1 元字符
 
 正则表达式中的各个字符可以分为两类：一类是没有特殊含义的普通字符，称为**文字**（Literal）；另一类是具有特殊含义、代表某种规则的特殊字符，称为**元字符**（Metacharacter）。
@@ -483,15 +580,121 @@ $ perl -w test.pl
 
 对于一些重复使用的正则表达式，我们可以将其保存起来，并插入到其它正则表达式中：
 
+```perl
+$phoneRegex = qr/\b1\d{10}\b/;
+$message = "This is my phone number: 12345678901";
+
+$message =~ s/.*$phoneRegex/98765432109/ig;
+print "$message";
 ```
 
+```shell
+$ perl -w test.pl
+	98765432109
+```
+
+要保存正则表达式，我们需要使用`qr`操作符，让Perl生成一个Regex类型的对象并作为变量保存。
+
+> 注意：在Perl中，正常情况下`$`也可以表示行尾，又可以表示变量符，不需要转义。然而在字符组中，它只能用于表示变量符，而且使用时必须转义。
+
+# §3 Java
+
+Java使用`java.util.regex`包处理正则表达式：
+
+```java
+import java.util.regex.*;
+
+class Demo {
+    public static void main(String[] args) {
+        String input = "eMail: test@example.com";
+        Pattern regex = Pattern.compile("^Email: (.+)$",Pattern.CASE_INSENSITIVE);
+        Matcher matcher = regex.matcher(input);
+        if(matcher.find()){
+            System.out.println(matcher.group(1)); // 提取邮箱地址
+        }
+    }
+}
+```
+
+### §3.1 查找与替换
+
+
+
+
+
+```java
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.regex.Pattern;
+
+class Demo {
+    public static void main(String[] args) {
+        Pattern regex1 = Pattern.compile("\\b([a-z]+)((?:\\s|\\<[^>]+\\>)+)(\\1\\b)", Pattern.CASE_INSENSITIVE);
+        Pattern regex2 = Pattern.compile("^(?:[^\\e]*\\n)+", Pattern.MULTILINE);
+        Pattern regex3 = Pattern.compile("^([^\\n]+)", Pattern.MULTILINE);
+        String replace1 = "\033[7m$1\033[m$2\033[7m$3\033[m";
+        for (int i = 0; i < args.length; i++) {
+            try{
+                BufferedReader in = new BufferedReader(new FileReader(args[i]));
+                String text;
+                while((text = getPara(in)) != null){
+                    text = regex1.matcher(text).replaceAll(replace1);
+                    text = regex2.matcher(text).replaceAll("");
+                    text = regex3.matcher(text).replaceAll(args[i] + ": $1");
+                    System.out.print(text);
+                }
+            }catch(IOException e){
+                System.err.println("Can't read [" + args[i] + "]" + e.getMessage());
+            }
+        }
+    }
+
+    public static String getPara(BufferedReader in) throws IOException {
+        StringBuffer buffer = new StringBuffer();
+        String line;
+        while ((line = in.readLine()) != null && (buffer.length() == 0 || line.length() != 0)) {
+            buffer.append(line + '\n');
+        }
+        return buffer.length() == 0 ? null : buffer.toString();
+    }
+}
+```
+
+```shell
+$ cat text.txt 
+    This is a weird weird document.
+    Because it contains contains too much much repetive words.
+$ java Demo.java text.txt
+    text.txt: This is a [weird weird] document.
+    text.txt: Because it [contains contains] too [much much] repetive words.
 ```
 
 
 
-# §3 例题
 
-## §3.1 是否为时刻
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# §A 例题
+
+## §A.1 是否为时刻
 
 要求匹配形如`20:12:59`、`00:00:00`的时长字符串。
 
@@ -515,7 +718,7 @@ $ egrep "^([01][0-9]|[2][0-3]):[0-5][0-9]:[0-5][0-9]$" info.csv
     12:30:59
 ```
 
-## §3.2 自动中美汇率转换
+## §A.2 自动中美汇率转换
 
 已知中美汇率为$\frac{1}{6.75}$.要求根据输入的货币类型与数字，自动转换成另一种货币并输出数字（保留两位小数），例如输入`USD 10.5`，输出`CNY 70.89`。
 
@@ -556,7 +759,7 @@ $ perl -w test.pl
     输入不合法！
 ```
 
-## §3.3 修正浮点数
+## §A.3 修正浮点数
 
 受制于浮点数的计算原理，部分小数从十进制转换到二进制时会产生误差，例如经典的`0.1+0.2!=0.3`：
 
@@ -592,7 +795,7 @@ $ perl test.pl
     123.456000789
 ```
 
-## §3.4 文件逐行读取与写入
+## §A.4 文件逐行读取与写入
 
 现在`mail.txt`中包含以下内容：
 
@@ -666,7 +869,7 @@ $ cat reply.txt
     |>      Wish you a pleasant time in our hotel, and all of our staff are looking forward to your arrival.
 ```
 
-## §3.5 HTML空行转换器
+## §A.5 HTML空行转换器
 
 HTML渲染时使用`<br>`来表示换行符。我们的目标是将HTML源文件中的一个或多个连续的空行全部换成单个`<br>`标签。
 
@@ -710,7 +913,74 @@ $ perl -w test.pl info.html
     </html>
 ```
 
+# §B 正则引擎与原理
 
+## §B.1 正则引擎分类
+
+正则表达式的引擎简称正则引擎，虽然可以细分很多种，但是可以大致分为两大类：DFA和NFA。为了规范各类引擎，特别是NFA引擎的行为，IEEE发布了POSIX标准（Portable Operating System Interface）。
+
+```mermaid
+flowchart LR
+
+	TraditionalNFA[("传统型NFA")]
+	POSIXNFA[("POSIX NFA")]
+	DFA[("DFA")]
+	
+	Start(("开始"))
+	IsIgnoreClassifierSupported[/"是否支持忽略优先量词"/]
+	IsCapturingParenthesesAndBackreference[/"是否支持捕获型括号和回溯"/]
+	
+	Start-->IsIgnoreClassifierSupported
+	IsIgnoreClassifierSupported--"是"-->TraditionalNFA
+	IsIgnoreClassifierSupported--"否"-->IsCapturingParenthesesAndBackreference
+	IsCapturingParenthesesAndBackreference--"是"-->POSIXNFA
+	IsCapturingParenthesesAndBackreference--"否"-->DFA
+```
+
+| 正则引擎类型 |                  使用该引擎的编程语言和程序                  |
+| :----------: | :----------------------------------------------------------: |
+|     DFA      |      `awk`、`egrep`、`flex`、`lex`、`MySQL`、`Procmail`      |
+|  传统型DFA   | `GNU Emacs`、`Java`、`grep`、`less`、`more`、`.NET`、`PCRE library`、`Perl`、`PHP`、`Python`、`Ruby`、`sed`、`vi` |
+|  POSIX NFA   | `mawk`、`Mortice Kern Systems' utilities`、`GNU Emacs`（明确指定时） |
+| DFA/NFA混合  |          `GNU awk`、`GNU grep`、`GNU egrep`、`Tcl`           |
+
+## §B.2 正则引擎原理
+
+到目前为止，我们学过的所有正则表达式都满足以下两条普适的规则：
+
+1. 优先选择最左端的匹配结果
+
+   举个例子，现在我们使用正则表达式`s/aa/b/`，对字符串`aaa`进行替换。那么正则引擎是先会匹配左侧的`aa`替换成`b`得到`ba`，还是先匹配右侧的`aa`替换成`b`得到`ab`呢？依据这条原则，结果应该是前者：
+
+   ```perl
+   $input = "aaa";
+   $input =~ s/aa/b/;
+   print "$input"
+   ```
+
+   ```shell
+   $ perl -w test.pl 
+   	ba
+   ```
+
+   这是因为正则引擎的匹配过程总是从左开始。正则表达式开始匹配时，首先从第一个`a`开始，按照正则表达式尝试匹配，发现能够匹配成功，于是选中第一、二个`a`，将这一整体替换为`b`。
+
+2. 优先匹配量词（`*`、`+`、`?`、`{m,n}`），且尽可能匹配更长的文字序列
+
+    举个例子，现在我们使用正则表达式`s/a{3}/b/`，对字符串`aaaaaaa`进行替换，那么第一次匹配成功时，对应的文字是`aaa`还是`aa`呢？依据这条原则，结果应该是前者：
+
+   ```perl
+   $input = "aaaaaaa";
+   $input =~ s/aa/b/;
+   print "$input"
+   ```
+
+   ```shell
+   $ perl -w test.pl
+   	bba
+   ```
+
+   
 
 
 
