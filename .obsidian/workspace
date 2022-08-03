@@ -9,8 +9,8 @@
         "state": {
           "type": "markdown",
           "state": {
-            "file": "网络安全技能树/Java代码审计.md",
-            "mode": "source",
+            "file": "Regex.md",
+            "mode": "preview",
             "backlinks": true,
             "source": false
           }
@@ -36,6 +36,16 @@
             }
           },
           {
+            "id": "443e87112da7c806",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Regex.md"
+              }
+            }
+          },
+          {
             "id": "7d613ea7bc7181d6",
             "type": "leaf",
             "state": {
@@ -49,46 +59,28 @@
                 "sortOrder": "alphabetical"
               }
             }
-          }
-        ]
-      }
-    ],
-    "direction": "horizontal",
-    "width": 300
-  },
-  "right": {
-    "id": "1b8548f88ba38df7",
-    "type": "split",
-    "children": [
-      {
-        "id": "a32224efe50a0020",
-        "type": "tabs",
-        "children": [
+          },
           {
-            "id": "5aa36df4a9e9a899",
+            "id": "7e917919e32d675b",
+            "type": "leaf",
+            "state": {
+              "type": "advanced-tables-toolbar",
+              "state": {}
+            }
+          },
+          {
+            "id": "5e7fe559e2c9aa81",
             "type": "leaf",
             "state": {
               "type": "backlink",
               "state": {
-                "file": "网络安全技能树/Java代码审计.md",
+                "file": "Regex.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
                 "showSearch": false,
                 "searchQuery": "",
                 "backlinkCollapsed": false,
-                "unlinkedCollapsed": true
-              }
-            }
-          },
-          {
-            "id": "b885df3e378699e4",
-            "type": "leaf",
-            "state": {
-              "type": "outgoing-link",
-              "state": {
-                "file": "网络安全技能树/Java代码审计.md",
-                "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
             }
@@ -105,21 +97,35 @@
             }
           },
           {
-            "id": "7e917919e32d675b",
+            "id": "b885df3e378699e4",
             "type": "leaf",
             "state": {
-              "type": "advanced-tables-toolbar",
-              "state": {}
+              "type": "outgoing-link",
+              "state": {
+                "file": "Regex.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
             }
           }
-        ]
+        ],
+        "currentTab": 3
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 323.5
+  },
+  "right": {
+    "id": "1b8548f88ba38df7",
+    "type": "split",
+    "children": [],
+    "direction": "horizontal",
+    "width": 323.5,
+    "collapsed": true
   },
   "active": "b54805e264766c8b",
   "lastOpenFiles": [
+    "Java代码审计.md",
     "网络安全技能树/Java代码审计.md",
     "网络安全技能树/SQL注入.md",
     "Java.md",
@@ -128,7 +134,6 @@
     "网络安全技能树/公钥密码学.md",
     "HVV行动.md",
     "Docker.md",
-    "CTF.md",
-    "Blender.md"
+    "CTF.md"
   ]
 }
