@@ -130,8 +130,6 @@ if(preg_match('/Hello/i',$input,$matches)){
 }
 ```
 
-
-
 ### §0.4.3 面向对象式处理
 
 面向对象式处理（Object-Oriented Handling）指的是正则表达式并不属于编程语言基本元素，只能先接受字符串，然后才能将其作为正则表达式对待，真正负责处理表达式的是编程语言内置的对象中的方法，并没有专门用于负责处理正则表达式的运算符。
@@ -142,9 +140,15 @@ if(preg_match('/Hello/i',$input,$matches)){
 String input = "......";
 Pattern regex = Pattern.compile("Hello",Pattern.CASE_INSENSITIVE);
 Matcher matcher = regex.matcher(input);
+
+// 查找
 if(matcher.find()){
 	// ......
 }
+
+ // 替换
+String result = matcher.replaceAll("(The website: $1)");
+System.out.println(result);
 ```
 
 VB.NET也提供了正则表达式的API：
@@ -154,9 +158,18 @@ Imports System.Text.RegularExpressions
 Dim input as string = "......"
 Dim regex as Regex = New Regex("^Subject: (.+)",RegexOptions.IgnoreCase)
 Dim match as Match = regex.Match(input);
+
+' 查找
 If match.Success
     msgbox(match.Groups(1).Value)
 End if
+
+' 替换
+Dim regex As Regex = New Regex( _
+    "(......)", _
+    RegexOptions.IgnoreCase Or RegexOptions.IgnorePatternWhitespace _
+)
+text = regex.Replace(text,"The message is ${1}")
 ```
 
 Python使用的是`re`库：
@@ -170,8 +183,6 @@ if match:
     print(match.group(1))
 
 ```
-
-
 
 # §1 元字符
 
@@ -721,8 +732,6 @@ PHP是一门容易入门的Web编程语言。PHP不仅能支持正则表达式�
 | 占有优先量词         | `*+`、`++`、`?+`、`{n}+`、`{m,n}+`、`{n,}+` |
 | 文字范围             | `\Q...\E`（只能用在字符组内部）             |
 
-
-
 ## §5.2 `preg`引擎与函数接口
 
 `preg`的全称为Perl正则表达式（Perl Regular Expressions），是一种程序式正则引擎。其作者Andrei Zmievski仿照Perl中的正则表达式引擎，在PHP中完整复刻了一套名为PCRE（Perl Compatible Regular Expressions）的函数接口。该引擎提供了以下11个基层函数，统称为PCRE函数：
@@ -788,19 +797,19 @@ if(preg_match_all('/\d+/',$input,$matches)){
 
 PHP不仅支持正则表达式的部分模式修饰符，而且自己还引入了独占的模式修饰符：
 
-| 修饰符 | 作用                              |
-| ------ | --------------------------------- |
-| `i`    | 忽略大小写                        |
-| `m`    | 增强的行锚点模式                  |
-| `s`    | 点号通配模式                      |
-| `x`    | 宽松排列和注释模式                |
-| `u`    | 用UTF-8编码读取正则表达式字符串   |
-| `X`    | 启用PCRE的额外功能（Extra Stuff） |
-| `e`    |                                   |
-| `S`    |                                   |
-| `U`    |                                   |
-| `A`    |                                   |
-| `D`    |                                   |
+| 修饰符 | 作用                                                |
+| ------ | --------------------------------------------------- |
+| `i`    | 忽略大小写                                          |
+| `m`    | 增强的行锚点模式                                    |
+| `s`    | 点号通配模式                                        |
+| `x`    | 宽松排列和注释模式                                  |
+| `u`    | 用UTF-8编码读取正则表达式字符串                     |
+| `X`    | 启用PCRE的额外功能（Extra Stuff）                   |
+| `e`    | 在`preg_replace()`中，将`$replacement`作为PHP代码   |
+| `S`    | 启用PCRE的`study`优化                               |
+| `U`    | 交换`*`和`*?`的匹配优先含义                         |
+| `A`    | 将整个匹配尝试锚定在起始位置                        |
+| `D`    | 只能匹配EOS，而不是EOS之前的换行符（除非用`m`修饰） |
 
 
 
@@ -1660,3 +1669,107 @@ $ perl -w test.pl
     Jan 31
 ```
 
+# §C 速查表
+
+## §C.1 正则表达式的转义字符
+
+### §C.1.1 字符表示法
+
+- 字符缩略表示法
+  - `\a`：警报 ，让扬声器发声，对应ASCII中的`<BEL>`字符（十进制为`7`）
+  
+  - `\b`：退格符，对应ASCII中的`<BS>`字符（十进制为`8`）
+  
+  - `\e`：Escape字符，对应ASCII中的`<ESC>`字符（十进制为`27`）
+  
+  - `\f`：进纸符，对应ASCII中的`<FF>`字符（十进制为`12`）
+  
+  - `\n`：换行符，在Unix/Dos/Windows对应ASCII中的`<LF>`字符（十进制为`10`），在MacOS对应ASCII的`<CR>`字符，十进制为`13`，在Java/.NET环境中无论平台均为`<LF>`
+  
+  - `\r`：回车符，在Unix/Dos/Windows对应ASCII中的`<CR>`字符，在MacOS对应ASCII的`<LF>`字符，在Java/.NET环境中无论平台均为`<CR>`
+  
+  - `\t`：水平制表符，对应ASCII的`<HT>`字符（十进制为`9`）
+  
+  - `\v`：垂直制表符，对应ASCII的`<VT>`字符（十进制为`10`）
+  
+    | 正则表达式工具 | `\a`     | `\b`(单词分界符) | `\b`(退格符) | `\e` | `\f` | `\n` | `\r` | `\t` | `\v` |
+    | -------------- | -------- | ---------------- | ------------ | ---- | ---- | ---- | ---- | ---- | ---- |
+    | Python         |          |                  |              |      |      |      |      |      |      |
+    | Tcl            | √        | √                | √            |      | √    | √    | √    | √    | √    |
+    | Perl           | 应为`\y` | √                | √            | √    | √    | √    | √    | √    | √    |
+    | Java           | √        | √                | √            | √    | √    | √    | √    | √    |      |
+    | GNU awk        |          | √                | √            |      | √    | √    | √    | √    | √    |
+    | GNU sed        | √        |                  |              |      |      | √    |      |      |      |
+    | GNU Emacs      | √        |                  |              |      |      |      |      |      |      |
+    | .NET           | √        | √                | √            | √    | √    | √    | √    | √    | √    |
+    | PHP(`preg`)    | √        | √                | √            | √    | √    | √    | √    | √    |      |
+    | MySQL          |          |                  |              |      |      |      |      |      |      |
+    | GNU grep/egrep | √        |                  |              |      |      |      |      |      |      |
+    | flex           |          | √                | √            |      | √    | √    | √    | √    | √    |
+    | Ruby           | √        | √                | √            | √    | √    | √    | √    | √    | √    |
+  
+- 八进制转义
+
+  - `\xxx`：八进制转义字符，例如`\101`、`\011`、`\11`等
+
+- 十六进制转义/Unicode
+
+  - `\xnum`、`\x{num}`、`\unum`、`\U{num}`：十六进制转义字符（支持Unicode），其中两个`\x`只能后接一到两位十六进制数字，而`\u`可以后接四位十六进制数字，`\U`可以后接四或八位十六进制数字
+
+- 控制字符
+
+  - `\cchar`：通过单个字符表示ASCII小于32的控制字符，例如`\cH`匹配Control-H字符，即退格符；例如`\cJ`表示换行符
+
+### §C.1.2 字符组及相关结构
+
+- 普通字符组：`[a-z]`、`[^0-9]`
+- 通配符：`.`
+- 单个字节：`\C`
+- Unicode组合字符序列：`\X`
+- 字符组简记法
+  - `\w`
+  - `\d`
+  - `\s`
+  - `\W`
+  - `\D`
+  - `\S`
+- Unicode属性、区块、分类
+  - `\p{Prop}`
+  - `\P{Prop}`
+- 字符组运算符：`&&`
+- POSIX字符组方括号表示法：`[[:alpha:]]`
+- POSIX`collating`序列方括号表示法：`[[.span-11.]]`
+- POSIX字符等价类方括号表示法：`[[=n=]]`
+- Emacs语法类
+  - 2
+
+### §C.1.3 锚点其其它零长度断言
+
+- 行/字符串起点
+- 行/字符串终点
+- 上次匹配结束位置
+- 单词分界符
+- 环视
+  - 肯定顺序环视
+  - 肯定逆序环视
+  - 否定顺序环视
+  - 否定逆序环视
+
+### §C.1.4 注释和模式修饰词
+
+- 模式修饰词
+- 模式作用范围
+- 注释
+- 文字文本范围
+
+### §C.1.5 分组、捕获、条件判断、控制
+
+- 分组/捕获括号
+- 非捕获型括号（仅用于分组的括号）
+- 命名捕获
+- 固化分组
+- 多选结构
+- 条件判断
+- 匹配优先量词
+- 忽略优先量词
+- 占有优先量词
