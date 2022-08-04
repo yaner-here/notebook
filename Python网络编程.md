@@ -118,7 +118,7 @@ IP协议只负责将数据包转发到正确的设备。如果要维护一个会
 - 多路复用（Multiplexing）：将不同的会话区分开来
 - 可靠传输（Reliable Transport）：修复发生错误的数据包，重传丢失的数据包，丢弃重复的数据包，重组到达时序错乱的数据包
 
-TCP（Transmission Control Protocol，传输控制协议）与UDP（User Datagram Protocol，用户数据报协议）就是上述提到的新协议。其中TCP满足了两个特性，而UDP只满足了前一个特性，需要开发者自行设计可靠传输的细节。
+TCP（Transmission Control Protocol，传输控制协议）与UDP（User Datagram Protocol，用户数据报协议）就是上述提到的新协议。两者的单个数据包最大长度均为`65536`字节。其中TCP满足了两个特性，而UDP只满足了前一个特性，需要开发者自行设计可靠传输的细节。
 
 TCP/UDP使用端口（Port）这一概念实现多路复用。每个数据包都有一个无符号16位二进制数表示端口号，范围从0到65536。IANA（Internet Assigned Numbers Authority，互联网号码分配机构）规定了端口号的分配规则：
 
@@ -174,9 +174,218 @@ $ cat /etc/services
     # ......
 ```
 
+端口号必须与IP地址相绑定。例如`0.0.0.0:80`会拦截所有尝试访问本机的`80`端口的数据包，而`127.0.0.1:80`只允许处理经过本机回环网卡IP地址的数据包，不允许其它网卡接收到的数据包：
+
+```shell
+$ netstat -ano
+    激活Internet连接 (服务器和已建立连接的)
+    Proto Recv-Q Send-Q Local Address           Foreign Address         State       Timer
+    tcp        0      0 127.0.0.1:38847         0.0.0.0:*               LISTEN      关闭 (0.00/0/0)
+    tcp        0      0 127.0.0.1:38847         127.0.0.1:48614         ESTABLISHED 关闭 (0.00/0/0)
+    tcp        0      0 172.29.83.151:33448     172.29.80.1:10811       ESTABLISHED 关闭 (0.00/0/0)
+    tcp        0      0 127.0.0.1:48618         127.0.0.1:38847         ESTABLISHED 关闭 (0.00/0/0)
+    tcp6       0      0 :::42853                :::*                    LISTEN      关闭 (0.00/0/0)
+    udp        0      0 127.0.0.1:60000         0.0.0.0:*                           关闭 (0.00/0/0)
+```
+
+事实上，端口号”冲突“的本质是端口号与监听地址均重合。例如我们完全可以给回环网卡的`127.0.0.1`与以太网的`192.168.1.2`分别绑定两个不同的`80`端口服务器。我们把IP地址和TCP/UDP端口号结合起来，称为**套接字名**。
+
+# §1 套接字
+
+所有操作系统的网络操作都是围绕套接字开展的，用一个整数来标识不同的套接字。Python的`socket`库对其进行了抽象，只需通过`socket.socket()`就能得到一个`socket`实例，通过该实例的`fileno()`就能获取到其整数：
+
+```python
+import socket
+sockList = []
+for i in range(0,3):
+    sockList.append(socket.socket())
+sockList[2].close()
+for sock in sockList:
+    print(sock.fileno())
+    # 4
+    # 5
+    # -1
+```
+
+## §1.1 UDP套接字
+
+### §1.1.1 混杂客户端
+
+下面是一个最简单的UDP服务器和客户端：
+
+```python
+# TestServer.py
+import socket
+import random
+MAX_BYTES = 65535
+
+def server(ip: str, port: int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((ip,port))
+    print('Listening at {}'.format(sock.getsockname()))
+    while True:
+        (data,address) = sock.recvfrom(MAX_BYTES)
+        print('The client at {} says {!r}'.format(address,data.decode('ascii')))
+        response = 'Here\'s your lucky number:{}'.format(random.random()).encode('ascii')
+        sock.sendto(response,address)
+
+server('localhost',60000)
+```
+
+```python
+# TestClient.py
+import socket
+MAX_BYTES = 65535
+
+def client(serverIp: str, port: int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    data = bytes("Hello, I'm a client.", 'ascii')
+    sock.sendto(data, (serverIp, port))
+    print('Requesting from {}'.format(sock.getsockname()))
+    (data, address) = sock.recvfrom(MAX_BYTES)
+    print('The server replied {!r}'.format(data.decode('ascii')))
+
+client('localhost',60000)
+```
+
+```shell
+$ python TestServer.py
+    Listening at ('127.0.0.1', 60000)
+    The client at ('127.0.0.1', 37979) says "Hello, I'm a client."
+```
+
+```shell
+$ python TestClient.py
+    Requesting from ('0.0.0.0', 37979)
+	The server replied "Here's your lucky number:0.3872235270764811"
+```
+
+这段程序虽然满足了功能要求，但是有着非常大的风险：因为任何人得知客户端的端口号后，都可以自行向客户端发送数据包。而客户端只管开放端口，接受端口的所有数据包，而不会检验数据包的发送方，从而产生伪造的风险：
+
+```shell
+$ python TestClient.py
+    Requesting from ('0.0.0.0', 43542)
+    The server replied 'You are hacked!'
+```
+
+```shell
+$ python
+    Python 3.10.4 (main, Apr  2 2022, 09:04:19) [GCC 11.2.0] on linux
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import socket
+    >>> socket.socket(socket.AF_INET,socket.SOCK_DGRAM).sendto('You are hacked!'.encode('ascii'),('127.0.0.1',43542))
+        15
+```
+
+这种”什么都接受“的客户端称为**混杂客户端（Promiscuous Client）**。
+
+### §1.1.2 不可靠性
+
+我们知道，UDP没有重传机制。这意味着我们必须自己编写相应的逻辑，以应对阻塞、超时、丢包等情形。为模拟网络阻塞，我们在服务器端模拟随机丢包：
+
+```python
+# UnstableUDPServer.py
+import socket
+import random
+MAX_BYTES = 65535
+
+def server(ip:str, port:int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((ip, port))
+    print('Listening at', sock.getsockname())
+    while True:
+        (data, address) = sock.recvfrom(MAX_BYTES)
+        if random.random() < 0.7:
+            print('Pretending to drop packet from {}'.format(address))
+            continue
+        text = data.decode('ascii')
+        print('The client at {} says {!r}'.format(address, text))
+        message = 'Here\'s your lucky number:{}'.format(random.random())
+        sock.sendto(message.encode('ascii'), address)
+        print('Packet sent successfully!')
+
+server('localhost',60000)
+```
+
+```python
+# RetransmissionUDPClient.py
+import socket
+MAX_BYTES = 65535
+
+def client(serverIp: str, serverPort: int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.connect((serverIp,serverPort))
+    delay = 0.1
+    data = bytes("Hello, I'm a client.", 'ascii')
+    while True:
+        sock.send(data)
+        sock.settimeout(delay)
+        print('Waiting up to {} seconds for a reply'.format(delay))
+        try:
+            data = sock.recv(MAX_BYTES)
+            print('The server replied {!r}'.format(data.decode('ascii')))
+            break
+        except socket.timeout as e:
+            delay *= 2
+            if(delay > 5):
+                raise e
+            else:
+                continue
+
+client('localhost',60000)
+```
+
+```shell
+$ python UnstableUDPServer.py
+    Listening at ('127.0.0.1', 60000)
+    
+    The client at ('127.0.0.1', 55549) says "Hello, I'm a client."
+    Packet sent successfully!
+    
+    Pretending to drop packet from ('127.0.0.1', 51947)
+    The client at ('127.0.0.1', 51947) says "Hello, I'm a client."
+    Packet sent successfully!
+    
+    Pretending to drop packet from ('127.0.0.1', 41668)
+    Pretending to drop packet from ('127.0.0.1', 41668)
+    Pretending to drop packet from ('127.0.0.1', 41668)
+    Pretending to drop packet from ('127.0.0.1', 41668)
+    Pretending to drop packet from ('127.0.0.1', 41668)
+    Pretending to drop packet from ('127.0.0.1', 41668)
+```
+
+```shell
+$ python RetransmissionUDPClient.py
+    Waiting up to 0.1 seconds for a reply
+    The server replied "Here's your lucky number:0.06272517207969697"
+$ python RetransmissionUDPClient.py
+    Waiting up to 0.1 seconds for a reply
+    Waiting up to 0.2 seconds for a reply
+    The server replied "Here's your lucky number:0.8496767580730985"
+$ python RetransmissionUDPClient.py
+    Waiting up to 0.1 seconds for a reply
+    Waiting up to 0.2 seconds for a reply
+    Waiting up to 0.4 seconds for a reply
+    Waiting up to 0.8 seconds for a reply
+    Waiting up to 1.6 seconds for a reply
+    Waiting up to 3.2 seconds for a reply
+    Traceback (most recent call last):
+      File "RetransmissionUDPClient.py", line 25, in <module>
+        client('localhost',60000)
+      File "RetransmissionUDPClient.py", line 21, in client
+        raise e
+      File "RetransmissionUDPClient.py", line 15, in client
+        data = sock.recv(MAX_BYTES)
+    TimeoutError: timed out
+```
 
 
-## §0.2 `socket`库
+
+
+
+
+
+
 
 ```python
 import socket
@@ -218,8 +427,6 @@ if __name__ == '__main__':
     main()
 ```
 
-
-
 ```powershell
 C:\PythonServer\> python server.py
 	http://127.0.0.1:8001
@@ -228,3 +435,26 @@ C:\PythonServer\> curl localhost:8001
 	Hello World
 ```
 
+### §1.1.3 MTU与分组
+
+MTU（Maximum Transmission Unit）指的是TCP/UDP协议中，能承载最多数据的数据包，长度通常为`65536`。这一最长长度可以通过`getsockopt()`与`setsocketopt()`调用和更改：
+
+```python
+import socket
+MAX_BYTES = 65535
+
+class IN:
+    IP_MTU = 14
+    IP_MTU_DISCOVER = 10
+    IP_PMTUDISC_DO = 2
+
+def server(ip: str, port: int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.IPPROTO_IP, IN.IP_MTU_DISCOVER, IN.IP_PMTUDISC_DO)
+    sock.connect((ip,port))
+    sockMTU = sock.getsockopt(socket.IPPROTO_IP, IN.IP_MTU)
+    print(sockMTU)
+    	# 65535
+   
+server('localhost', 60000)
+```
