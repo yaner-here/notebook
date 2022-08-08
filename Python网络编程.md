@@ -76,9 +76,37 @@ if __name__ == '__main__':
 
 Python对各层次的网络都实现了完整的支持。
 
-## §0.1 编码与解码
+## §0.1 字节与字符串
 
-Python使用`encode()`与`decode()`方法，实现字符串`str`数据类型与字节数组`bytes`数据类型之间的转化：
+我们知道，位是数据的最小单位，8个位（bit）构成一个字节（Byte）。然而随着技术的发展，现代计算机的内存与网卡都支持将字节作为通用传输单元。套接字将字节完全暴露了出来，而Python提供了一系列处理字节的方法。
+
+在不同的初期计算机中，字节长度可能不同。因此，网络标准使用**八位字节（Octet）**指代现代计算机中的字节。
+
+### §0.1.1 字节表示方法
+
+Python表示字节的方法有两种：
+
+1. 一个`0`-`255`内的整数
+
+   ```python
+   rawString: bytes = bytes([0b1100001, 0o141, 97, 0x61])
+   print(rawString)
+   	# b'aaaa'
+   print(list(rawString))
+   	# [97, 97, 97, 97]
+   ```
+
+2. 一个字节字符串
+
+   ```python
+   rawString: bytes = b'asaa'
+   print(rawString)
+   	# b'aaaa'
+   ```
+
+### §0.1.2 字节与字符串的转换
+
+Python使用`encode()`与`decode()`方法，实现字符串`str`数据类型与字节类`bytes`数据类型之间的转化：
 
 ```python
 inputBytes_1 = b'Hello '
@@ -94,6 +122,59 @@ outputBytes = outputString.decode('gbk')
 print(outputBytes)
 	# 浣犲ソ锛屼笘鐣岋紒
 ```
+
+转换的过程可能会发生两种错误：一是字符串中存在编码规则无法编码的字符，二是是编码规则找不到指定字节对应的字符：
+
+```shell
+$ python
+    Python 3.10.4 (main, Apr  2 2022, 09:04:19) [GCC 11.2.0] on linux
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> b'\x80'.decode('ascii')
+        Traceback (most recent call last):
+          File "<stdin>", line 1, in <module>
+        UnicodeDecodeError: 'ascii' codec can't decode byte 0x80 in position 0: ordinal not in range(128)
+    >>> 'α'.encode('latin-1')
+        Traceback (most recent call last):
+          File "<stdin>", line 1, in <module>
+        UnicodeEncodeError: 'latin-1' codec can't encode character '\u03b1' in position 0: ordinal not in range(256)
+```
+
+为解决上述问题，我们可以使用`decode()`和`encode()`自带的异常处理形参：
+
+```python
+>>> b'\x80'.decode('ascii','replace')
+    '�' # \uFFFD
+>>> b'\x80'.decode('ascii','ignore')
+    ''
+
+>>> 'α'.encode('latin-1','replace')
+    b'?'
+>>> 'α'.encode('latin-1','ignore')
+    b''
+```
+
+### §0.1.3 网络字节顺序
+
+我们知道，一个`int`型整数
+
+```python
+import struct
+
+num = int(input('Input a number: '))
+print('\t Hex: {}'.format(hex(num)))
+print('\t Big Endian: {}'.format(struct.pack('<i',num)))
+print('\t Little Endian: {}'.format(struct.pack('>i',num)))
+```
+
+```shell
+$ python Endian.py
+    Input a number: 324508366
+             Hex: 0x13579ace
+             Big Endian: b'\xce\x9aW\x13'
+             Little Endian: b'\x13W\x9a\xce'
+```
+
+
 
 ## §0.2 IP地址
 
@@ -206,6 +287,19 @@ for sock in sockList:
     # 5
     # -1
 ```
+
+| 协议类型 | `socket`实例方法                       | 作用                                        |
+| -------- | -------------------------------------- | ------------------------------------------- |
+| TCP      | `socket.accept():(sc,sockname)`        | TCP被动套接字返回建立的主动套接字及对方地址 |
+| TCP/UDP  | `socket.bind((hostname,port))`         | 绑定套接字的本机地址                        |
+| TCP/UDP  | `socket.connect((hostname,port))`      | 绑定套接字的远程地址                        |
+| TCP/UDP  | `socket.getpeername():(hostname,port)` | 获取套接字的远程地址                        |
+| TCP/UDP  | `socket.getsockname():(hostname,port)` | 获取套接字的本地地址                        |
+| UDP      | `socket.recvfrom():bytes`              | UDP套接字接收数据                           |
+| UDP      | `socket.sendto()`                      | UDP套接字发送数据                           |
+| TCP      | `socket.recv(int):bytes`               | TCP主动套接字接收数据                       |
+| TCP      | `socket.send():int`                    | TCP主动套接字发送数据（不可靠）             |
+| TCP      | `socket.sendall()`                     | TCP主动套接字发送数据（可靠）               |
 
 ## §1.1 UDP套接字
 
@@ -378,14 +472,6 @@ $ python RetransmissionUDPClient.py
         data = sock.recv(MAX_BYTES)
     TimeoutError: timed out
 ```
-
-
-
-
-
-
-
-
 
 ```python
 import socket
@@ -877,3 +963,327 @@ $ python tcp_deadlock.py client '' 99999999
 
 ### §1.2.2 半开连接
 
+考虑这个问题：如果我们使用`socket.setblocking()`禁用套接字阻塞，那么当客户端已经发送完全部数据后，如何告知服务器自己已经发送完毕呢？
+
+- 在上面的例子中，服务器的判断依据是`rawRequest = sc.recv(1024)`不为空。然而细想就可知这一依据并不可靠，因为网络连接可能产生较大的延迟，导致第二次`sc.recv()`被调用时得到不了任何信息，使得服务器误以为全部数据已接收完毕，从而导致客户端发送的数据丢包。
+- 如果我们指定一个特殊的文件结束符用于标记呢？还不行。因为服务器处理数据需要时间，而客户端还希望获取服务器的数据，因此客户端肯定不能当场`socket.close()`。既然客户端不能关闭连接，那么是否终止连接的决定权就交给了服务器。而题目又限制了客户端禁用套接字阻塞，导致网络延迟较大时，客户端调用`socket.recv()`时就会当场抛出异常，更别提获取其返回值，判断里面是否包含文件结束符了。事实上，哪一方禁用套接字阻塞，哪一方就可能会抛出异常。
+
+为解决这一问题，我们可以在不销毁Socket的前提下，永久性地关闭单方的通讯连接，只允许数据单向传输。这种连接称为**半开连接**。
+
+`socket`库使用`socket.shutdown()`切换至半开连接，其支持的参数有：
+
+- `socket.SHUT_WR`（Shutdown Write）：自己不再向套接字输出数据。当自己直到输出何时结束，但不知道对方输出何时结束
+- `socket.SHUT_RD`（Shutdown Read）：自己不再接收套接字的数据。
+- `socket.SHUT_RDWR`（Shutdown Read Write）：同时关闭两个方向的通信，但是不释放当前套接字（`socket.close()`会释放套接字）
+
+### §1.2.3 文件流
+
+在Python中，文件对象有`read()`和`write()`方法，而套接字只有`send()`和`recv()`方法。为了把套接字的数据当作普通的文件来对待，`socket`库提供了`makefile()`方法：
+
+```python
+import socket
+
+sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+print(hasattr(sock,'read')) # False
+
+sockfile = sock.makefile()
+print(hasattr(sockfile,'read')) # True
+```
+
+## §1.3 套接字参数与`socket.getaddrinfo()`
+
+我们知道，**套接字名**由主机名与端口号组合而成。而主机名既可以是域名，也可以是IP地址。而**套接字**由五个参数组成：本地套接字名、远程套接字名、地址族、套接字类型、协议族。
+
+`socket`类的构造方法如下：
+
+```python
+class socket(_socket.socket):
+    def __init__(self,family=AF_INET,type=SOCK_STREAM,proto=0,fileno=None):
+        # ......
+```
+
+1. 本地套接字名：通过`sock.bind()`绑定。
+2. 远程套接字名：与`sock.connect()`绑定。
+3. 地址族（Address Family）：即`socket.__init__()`中的`family`形参，使用的常量以`AF`（Address Family）开头，默认为IPv4地址协议（`AF_INET`）。除此之外，`socket`库也支持IPv6协议（`AF_INET6`）、AppleTalk协议（`AF_APPLETALK`）和蓝牙协议（`AF_BLUETOOTH`）。
+4. 套接字类型：分为`SOCK_DGRAM`和`SOCK_STREAM`，用于选择可靠传输与流量控制。
+5. 协议族：缺省为`0`，表示自动选择协议族。
+
+`socket.getaddrinfo(host:str,port:int|str,family=0,type=0,proto=0,flags=0)`可以通过给定的远程主机名与远程端口号，返回其支持的所有套接字的信息，我们可以使用这些信息创建套接字。
+
+```python
+import pprint
+import socket
+
+infoList = socket.getaddrinfo('baidu.com','www')
+pprint.pprint(infoList)
+'''
+    [
+    	(
+    		<AddressFamily.AF_INET: 2>, # 第一个表示地址族
+			<SocketKind.SOCK_STREAM: 1>, # 第二个表示套接字类型
+			6, # 第三个表示协议族
+			'',
+			('39.156.66.10', 80)
+		),
+		(
+			<AddressFamily.AF_INET: 2>,
+			<SocketKind.SOCK_STREAM: 1>,
+			6,
+			'',
+			('110.242.68.66', 80)
+		)
+	]
+'''
+sock = socket.socket(*infoList[0][0:3])
+sock.connect(infoList[0][4])
+sock.close()
+```
+
+如果`host`形参为`None`时，要求返回的主机名也必须为通配符形式，而不是默认为本机的主机名，则应该给`flags`形参指定`socket.AI_PASSIVE`：
+
+```python
+import socket
+
+print(socket.getaddrinfo(None,'ssh',0,socket.SOCK_STREAM,0))
+	# [(<AddressFamily.AF_INET6: 10>, <SocketKind.SOCK_STREAM: 1>, 6, '', ('::1', 22, 0, 0)), (<AddressFamily.AF_INET: 2>, <SocketKind.SOCK_STREAM: 1>, 6, '', ('127.0.0.1', 22))]
+
+print(socket.getaddrinfo(None,'ssh',0,socket.SOCK_STREAM,0,socket.AI_PASSIVE))
+	# [(<AddressFamily.AF_INET: 2>, <SocketKind.SOCK_STREAM: 1>, 6, '', ('0.0.0.0', 22)), (<AddressFamily.AF_INET6: 10>, <SocketKind.SOCK_STREAM: 1>, 6, '', ('::', 22, 0, 0))]
+```
+
+`flags`形参支持的常数有以下几种：
+
+| `getaddrinfo()`的`flags`形参 | 作用                                                         |
+| ---------------------------- | ------------------------------------------------------------ |
+| `socket.AI_PASSIVE`          | `host`形参为`None`时，要求返回的主机名也必须为通配符形式，而不是默认为本机的主机名 |
+| `socket.AI_ALL`              | 将远程IPv4地址编码为IPv6地址，并且同时探测原本可用的IPv6地址 |
+| `soxket.AI_V4MAPPED`         | 将远程IPv4地址编码为IPv6地址，不使用远程原本可用的IPv6地址   |
+| `socket.AI_NUMERICHOST`      | 只允许`host`形参为IP地址，禁止为域名                         |
+| `socket.AI_ADDRCONFIG`       | 丢弃不被本机不支持的协议对应的套接字名                       |
+| `socket.AI_CANONNAME`        | 要求获取规范主机名（FQDN，Fully Qualified Domain Name）      |
+| `socket.AI_NUMERICSERV`      | `port`形参禁用`str`形式的端口名（例如`www`、`ssh`）          |
+
+`socket.getaddrinfo()`返回的是一整个元组。如果仅需获取其中的一个信息，可以考虑以下方法：
+
+```python
+print(socket.gethostname())
+	# DESKTOP-U123456
+print(socket.gethostbyname('baidu.com'))
+	# 39.156.66.10
+print(socket.gethostbyaddr('8.8.8.8'))
+	# ('dns.google', [], ['8.8.8.8'])
+print(socket.getfqdn()) # FQDN, Fully Qualified doMain Name
+	# DESKTOP-U123456.localdomain
+print(socket.getprotobyname('TCP'))
+	# 6
+print(socket.getservbyname('www'))
+	# 80
+print(socket.getservbyport(80))
+	# http
+```
+
+使用`socket.getaddrinfo()`可以让我们不必为每一个套接字指定五件套，而是创建一个“模版”，由它帮助我们生成套接字的五件套：
+
+```python
+import argparse
+import socket
+import sys
+
+def connectTo(hostname: str):
+    try:
+        infoList = socket.getaddrinfo(
+            hostname, 
+            'www', 
+            0, 
+            socket.SOCK_STREAM,
+            0,
+            socket.AI_ADDRCONFIG | socket.AI_V4MAPPED | socket.AI_CANONNAME
+        )
+    except socket.gaierror as e:
+        print('DNS service failure:',e.args[1])
+        sys.exit(1)
+    sock = socket.socket(*infoList[0][0:3])
+    try:
+        sock.connect(infoList[0][4])
+    except socket.error as e:
+        print('Connection failure:',e.args[1])
+    else:
+        print('Success: host',infoList[0][3],'is listening on port 80')
+    finally:
+        sock.close()
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('hostname')
+    connectTo(parser.parse_args().hostname)
+```
+
+```shell
+$ python connect.py baidu.com
+    Success: host baidu.com is listening on port 80
+$ python connect.py google.com
+    Connection failure: Connection timed out
+$ python connect.py not_exists_website.aaa
+    DNS service failure: Name or service not known
+```
+
+在这个例子中，我们并没有手动给`socket.socket()`传参，而是给`socket.getaddrinfo()`传参。代码中没有使用`socket.AF_INET = 2`指定使用IP协议，所以该脚本完全通用。
+
+## §1.4 DNS
+
+DNS（Domain Name System，域名系统）是一种将主机名映射到IP地址的机制。该协议基于TCP/UDP协议，端口号为53。
+
+当客户端尝试解析域名时，首先会查询本地DNS缓存，如果找不到就比对`hosts`文件，然后使用多播DNS协议，最后才选择耗时最长的DNS协议。DNS服务器首先会从缓存中查找，如果找不到，就依次向上级DNS服务器递归查询。
+
+通过操作系统提供的`whois`命令，我们可以查询DNS返回的域名信息：
+
+```shell
+$ sudo apt install whois -y
+$ whois baidu.com
+	Domain Name: BAIDU.COM
+    Registry Domain ID: 11181110_DOMAIN_COM-VRSN
+    Registrar WHOIS Server: whois.markmonitor.com
+    Registrar URL: http://www.markmonitor.com
+    Updated Date: 2022-01-25T09:00:46Z
+    Creation Date: 1999-10-11T11:05:17Z
+    Registry Expiry Date: 2026-10-11T11:05:17Z
+    Registrar: MarkMonitor Inc.
+    # ......
+```
+
+Python的原生库把DNS解析过程封装起来了，因此我们看不到这一过程的细节。但是Python有一个第三方DNS解析库`dnspython3`：
+
+```shell
+$ pip install dnspython3
+```
+
+`dns.resolver.query(qname)`会返回一个`dns.resolver.Answer`实例，其中包含一个`rrset`字段，指向一个`dns.rrset.RRset`实例。这一对象重写了`__str__()`方法，调用时会将其`items`列表中的数据循环输出。`items`中的每一项都是一个`dns.rdtypes.xxx`实例：
+
+```python
+import argparse, dns.resolver
+
+def lookup(name):
+    for type in 'A', 'AAAA', 'CNAME', 'MX', 'NS':
+        answer = dns.resolver.query(name, type, raise_on_no_answer=False)
+        if answer.rrset is not None:
+            print(answer.rrset)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Resolve a name using DNS')
+    parser.add_argument('name', help='name that you want to look up in DNS')
+    lookup(parser.parse_args().name)
+```
+
+```shell
+$ python dns_basic.py baidu.com
+    baidu.com. 0 IN A 39.156.66.10
+    baidu.com. 0 IN A 110.242.68.66
+    baidu.com. 0 IN MX 15 mx.n.shifen.com.
+    baidu.com. 0 IN MX 20 usmx01.baidu.com.
+    baidu.com. 0 IN MX 20 jpmx.baidu.com.
+    baidu.com. 0 IN MX 20 mx50.baidu.com.
+    baidu.com. 0 IN MX 10 mx.maillb.baidu.com.
+    baidu.com. 0 IN MX 20 mx1.baidu.com.
+    baidu.com. 86400 IN NS ns2.baidu.com.
+    baidu.com. 86400 IN NS dns.baidu.com.
+    baidu.com. 86400 IN NS ns4.baidu.com.
+    baidu.com. 86400 IN NS ns3.baidu.com.
+    baidu.com. 86400 IN NS ns7.baidu.com.
+```
+
+每一行的值从左往右依次是：
+
+1. 查询的域名（`baidu.com`）
+2. 存入缓存的有效时间（单位为秒）（`86400`）
+3. 类名（`IN`表示返回互联网地址响应）
+4. 记录的类型（`A`表示IPv4，`AAAA`表示IPv6，`NS`表示名称服务器记录）
+5. 目标地址
+
+根据RFC 5321标准，客户端解析邮箱域名时，先查询所有`MX`记录，那么尝试连接所有的SMTP服务器，如果都未响应则返回错误，如果连接成功则根据优先级排序后返回。如果不存在`MX`记录，但是存在`A`记录或`AAAA`记录，则尝试访问这类记录。如果还是没有`A`/`AAAA`记录，那么就尝试查找`CNAME`记录。
+
+下面是一个符合RFC 5321标准的邮箱域名解析程序：
+
+```python
+import argparse
+import dns.resolver # dnspython3的包
+
+def resolveHostname(hostname: str):
+    for queryItem in ['A', 'AAAA', 'CNAME']:
+        answer = dns.resolver.query(hostname, queryItem)
+        if answer.rrset is not None:
+            for record in answer:
+                print('\t',hostname, 'has a address:', record.address)
+            return
+
+def resolveEmailDomain(domain: str):
+    try:
+        answer = dns.resolver.query(domain, 'MX', raise_on_no_answer=False)
+    except dns.resolver.NXDOMAIN:
+        print('Error: No such domain', domain)
+        return
+    if answer.rrset is not None:
+        records = sorted(answer, key=lambda record: record.preference)
+        for record in records:
+            hostname = record.exchange.to_text(omit_final_dot=True)
+            print(hostname,'(','Priority', record.preference,')')
+            resolveHostname(hostname)
+    else:
+        print('The domain has no explicit MX records')
+        print('Attempting to resolve it as an A, AAAA, or CNAME')
+        resolveHostname(domain)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('domain')
+    resolveEmailDomain(parser.parse_args().domain)
+```
+
+```shell
+$ python DNSEmailResolver.py baidu.com
+	mx.maillb.baidu.com ( Priority 10 )
+             mx.maillb.baidu.com has a address: 111.202.115.85
+    mx.n.shifen.com ( Priority 15 )
+             mx.n.shifen.com has a address: 111.202.115.85
+             mx.n.shifen.com has a address: 111.206.215.185
+    usmx01.baidu.com ( Priority 20 )
+             usmx01.baidu.com has a address: 12.0.243.41
+    jpmx.baidu.com ( Priority 20 )
+             jpmx.baidu.com has a address: 119.63.196.201
+    mx50.baidu.com ( Priority 20 )
+             mx50.baidu.com has a address: 12.0.243.41
+    mx1.baidu.com ( Priority 20 )
+             mx1.baidu.com has a address: 220.181.3.85
+             mx1.baidu.com has a address: 111.202.115.85
+```
+
+
+
+
+
+
+
+
+
+8月8日： 6w+字
+
+8月9日： 7w+字
+
+8月10日： 8w+字
+
+8月11日： 9w+字
+
+8月12日： 10w+字
+
+8月13日： 11w+字
+
+8月14日： 12w+字
+
+8月15日： 13w+字
+
+8月16日： 14w+字
+
+8月17日： 15w+字
+
+8月18日： 16w+字
+
+8月19日： 17w+字
