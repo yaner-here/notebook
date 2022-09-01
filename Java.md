@@ -1611,9 +1611,7 @@ CenteredCircle first_circle = (CenteredCircle)shapes.get(0);
 CenteredCircle second_circle = (CenteredCircle)shapes.get(1);
 ```
 
-为了解决这个问题，泛型在Java 5
-
-应运而生，可以让javac在编译阶段就发现这个问题。
+为了解决这个问题，泛型在Java 5应运而生，可以让javac在编译阶段就发现这个问题。
 
 ```java
 List<CenteredCircle> shapes = new ArrayList<CenteredCircle>();
@@ -1981,8 +1979,6 @@ public class Demo {
     }
 }
 ```
-
-
 
 ## §2.14 集合
 
