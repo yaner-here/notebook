@@ -7,13 +7,8 @@
         "id": "b54805e264766c8b",
         "type": "leaf",
         "state": {
-          "type": "markdown",
-          "state": {
-            "file": "Regex.md",
-            "mode": "preview",
-            "backlinks": true,
-            "source": false
-          }
+          "type": "empty",
+          "state": {}
         }
       }
     ],
@@ -40,9 +35,7 @@
             "type": "leaf",
             "state": {
               "type": "outline",
-              "state": {
-                "file": "Regex.md"
-              }
+              "state": {}
             }
           },
           {
@@ -74,7 +67,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Regex.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -102,18 +94,16 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Regex.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
             }
           }
-        ],
-        "currentTab": 3
+        ]
       }
     ],
     "direction": "horizontal",
-    "width": 323.5
+    "width": 100
   },
   "right": {
     "id": "1b8548f88ba38df7",
@@ -125,6 +115,8 @@
   },
   "active": "b54805e264766c8b",
   "lastOpenFiles": [
+    "思路.md.md",
+    "Regex.md",
     "Java代码审计.md",
     "网络安全技能树/Java代码审计.md",
     "网络安全技能树/SQL注入.md",
@@ -132,8 +124,6 @@
     "JavaScript.md",
     "网络安全技能树/密码学.md",
     "网络安全技能树/公钥密码学.md",
-    "HVV行动.md",
-    "Docker.md",
-    "CTF.md"
+    "HVV行动.md"
   ]
 }
