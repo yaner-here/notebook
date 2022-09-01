@@ -155,26 +155,33 @@ $ python
 
 ### §0.1.3 网络字节顺序
 
-我们知道，一个`int`型整数
+我们知道，一个`int`型整数由四个字节构成，这四个字节都要存储在内存中。大端法（Big Endian）指的是将最高位字节存储在内存地址较小的位置，小端法（Little Endian）指的是将最低位字节存储在内存地址较小的位置。
+
+Python的`struct`库的`i`修饰符可以将数字转换成大端法和小端法，`>`指向的方向为最低位字节：
 
 ```python
 import struct
-
 num = int(input('Input a number: '))
-print('\t Hex: {}'.format(hex(num)))
-print('\t Big Endian: {}'.format(struct.pack('<i',num)))
-print('\t Little Endian: {}'.format(struct.pack('>i',num)))
+print('\tHex: {}'.format(hex(num)))
+
+bigEndian = struct.pack('<i',num)
+print('\tBig Endian: {}'.format(bigEndian))
+print('\tBig Endian unpack: {}'.format(struct.unpack('<i',bigEndian)))
+
+littleEndian = struct.pack('>i',num)
+print('\tLittle Endian: {}'.format(littleEndian))
+print('\tLittle Endian unpack: {}'.format(struct.unpack('>i',littleEndian)))
 ```
 
 ```shell
 $ python Endian.py
     Input a number: 324508366
-             Hex: 0x13579ace
-             Big Endian: b'\xce\x9aW\x13'
-             Little Endian: b'\x13W\x9a\xce'
+            Hex: 0x13579ace
+            Big Endian: b'\xce\x9aW\x13'
+            Big Endian unpack: (324508366,)
+            Little Endian: b'\x13W\x9a\xce'
+            Little Endian unpack: (324508366,)
 ```
-
-
 
 ## §0.2 IP地址
 
@@ -270,6 +277,109 @@ $ netstat -ano
 ```
 
 事实上，端口号”冲突“的本质是端口号与监听地址均重合。例如我们完全可以给回环网卡的`127.0.0.1`与以太网的`192.168.1.2`分别绑定两个不同的`80`端口服务器。我们把IP地址和TCP/UDP端口号结合起来，称为**套接字名**。
+
+## §0.4 JSON
+
+Python自带`json`库，用于处理JSON字符串：
+
+```python
+import json
+
+jsonObject = json.dumps([1,2,3,'ABC',"αβγ","你好"])
+print(jsonObject)
+	# [1, 2, 3, "ABC", "\u03b1\u03b2\u03b3", "\u4f60\u597d"]
+
+jsonObject = json.dumps([1,2,3,'ABC',"αβγ","你好"],ensure_ascii=False)
+print(jsonObject)
+	# [1, 2, 3, "ABC", "αβγ", "你好"]
+
+jsonObject = json.loads('{"username":"admin","password":"admin"}') # 返回字典(dict)
+print(jsonObject)
+	# {'username': 'admin', 'password': 'admin'}
+```
+
+## §0.5 `zlib`
+
+大多数浏览器的请求头都包含`Accept-Encoding: gzip`这一字段。GNU的`zlib`是当今应用最广泛的压缩格式之一，Python的`zlib`库支持该格式的压缩与解压：
+
+```python
+import zlib
+
+rawData = ""
+for i in range(0,10):
+    rawData += "This is an important sentence to be comporessed!"
+print(len(rawData))
+	# 480
+
+compressedData = zlib.compress(bytes(rawData,'ascii'))
+print(len(compressedData))
+	# 58
+
+extractedData = zlib.decompress(compressedData)
+print(len(extractedData))
+	# 480
+```
+
+`zlib`库也提供了面向对象式的调用方法，可以通过`zlib.compressobj()`或`zlib.decompressobj()`得到一个`zlib.Compress`或`zlib.Decompress`实例：
+
+```python
+compressObj = zlib.compressobj()
+compressedData = compressObj.compress(b'Hello World') + compressObj.flush()
+print(compressedData)
+	# b'x\x9c\xf3H\xcd\xc9\xc9W\x08\xcf/\xcaI\x01\x00\x18\x0b\x04\x1d'
+
+decompressObj = zlib.decompressobj()
+decompressData = decompressObj.decompress(compressedData)
+print(decompressData)
+	# b'Hello World'
+```
+
+面向对象的好处在于它能处理数据流，我们可以将接收到的数据逐次传给相应的方法，不必像面向过程编程那样等到数据全部传输完毕才能开始压缩与解压：
+
+```python
+import zlib
+import string
+
+class SimulateStream:
+
+    PACKET_LENGTH = 8
+    rawData = zlib.compress(bytes(string.ascii_lowercase,'ascii'))
+    rawDataLength = len(rawData)
+    packetIndex = 0
+
+    def getData(self) -> bytes:  # 模拟获取流数据
+
+        startIndex = self.PACKET_LENGTH * self.packetIndex
+        if startIndex > self.rawDataLength: # 如果切片首部超出范围
+            self.packetIndex += 1
+            return b''
+
+        endIndex = startIndex + self.PACKET_LENGTH
+        if endIndex > self.rawDataLength: # # 如果切片尾部超出范围
+            self.packetIndex += 1
+            return self.rawData[startIndex:self.rawDataLength]
+
+        self.packetIndex += 1 # 如果切片首尾部均在范围内
+        return self.rawData[startIndex:endIndex]
+
+
+stream = SimulateStream()
+decompressObj = zlib.decompressobj()
+decompressedData = b""
+
+
+while True:
+    buffer = stream.getData()
+    if buffer == b'':
+        break
+    decompressedData += decompressObj.decompress(buffer)
+    print(decompressedData,decompressObj.unused_data)
+        # b'abcde' b''
+        # b'abcdefghijklm' b''
+        # b'abcdefghijklmnopqrstu' b''
+        # b'abcdefghijklmnopqrstuvwxyz' b''
+        # b'abcdefghijklmnopqrstuvwxyz' b''
+```
 
 # §1 套接字
 
@@ -1256,15 +1366,237 @@ $ python DNSEmailResolver.py baidu.com
              mx1.baidu.com has a address: 111.202.115.85
 ```
 
+## §1.5 封帧与引用
+
+我们知道，客户端可以使用`socket.sendall()`确保所有数据都已被发送，那么怎么确保服务器一定收到所有数据呢？什么时候才能停止调用`socket.recv()`呢？
+
+一种方法是双方都关闭单向通讯（其实只需一方关闭单向通讯即可，双方都关闭是为了冗余性），客户端执行完`socket.sendall()`后马上`socket.close()`，让服务器循环执行`socket.recv()`，直到接受到的数据为空字符串为止：
+
+```python
+import socket
+import argparse
+
+
+def server(address: str, port: int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((address, port))
+    sock.listen(1)
+    print('Listening at {}'.format(sock.getsockname()))
+    (sc, sockname) = sock.accept()
+    print('\tAccepted connnection from {}'.format(sockname))
+    sc.shutdown(socket.SHUT_WR)
+    rawRequest = b''
+    while True:
+        buffer = sc.recv(16)
+        if not buffer:
+            break
+        rawRequest += buffer
+    print('\tReceived Request: {}'.format(rawRequest.decode('ascii')))
+    sc.close()
+    sock.close()
+
+
+def client(address: str, port: int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((address,port))
+    sock.shutdown(socket.SHUT_RD)
+    sock.sendall(b'To be or not to be, this is a question.')
+    sock.sendall(b'I think, therefore I am.')
+    sock.sendall(b'Fortune favors the bold.')
+    sock.close()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    options = {'server': server, 'client': client}
+    parser.add_argument('role', choices=options)
+    parser.add_argument('hostname', nargs='?', default='127.0.0.1')
+    parser.add_argument('-p', type=int, metavar='port', default=60000)
+    args = parser.parse_args()
+    function: callable = options[args.role]
+    function(args.hostname,args.p)
+```
+
+第二种方法是双方先保持双向通信，客户端发送完毕以后才关闭单向通信，服务器接受并发送完毕后关闭整个套接字。
+
+第三种方法是自己设计一个`socket.recvall()`方法：
+
+```python
+def recvall(sock,length)->bytes:
+    data = b''
+    while len(data) < length:
+        buffer = sock.recv(length - len(data))
+        if not buffer:
+            raise EOFError('{} bytes required but only {} bytes received'.format(
+            	length, len(data)
+            ))
+		data += buffer
+	return data
+```
+
+第四种方法是自己设计一个文件终止符，例如`\0`、`\xff`。这种方法的局限性在于不能处理任意包含终止符的数据。
+
+第五种方法是在每个数据包前面加上该数据包的长度。这种方法被广泛应用于高性能通信，但前提是已知数据总长度，所以不能处理长度未知的`stream`。
+
+TCP用的是哪种方法呢？都不是。TCP不管数据总长度，只管将目前处理的数据拆成帧，在帧的头部添加这一帧的长度。如果长度为`0`，自然说明数据已经传输完毕：
+
+```python
+import socket
+import struct
+import argparse
+
+headerStruct = struct.Struct('!I')
+
+def recvall(sock: socket.socket, length: int):
+    blocks = []
+    remainLength = length
+    while remainLength:
+        block = sock.recv(remainLength)
+        if not block:
+            raise EOFError('{} bytes required'.format(length, remainLength))
+        remainLength -= len(block)
+        blocks.append(block)
+    return b''.join(blocks)
+
+def getBlock(sock: socket.socket):
+    data = recvall(sock, headerStruct.size) # headerStruct.size为4字节
+    (blockLength,) = headerStruct.unpack(data) # 将四字节转化为整数,表示这一帧的数据长度
+    return recvall(sock, blockLength)
+
+def putBlock(sock:socket.socket, message:bytes):
+    blockLength = len(message)
+    sock.send(headerStruct.pack(blockLength))
+    sock.send(message)
+
+def server(address: str, port: int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((address, port))
+    sock.listen()
+    print('Listening at {}'.format(sock.getsockname()))
+    (sc, sockname) = sock.accept()
+    print('Accepted connection from {}'.format(sockname))
+    sc.shutdown(socket.SHUT_WR)
+    i = 1
+    while True:
+        block = getBlock(sc)
+        if not block:
+            break
+        print('Block #{} content: {}'.format(i, block))
+        i = i + 1
+    sc.close()
+    sock.close()
+
+def client(address: str, port: int):
+    sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    sock.connect((address,port))
+    sock.shutdown(socket.SHUT_RD)
+    putBlock(sock,b'1234567890')
+    putBlock(sock,b'abcdefghijklmnopqrstuvwxyz')
+    putBlock(sock,b'The quick brown fox jumps over the lazy dog')
+    putBlock(sock,b'') # 终止符,服务器强行接受四字节为\x00\x00\x00\x00,仍然判定为接收到了数据
+    sock.close()
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    options = {'server':server,'client':client}
+    parser.add_argument('role',choices=options)
+    parser.add_argument('hostname',nargs='?',default='127.0.0.1')
+    parser.add_argument('-p',type=int,metavar='port',default=60000)
+    args = parser.parse_args()
+    function = options[args.role]
+    function(args.hostname,args.p)
+```
+
+`pickle`是Python原生的序列化与反序列化包：
+
+```python
+import pickle
+
+element = [1,2,3]
+serialization = pickle.dumps(element)
+	# b'\x80\x04\x95\x0b\x00\x00\x00\x00\x00\x00\x00]\x94(K\x01K\x02K\x03e.'
+unserialization = pickle.loads(serialization)
+	# [1, 2, 3]
+```
+
+注意序列化字符串的最后一个`.`，这是`pickle`库反序列化时的终止符。如果我们在这之后随意添加一些无意义字符，那么这些字符会被忽略：
+
+```python
+import pickle
+
+element = [1,2,3]
+serialization = pickle.dumps(element) + b'abc123\0\n\b'
+	# b'\x80\x04\x95\x0b\x00\x00\x00\x00\x00\x00\x00]\x94(K\x01K\x02K\x03e.abc123\x00\n\x08'
+unserialization = pickle.loads(serialization)
+	# [1, 2, 3]
+```
+
+看到这里，你可能会想把`pickle`库用于套接字的反序列化中。但是有一个问题：我们使用的`pickle.loads()`必须接受一个完整的字节字符串，才能实现序列化。这样我们就必须先等待数据全部传输完毕，然后才能反序列化，无法做到传输的同时反序列化，因此执行效率非常低。为此，我们不再使用`bytes`的字节字符串，而是使用`io`库提供的`BytesIO`类：
+
+```python
+import pickle
+import io
+
+element = [1,2,3]
+serialization = pickle.dumps(element) + b'Hello World'
+	# b'\x80\x04\x95\x0b\x00\x00\x00\x00\x00\x00\x00]\x94(K\x01K\x02K\x03e.Hello World'
+
+serializationStream = io.BytesIO(serialization)
+offset = serializationStream.tell() # 返回当前流的位置(偏移量)
+	# 0
+
+unserialization = pickle.load(serializationStream)
+	# [1, 2, 3]
+offset = serializationStream.tell() # 返回当前流的位置(偏移量)
+	# 22
+print(serializationStream.read()) # 一次性读到最后一位
+	# b'Hello World'
+offset = serializationStream.tell() # 返回当前流的位置(偏移量)
+	# 33
+```
+
+## §1.6 网络异常
+
+- `socket.OSError`：最常见的异常，网络传输的任何阶段都有可能抛出该异常
+
+- `socket.gaierror`：全称为`Get Addr Info ERROR`当`socket`找不到指定的主机名或服务时抛出
+
+  ```python
+  import socket
+  
+  hostname = "non_existent_hostname.com"
+  sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+  sock.connect((hostname,80))
+  ```
+
+- `socket.timeout`：当`send()`、`recv()`等函数的响应时间超过预设值，则抛出超时异常
+
+Python有许多基于`socket`库的其它Python高层库。以`http`为首的高层库会抛出底层Socket的的异常，而以`urllib`为首的高层库会将这些异常包装成自己定义的异常类型：
+
+```python
+import http.client
+conn = http.client.HTTPConnection('non_existent_hostname.com')
+conn.request('GET','/')
+    # Traceback (most recent call last):
+    #     ......
+    # socket.gaierror: [Errno -2] Name or service not known
+    
+import urllib.request
+urllib.request.urlopen('non_existent_hostname.com')
+    # Traceback (most recent call last):
+    #     ......
+    # ValueError: unknown url type: 'non_existent_hostname.com'
+```
+
+# §2 TLS/SSL
+
+TLS（Transport Layer Security，传输层安全协议）的前身是SSL（Secure Sockets Layer，安全套接层）
 
 
 
 
-
-
-
-
-8月8日： 6w+字
 
 8月9日： 7w+字
 
