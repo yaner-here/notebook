@@ -9,9 +9,9 @@
         "state": {
           "type": "markdown",
           "state": {
-            "file": "思路.md",
+            "file": "网络安全技能树/深入PHP.md",
             "mode": "source",
-            "backlinks": true,
+            "backlinks": false,
             "source": false
           }
         }
@@ -41,7 +41,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "思路.md"
+                "file": "网络安全技能树/深入PHP.md"
               }
             }
           },
@@ -69,23 +69,6 @@
             }
           },
           {
-            "id": "5e7fe559e2c9aa81",
-            "type": "leaf",
-            "state": {
-              "type": "backlink",
-              "state": {
-                "file": "思路.md",
-                "collapseAll": false,
-                "extraContext": false,
-                "sortOrder": "alphabetical",
-                "showSearch": false,
-                "searchQuery": "",
-                "backlinkCollapsed": false,
-                "unlinkedCollapsed": true
-              }
-            }
-          },
-          {
             "id": "c8e3fd42dc88b7f7",
             "type": "leaf",
             "state": {
@@ -95,14 +78,28 @@
                 "useHierarchy": true
               }
             }
-          },
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 267.5
+  },
+  "right": {
+    "id": "1b8548f88ba38df7",
+    "type": "split",
+    "children": [
+      {
+        "id": "7e9edb62c1360838",
+        "type": "tabs",
+        "children": [
           {
-            "id": "b885df3e378699e4",
+            "id": "78ea9e06f6e0a92e",
             "type": "leaf",
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "思路.md",
+                "file": "网络安全技能树/深入PHP.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -112,18 +109,13 @@
       }
     ],
     "direction": "horizontal",
-    "width": 186.5
-  },
-  "right": {
-    "id": "1b8548f88ba38df7",
-    "type": "split",
-    "children": [],
-    "direction": "horizontal",
     "width": 323.5,
     "collapsed": true
   },
   "active": "b54805e264766c8b",
   "lastOpenFiles": [
+    "思路.md",
+    "网络安全技能树/深入PHP.md",
     "CTF/PHP.md",
     "CTF/攻防世界WriteUp.md",
     "CTF/attachment/Pasted image 20220529000049.png",
@@ -131,8 +123,6 @@
     "CTF.md",
     "PHP.md",
     "Python网络编程.md",
-    "SQL.md",
-    "Regex.md",
-    "ThinkPHP.md"
+    "SQL.md"
   ]
 }
