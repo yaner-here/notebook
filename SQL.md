@@ -342,7 +342,7 @@ select id,username,case
 	when score>90 then '优秀'
 	when score<60 then '不及格'
 	else '良好'
-	end as '成绩等级'
+	end as 'level'
 from users;
 ```
 
