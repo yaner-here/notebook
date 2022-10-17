@@ -1203,7 +1203,7 @@ ERROR 1105 (HY000): XPATH syntax error: '~security'
 >   只能使用`substring()`、`substr()`、`left()`、`right()`、`regexp()`等函数分批次获取：？？？？？？？？？？TODO：？？？
 >
 >   ```
->               
+>                 
 >   ```
 >
 >   
@@ -1470,21 +1470,21 @@ Runtime error: integer overflow
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->             
+>               
 >   mysql> select abs(0x8000000000000000);
 >   +-------------------------+
 >   | abs(0x8000000000000000) |
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->             
+>               
 >   mysql> select abs(0x7fffffffffffffff + 1);
 >   +-----------------------------+
 >   | abs(0x7fffffffffffffff + 1) |
 >   +-----------------------------+
 >   |         9223372036854776000 |
 >   +-----------------------------+
->             
+>               
 >   mysql> select abs(0xFFFFFFFFFFFFFFFF);
 >   +-------------------------+
 >   | abs(0xFFFFFFFFFFFFFFFF) |
@@ -1492,14 +1492,6 @@ Runtime error: integer overflow
 >   |    18446744073709552000 |
 >   +-------------------------+
 >   ```
-
-
-
-```
-mysql> SELECT ABS(0x8000000000000000);
-
-mysql> 
-```
 
 ？？？？？[HarekazeCTF2019]Sqlite Voting TODO：？？？？？？？
 
@@ -1898,7 +1890,13 @@ from users;
 
 ### §4.2.3 `regexp()`
 
-`regexp()`
+`regexp()`能从一个字段的多个数据中提过滤得到符合给定正则表达式的数据，特别适用于节省`group_concat()`返回的字符数。
+
+```sql
+mysql> 
+```
+
+
 
 ## §4.3 从字符串中提取字符
 
@@ -1941,9 +1939,81 @@ function getData(){
 | `left(字符串,截取长度)`  | 从字符串最左端开始，截取固定长度的子字符串 |
 | `right(字符串,截取长度)` | 从字符串最右端开始，截取固定长度的子字符串 |
 
+## §4.4 创建大数
+
+大数溢出注入要求数字必须大于等于`0x8000000000000000`。假如WAF限制不许有三个及以上的连续数字，该怎么构造出大数呢？
+
+### §4.4.1 `~0+1`
+
+```mysql
+mysql> select ~0;
++----------------------+
+| ~0                   |
++----------------------+
+| 18446744073709551615 |
++----------------------+
+1 row in set (0.00 sec)
+
+mysql> select ~0+1;
+ERROR 1690 (22003): BIGINT UNSIGNED value is out of range in '(~(0) + 1)'
+```
+
+### §4.4.2 `exp(710)`
+
+```mysql
+mysql> select exp(709);
++-----------------------+
+| exp(709)              |
++-----------------------+
+| 8.218407461554972e307 |
++-----------------------+
+1 row in set (0.00 sec)
+
+mysql> select exp(710);
+ERROR 1690 (22003): DOUBLE value is out of range in 'exp(710)'
+```
+
+如果题目对数字的范围限制更严格，允许的数字更小，则可以考虑把`710`扩写成`9+9+9+...+9`。
+
+## §4.5 绕过空格
+
+### §4.5.1 内联注释`/**/`
+
+```python
+def WAF(rawString:str)->bool:
+    if re.search(r'\s',rawString) is None:
+        print('"{}" succeed.'.format(rawString))
+    else:
+        print('"{}" failed'.format(rawString))
+
+def bypassWAF(rawString:str)->str:
+    return rawString.replace(' ','/**/')
+
+payload = "select * from users;"
+WAF(payload)
+WAF(bypassWAF(payload))
+```
+
+```mysql
+mysql> select/**/*/**/from/**/users;
+	// ......
+	13 rows in set (0.01 sec)
+```
+
+### §4.5.2 `%0b`与`%0c`
+
+| ASCII码 | 含义 |
+| ------- | ---- |
+|         |      |
+|         |      |
 
 
-## §4.2 绕过空格与运算符
+
+
+
+
+
+
 
 对于这个注入点：`SELECT * FROM users WHERE id='' LIMIT 0,1`，并且过滤了空格与`and`、`or`，可以使用`^`运算符。其优点在于这个二元运算符两侧的表达式之间不必有空格，可以错误注入。
 
