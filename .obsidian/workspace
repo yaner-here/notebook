@@ -51,7 +51,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "eval",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -79,7 +79,8 @@
               }
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "horizontal",
@@ -112,7 +113,7 @@
     "width": 323.5,
     "collapsed": true
   },
-  "active": "b54805e264766c8b",
+  "active": "7d613ea7bc7181d6",
   "lastOpenFiles": [
     "网络安全技能树/深入PHP.md",
     "思路.md",
