@@ -3,6 +3,8 @@
   "global-search",
   "switcher",
   "graph",
+  "backlink",
+  "canvas",
   "outgoing-link",
   "tag-pane",
   "page-preview",
@@ -12,5 +14,6 @@
   "markdown-importer",
   "outline",
   "word-count",
+  "workspaces",
   "file-recovery"
 ]

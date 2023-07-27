@@ -1,8 +1,80 @@
-# §1 函数参考
+# §5 语言参考
 
-## §1.13 数学扩展（Mathematical Extensions）
+## §8.1 影响PHP行为（Affecting PHP's Behaviour）
 
-### §1.13.36 梅森旋转算法——`mt_getrandmax()`、`mt_rand()`、`mt_srand()`
+### §8.1.4 FFI（Foreign Function Interface）
+
+FFI允许PHP加载共享链接库（`.dll`/`.so`）并调用其中的C语言函数。当PHP限制了访问权限，但是运行PHP的账户没有设置访问权限时，可以考虑调用`stdlib.h`中的`system()`绕过。
+
+> 注意：FFI扩展非常危险，因此`php.ini`默认不启用FFI。
+>
+> ```ini
+> # php.ini
+> [ffi]
+> ; FFI API restriction.  :
+> ; "preload" - 启用CLI脚本与预加载文件 (默认)
+> ; "false"   - 总是禁用
+> ; "true"    - 总是启用
+> ffi.enable=preload
+> 
+> ; 将被预加载的头文件列表,文件名使用常量DIRECTORY_SEPARATOR分割(默认为/),允许使用*、?等通配符(wildcard patterns)
+> ffi.preload=
+> ```
+>
+> 由于`ffi.enable`缺省为`preload`，不允许Web访问调用。但是我们可以利用`eval()`与反序列化的方式绕过这个限制，让PHP误认为`FFI::`系列方法是从CLI调用的。
+
+#### §8.1.4.1 FFI类
+
+FFI类的实例由其静态方法`FFI::cdef(string $code="", ?string $lib=null)`创建。返回的FFI实例包含着解析C语言代码`$code`得到的函数与数据结构：
+
+```php
+<?php
+$ffi = FFI::cdef("
+	int printf(const char *format, ...);
+    int system(const char *command);
+");
+$ffi->printf("Function \"%s\" is called!\n", "printf");
+    // Function "printf" is called!
+$ffi->system("whoami");
+	// root
+?>
+```
+
+##### §8.1.4.1.1 `FFI->new()`与`FFI::free()`
+
+`FFI::new(string $type, bool $owned=true, bool $persistent=false):?FFI::CData`用于根据`FFI`实例创建一个代表结构体或数组的`FFI::CDATA`实例。
+
+- `string $type`：对C语言数据类型的合法声明
+- `bool $owned`：创建的结构体的生命周期是否自动结束。自动结束指的是当PHP脚本中没有对该`FFI::CDATA`实例的变量引用时自动释放，手动结束指的是调用`FFI::free()`方法手动释放。
+- `bool $persistent`：决定将变量的空间分配到系统堆还是PHP请求堆中。系统堆等价于`malloc()`，PHP请求堆等价于`emalloc()`。
+
+```php
+<?php
+$ffi = FFI::cdef("typedef struct Point2D{ double x; double y; }Point2D;");
+$point = $ffi->new("Point2D"); $point->x = 1.414; $point->y = 3.14159265;
+var_dump($point);
+    // class FFI\CData#2 (2) {
+    //   public $x => double(1.414)
+    //   public $y => double(3.14159265)
+    // }
+
+$array = FFI::new("int[8]");
+for($i = 0 ; $i < 8 ; ++$i){ $array[$i] = $i; }
+var_dump($array);
+    // class FFI\CData#3 (8) {
+    //   public ${0} => int(0)
+    //   public ${1} => int(1)
+    //   ......
+    //   public ${7} => int(7)
+    // }
+?>
+```
+
+
+
+## §8.13 数学扩展（Mathematical Extensions）
+
+### §8.13.36 梅森旋转算法——`mt_getrandmax()`、`mt_rand()`、`mt_srand()`
 
 [梅森旋转算法](https://en.wikipedia.org/wiki/Mersenne_Twister)是一种伪随机数生成算法，现在被广泛应用于多种编程语言的默认随机数生成器。PHP为其提供了`mt_getrandmax()`、`mt_rand()`、`mt_srand()`这三个API实现。
 
@@ -138,11 +210,11 @@ $ make
    ```
 
 
-## §1.16 其它基本扩展（Other Basic Extension）
+## §8.16 其它基本扩展（Other Basic Extension）
 
-### §1.16.7 杂项函数
+### §8.16.7 杂项函数
 
-#### §1.16.7.7 `eval()`
+#### §8.16.7.7 `eval()`
 
 `eval(string $code)`将`$code`作为PHP代码执行。
 
@@ -229,6 +301,8 @@ url_Xff = UrlCode('\xff')
 url = "?_=${" + str(url_AllXff) + '^' + str(url_GET_Xor) + '}{' + str(url_Xff) + '}();&' + str(url_Xff) +'=phpinfo'
 
 print(url) # ?_=${%ff%ff%ff%ff^%a0%b8%ba%ab}{%ff}();&%ff=phpinfo
+
+或者考虑取反：$code=(~%8F%97%8F%96%91%99%90)();
 ```
 
 > 注意：PHP从[7.4.0](https://stackoverflow.com/a/59158847/16366622)开始取消通过花括号获取数组/字符串元素的特性。
@@ -257,10 +331,9 @@ print(url) # ?_=${%ff%ff%ff%ff^%a0%b8%ba%ab}{%ff}();&%ff=phpinfo
 > // PHP >= 7.2.0
 > print(HelloWorld);
 > 	// PHP Fatal error:  Uncaught Error: Undefined constant "HelloWorld" in %s:%d
-> 
 > ```
 
-## §1.20 Session扩展（Session Extensions）
+## §8.20 Session扩展（Session Extensions）
 
 Session的本质是一个二进制文件。其文件名为`sess_`+`PHPSESSID`。其中`PHPSESSID`可从浏览器的Cookie中获取：
 
@@ -318,9 +391,15 @@ session.serialize_handler = php
 >
 >   `session.serialize_handler` defines the name of the handler which is used to serialize/deserialize data. PHP serialize format (name `php_serialize`), PHP internal formats (name `php` and `php_binary`) and WDDX are supported (name `wddx`). WDDX is only available, if PHP is compiled with [WDDX support](https://www.php.net/manual/en/ref.wddx.php). `php_serialize` uses plain serialize/unserialize function internally and does not have limitations that `php` and `php_binary` have. Older serialize handlers cannot store numeric index nor string index contains special characters (`|` and `!`) in $_SESSION. Use `php_serialize` to avoid numeric index or special character errors at script shutdown. Defaults to `php`.
 
+### §8.20.5 Session上传进度
 
+PHP自5.4.0起，当`php.ini`配置文件中`session.upload_progress.enabled`设为`On`时，可以检测每个文件的上传进度。
 
-
+```php
+<?php
+	sess
+?>
+```
 
 
 
