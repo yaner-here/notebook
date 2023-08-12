@@ -254,6 +254,10 @@ ID选择符`*`用于匹配文档中唯一出现的`id`属性。其语法与类�
 >
 > 例如，`div:first-child:last-child:`表示在所选中的`div`元素中，只有既是`fisrt-child`也是`last-child`的元素才能匹配成功，因此其效果等价于`:only-child`。
 
+### §1.2.11 伪元素选择符
+
+为实现特定的效果，伪元素和伪类都能向文档中插入虚构的元素。伪元素选择符为`::`。
+
 ## §1.3 伪类
 
 伪类指的是文档中不一定真实存在的结构，或者某些元素的特定状态，它必须依赖于已有的元素。
@@ -489,6 +493,331 @@ normal["&lt;a&gt;普通标签&lt;a&gt;<br/>未被访问过"] --"访问(失败)"-
 `:link`用于指示被标记为超链接（即具有`href`属性）的，且未被访问过的元素，也就是处于未访问状态的元素。
 
 `:visited`用于指示已被访问过的超链接。
+
+> 注意：超链接伪类可以被用于泄露用户隐私。理论上，JS脚本可以探测与`:visited`相同样式的所有DOM节点，从而推断出用户访问过哪些网站。鉴于此，从2017年开始，几乎所有主流浏览器厂商都支持下列补救措施：
+>
+> 1. `:visited`伪类能操纵的CSS属性仅限于颜色，例如`color`、`background-color`、`column-rule-color`、`outline-color`、`border-color`、`border-top/bottom/left/right-color`。
+> 2. `:link`伪类不再只选择未访问状态的超链接，而是选择所有超链接。除非`:visited`覆盖了已访问状态的超链接。
+> 3. 浏览器的JavaScript Runtime规定，无论超链接状态如何，返回的值始终都是未访问状态的值。
+
+#### §1.3.2.2 用户操作伪类
+
+`:focus`用于指示当前获得输入焦点的元素，可以通过`TAB`键和鼠标获得。
+
+`:hover`用于指示当前被鼠标指针悬停的元素。
+
+`:active`用于指示由用户输入激活的元素，例如对超链接按下鼠标到松开鼠标的一段时间。
+
+```html
+<html>
+    <head>
+        <style>
+            input:focus{background-color:lightgray;}
+            input:hover{background-color:lightblue;}
+            input:active{background-color:lightgreen;}
+        </style>
+    </head>
+    <body>
+        <input type="text" tabindex="1"/>
+        <input type="text" tabindex="2"/>
+        <input type="text" tabindex="3"/>
+    </body>
+</html>
+```
+
+> 注意：受制于特定性，伪类的顺序不可随意设置。在实际工程中，通常推荐的顺序从`:link/:visited/:hover/:active`变成了`:link/:visited/:focus/:hover/:active`。
+
+#### §1.3.2.3 UI状态伪类
+
+`:enabled`用于指示接受输入的元素。
+
+`:disabled`用于指示不接受输入的元素。
+
+`:checked`用于指示由用户或文档默认选中的单选按钮或复选框。
+
+`:indeterminate`用于指示"既没有选中，也没有未选中"的单选按钮和复选框。（该状态只能由DOM脚本设定，不能由用户设定）
+
+`:default`用于指示默认选中的元素，且仅特指单选按钮、复选框、选项。
+
+`:valid`用于指示满足数据有效性语义的元素，且仅特指输入框。
+
+`:invalid`用于指示不满足数据有效性语义的元素，且仅特指输入框。
+
+`:in-range`用于指示当前输入的值在控件允许的最小值和最大值之间的元素，且仅特指输入框。
+
+`:out-range`用于指示当前输入的值小于控件允许最小值或大于控件允许最大值的元素，且仅特指输入框。
+
+`:required`用于指示用户必须输入的元素，且仅特指输入框。
+
+`:optional`用于指示用户非必要输入的元素，且仅特指输入框。
+
+`:read-write`用于指示用户可以编辑的元素，且仅特指输入框。
+
+`:read-only`用于指示用户不能编辑的元素，且仅特指输入框。
+
+```html
+<html>
+<head>
+    <style>
+        input:disabled {opacity: 0.5;}
+        input:enabled {border-color: black;}
+        input:checked + label {font-weight: bold;}
+        input:not(:checked) + label {color: #555;}
+        input:indeterminate + label {font-style: italic;}
+        input:default + label {color: darkred;}
+        input:required {border-style: double;}
+        input:optional {border-style: dotted;}
+        input:invalid {border: 2px solid red;}
+        input:valid {border: 2px solid green;}
+        input:in-range {border: 5px solid green;}
+        input:out-of-range {border: 5px solid red;}
+        textarea:read-only {border-color: aqua;}
+        textarea:read-write {border-color: greenyellow;}
+    </style>
+</head>
+<body>
+    <form>
+        <div>
+            <span>Username:</span><input type="text" tabindex="1" required/>
+        </div>
+        <div>
+            <span>Password:</span>
+            <input disabled type="text" tabindex="2">
+        </div>
+        <div>
+            <span>Email:</span>
+            <input type="email"/>
+        </div>
+        <div>
+            <span>Gender:</span>
+            <input type="radio" name="gender" id="male" value="male"><label for="male">Male</label>
+            <input type="radio" name="gender" id="female" value="female"><label for="female">Female</label>
+        </div>
+        <div>
+            <span>Preference:</span>
+            <input type="checkbox" name="preference" id="sports" checked value="sports"/><label for="sports">Sports</label>
+            <input type="checkbox" name="preference" id="music" value="music"/><label for="music">Music</label>
+            <input type="checkbox" name="preference" id="cooking" value="cooking"/><label for="cooking">Cooking</label>
+        </div>
+        <div>
+            <span>Budget:</span>
+            <input type="number" min="100" max="100000" step="10000"/>
+        </div>
+        <div>
+            <span>Matio:</span><textarea></textarea>
+        </div>
+        <div>
+            <span>Info:</span><textarea disabled></textarea>
+        </div>
+    </form>
+</body>
+</html>
+```
+
+> 注意：`:in-range`并不意味着`:valid`。HTML5为`<input type="number" min="..." max="...">`引入了`step`属性，作为右侧加减按钮的步进长度。其`value`即使位于`[min, max]`内，只要不能被`step`整除，它就是`:invalid`。
+
+#### §1.3.2.4 `:target`
+
+在形如`http://...#...`的URL中，井号`#`后面的字符串被称为片段标识符，用于定位HTML文档中具有相同`id`的标签。`:target`伪类用于标记`id`与片段标识符相等的目标元素。
+
+```html
+<html>
+<head>
+    <style>
+        #catalog > a {display: block;}
+        :target {border-left: 5px solid gray; background-color: lightblue; font-weight: bold;}
+    </style>
+</head>
+<body>
+    <div id="catalog">
+        <h1>目录</h1>
+        <a href="./#chapter1">1.摘要</a>
+        <a href="./#chapter2">2.过程</a>
+        <a href="./#chapter3">3.结语</a>
+    </div>
+    <div id="text">
+        <h1>正文</h1>
+        <div id="chapter1">1.摘要 这是摘要</div>
+        <div id="chapter2">2.过程 这是过程</div>
+        <div id="chapter3">3.结语 这是结语</div>
+    </div>
+</body>
+</html>
+```
+
+#### §1.3.2.5 `:lang()`
+
+浏览器可以通过[`lang`属性](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Global_attributes/lang)、[`<meta>`标签](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Language)和HTML响应头这三个途径推断语言来源：
+
+```html
+<p lang="fr">这是法语</p>
+<meta http-equiv="Content-Language" content="de, en">
+```
+
+```http
+Content-Language: de-DE
+```
+
+`:lang()`选中具有指定语言属性的元素。
+
+```html
+<html lang="zh">
+<head>
+    <style>
+        :lang(zh) {color: red;}
+        :lang(en) {color: blue;}
+        :lang(fr) {color: green;}
+    </style>
+</head>
+<body>
+    <p lang="en">这是英语</p>
+    <p lang="fr">这是法语</p>
+    <p>这是全局的中文</p>
+</body>
+</html>
+```
+
+#### §1.3.2.6 `:not()`
+
+一个很经典的例子是：在重大公祭日时，网站的所有元素都必须转为灰白，除非存在某些元素必须设为彩色。在`:not()`出现之前，普遍的做法是：先把所有元素设为灰白，然后单独给特殊元素加`!important`覆盖掉：
+
+```html
+<html lang="zh">
+<head>
+    <style>
+        p {filter: grayscale(1);}
+        .red{color: red;}
+        .blue{color: blue;}
+        .green{color: green;}
+        .keep-colorful {filter: grayscale(0) !important;}
+    </style>
+</head>
+<body>
+    <p class="red">网站标题</p>
+    <p class="blue">网站信息</p>
+    <p class="green keep-colorful">特殊元素</p>
+</body>
+</html>
+```
+
+有了`:not()`以后就方便多了：
+
+```html
+<html lang="zh">
+<head>
+    <style>
+        .red{color: red;}
+        .blue{color: blue;}
+        .green{color: green;}
+        body > *:not(.keep-colorful) {filter: grayscale(1);}
+    </style>
+</head>
+<body>
+    <p class="red">网站标题</p>
+    <p class="blue">网站信息</p>
+    <p class="green keep-colorful">特殊元素</p>
+</body>
+</html>
+```
+
+## §1.4 伪元素
+
+### §1.4.1 装饰首字母
+
+`::first-letter`用于装饰非行内元素的首字母。
+
+例如给定以下需求：给英文报纸排版，每篇文章`<div>`由数个`<h1>`、`<h2>`和若干个`<p>`构成，要求给第一个出现的`<p>`的首字母调成粗体大字号：
+
+```html
+<html lang="zh">
+<head>
+    <style>
+        p, h1 {
+            font-family: 'Times New Roman', Times, serif;
+        }
+        .article > p:first-of-type::first-letter {
+            font-weight: bold;
+            font-size: 200%;
+        }
+    </style>
+</head>
+<body>
+    <div class="article">
+        <h1>Population Arising Comes To An End In China</h1>
+        <p>This is first paragragh.</p>
+        <p>This is second paragragh.</p>
+        <p>This is third paragragh.</p>
+    </div>
+</body>
+</html>
+```
+
+### §1.4.2 装饰首行
+
+`::first-line`用于装饰元素的首行文本。
+
+> 注意：目前`::first-letter`和`::first-line`都只能应用到块级元素上，而不能应用到行内元素上。并且这两者允许使用的CSS属性也有限制：
+>
+> - `::first-line`允许使用的CSS属性：所有字体属性、所有背景属性、所有文本装饰属性、所有行内排版属性、所有行内布局属性、所有边框属性，`box-shadow`、`color`、`opacity`。
+> - `::first-line`允许使用的CSS属性：所有字体属性、所有背景属性、所有外边距属性、所有内边距属性、所有边框属性、所有文本装饰属性、所有行内排版属性、`color`、`opacity`。
+
+### §1.4.3 装饰前置与后置元素
+
+CSS可以自己生成并插入内容，从而影响HTML文档建立的DOM。
+
+例如继续完善[§1.4.1 装饰首字母](§1.4.1 装饰首字母)一节的任务：每篇文章由一个`<h1>`、多个`<h2>`和`<p>`交叉构成，要求给每个`<h2>`的标题前插入两个灰色的左方括号：
+
+```css
+<html lang="en">
+<head>
+    <style>
+        p, h1, h2 {
+            font-family: 'Times New Roman', Times, serif;
+        }
+        .article > h2 + p::first-letter {
+            font-weight: bold;
+            font-size: 150%;
+        }
+        .article > h2::before {
+            content: "[[";
+        }
+    </style>
+</head>
+<body>
+    <div class="article">
+        <h1>Population Arising Ended In China</h1>
+        <h2>Data analyse</h2>
+        <p>Here is the population statistic released from China Constitution of Statistics, ...</p>
+        <p>From the graph, we can see that ...</p>
+        <h2>The reason</h2>
+        <p>The first reason is that ...</p>
+        <p>The second reason is that ...</p>
+        <h2>Dangerous consequence</h2>
+        <p>Military circuiting is more difficult ...</p>
+        <p>Finacial marketing's pulse will be slower ...</p>
+    </div>
+</body>
+</html>
+```
+
+# §2 优先级
+
+优先级是规则的属性，可以表示为初值为`(0,0,0,0)`的四维向量`(x,y,z,t)`。如果多个规则针对同一个元素设置了冲突的样式，那么最终应该听谁的呢？答案是计算这些规则的优先级，比较时从前往后比较分量大小，率先能判断出分量高者胜出。
+
+优先级计算规则如下所示：
+
+1. 选择符中的每个`id`属性会让优先级增加`(0,1,0,0)`。
+2. 选择符中的每个`class`属性、属性选择符`[]`、伪类会让优先级增加`(0,0,1,0)`。
+3. 选择符中的每个元素和伪元素会让优先级增加`(0,0,0,1)`。
+4. 连结符和通用选择符不增加优先级。
+
+例如`html > body #answer table tr[id="total"] *.link`中出现了$1$个`id`属性，总共出现了$2$个`class`属性和属性选择符，出现了$4$个元素，因此该CSS规则的优先级为`(0,1,2,4)`。
+
+现在我们已经知道了第二、三、四位分量的计算规则。其实第一位分量是为声明行内样式`<... style="...">`而设计的。它的第一位分量恒为`1`，有着最高的优先级。
+
+## §2.1 重要声明
+
+
 
 # §A 附录
 
