@@ -800,7 +800,457 @@ CSS可以自己生成并插入内容，从而影响HTML文档建立的DOM。
 </html>
 ```
 
-# §2 优先级
+## §1.5 属性值
+
+CSS中的一切都是文本，我们之前已经见识过了部分CSS属性及其可能的属性值，例如`margin: 2px`、`display: none`、`color: red`等等。属性值可以大致分为关键字、字符串和其他文本值这三类。
+
+### §1.5.1 关键字
+
+CSS定义的关键字有很多，几乎每个CSS属性都有自己支持的一套关键字。比较常见的有`red`、`none`之类的。
+
+CSS3定义了以下全局关键字，每个CSS属性都能用：
+
+- `inherit`：强制继承父元素的该属性
+- `initial`：把属性值设置为预定义的初始值
+- `unset`：对于可继承的属性，其效果等价于`inherit`；对于不可继承的属性，其效果等价于`initial`
+
+> 注意：`all`属性非常特殊，它表示除`direction`和`unicode-bidi`之外的所有属性，它的属性值只能取这三个全局关键字。例如可以通过该属性，让子元素继承父元素的几乎所有属性：
+>
+> ```css
+> ... {all: inherit;}
+> ```
+
+### §1.5.2 字符串
+
+CSS中的字符串与其他编程语言的字符串有很多相似之处：
+
+```css
+content: "这是一个字符串";
+content: "这是一个带引号'的字符串";
+content: "可以给引号\"转义";
+```
+
+当字符串过长，需要换行时，可以使用下列方法：
+
+```css
+content: "这是换行 \
+的字符串";
+```
+
+如果真的要在字符串中插入换行符，可以使用Unicode字符`\A`：
+
+```css
+content: "这是换行\A的字符串"
+```
+
+### §1.5.3 URL
+
+URL的格式为`url(...)`。其中的URL链接既可以是绝对路径`url(protocol://server/pathname)`，也可以是相对路径`url(./...)`。
+
+> 注意：包含URL的CSS文航会作用到HTML文档上。相对路径所参照的根目录取决于该URL所在的文档路径，而不是作用到的HTML文档的路径。
+
+### §1.5.4 绝对长度单位
+
+| 绝对长度单位      | 作用                          |
+| ----------------- | ----------------------------- |
+| 英寸(`in`)        | 美制单位，$1$英寸=$2.54$厘米  |
+| 厘米(`cm`)        | 公制单位                      |
+| 毫米(`mm`)        | 公制单位                      |
+| 四分之一毫米(`q`) | 公制单位                      |
+| 点(`pt`)          | 印刷度量单位，$1$英寸=$72$点  |
+| 派卡(`pc`)        | 印刷度量单位，$1$英寸=$6$派卡 |
+| 像素(`px`)        | CSS规定$1$英寸=$96$像素       |
+
+### §1.5.5 分辨率单位
+
+为适应媒体查询和响应式设计，CSS增加了三个描述显示器分辨率的单位：
+
+| 分辨率单位       | 作用                        |
+| ---------------- | --------------------------- |
+| 点每英寸(`dpi`)  | 在$1$英寸范围内能显示的点数 |
+| 点每厘米(`dpcm`) | 在$1$厘米范围内能显示的点数 |
+| 点每像素(`dppx`) | 在$1$像素范围内能显示的点数 |
+
+分辨率单位只能应用于媒体查询：
+
+```css
+@media (min-resolution: 500dpi){
+	/* 分辨率大于等于500dpi时生效 */   
+}
+```
+
+### §1.5.6 相对长度单位
+
+相对长度单位是参考其它长度而言的，例如屏幕分辨率、视区宽度、用于偏好设置等。
+
+| 相对长度单位 | 作用                                                         |
+| ------------ | ------------------------------------------------------------ |
+| `em`         | 参考该元素小写字母`m`的宽度，即该元素的`font-size`值，$1$`em`=$1$`font-size` |
+| `ex`         | 参考该元素小写字母`x`的高度，$1$`ex`=$1$小写字母`x`的高度    |
+| `rem`        | 参考根元素小写字母`m`的宽度，即该元素的`font-size`值，$1$`em`=$1$根元素的`font-size` |
+
+```html
+<html lang="en">
+<head>
+    <style>
+        h1 {font-size: 24px;}
+        h2 {font-size: 18px;}
+        p {font-size: 12px;}
+        h1, h2, p {margin-left: 1em;}
+        small {margin-left: 0.8em;}
+
+    </style>
+</head>
+<body>
+    <h1>Left margin = <small>24</small></h1>
+    <h1>Left margin = <small>18</small></h1>
+    <p>Left margin = <small>24</small></p>
+</body>
+</html>
+```
+
+| 相对长度单位 | 作用                        |
+| ------------ | --------------------------- |
+| `ch`         | 参考该元素字符`0`字形的进距 |
+
+进距指的是一个字形的起点到下一个紧邻字形的起点之间的距离，等价于字形本身的宽度加上侧边的间距。除非是等宽字体，否则对于大多数西文字体而言，字体与字体间距并不一致，而且任意一个字符的进距也不一定等于字体字形的进距。
+
+```html
+<html lang="en">
+<head>
+    <style>
+        .section > div {
+            height: 1ch;
+            width: 3ch;
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="section" style="font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;">
+        <span>123</span>
+        <div></div>
+    </div>
+    <div class="section" style="font-family: 'Courier New', Courier, monospace;">
+        <span>123</span>
+        <div></div>
+    </div>
+    <div class="section" style="font-family: Verdana, Geneva, Tahoma, sans-serif;">
+        <span>123</span>
+        <div></div>
+    </div>
+</body>
+</html>
+```
+
+| 相对长度单位       | 作用                                                |
+| ------------------ | --------------------------------------------------- |
+| 视区宽度(`vw`)     | $\displaystyle\frac{当前视区的宽度除以}{100}$       |
+| 视区高度(`vh`)     | $\displaystyle\frac{当前视区的高度}{100}$           |
+| 视区尺寸最小值(``) | $\displaystyle\min\left(\text{vw},\text{vh}\right)$ |
+| 视区尺寸最大值(``) | $\displaystyle\max\left(\text{vw},\text{vh}\right)$ |
+
+```html
+<html lang="en">
+<head>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+        .container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .item {
+            border: 2px solid rgb(128, 128, 128);
+            border-radius: 0.5em;
+            padding: 20px;
+            width: 60vw;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="item">我的宽度可以随浏览器窗口的宽度自动改变!</div>
+    </div>
+</body>
+</html>
+```
+
+### §1.5.7 `calc()`
+
+CSS允许用户使用一些简单的表达式作为属性值，让浏览器动态计算属性值。这些表达式需要用`calc()`包裹，且仅支持加减乘除与括号`+-*/()`。
+
+```css
+p {width: calc(90% - 2em)}
+```
+
+> 注意：`calc()`计算的表达式，既是数学意义上的表达式，又是编程意义上的表达式。
+>
+> 1. 从数学层面来说，必须保证运算符两侧的单位一致。例如`2 + 1.1`是合法的，`7em - 20%`是合法的，但是`7em - 0.2`是非法的。
+> 2. 从数学层面来说，必须保证运算符两侧的值至少有一个为无量纲数。例如`2 * 2em`是合法的，`2 * 2`是合法的，但是`2em * 2em`是非法的。
+> 3. 从数学层面来说，必须保证出发运算符`/`的除数为无量纲数。例如`2em /3`是合法的，但是`2 / 3em`是非法的。
+> 4. 从编程层面来说，加减运算符`+-`的两侧必要有空格，乘除运算符`*/`没有这一限制。
+> 5. 从编程层面来说，`calc()`支持的表达式中最多只能包含20个算子（数字、百分数等）。超过20个算子的表达式无效。
+
+### §1.5.8 `attr()`
+
+我们知道，HTML文档的内容是固定的，后来有了SHTML作为HTML模版，允许服务器端渲染。同理，CSS文档的内容是固定的，但是有了`attr()`，我们就能根据HTML动态决定CSS的属性值。
+
+例如可以配合伪元素，根据AJAX返回的内容添加序号：
+
+```html
+<html lang="en">
+<head>
+    <style>
+        .item::before {content: "[" attr(id) "]";}
+    </style>
+</head>
+<body>
+    <div class="item" id="1">参考文献</div>
+    <div class="item" id="2">参考文献</div>
+    <div class="item" id="3">参考文献</div>
+</body>
+</html>
+```
+
+### §1.5.9 颜色
+
+#### §1.5.9.1 具名颜色
+
+HTML规定了16个[基本颜色关键字](https://zh.wikipedia.org/wiki/%E7%BD%91%E9%A1%B5%E9%A2%9C%E8%89%B2)：
+
+| 基本颜色关键字 | 颜色代码  | 基本颜色关键字 | 颜色代码  |
+| -------------- | --------- | -------------- | --------- |
+| `aqua`         | `#00ffff` | `blue`         | `#0000ff` |
+| `gray`         | `#808080` | `lime`         | `#00ff00` |
+| `navy`         | `#000080` | `purple`       | `#800080` |
+| `silver`       | `#c0c0c0` | `white`        | `#ffffff` |
+| `black`        | `#000000` | `fuchsia`      | `#ff00ff` |
+| `green`        | `#008000` | `maroon`       | `#800000` |
+| `olive`        | `#808000` | `red`          | `#ff0000` |
+| `teal`         | `#008080` | `yellow`       | `#ffff00` |
+
+CSS4还规定了148个额外的具名颜色。
+
+#### §1.5.9.2 RGB颜色和RGBa颜色
+
+RGB认为所有颜色都可以分解成三个0-255之间的红色、绿色、蓝色的分量。RGBa增加一个维度`alpha`，表示颜色的不透明度，取值范围是`[0,1]`之间的任意浮点数。CSS支持以下四种方法指定RGB颜色和RGBa颜色：
+
+1. 函数式RGB颜色
+
+   ```css
+   p {
+   	color: rgb(128,128,128); /* 要么只能用整数 */
+       color: rgb(50%,50%,50%); /* 要么只能用百分数 */
+       color: rgb(50%,50%,128); /* 不能混用整数和百分数 */
+   }
+   ```
+
+   虽然CSS名义上支持浮点数的分量，但是实际上用户代理会自动对其四舍五入，让其变为整数。如果分量为小于0，则约为0；如果大于255，则约为255。综上，函数式RGB颜色最终的输出可以表示为：
+   $$
+   \text{RGB}(r,g,b)=\left[\begin{matrix}
+   	R\\G\\B
+   \end{matrix}\right]
+   =
+   \left[\begin{matrix}
+   	\text{round}(\min(\max(0,r),255))\\
+   	\text{round}(\min(\max(0,g),255))\\
+   	\text{round}(\min(\max(0,b),255))\\
+   \end{matrix}\right]
+   $$
+
+2. 函数式RGBa颜色
+
+   ```css
+   p {
+   	color: rgba(128,128,128,0.8);
+   }
+   ```
+
+   舍入规则与函数式RGB颜色相同。
+
+3. 十六进制RGB颜色
+
+   可以使用两位十六进制数字表示分量，共计六位。如果只有三位，浏览器会自动将每个数字向后紧邻复制一次，扩充到六位。
+
+   ```css
+   p {
+   	color: #ff0000; /* 小写字母都行 */
+       color: #FF0000; /* 大写字母都行 */
+       color: #123 /* 等价于#112233 */
+   }
+   ```
+
+4. 十六进制RGBa颜色
+
+   2017年，一种新的RGBa表示方法被提出了。它沿用了十六进制RGB颜色表示方法，将`alpha`分量离散化成0-255之间的离散值。
+
+   ```css
+   p {
+   	color: #66ccff88;
+       color: #6cf8; /* 简写 *?
+   }
+   ```
+
+#### §1.5.9.3 HSL颜色和HSLa颜色
+
+HSL颜色是由色相（Hue）、饱和度（Saturation）、明度（Lightness）构成的简称。其中$H\in[0\degree,360\degree)$，$S,L\in[0,1]$。
+
+$RGB\rightarrow HLS$：
+
+- $$
+  H=\begin{align}\begin{cases}
+  		0&,\max(R,G,B)=\min(R,G,B)\\
+  		\displaystyle\frac{60\degree\times(G-B)}{\max(R,G,B)-\min(R,G,B)}\mod{360\degree}&,\max(R,G,B)=R\\
+  		\displaystyle\frac{60\degree\times(B-R)}{\max(R,G,B)-\min(R,G,B)}+120\degree&,\max(R,G,B)=G\\
+  		\displaystyle\frac{60\degree\times(R-G)}{\max(R,G,B)-\min(R,G,B)}+240\degree&,\max(R,G,B)=B\\
+  	\end{cases}\end{align}
+  $$
+
+- $$
+  L=\displaystyle\frac{\max(R,G,B)+\min(R,G,B)}{2}
+  $$
+
+- $$
+  S=\begin{align}\begin{cases}
+  	0&,\left|\max(R,G,B)\right|=\left|\min(R,G,B)\right|\\
+  	\displaystyle\frac{\max(R,G,B)-\min(R,G,B)}{\max(R,G,B)+\min(R,G,B)}&,L\in(0,\displaystyle\frac{1}{2}]\\
+  	\displaystyle\frac{\max(R,G,B)-\min(R,G,B)}{2-(\max(R,G,B)+\min(R,G,B))}&,L>\displaystyle\frac{1}{2}
+  \end{cases}\end{align}
+  $$
+
+$HLS\rightarrow RGB$：
+
+- 定义中间变量$q,p$为：
+  $$
+  \begin{cases}
+  	q=\begin{align}\begin{cases}
+  		L+LS&,L\in[0,\displaystyle\frac{1}{2})\\
+  		L+S-LS&,L\in[\displaystyle\frac{1}{2},1]
+  	\end{cases}\end{align}\\
+  	p=2L-q\\
+  \end{cases}
+  $$
+
+- 定义$t_R,t_G,t_B$分别为：
+  $$
+  \begin{cases}
+  	t_R=\displaystyle\frac{h}{360}+\displaystyle\frac{1}{3}\mod1\\
+  	t_G=\displaystyle\frac{h}{360}\mod1\\
+  	t_B=\displaystyle\frac{h}{360}-\displaystyle\frac{1}{3}\mod1
+  \end{cases}
+  $$
+
+- 最终结果为：
+  $$
+  RGB_{i(i\in\{R,G,B\})}=
+  \begin{align}\begin{cases}
+  	p+6(q-p)t_i&,t_i<\in[0,\displaystyle{\frac{1}{6}})\\
+  	q&,t_i\in\displaystyle[\frac{1}{6},\frac{1}{2})\\
+  	p+6(q-p)(\displaystyle\frac{2}{3}-t_i)&,t_i\in[\displaystyle\frac{1}{2},\displaystyle\frac{2}{3})\\
+  	p&,t_i\in[\displaystyle\frac{2}{3},1]
+  	
+  \end{cases}\end{align}
+  $$
+
+#### §1.5.9.4 `currentColor`
+
+该关键字表示当前元素的`color`属性值。
+
+```html
+<html>
+<head>
+    <style>
+        .red {color: red;}
+        .showBorder {
+            border: 2px solid currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="showBorder red">
+        这是一段文本
+    </div>
+</body>
+</html>
+```
+
+### §1.5.10 角度
+
+| 角度单位       | 作用              |
+| -------------- | ----------------- |
+| 角度(`deg`)    | 一圈为$360$度     |
+| 百分度(`grad`) | 一圈为$100$百分度 |
+| 弧度(`rad`)    | 一圈为$2\pi$弧度  |
+| 圈数(`turn`)   |                   |
+
+### §1.5.11 时间
+
+| 时间单位   | 作用             |
+| ---------- | ---------------- |
+| 秒(`s`)    |                  |
+| 毫秒(`ms`) | $1$秒=$1000$毫秒 |
+
+### §1.5.12 频率
+
+| 频率单位             | 作用                 |
+| -------------------- | -------------------- |
+| 赫兹(`hz`或`Hz`)     |                      |
+| 千赫兹(`khz`或`hHz`) | $1$千赫兹=$1000$赫兹 |
+
+### §1.5.13 自定义值
+
+2017年，CSS引入了自定义属性。自定义属性以两个连字符开头`--`，可以在CSS中创建默认继承的属性，作为变量配合`var()`调用。从本质上来说，自定义属性就是宏。
+
+```html
+<html lang="en">
+<head>
+    <style>
+        html {
+            --base-color: #66ccff
+        }
+        h1 {
+            color: var(--base-color);
+        }
+    </style>
+</head>
+<body>
+    <h1>标题</h1>
+</body>
+</html>
+```
+
+众所周知，宏的使用方式是没有上限的。这里举一个例子：为不同缩进程度的无序列表设置不同的左边距长度。一般情况下，我们会考虑这样实现：
+
+```css
+ul li {margin-left: 2ch;}
+ul ul li {margin-left: 4ch;}
+ul ul ul li {margin-left: 6ch;}
+ul ul ul ul li {margin-left: 8ch;}
+```
+
+现在使用自定义属性和`calc()`，就可以实现等价效果：
+
+```css
+html {
+    --custom: 2;
+}
+@supports (color: var(--custom)){
+    @supports (--custom: value){
+        ul li {margin-left: calc(1 * var(--custom));}
+        ul ul li {margin-left: calc(2 * var(--custom));}
+        ul ul ul li {margin-left: calc(3 * var(--custom));}
+        ul ul ul ul li {margin-left: calc(4 * var(--custom));}
+    }
+}
+
+```
+
+# §2 优先级、继承、层叠
 
 优先级是规则的属性，可以表示为初值为`(0,0,0,0)`的四维向量`(x,y,z,t)`。如果多个规则针对同一个元素设置了冲突的样式，那么最终应该听谁的呢？答案是计算这些规则的优先级，比较时从前往后比较分量大小，率先能判断出分量高者胜出。
 
@@ -816,6 +1266,702 @@ CSS可以自己生成并插入内容，从而影响HTML文档建立的DOM。
 现在我们已经知道了第二、三、四位分量的计算规则。其实第一位分量是为声明行内样式`<... style="...">`而设计的。它的第一位分量恒为`1`，有着最高的优先级。
 
 ## §2.1 重要声明
+
+```mermaid
+flowchart LR
+subgraph unimportant["无重要声明"]
+	declare1["声明"]
+	declare2["声明"]
+	declare3["声明"]
+end
+unimportant--"取优先级最高者"-->declare4["声明"]
+subgraph important["!important"]
+	declare5["声明"]
+	declare6["声明"]
+	declare7["声明"]
+end
+important--"取优先级最高者"-->declare8["声明"]
+declare4 & declare8 --"取!important"--> declare9["最终生效的声明"]
+```
+
+可以使用`!important`表示该声明重要程度超过其它所有声明。`!important`本身并不会影响规则的优先级。所有规则会根据是否被`!important`声明分成两组，各自内部取优先级最高者，最后优先取`!important`声明的规则。
+
+> 注意：从以上事实来看，我们知道，优先级并不是唯一一个决定最终效果的因素。优先级最高的规则，也可能不生效。
+
+```css
+p {
+	color: red !important;
+    background: white;
+    font-weight: bold;
+}
+```
+
+## §2.2 继承
+
+某些样式不仅会应用到CSS所指的元素上，而且还会应用到其子元素上。这种现象被称为继承。将DOM树想象成一个从上向下生长的树，那么继承的方向为向下传播，也就是父元素传给子元素，直到子元素没有子元素为止。
+
+> 注意：我们说继承是向下传播的，然而CSS规范中只有一处例外：当`<html>`标有规定背景，而`<body>`规定背景时，`background`属性会从`<body>`传播到`<html>`上。
+
+真正能被允许继承的CSS属性只占一小部分。例如盒模型相关的、边框相关的属性肯定不能继承，但是`color`之类的属性可以继承。
+
+继承的CSS属性没有优先级这一说。注意，不是零优先级，而是无优先级，可以理解为比零优先级还要低。
+
+## §2.3 层叠
+
+如果由两个发生冲突的规则，而且它们的优先级完全一样，那么到底选谁生效呢？这种情况下的抉择过程称为层叠。
+
+CSS规定的层叠规则如下：
+
+1. 按照显式权重（行内样式`important`>`!important`>无重要标记）进行排序，尝试选取最高者。
+2. 按照来源（读者`!important`>创作人员>读者>用户代理）进行排序，尝试选取最高者。
+   - 创作人员：引入的CSS文件或`<style>`标签内容
+   - 读者：用户自行设计的CSS文件（浏览器脚本、审查元素）
+   - 用户代理：浏览器预置样式（超链接样式、`<input>`样式、自带的阅读模式）
+3. 按照优先级进行排序，尝试选取最高者。
+4. 按照声明的先后顺序（越靠后权重越高）进行排序，选择最高者。
+
+> 注意：在[§1.3.2.2 用户操作伪类](§1.3.2.2 用户操作伪类)一节中，我们知道实际工程中常常按照`LVFHA`顺序（`link-visited-focus-hover-active`）编写连接的样式。
+>
+> 经过本章的学习，我们已经知道了下列规则的优先级都是`(0,0,1,0)`：
+>
+> ```css
+> a:link {color: red;}
+> a:visited {color: red;}
+> a:focus {color: red;}
+> a:hover {color: red;}
+> a:active {color: red;}
+> ```
+>
+> 为了让这五个伪类实现预期的效果，`:link`和`:visited`必须放在`:hover`、`:focus`、`:active`的前面，否则后三者会被前两者覆盖，永远无法匹配。
+>
+> 除此之外，把伪类穿在一起，也能解决这一问题：
+>
+> ```css
+> a:link {color: red;}
+> a:visited {color: red;}
+> a:link:hover {color: red;}
+> a:visited:hover{color: red;}
+> a:link:active {color: red;}
+> a:visited:active {color: red;}
+> ```
+
+# §3 字体
+
+## §3.1 字体族
+
+我们知道，字体通常包含多个变体，例如粗体、斜体等等。例如`Times`字体，它的变体包括`TimesRegular`、`TimesBold`、`TimesItalic`、`TimesBoldItalic`等等。严格来说，`Times`不是一个字体，而是一个包含多个字形的字体族。
+
+字体族使用`font-family`属性声明：
+
+```css
+body {
+    font-family: sans-serif, Times;
+}
+```
+
+浏览器从前向后查找计算机中是否包含声明的字体。如果不存在，则依次向后查找匹配。
+
+CSS定义了五种通用字体族：
+
+1. 衬线字体：有衬线，宽度不同。
+2. 无衬线字体：无衬线，宽度不同。
+3. 等宽字体：有衬线或无衬线，宽度相同。
+4. 草书字体/手写体：有书法风格，比衬线字体更华丽。
+5. 奇幻字体/装饰字体/展示字体：用于展示符号的字体。
+
+## §3.2 `@font-face`
+
+`@font-face`允许开发使用使用自定义的字体。通常情况下，浏览器只会从浏览器本地查找已安装的字体。现在有了`@font-face`，即使本地没有安装，浏览器也能使用服务器端的字体，而无需将其安装在本地。
+
+```html
+<html>
+<head>
+    <style>
+        @font-face {
+            font-family: CascadiaCodeRegular;
+            src: url(./static/font/CascadiaCode/CascadiaCode-Regular.otf);
+        }
+        h1 {
+            font-family: CascadiaCodeRegular;
+        }
+    </style>
+</head>
+<body>
+    <h1>font-size()</h1>
+</body>
+</html>
+```
+
+在CSS规范中，浏览器应该采用懒加载机制——只有需要渲染指定字体的文本时才向服务器请求下载字体文件。2017年时，各大浏览器都未能实现这一机制。实测2023年Chrome已经能实现这一机制。
+
+`@font-face`的`src`支持提供多个下载源，下载链接之间用逗号隔开。一些版本较旧的浏览器可能不支持新式字体标准，只有下载完字体文件后才能发现。为了解决这一问题，开发人员可以在CSS中用`format()`预先声明该字体使用的标准：
+
+```css
+@font-face {
+	font-family: "SwitzeraADF",
+    src: url("SwitzeraADF-Regular.otf") format("opentype"),
+         url("SwitzeraADF-Regular.true") format("truetype");
+}
+```
+
+
+
+目前CSS支持的字体格式如下所示：
+
+| 格式                          | `format()`值        |
+| ----------------------------- | ------------------- |
+| EOT(Embedded OpenType)        | `embedded-opentype` |
+| OTF(OpenType)                 | `opentype`          |
+| SVG(Scalable Vector Graphics) | `svg`               |
+| TTF(TrueType)                 | `truetype`          |
+| WOFF(Web Open Font Format)    | `woff`              |
+
+> 注意：一些旧的浏览器对`@font-face`的支持存在BUG。例如对于IE6，在`src`属性中填入多个备选`url()`，会导致只有第一个`url()`生效，其余`url()`一概返回404。
+>
+> 为了解决这一问题，研究人员使用IE6的另一个解析器BUG来绕过这个`url()`BUG——IE6遇到`?#iefix`会出发一个解析器BUG，从而认为该`url()`无效，转而向后寻找`url()`。
+>
+> ```css
+> @font-face {
+> 	font-family: "SwitzeraADF";
+>     src: url("SwitzeraADF-Regular.eot");
+>     src: url("SwitzeraADF-Regular.eot#iefix") format("embedded-opentype"),
+>          url("SwitzeraADF-Regular.woff") format("woff"),
+>          url("SwitzeraADF-Regular.ttf") format("truetype"),
+>          url("SwitzeraADF-Regular.svg#switzera_adf_regular") format("svg");
+> }
+> ```
+
+除了`font-family`和`src`这两个必需的属性外，CSS也为`@font-face`提供了额外的可选属性：
+
+| 属性                    | 默认值       | 作用                                                         |
+| ----------------------- | ------------ | ------------------------------------------------------------ |
+| `font-style`            | `normal`     | 声明字形（常规、斜体、斜体                                   |
+| `font-weight`           | `normal`     | 声明字重（粗体）                                             |
+| `font-stretch`          | `normal`     | 声明字符宽度（紧缩、加宽）                                   |
+| `font-variant`          | `normal`     | 声明字形变体（大小写字母）                                   |
+| `font-feature-settings` | `normal`     | 声明OpenType底层特性（连字）                                 |
+| `unicode-range`         | `U+0-10FFFF` | 声明可用字符范围。只有当前页面包含范围之内的Unicode字符时才加载。语法较灵活，支持属性值与通配符：`U+4E00-9FFFF, U+30??,U+A5` |
+
+使用以上可选属性，我们终于可以用`@font-face`引入整个字体族，而不是单个字体了：
+
+```html
+<html>
+<head>
+    <style>
+        @font-face {
+            font-family: CascadiaCode;
+            font-weight: normal;
+            font-style: normal;
+            font-stretch: normal;
+            src: url(./static/font/CascadiaCode/CascadiaCode-Regular.otf) format("opentype");
+        }
+        @font-face {
+            font-family: CascadiaCode;
+            font-weight: bold;
+            font-style: normal;
+            font-stretch: normal;
+            src: url(./static/font/CascadiaCode/CascadiaCode-Bold.otf) format("opentype");
+        }
+        @font-face {
+            font-family: CascadiaCode;
+            font-weight: normal;
+            font-style: italic;
+            font-stretch: normal;
+            src: url(./static/font/CascadiaCode/CascadiaCode-Italic.otf) format("opentype");
+        }
+        @font-face {
+            font-family: CascadiaCode;
+            font-weight: bold;
+            font-style: italic;
+            font-stretch: normal;
+            src: url(./static/font/CascadiaCode/CascadiaCode-BoldItalic.otf) format("opentype");
+        }
+        h1 {
+            font-family: CascadiaCode;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="font-weight: normal; font-style: normal;">font-size()</h1>
+    <h1 style="font-weight: bold; font-style: normal;">font-size()</h1>
+    <h1 style="font-weight: normal; font-style: italic;">font-size()</h1>
+    <h1 style="font-weight: bold; font-style: italic;">font-size()</h1>
+</body>
+</html>
+```
+
+## §3.3 字体属性
+
+### §3.3.1 字重(`font-weight`)
+
+CSS的`font-weight`属性用于控制自重，其可能的取值有：`normal`（等价于`400`）、`bold`（等价于`700`）、`bolder`、`lighter`、`100`、`200`、`300`、`400`、`500`、`600`、`700`、`800`、`900`。默认值为`normal`。
+
+如果字体族中的字重等价少于规定的九个，则浏览器按照以下规则处理：
+
+1. 如果`500`未定义，则将`500`定义为`400`。
+2. 如果`300`未定义，则将`300`定义小于等于`200`的第一个变体
+3. 如果`600`未定义，则将那个`600`定义为大于等于`700`的第一个变体。如果不存在，则将`600`定义为`500`
+4. 如果`700`、`800`、`900`未定义，规则同第三条。
+5. 如果`bolder`为定义，则将`bolder`定义为从`bold`向上查找遇到的第一个已定义的字形。
+
+使用特性字重的字形有以下几种方法：
+
+```html
+<!-- 使用<strong>和标签 -->
+<strong>123</strong>
+<strong>粗<strong>更粗</strong></strong>
+
+<!-- 使用CSS的font-weight属性 -->
+<div style="font-weight: bold;">
+    <div>粗</div>
+    <div style="font-weight: bolder">
+		更粗
+    </div>
+</div>
+```
+
+### §3.3.2 字号(`font-size`)
+
+字号用于控制字体显示的大小。英文练习本中，一行有四条参考线，其中从上往下数的第一条线和第三条线称为基线，这个大小指的是两条基线之间的距离，所以一个字符的高度完全有可能超过字。它的默认值为`normal`，取值范围有：
+
+1. `xx-small`、`x-small`、`small`、`medium`、`large`、`x-large`、`xx-large`、`smaller`、`larger`
+2. `<length>`
+3. `<percentage>`
+
+#### §3.3.2.1 绝对大小
+
+`font-size`支持的绝对大小关键字有：`xx-small`、`x-small`、`small`、`medium`、`large`、`x-large`、`xx-large`。
+
+| 关键字     | CSS1       | CSS2       | CSS3       |
+| ---------- | ---------- | ---------- | ---------- |
+| `xx-small` | `5px`      | `9px`      | `10px`     |
+| `x-small`  | `7px`      | `11px`     | `12px`     |
+| `small`    | `11px`     | `13px`     | `14px`     |
+| `medium`   | **`16px`** | **`16px`** | **`16px`** |
+| `large`    | `24px`     | `19px`     | `19px`     |
+| `x-large`  | `36px`     | `23px`     | `24px`     |
+| `xx-large` | `54px`     | `28px`     | `32px`     |
+
+需要注意的是，`medium`的值并不恒为`16px`。不同的浏览器，不同的HTML标签，甚至不同类型的字体都可能会认为`medium`不为`16px`：
+
+```html
+<html>
+<head>
+    <style>
+        p {font-size: medium;}
+        span {font-family: monospace;font-size: 1em;}
+    </style>
+</head>
+<body>
+    <p>123<span>123</span></p>
+</body>
+</html>
+```
+
+这是因为字号向下传递时，传递的永远是关键字。在普通字体中，`medium`默认是`16px`，而对于等宽字体来说，默认字号`medium`是`13px`。为解决这一问题，一种通用的方法是在`monospace`之后补充`,serif`。
+
+#### §3.3.2.2 相对大小
+
+`font-size`支持的相对大小关键字有：`larger`和`smaller`，相邻两级的字号相差`1.2`倍。
+
+```html
+<html>
+<head>
+    <style>
+        bigger {
+            font-size: larger;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <span>123</span>
+        <bigger>
+            <span>123</span>
+            <bigger>
+                <span>123</span>
+            </bigger>
+        </bigger>
+    </div>
+</body>
+</html>
+```
+
+#### §3.3.2.3 百分数与`em`
+
+百分数和`em`参考的对象是父元素的字号。
+
+```html
+<html>
+<head>
+    <style>
+        bigger {
+            font-size: 200%;
+            font-size: 2em; /* 两种方式等价 */
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <span>123</span>
+        <bigger>
+            <span>123</span>
+            <bigger>
+                <span>123</span>
+            </bigger>
+        </bigger>
+    </div>
+</body>
+</html>
+```
+
+#### §3.3.2.4 自动调整字号(`font-size-adjust`)
+
+给定一款字形，我们定义这个字形的高宽比值为小写字母`x`的高度除以字号。在旧版本浏览器中，当其已加载完HTML，但未加载完CSS时，就会使用默认样式来渲染。因此存在一瞬间，用户看到的是未经CSS修饰的文本。`font-size-adjust`可以用于更改字形的高宽比值，使文字更容易阅读；也可以减轻默认样式渲染差异带来的影响。
+
+例如给定`Verdana`和`Times`两种同字号`10px`字体，我们很明显就能看出这两种字形的实际显示大小不一致。这是因为它们的高宽比值分别为`0.58`和`0.46`，值越大就说明在字号相等的前提下，字体实际显示大小越大。
+
+`font-size-adjust`对`font-size`的影响如下所示：
+$$
+\text{font-size}_{\color{red}{\text{new}}}=\text{font-size}_{\color{red}{\text{raw}}}\times\frac{\text{font-size-adjust}}{高宽比值}
+$$
+只要我们把`Times`字体的`font-size-adjust`设置成`Verdana`的高宽比值，就能弥补高宽比值差异造成的影响：
+
+```html
+<html>
+<head>
+    <style>
+        p {font-size: 10px;}
+        p.font1 {
+            font-family: Verdana, sans-serif; 
+        }
+        p.font2 {
+            font-family: Times, serif;
+            font-size-adjust: 0.58;
+        }
+    </style>
+</head>
+<body>
+    <p class="font1">abc123</p>
+    <p class="font2">abc123</p>
+</body>
+</html>
+```
+
+实际上，我们不需要知道字体的高宽比值，仅仅使用`auto`关键字，浏览器就会自动计算。
+
+> 注意：在2017年，唯一支持`font-size-adjust`属性的浏览器只有Firefox。经2023年Chrome实测，`font-size-adjust`产生的效果近乎可以忽略不计。
+
+### §3.3.3 字形(`font-style`)
+
+`font-style`负责控制字形，只有常规(`normal`)、斜体(`italic`)、倾斜体(`oblique`)这三种取值。
+
+斜体和倾斜体虽然都能让字体倾斜，但是斜体注重手写的程序，而倾斜体只是单纯的印刷体。现在字体设计界对字形的支持较差，一般将斜体和倾斜体混为一谈。
+
+```html
+<html>
+<head>
+    <style>
+        p {font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;}
+        .type1 {font-style: italic;}
+        .type2 {font-style: oblique;}
+    </style>
+</head>
+<body>
+    <p class="type1">abc123</p>
+    <p class="type2">abc123</p>
+</body>
+</html>
+```
+
+### §3.3.4 字体拉伸(`font-stretch`)
+
+有些字体族提供了较宽或较窄的字符形式，这些变体通常被命名为`Condensed`、`Wide`、`Ultra Expanded`等标识。它的取值范围有：`normal`、`ultra-condensed`、`extra-condensed`、`condensed`、`semi-condensed`、`expanded`、`extra-expanded`、`ultra-expanded`。
+
+```html
+<html>
+<head>
+    <style>
+        @font-face {
+            font-family: "Inconsolata";
+            src: url("https://fonts.gstatic.com/s/inconsolata/v31/QlddNThLqRwH-OJ1UHjlKENVzlm-WkL3GZQmAwPyya15.woff2") format("woff2");
+            font-stretch: 50% 200%;
+        }
+
+        p {
+            font-family: Inconsolata;
+        }
+
+        p.type1 {
+            font-stretch: extra-condensed;
+        }
+
+        p.type2 {
+            font-stretch: extra-expanded;
+        }
+    </style>
+</head>
+<body>
+    <p class="type1">abc123</p>
+    <p class="type2">abc123</p>
+</body>
+</html>
+```
+
+### §3.3.5 字距(`font-kerning`)
+
+字符之间相对位置的长度称为字距。它和`letter-spacing`最大的差别在于：`font-kerning`允许字符之间真正地按照规律紧凑起来。例如我们手写`To`这个单词时，会将`o`写到`T`的右下角，而`letter-spacing`就有可能让`o`碰到`T`的横杠。
+
+截止2023年，只有Firefox支持该特性。
+
+### §3.3.6 字体特性(`font-feature-settings`)
+
+`font-feature-settings`属性可以从底层控制OpenType字体(`.otf`)支持的特性，因此不能应用于其它字体格式中。
+
+OpenType字体支持特性参见[微软帮助文档](https://learn.microsoft.com/en-us/typography/opentype/spec/featurelist)。在这些特性中，默认开启的有以下特性：
+
+| OpenType特性 | 作用           |
+| ------------ | -------------- |
+| `calt`       | 根据上下文替换 |
+| `ccmp`       | 组合字符       |
+| `clig`       | 根据上下文连字 |
+| `liga`       | 标准连字       |
+| `locl`       | 本地化形式     |
+| `mark`       | 基本定位标记   |
+| `mkmk`       | 标记定位标记   |
+| `rlig`       | 必要的连字     |
+
+```html
+<html>
+<head>
+    <style>
+        @font-face {
+            font-family: CascadiaCode;
+            src: url(./static/font/CascadiaCode/CascadiaCode-Regular.otf);
+        }
+        p {font-family: CascadiaCode;}
+        .style1 { font-feature-settings: "liga" off, "calt" off, "clig" off, "rlig" off; }
+        .style2 { font-feature-settings: "liga" on , "calt" on , "clig" on , "rlig" on; }
+
+    </style>
+</head>
+<body>
+    <p class="style1">(()=>{1===0})();</p>
+    <p class="style2">(()=>{1===0})();</p>
+</body>
+</html>
+```
+
+### §3.3.7 字体变形(`font-variant`)
+
+CSS3提供了字体变形`font-variant`属性及其附属的多个子属性。字体变形包括连写、大小写、小数、`z`和`0`的贯穿线等特征。该属性需要字体本身支持。
+
+例如使用小号大写字母，每个单词都以大写字母展示，且首字母字号稍大。
+
+```html
+<html>
+<head>
+    <style>
+        h1 {
+            font-variant: small-caps;
+        }
+    </style>
+</head>
+<body>
+    <h1>Every Letter Is In Captial!</h1>
+</body>
+</html>
+```
+
+#### §3.3.7.1 `font-variant-ligatures`
+
+决定英文字母（例如`fi`）是否连字。
+
+#### §3.3.7.2 `font-variant-caps`
+
+决定英文字母是否以小号大写方式呈现。
+
+```html
+<html>
+<head>
+    <style>
+        .style1 {font-variant: normal;}
+        .style2 {font-variant: small-caps;}
+        .style3 {font-variant: all-small-caps;}
+    </style>
+</head>
+<body>
+    <h1 class="style1">Hello</h1>
+    <h1 class="style2">Hello</h1>
+    <h1 class="style3">Hello</h1>
+</body>
+</html>
+```
+
+#### §3.3.7.3 `font-variant-numeric`
+
+决定数字显示方式。例如`0`是否有贯穿线，数字是否上下交错排布。
+
+## §3.4 总属性`font`
+
+总属性`font`决定着五个子属性，分为两组，第一组是`font-style`、`font-weight`、`font-variant`，第二组是`font-size[/line-height]`、`font-family`。
+
+第一组的三个属性非常宽松，声明顺序没有限制，而且都可以缺省为`normal`。第二组的两个属性较为严格，声明顺序不能打乱，而且都不能缺省。虽然`line-height`本身不属于字体的属性，但是也可以在`font`属性中跟随`font-size`共同指定，写成类似于`24px/1.5`的格式。
+
+```css
+font: bold italic 24px Verdana, Helvetica, Arial, sans-serif;
+```
+
+除此之外，开发人员也可以不使用以上五个子属性，而是使用操作系统设置的默认值。操作系统提供的配置往往更能与系统本身达成一致性设计的效果，这些配置称为系统字体。可用的系统字体有：
+
+| 系统字体        | 作用                       |
+| --------------- | -------------------------- |
+| `caption`       | 用于说明文字的控件（按钮） |
+| `icon`          | 图表                       |
+| `menu`          | 菜单（下拉菜单、菜单列表） |
+| `message-box`   | 对话框                     |
+| `small-caption` | 标注小型控件               |
+| `status-bar`    | 窗口状态栏                 |
+
+```html
+<h1 style="font: caption;">text</h1>
+<h1 style="font: icon;">text</h1>
+<h1 style="font: menu;">text</h1>
+<h1 style="font: message-box;">text</h1>
+<h1 style="font: small-caption;">text</h1>
+<h1 style="font: status-bar;">text</h1>
+```
+
+# §4 文本
+
+## §4.1 行内与块级
+
+块级方向指的是当前书写模式放置块级元素的方向。在英语中，块级方向是从上到下，也就是说一个自然段放在另一个自然段的下面。
+
+行内元素指的是块级元素中行内元素的书写方向。在英语中，行内方向从左向右。
+
+## §4.2 行内属性
+
+### §4.2.1 缩进(`text-indent`)
+
+`text-indent`用于设置第一行文本的缩进长度，可以是负值，默认向子元素继承。
+
+```html
+<div style="width: 100px; background-color: coral;">
+    <p style="text-indent: 1ch;">这是第一段:</p>
+    <p style="text-indent: 2ch;">这是第二段：</p>
+    <p style="text-indent: 4ch;">这是第三段：</p>
+</div>
+```
+
+```html
+<div style="width: 100px; background-color: coral; padding-left: 4em;">
+    <p style="text-indent: -1ch;">悬挂缩进Demo:</p>
+    <p style="text-indent: -2ch;">悬挂缩进Demo:</p>
+    <p style="text-indent: -4ch;">悬挂缩进Demo:</p>
+</div>
+```
+
+### §4.2.2 横向对齐(`text-align`/`text-align-last`)
+
+`text-align`用于设置文本各行的对齐方式。
+
+| `text-align`属性值 | 作用                         |
+| ------------------ | ---------------------------- |
+| `start`            | 靠当前语言的书写起点向其对齐 |
+| `end`              | 靠当前语言的书写起点向其对齐 |
+| `left`             | 无论语言，一概向左对齐       |
+| `right`            | 无论语言，一概向右对齐       |
+| `center`           | 除最后一行以外，居中对齐     |
+| `justify`          | 首行两端对齐                 |
+
+```html
+<div style="width: 80px; background-color: coral;;">
+    <p style="text-align: start;">Hello world, this is a text-align demo.</p>
+    <p style="text-align: end;">Hello world, this is a text-align demo.</p>
+    <p style="text-align: left;">Hello world, this is a text-align demo.</p>
+    <p style="text-align: right;">Hello world, this is a text-align demo.</p>
+    <p style="text-align: center;">Hello world, this is a text-align demo.</p>
+    <p style="text-align: justify;">Hello world, this is a text-align demo.</p>
+</div>
+```
+
+`text-align-last`用于设置最后一行的对齐方式，其取值与`text-align`常用属性值相同。当文本只有一行时，`text-align-last`的优先级高于`text-align`的优先级。
+
+## §4.3 块级属性
+
+### §4.3.1 行高(`line-height`)
+
+`line-height`属性指定行与行之间的基线距离。从这一点来说，行距等于行高减去字体高度。当`line-height`的属性值为距离单位时，属性值代表的是绝对距离；当属性值为无量纲数时，代表的时从父元素继承`line-height`属性值时使用的换算比例。
+
+```html
+<html>
+<head>
+    <style>
+        p {background-color: wheat;}
+    </style>
+</head>
+<body>
+    <div style="width: 80px;">
+        <p style="line-height: 5px;">123123</p>
+        <p style="line-height: 10px;">123123</p>
+        <p style="line-height: 15px;">123123</p>
+        <p style="line-height: 20px;">123123</p>
+        <p style="line-height: 25px;">123123</p>
+    </div>
+</body>
+</html>
+```
+
+### §4.3.2 纵向对齐(`vertical-align`)
+
+
+
+| `vertical-align`属性值 | 作用                                                         |
+| ---------------------- | ------------------------------------------------------------ |
+| `baseline`(默认值)     | 让元素的基线与父元素该行的基线对齐                           |
+| `sub`                  | 让元素的基线低于父元素该行的基线，即放在下标处。CSS没有规定下降的距离，显示效果受限于浏览器， |
+| `super`                | 让元素的基线高于父元素该行的基线，即放在上标处。CSS没有规定上升的距离，显示效果受限于浏览器， |
+| `top`                  | 让元素的顶边与父元素该行的顶边对齐                           |
+| `text-top`             | 让元素的基线与父元素该行的顶边对齐                           |
+| `middle`               | 让元素的中线与父元素该行的中线对齐                           |
+| `bottom`               | 让元素的底边与父元素该行的底边对齐                           |
+| `text-bottom`          | 让元素的基线与父元素该行的底边对齐                           |
+
+```html
+<html>
+<head>
+    <style>
+        p {
+            background-color: lightgreen;
+            line-height: 40px;
+        }
+        p > img {height: 10px; width: 10px; background-color: gold;}
+    </style>
+</head>
+<body>
+    <div style="width: 300px;">
+        <p>
+            <span style="vertical-align: super;">忐</span>
+            <span style="vertical-align: sub;">忑</span>
+            <span>不安 :)</span>
+        </p>
+        <p>vertical-align: baseline<img style="vertical-align: baseline;"/></p>
+        <p>vertical-align: sub<img style="vertical-align: sub;"/></p>
+        <p>vertical-align: super<img style="vertical-align: super;"/></p>
+        <p>vertical-align: top<img style="vertical-align: top;"/></p>
+        <p>vertical-align: text-top<img style="vertical-align: text-top;"/></p>
+        <p>vertical-align: middle<img style="vertical-align: middle;"/></p>
+        <p>vertical-align: bottom<img style="vertical-align: bottom;"/></p>
+        <p>vertical-align: text-bottom<img style="vertical-align: text-bottom;"/></p>
+    </div>
+</body>
+</html>
+```
+
+| `vertical-align`属性值 | 作用                                                         |
+| ---------------------- | ------------------------------------------------------------ |
+| 百分数                 | 相对于父元素的`line-height`，将元素的基线从父元素的基线抬升或下沉的百分比。 |
 
 
 
