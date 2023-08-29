@@ -1,4 +1,4 @@
-# CSS
+# tCSS
 
 # §0 前置知识
 
@@ -1915,8 +1915,6 @@ font: bold italic 24px Verdana, Helvetica, Arial, sans-serif;
 
 ### §4.3.2 纵向对齐(`vertical-align`)
 
-
-
 | `vertical-align`属性值 | 作用                                                         |
 | ---------------------- | ------------------------------------------------------------ |
 | `baseline`(默认值)     | 让元素的基线与父元素该行的基线对齐                           |
@@ -1961,7 +1959,524 @@ font: bold italic 24px Verdana, Helvetica, Arial, sans-serif;
 
 | `vertical-align`属性值 | 作用                                                         |
 | ---------------------- | ------------------------------------------------------------ |
-| 百分数                 | 相对于父元素的`line-height`，将元素的基线从父元素的基线抬升或下沉的百分比。 |
+| 百分数                 | 相对于父元素的`line-height`，将元素的基线从父元素的基线抬升或下沉的百分比。负数为下降，正数为上升 |
+| 绝对长度               | 从CSS2引入，指定上升或下沉的距离                             |
+
+```html
+<html>
+<head>
+    <style>
+        p {
+            background-color: lightgreen;
+            line-height: 40px;
+        }
+        p > img {height: 10px; width: 10px; background-color: gold;}
+    </style>
+</head>
+<body>
+    <div style="width: 300px;">
+        <p>vertical-align: -100%<img style="vertical-align: -100%;"/></p>
+        <p>vertical-align: -50%<img style="vertical-align: -50%;"/></p>
+        <p>vertical-align: 0%<img style="vertical-align: 0%;"/></p>
+        <p>vertical-align: 50%<img style="vertical-align: 50%;"/></p>
+        <p>vertical-align: 100%<img style="vertical-align: 100%;"/></p>
+    </div>
+</body>
+</html>
+```
+
+## §4.4 间距
+
+### §4.4.1 单词间距(`word-spacing`)
+
+`word-spacing`决定了单词之间的距离。这里的“单词”指的是两侧有空白字符的仅包含非空白字符的字符串。该属性默认为`normal`，等价于绝对长度`0`。正值时加大间距，负值时缩短间距。受制于CSS对于单词的定义，该属性不适用于象形文字等非罗马文字。
+
+```html
+<p style="word-spacing: -1.0em;">Hello World!</p>
+<p style="word-spacing: -0.5em;">Hello World!</p>
+<p style="word-spacing: 0.0em;">Hello World!</p>
+<p style="word-spacing: normal;">Hello World!</p>
+<p style="word-spacing: 0.5em;">Hello World!</p>
+<p style="word-spacing: 1.0em;">Hello World!</p>
+```
+
+该属性会受到`text-align: justify`的影响。
+
+### §4.4.2 字符间距(`letter-spacing`)
+
+`letter-spacing`决定了字符之间的距离。该属性默认为`normal`，等价于绝对长度`0`。正值时加大间距，负值时缩短间距。
+
+```html
+<p style="letter-spacing: 0.1em;">Hello, 世界!</p>
+<p style="letter-spacing: 0em;">Hello, 世界!</p>
+<p style="letter-spacing: normal;">Hello, 世界!</p>
+<p style="letter-spacing: -0.1em;">Hello, 世界!</p>
+```
+
+## §4.5 文本转换(`text-transform`)
+
+`text-transform`专门用于转变文本的大小写。
+
+| `text-transform`属性值 | 作用                 |
+| ---------------------- | -------------------- |
+| `uppercase`            | 全大写               |
+| `lowercase`            | 全小写               |
+| `captialize`           | 每个单词的首字母大写 |
+| `none`(缺省)           | 无转换               |
+
+```html
+<p>hello, ABC</p>
+<p style="text-transform: none;">hello, ABC</p>
+<p style="text-transform: uppercase;">hello, ABC</p>
+<p style="text-transform: lowercase;">hello, ABC</p>
+<p style="text-transform: capitalize;">hello, ABC</p>
+```
+
+## §4.6 文本装饰(`text-decoration`)
+
+`text-decoration`属性决定文本的装饰形式。
+
+| `text-decoration`属性值 | 作用                                         |
+| ----------------------- | -------------------------------------------- |
+| `none`(缺省)            | 无效果                                       |
+| `underline`             | 下划线，等价于`<u></u>`                      |
+| `overline`              | 上划线                                       |
+| `line-through`          | 删除线，等价于`<strike></strike>`或`<S></S>` |
+
+```html
+<a href="google.com">Google</a>
+<a href="google.com" style="text-decoration: none;">Google</a>
+<p style="text-decoration: none;">hello, ABC.</p>
+<p style="text-decoration: underline;">hello, ABC.</p>
+<p style="text-decoration: overline;">hello, ABC.</p>
+<p style="text-decoration: underline overline;">hello, ABC.</p>
+<p style="text-decoration: line-through;">hello, ABC.</p>
+```
+
+`text-decoration`属性不参与继承，但是父元素产生的装饰线属性会覆盖在子元素上面，导致子元素无法通过声明`text-decoration: none`来去除自己身上的装饰线。但是子元素可以声明自己的装饰线，且其图层在父元素装饰线之上，起到覆盖的作用。
+
+## §4.7 文本渲染效果(`text-rendering`)
+
+`text-rendering`本质上不是CSS属性，而是一个SVG属性，决定了浏览器在显示文本时应该优先考虑什么方面。
+
+| `text-rendering`属性值 | 作用                                         |
+| ---------------------- | -------------------------------------------- |
+| `auto`(缺省)           | 无标准，由浏览器自行决定                     |
+| `optimizeSpeed`        | 优先考虑绘制速度，而不是清晰性（紧排和连字） |
+| `optimizeLegibility`   | 优先考虑清晰性（紧排和连字），而不是绘制速度 |
+| `geometricPrecision`   | 优先考虑SVG矢量精确性，以SVG绘制字形         |
+
+## §4.8 文本阴影(`text-shadow`)
+
+`text-shadow`属性可以给文本设置多个阴影，每组阴影值用逗号分隔。每个阴影由四个值定义：
+
+1. 第一个属性值：颜色。可以为颜色关键字或函数式RGB颜色。实际上该属性可以放在首部或尾部。
+
+   ```html
+   <h1 style="text-shadow: black 0 0 4px;">123</h1> <!-- 生效 -->
+   <h1 style="text-shadow: 0 black 0 4px;">123</h1> <!-- 无效 -->
+   <h1 style="text-shadow: 0 0 black 4px;">123</h1> <!-- 无效 -->
+   <h1 style="text-shadow: 0 0 4px black;">123</h1> <!-- 生效 -->
+   ```
+
+2. 第二个属性值：横向位置偏移距离。正数为右，负数为左。
+
+3. 第三个属性值：纵向位置偏移距离。正数为下，负数为上。
+
+4. 第四个属性值：模糊半径。可选。具体的模糊算法由浏览器决定。
+
+```html
+<html>
+<head>
+    <style>
+        h1 { color: red; }
+        .type1 { 
+            text-shadow: 1em 0 5px black, -1em 0 5px blue; 
+        }
+    </style>
+</head>
+<body>
+    <h1 class="type1">Hello</h1>
+</body>
+</html>
+```
+
+> 注意：大量阴影或模糊半径较大的阴影会消耗大量CPU性能。
+
+## §4.9 空白(`white-space`)
+
+`white-space`属性用于指定浏览器对空格、换行符、制表符的处理方式。
+
+根据[MDN文档](https://developer.mozilla.org/zh-CN/docs/Web/CSS/white-space)，`white-space`有以下取值：
+
+| `white-space`属性值 | 换行符 | 空格和制表符 | 文本换行 | 行末空格 | 行末的其他空白分隔符 |
+| :------------------ | :----- | :----------- | :------- | :------- | -------------------- |
+| `normal`            | 合并   | 合并         | 换行     | 移除     | 挂起                 |
+| `nowrap`            | 合并   | 合并         | 不换行   | 移除     | 挂起                 |
+| `pre`               | 保留   | 保留         | 不换行   | 保留     | 不换行               |
+| `pre-wrap`          | 保留   | 保留         | 换行     | 挂起     | 挂起                 |
+| `pre-line`          | 保留   | 合并         | 换行     | 移除     | 挂起                 |
+| `break-spaces`      | 保留   | 保留         | 换行     | 换行     | 换行                 |
+
+```html
+<html>
+<body>
+    <div style="width: 200px; background-color: gray;">
+        <select>
+            <option>normal</option>
+            <option>nowrap</option>
+            <option>pre</option>
+            <option>pre-wrap</option>
+            <option>pre-line</option>
+            <option>break-spaces</option>
+            <option>preserve nowrap</option>
+        </select>
+        <p>
+            This is a very very very long sentence whose length is far longer than container's width.
+            This is another very very very long sentence.
+        </p>
+    </div>
+    <script>
+        const selectDOM = document.querySelector("select");
+        const paragraphDOM = document.querySelector("p");
+        selectDOM.addEventListener("change", (e)=>{
+            paragraphDOM.setAttribute("style", `white-space: ${e.target.value}`);
+        });
+    </script>
+</body>
+</html>
+```
+
+## §4.10 制表符宽度(`tab-size`)
+
+`tab-size`用于指定制表符字符的宽度。该属性仅当`white-space`保留空格和制表符时才生效。
+
+| `tab-size`属性值           | 作用                   |
+| -------------------------- | ---------------------- |
+| 整数值                     | 表示几个连续空格的长度 |
+| 单位长度(例如`2px`,`1rem`) | 表示绝对长度           |
+
+```html
+<html>
+<head>
+    <style>
+        p {white-space: pre;}
+    </style>
+</head>
+<body>
+    <div>
+        <p style="white-space: normal;">&#09;This sentence start with a tab character.</p>
+        <p style="tab-size: 1;">&#09;This sentence start with a tab character.</p>
+        <p style="tab-size: 2;">&#09;This sentence start with a tab character.</p>
+        <p style="tab-size: 4;">&#09;This sentence start with a tab character.</p>
+        <p style="tab-size: 8;">&#09;This sentence start with a tab character.</p>
+        <p>&#09;This sentence start with a tab character.</p>
+    </div>
+</body>
+</html>
+```
+
+## §4.11 换行和断字(`hyphens`)
+
+如果行宽较短，但是单词很长时，通常使用连字符。
+
+```html
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <style type="text/css">
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        #app-wrapper {
+            position: absolute;
+            cursor: move;
+        }
+        code {
+            font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <div>
+            是否携带<code>&amp;shy;</code>实体:
+            <select id="shy-entity">
+                <option>是</option>
+                <option>否</option>
+            </select>
+        </div>
+        <div>
+            <code>hyphens</code>属性值:
+            <select id="hyphens">
+                <option>manual</option>
+                <option>auto</option>
+                <option>none</option>
+            </select>
+        </div>
+    </div>
+    <div id="app-wrapper">
+        <p id="paragraph" style="width: 100%;">Super&shy;cali&shy;fragi&shy;listic&shy;expi&shy;ali&shy;docious anti&shy;dis&shy;establish&shy;ment&shy;arian&shy;ism.</p>
+    </div>
+    <script>
+        const shyDOM = document.querySelector("#shy-entity");
+        const hyphensDOM = document.querySelector("#hyphens");
+        const paragraphDOM = document.querySelector("#paragraph");
+        shyDOM.addEventListener("change", (e)=>{
+            if(e.target.value === "是"){
+                paragraphDOM.innerHTML = "Super&shy;cali&shy;fragi&shy;listic&shy;expi&shy;ali&shy;docious anti&shy;dis&shy;establish&shy;ment&shy;arian&shy;ism."
+            }else if(e.target.value === "否"){
+                paragraphDOM.innerHTML = "Supercalifragilisticexpialidocious antidisestablishmentarianism."
+            }
+        });
+        hyphensDOM.addEventListener("change", (e)=>{
+            paragraphDOM.setAttribute("style", `width: 100%; hyphens:${e.target.value};`);
+        })
+    </script>
+</body>
+<script>
+    /**
+     * 创建一个可拖拽的矩形
+     */
+    function CreateDragRect(elm, options = {}) {
+        if (!elm) throw new Error('el 必须是一个document对象');
+        this.rect = elm;
+        this.isLeftMove = true;
+        this.isTopMove = true;
+        this.rectDefaultPosition = options.position || 'fixed';
+        this.rectDefaultLeft = options.x || 0;
+        this.rectDefaultTop = options.y || 0;
+        this.rectWidth = options.width || 100;
+        this.rectHeight = options.height || 100;
+        this.rectMinWidth = options.rectMinWidth || 5;  //最小宽度(超过之后不允许再缩放)
+        this.rectMinHeight = options.rectMinHeight || 5;  //最小高度(超过之后不允许再缩放)
+        this.rectBackgroundColor = options.background || '#ccc';
+        this.dragIconSize = options.dragIconSize || '4px';
+        this.dragIconColor = options.dragIconColor || '#f00';
+        //主矩形是否可以移动
+        this.isMove = false;
+        this.initStyle();
+        this.bindDragEvent(this.rect);
+    }
+
+    /**
+     * 主矩形绑定move事件
+     */
+    CreateDragRect.prototype.bindDragEvent = function (dom, position) {
+        const _this = this;
+        dom.onmousedown = function (event) {
+            event.stopPropagation();
+            //按下矩形的时候可以移动，否则不可移动
+            _this.isMove = !position;
+            // 获取鼠标在wrapper中的位置
+            let boxX = event.clientX - dom.offsetLeft;
+            let boxY = event.clientY - dom.offsetTop;
+            //鼠标移动事件(如果计算太高,有拖影)
+            document.onmousemove = _this.throttle(function (moveEv) {
+                let ev = moveEv || window.event;
+                ev.stopPropagation();
+                let moveX = ev.clientX - boxX;
+                let moveY = ev.clientY - boxY;
+                switch (position) {
+                    case 'top-left':    //左上: 需计算top left width
+                        _this.nwRectSize(moveX, moveY);
+                        break;
+                    case 'top-right':   //右上 计算top 和 height
+                        _this.neRectSize(moveX, moveY);
+                        break;
+                    case 'right-bottom':  //只需计算当前鼠标位置
+                        _this.seRectSize(moveX, moveY);
+                        break;
+                    case 'left-bottom': //计算left偏移量，计算w
+                        _this.swRectSize(moveX, moveY);
+                        break;
+                    default:    //拖拽矩形
+                        if (!_this.isMove) return null;
+                        _this.moveRect(ev.clientX - boxX, ev.clientY - boxY);
+                }
+            }, 15);
+
+            //鼠标松开，移除事件
+            document.onmouseup = function (event) {
+                document.onmousemove = null;
+                document.onmouseup = null;
+                // 存储当前的rect的宽高
+                _this.rectWidth = _this.rect.offsetWidth;
+                _this.rectHeight = _this.rect.offsetHeight;
+                // 获得当前矩形的offsetLeft 和 offsetTop
+                _this.rectOffsetLeft = _this.rect.offsetLeft;
+                _this.rectOffsetTop = _this.rect.offsetTop;
+            }
+        }
+    }
+
+    /**
+     * 初始化样式
+     */
+    CreateDragRect.prototype.initStyle = function () {
+        this.rect.style.position = this.rectDefaultPosition;
+        this.rect.style.width = this.rectWidth + 'px';
+        this.rect.style.height = this.rectHeight + 'px';
+        this.rect.style.left = this.rectDefaultLeft + 'px';
+        this.rect.style.top = this.rectDefaultTop + 'px';
+        this.rect.style.background = this.rectBackgroundColor;
+        //依次为上 右 下 左
+        let dragIcons = [
+            {
+                cursor: 'nw-resize',
+                x: 'top',
+                y: 'left'
+            },
+            {
+                cursor: 'ne-resize',
+                x: 'top',
+                y: 'right'
+            },
+            {
+                cursor: 'se-resize',
+                x: 'right',
+                y: 'bottom'
+            },
+            {
+                cursor: 'sw-resize',
+                x: 'left',
+                y: 'bottom'
+            }
+        ];
+        for (let i = 0, l = dragIcons.length; i < l; i++) {
+            let icon = document.createElement('i');
+            icon.id = Math.random().toString(36).substring(7);
+            icon.style.display = 'inline-block';
+            icon.style.width = this.dragIconSize;
+            icon.style.height = this.dragIconSize;
+            icon.style.position = 'absolute';
+            icon.style.zIndex = 10;
+            icon.style.cursor = dragIcons[i].cursor;
+            icon.style.backgroundColor = this.dragIconColor;
+            icon.style[dragIcons[i].x] = -parseInt(icon.style.width) / 2 + 'px';
+            icon.style[dragIcons[i].y] = -parseInt(icon.style.height) / 2 + 'px';
+            //绑定四个角的拖拽事件
+            this.bindDragEvent(icon, `${dragIcons[i].x}-${dragIcons[i].y}`);
+            //插入到矩形
+            this.rect.appendChild(icon);
+        }
+    };
+
+    /**
+     * 移动主矩形
+     */
+    CreateDragRect.prototype.moveRect = function (x, y) {
+        if (this.isTopMove && this.isLeftMove) {
+            this.rect.style.left = x + 'px';
+            this.rect.style.top = y + 'px';
+        }
+    };
+
+    /**
+     * 移动主矩形缩放 - 左上
+     */
+    CreateDragRect.prototype.nwRectSize = function (x, y) {
+        //计算是否是最小宽度
+        const { width, height, isLeftMove, isTopMove } = this.getMinSize(this.rectWidth - x, this.rectHeight - y);
+        if (isTopMove) {
+            this.rect.style.top = this.rectOffsetTop + y + 'px';
+            this.rect.style.height = height + 'px';
+        }
+        if (isLeftMove) {
+            this.rect.style.left = this.rectOffsetLeft + x + 'px';
+            this.rect.style.width = width + 'px';
+        }
+    };
+
+    /**
+     * 移动主矩形缩放 - 左下
+     */
+    CreateDragRect.prototype.swRectSize = function (x, y) {
+        //计算是否是最小宽度
+        const { width, height, isLeftMove, isTopMove } = this.getMinSize(this.rectWidth - x, y);
+        if (isLeftMove) {
+            this.rect.style.left = this.rectOffsetLeft + x + 'px';
+            this.rect.style.width = width + 'px';
+        }
+        if (isTopMove) {
+            this.rect.style.height = height + 'px';
+        }
+    };
+
+    /**
+     * 移动主矩形缩放 - 右上
+     */
+    CreateDragRect.prototype.neRectSize = function (x, y) {
+        //计算是否是最小宽度
+        const { width, height, isTopMove, isLeftMove } = this.getMinSize(x, this.rectHeight - y);
+        if (isTopMove) {
+            this.rect.style.height = height + 'px';
+            this.rect.style.top = this.rectOffsetTop + y + 'px';
+        }
+        if (isLeftMove) {
+            this.rect.style.width = width + 'px';
+        }
+    };
+
+    /**
+     * 移动主矩形缩放 - 右下
+     */
+    CreateDragRect.prototype.seRectSize = function (x, y) {
+        //计算是否是最小宽度
+        const { width, height } = this.getMinSize(x, y);
+        this.rect.style.width = width + 'px';
+        this.rect.style.height = height + 'px';
+    };
+
+    /**
+    * 节流函数
+    * @param {*} fn 
+    * @param {*} delay 
+    */
+    CreateDragRect.prototype.throttle = function (fn, delay) {
+        let last = 0;
+        return function () {
+            let curr = Date.now();
+            if (curr - last > delay) {
+                fn.apply(this, arguments);
+                last = curr;
+            }
+        }
+    }
+
+    /**
+     * 获取宽高
+     * @param {*} w 
+     * @param {*} h 
+     * @return { Object }
+     */
+    CreateDragRect.prototype.getMinSize = function (w, h) {
+        let rectMinWidth = this.rectMinWidth;
+        let rectMinHeight = this.rectMinHeight;
+        //x拖拽
+        this.isLeftMove = w >= this.rectMinWidth;
+        //y拖拽
+        this.isTopMove = h >= this.rectMinHeight;
+        if (this.isLeftMove) rectMinWidth = w;
+        if (this.isTopMove) rectMinHeight = h;
+        return { width: rectMinWidth, height: rectMinHeight, isLeftMove: this.isLeftMove, isTopMove: this.isTopMove };
+    }
+    const dr = new CreateDragRect(document.getElementById('app-wrapper'), {
+        x: 50,
+        y: 100,
+        width: 300,
+        height: 100,
+    });
+</script>
+
+</html>
+```
 
 
 
