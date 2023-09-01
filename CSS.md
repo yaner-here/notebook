@@ -2176,9 +2176,15 @@ font: bold italic 24px Verdana, Helvetica, Arial, sans-serif;
 </html>
 ```
 
-## §4.11 换行和断字(`hyphens`)
+## §4.11 换行和断字
 
-如果行宽较短，但是单词很长时，通常使用连字符。
+如果行宽较短，但是单词很长时，通常使用连字符。HTML提供了`&shy;`实体，Unicode也提供了`\u00ad`，两者都能供浏览器显示连字符时进行参考。`hyphens`属性决定连字符在何种情况下显示：
+
+| `hyphens`属性值 | 作用                                     |
+| --------------- | ---------------------------------------- |
+| `manual`(缺省)  | 只根据手动生命的连字符显示连字符         |
+| `auto`          | 自动根据语法和手动声明的连字符显示连字符 |
+| `none`          | 不显示任何连字符                         |
 
 ```html
 <!DOCTYPE html>
@@ -2477,6 +2483,406 @@ font: bold italic 24px Verdana, Helvetica, Arial, sans-serif;
 
 </html>
 ```
+
+我们知道，`<br>`与`\n`都是硬换行。当一个文本太长时，浏览器会自动为其换行，这种换行称为软换行。`work-brak`属性决定了软换行的行为。
+
+| `word-break`属性值 | 作用                                   | 非CJK行为    | CJK行为      | 断字 |
+| ------------------ | -------------------------------------- | ------------ | ------------ | ---- |
+| `normal`(默认)     | 只在单词之间换行                       | 照常         | 照常         | 有   |
+| `break-all`        | 可以在任何字符之间软换行               | 任何字符之间 | 任何字符之间 | 无   |
+| `keep-all`         | 只在单词之间换行，除非单词只有一个字符 | 照常         | 序列两侧     | 有   |
+
+`line-break`属性用于更精细地控制CJK的断字行为。
+
+| `line-break` 属性值 | 作用                               |
+| ------------------- | ---------------------------------- |
+| `auto`(缺省)        | 让浏览器自主决定                   |
+| `loose`             | 宽松的换行规则，用于文本较短的情况 |
+| `normal`            | 常规的换行规则                     |
+| `strict`            | 严格的换行规则                     |
+
+## §4.12 书写模式(``writing-mode`)
+
+不同的语言有着不同的书写方向。例如英语从左到右从上到下，阿拉伯语从右到左从上到下，汉语和日语从上到下，也可以从左到右，蒙古语从右到左。`writing-mode`用于控制书写模式：
+
+| `writing-mode`属性值  | 作用               |
+| --------------------- | ------------------ |
+| `horizontal-tb`(缺省) | 从左到右，从上到下 |
+| `vertical-rl`         | 从上到下，从右到左 |
+| `vertical-lr`         | 从上到下，从左到右 |
+
+```html
+<html>
+<head>
+    <title>Figure</title>
+    <style type="text/css">
+    </style>
+    <style type="text/css">
+        p {
+            border: 1px dotted;
+            width: 15em;
+            height: 6em;
+        }
+    </style>
+</head>
+<body>
+    writing-mode:
+    <select id="writing-mode">
+        <option>horizontal-tb</option>
+        <option>vertical-rl</option>
+        <option>vertical-lr</option>
+    </select>
+    <div>
+        <p>This is a paragraph of English text, largely unstyled.</p>
+    </div>
+    <script>
+        const selectDOM = document.querySelector("#writing-mode");
+        const paragraphDOM = document.querySelector("p");
+        selectDOM.addEventListener("change", (e)=>{
+            paragraphDOM.setAttribute("style", `writing-mode: ${e.target.value};`);
+        });
+    </script>
+</body>
+</html>
+```
+
+### §4.12.1 字符朝向(`text-orientation`)
+
+当多语言字符混杂时，可以使用`text-orientation`属性控制字符的方向。
+
+| `text-orientation`属性值 | 作用                           |
+| ------------------------ | ------------------------------ |
+| `mixed`                  | CJK字符头朝上，非CJK字符头朝右 |
+| `upright`                | 字符全部头朝上                 |
+| `sideways`               | 字符全部头朝右                 |
+
+```html
+<html>
+<head>
+    <title>Figure</title>
+    <style type="text/css">
+    </style>
+    <style type="text/css">
+        p {
+            border: 1px dotted;
+            width: 15em;
+            height: 6em;
+        }
+    </style>
+</head>
+<body>
+    writing-mode:
+    <select id="text-orientation">
+        <option>mixed</option>
+        <option>upright</option>
+        <option>sideways</option>
+    </select>
+    <div style="writing-mode: vertical-lr;">
+        <p>この部分の日本語には英語と数字が混じっています。This section of Japanese is mixed with English and numbers.</p>
+    </div>
+    <script>
+        const selectDOM = document.querySelector("#text-orientation");
+        const paragraphDOM = document.querySelector("p");
+        selectDOM.addEventListener("change", (e)=>{
+            paragraphDOM.setAttribute("style", `text-orientation: ${e.target.value};`);
+        });
+    </script>
+</body>
+</html>
+```
+
+# §5 视觉格式化
+
+## §5.1 元素的显示方式(`display`)
+
+例如给定下列`<a>`超链接，使其从行内元素转变为块级元素，这样用户即使不点击文字，只需点击块级元素范围内，就能跳转。
+
+```html
+<html>
+<head>
+    <style>
+        .navbar {
+            width: 10rem;
+        }
+        .navbar a {
+            display: block;
+        }
+        .navbar a:hover {
+            background-color: lightgray;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="/home">Home</a>
+        <a href="/news">News</a>
+        <a href="/about">About</a>
+    </div>
+</body>
+</html>
+```
+
+或者给定下列无序列表，使得列表中的每一项元素`<li>`都以行内方式显示：
+
+```html
+<html>
+<head>
+    <style>
+        ul li {
+            display: inline;
+            border-right: 1px black solid;
+            padding: 0 0.33em;
+        }
+        ul li:first-child {
+            border-left: 1px black solid;
+        }
+    </style>
+</head>
+<body>
+    <ul>
+        <li>Alice.</li>
+        <li>Bob.</li>
+        <li>Carol.</li>
+    </ul>
+</body>
+</html>
+```
+
+块级元素的后代可以是行内元素，但是行内元素的后代不能是块级元素。
+
+## §5.2 盒模型
+
+```mermaid
+graph LR
+	subgraph "外边距Margin(内侧紧邻边框)"
+		subgraph "内边距Padding(外侧紧邻边框)"
+			subgraph "内容(默认为真正的高与宽)"
+			end
+		end
+	end
+```
+
+### §5.2.1 盒模型尺寸模式(`box-sizing`)
+
+任何盒模型都有自己的尺寸。然而盒模型包含了外边距、边框、内边距、内容这些组成部分，而`box-sizing`属性决定了盒模型的宽度和高度从哪个组成部分开始算起。
+
+| `box-sizing`属性      | 作用                                      |
+| --------------------- | ----------------------------------------- |
+| `content-box`(缺省)   | `width`和`height`用于约束内容区域的尺寸   |
+| `padding-box`(已弃用) | `width`和`height`用于约束内边距区域的尺寸 |
+| `border-box`          | `width`和`height`用于约束边框区域的尺寸   |
+
+```html
+<html>
+<head>
+    <style>
+        p {
+            height: 150px; 
+            width: 200px;
+            background-color: lightgray; 
+            border: 20px lightblue solid;
+            padding: 10px 30px;
+        }
+        .box-sizing-content-box { box-sizing: content-box; }
+        .box-sizing-padding-box { box-sizing: padding-box; }
+        .box-sizing-border-box { box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    box-sizing:
+    <select>
+        <option>content-box</option>
+        <option>padding-box</option>
+        <option>border-box</option>
+    </select>
+    <p>
+        This is a simple sentence for showing box-sizing property.
+    </p>
+    <script>
+        const paragraphDOM = document.querySelector("p");
+        const boxsizingDOM = document.querySelector("select");
+        boxsizingDOM.addEventListener("change", (e)=>{
+            paragraphDOM.setAttribute("class", "box-sizing-" + e.target.value);
+            console.log(paragraphDOM.attributes["class"]);
+        });
+    </script>
+</body>
+</html>
+```
+
+### §5.2.2 横向格式化属性
+
+横向格式化属性指的是能影响元素在水平方向布局的属性，一共有以下七个：`margin-left`、`margin-right`、`border-left`、`border-right`、`padding-left`、`padding-right`、`width`。
+
+这七个属性的值加在一起，必须等于父元素(容纳块)的宽度。其中`margin-left`、`margin-right`、`width`有且仅有一个的属性值设为`auto`，则浏览器会自动调整设为`auto`的属性，使得元素在水平方向上填满容纳块。
+
+在机械制图中，我们学习过"过约束"的概念。同理，如果`margin-left`、`margin-right`、`width`都是具体的值，没有一个是`auto`时，这就是过约束状态，七个属性值相加不一定等于容纳块宽度。因此浏览器会自动将`margin-right`设为`auto`。
+
+```html
+<html>
+<head>
+    <style>
+        body {
+            padding: 0 0 0 0;
+            background-color: aliceblue;
+        }
+        div {
+            background-color: lightgray;
+            margin-left: 10px;
+            border-left: 10px solid lightblue;
+            width: 50px;
+            border-right: 10px solid lightblue;
+            padding-left: 10px;
+            margin-right: 10px;
+
+            margin-bottom: 5px;
+        }
+        div:hover { background-color: gray; }
+    </style>
+</head>
+<body>
+    <div>Hello</div>
+    <div style="width: auto;">Hello</div>
+    <div style="margin-left: auto;">Hello</div>
+    <div style="margin-right: auto;">Hello</div>
+    <div style="width: auto; margin-left: auto;margin-right: auto;">Hello</div>
+</body>
+</html>
+```
+
+对于不同的`auto`属性值组合，CSS规定的处理策略如下：
+
+| `margin-left` | `width` | `margin-right` | 作用                                    |
+| ------------- | ------- | -------------- | --------------------------------------- |
+| 具体值        | 具体值  | 具体值         | 过约束，右外边距设为`0`                 |
+| `auto`        | 具体值  | `auto`         | 左右外边距长度相等，扩充至填满容纳块    |
+| 具体值        | `auto`  | `auto`         | 右外边距设为`0`                         |
+| `auto`        | `auto`  | 具体值         | 左外边距设为`0`                         |
+| `auto`        | `auto`  | `auto`         | 左右外边距设为`0`，宽度扩充至填满容纳块 |
+
+> 注意：CSS规定可以设置负外边距。此时`auto`的计算规则仍然遵从上表，只是形式上要求七个属性值相加为容纳块的宽度，实际上子元素完全有可能超出容纳块的显示范围。
+
+### §5.2.3 纵向格式化属性
+
+纵向格式化属性决定了元素在垂直方向的排版样式，包括`margin-top`、`border-top`、`padding-top`、`height`、`padding-bottom`、`border-bottom`、`margin-bottom`。
+
+与横向格式化属性相似，这七个属性值相加的结构必须等于容纳块的高度。且其中只有三个属性可以设置为`auto`：`margin-top`、`height`、`margin-bottom`。
+
+| `margin-top` | `height` | `margin-bottom` | 作用                                                         |
+| ------------ | -------- | --------------- | ------------------------------------------------------------ |
+| 具体值       | 具体值   | 具体值          | 若七个属性值相加小于等于容纳块高度，则自动扩充内容区域高度；如大于容纳块高度，则自动缩减内容区高度；若内容区高度缩减至`0`，则突破相加为定值的限制。 |
+| `auto`       | 任意     | 任意            | 上外边距设为`0`                                              |
+| 任意         | 任意     | `auto`          | 下外边距设为`0`                                              |
+| 任意         | `auto`   | 任意            | 自动扩充内容区高度至填满容纳块                               |
+
+```html
+<html>
+<head>
+    <style>
+        body {
+            padding: 0 0 0 0;
+            background-color: aliceblue;
+        }
+        .content {
+            width: 20em;
+            background-color: lightgray;
+            box-sizing: border-box;
+            margin-top: 10px;
+            border-top: 10px solid lightblue;
+            padding-top: 0.5em;
+            height: 6em;
+            padding-bottom:10em;
+            border-bottom: 10px solid lightblue;
+        }
+        .content:hover { background-color: gray; }
+    </style>
+</head>
+<body>
+    <div style="height: 10rem;">
+        <div class="content">This is a long sentence for testing vertical alignment properties.</div>
+    </div>
+</body>
+</html>
+```
+
+只有相邻的纵向外边距会自动折叠，而内边距和边框不会。可以这么理解：准备两个白色卡片，每个卡片周围有一圈矩形的透明塑料。现在将这两个卡片重叠，只要白色部分之间不重叠、白色部分与透明塑料不重叠即可，透明塑料之间的重叠是允许的。
+
+```html
+<html>
+<head>
+    <style>
+        ul li {
+            margin-bottom: 15px;
+            margin-top: 10px; /* 该属性似乎无效 */
+        }
+    </style>
+</head>
+<body>
+    <div style="display: inline;">
+        <ul> <!-- 貌似间隔25px，实际间隔max(15px,10px)=15px -->
+            <li>Alice</li>
+            <li>Bob</li>
+            <li>Carol</li>
+        </ul>
+    </div>
+</body>
+</html>
+```
+
+同理，`margin-top`与`margin-bottom`也能设置负边距：
+
+```html
+<html>
+<head>
+</head>
+<body>
+    <div style="margin-bottom: 1em;">This is the first sentence.</div>
+    <div style="margin-top: -1em;">This is the second sentence.</div>
+    <br/>
+    <div style="margin-bottom: 1em;">This is the first sentence.</div>
+    <div style="margin-top: -1.5em;">This is the second sentence.</div>
+	<div style="width: 420px; margin-right: 10px; margin-left: 10px; margin-bottom: 0; border: 3px solid black;">
+    	<p style="margin-top: -10px; margin-right: 10px; margin-left: 10px; margin-bottom: 0; border: 3px solid gray;">
+        	A paragraph
+    	</p>
+    	A  div
+	</div>
+</body>
+</html>
+```
+
+### §5.2.4 宽度和高度(`width`/`height`)
+
+在`box-sizing`属性缺省的情况下，元素的宽度`width`指的是从左内边界到右内边界的距离，元素的高度`height`指的是从上内边界到下内边界的距离。
+
+这两个属性不能应用到行内非置换元素上，比如`<a>`。如果非要使用这两种属性，可以考虑将这种元素变为非行内元素，例如`display: block`或`display: inline-clock`。
+
+```html
+<html>
+<head>
+    <style>
+        a:link {
+            background-color: lightgray;
+            height: 10px;
+            width: 10px;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" style="display: initial;">Baidu</a>
+    <br/>
+    <a href="/" style="display: block;">Baidu</a>
+    <br/>
+    <a href="/" style="display: inline-block;" >Baidu</a>
+</body>
+</html>
+```
+
+### §5.2.5 内边距(`padding`)
+
+
+
+
 
 
 
