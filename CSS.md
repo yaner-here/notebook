@@ -2591,7 +2591,7 @@ font: bold italic 24px Verdana, Helvetica, Arial, sans-serif;
 </html>
 ```
 
-# §5 视觉格式化
+# §5 盒模型
 
 ## §5.1 元素的显示方式(`display`)
 
@@ -2650,8 +2650,6 @@ font: bold italic 24px Verdana, Helvetica, Arial, sans-serif;
 
 块级元素的后代可以是行内元素，但是行内元素的后代不能是块级元素。
 
-## §5.2 盒模型
-
 ```mermaid
 graph LR
 	subgraph "外边距Margin(内侧紧邻边框)"
@@ -2662,7 +2660,7 @@ graph LR
 	end
 ```
 
-### §5.2.1 盒模型尺寸模式(`box-sizing`)
+## §5.2 盒模型尺寸模式(`box-sizing`)
 
 任何盒模型都有自己的尺寸。然而盒模型包含了外边距、边框、内边距、内容这些组成部分，而`box-sizing`属性决定了盒模型的宽度和高度从哪个组成部分开始算起。
 
@@ -2710,7 +2708,7 @@ graph LR
 </html>
 ```
 
-### §5.2.2 横向格式化属性
+## §5.3 横向格式化属性
 
 横向格式化属性指的是能影响元素在水平方向布局的属性，一共有以下七个：`margin-left`、`margin-right`、`border-left`、`border-right`、`padding-left`、`padding-right`、`width`。
 
@@ -2762,7 +2760,7 @@ graph LR
 
 > 注意：CSS规定可以设置负外边距。此时`auto`的计算规则仍然遵从上表，只是形式上要求七个属性值相加为容纳块的宽度，实际上子元素完全有可能超出容纳块的显示范围。
 
-### §5.2.3 纵向格式化属性
+## §5.4 纵向格式化属性
 
 纵向格式化属性决定了元素在垂直方向的排版样式，包括`margin-top`、`border-top`、`padding-top`、`height`、`padding-bottom`、`border-bottom`、`margin-bottom`。
 
@@ -2851,7 +2849,7 @@ graph LR
 </html>
 ```
 
-### §5.2.4 宽度和高度(`width`/`height`)
+## §5.5 宽度和高度(`width`/`height`)
 
 在`box-sizing`属性缺省的情况下，元素的宽度`width`指的是从左内边界到右内边界的距离，元素的高度`height`指的是从上内边界到下内边界的距离。
 
@@ -2878,11 +2876,321 @@ graph LR
 </html>
 ```
 
-### §5.2.5 内边距(`padding`)
+## §5.6 内边距(`padding`)
 
+`padding`的属性值可以为以下类型：
 
+| 第一个参数 | 第二个参数 | 第三个参数 | 第四个参数 | 作用                                             |
+| ---------- | ---------- | ---------- | ---------- | ------------------------------------------------ |
+| 顶内边距   | 右内边距   | 下内边距   | 左内边距   |                                                  |
+| 顶内边距   | 右内边距   | 下内边距   |            | 令左内边距等于右内边距                           |
+| 顶内边距   | 右内边距   |            |            | 令左内边距等于右内边距，下内边距等于顶内边距     |
+| 顶内边距   |            |            |            | 令左内边距等、下内边距。右内边距全部等于顶内边距 |
 
+这幅图总结了以上表格的内容：当箭头指向的某一侧属性未指定时，CSS就会默认尝试继承源头的已存在的属性值。
 
+```mermaid
+flowchart LR
+	top --> right & bottom
+	right --> left
+```
+
+当属性值为百分数时，该属性参考的是父元素内容区的宽度：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            margin-top: 20%;
+            margin-left: 30%;
+            margin-right: 30%;
+            background-color: lightgray;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <div>Hello World!</div>
+</body>
+</html>
+```
+
+对于行内非置换元素而言，`padding`属性在垂直方向上(`padding-top`和`padding-bottom`)不影响实际显示的效果，没有视觉效果。除非该元素有背景色，会导致背景色沿元素上下延伸。在水平方向时，则会有实际的视觉效果：
+
+```html
+<html>
+<head>
+    <style>
+        strong { background-color: lightgray; }
+        .style1 { padding-top: 0; }
+        .style2 { padding-top: 0.5em; }
+        .style3 {padding-left: 1em;}
+    </style>
+</head>
+<body>
+    <p>Hello <strong class="style1">World!</strong></p>
+    <p>Hello <strong class="style2">World!</strong></p>
+    <p>Hello <strong class="style3">World!</strong></p>
+</body>
+</html>
+```
+
+对于行内置换元素而言，`padding`属性在垂直和水平方向上都会产生视觉效果，甚至会影响行高：
+
+```html
+<html>
+<head>
+    <style>
+        img {
+            width: 30px;
+            padding-top: 1.5rem;
+            padding-bottom: 0.5rem;
+            background-color: lightblue;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 200px; background-color: lightgray;">
+        This is a picture which has a huge padding-top: <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png"/>
+    </div>
+</body>
+</html>
+```
+
+## §5.7 边框(`border`)
+
+边框时元素的内容区或内边距外部周围的一条或多条线段，由三要素组成：宽度、式样和颜色。
+
+- 宽度(`border-width`)：缺省为`2px`
+- 式样(`border-style`)：缺省为`none`
+- 颜色(`border-color`)：缺省为元素自身的前景色(`color`)，如果没有则从父元素继承
+
+### §5.7.1 边框式样(`border-style`)
+
+`border-style`属性用于指定边框的式样。当其属性值有四个、三个、两个、一个值时，参考[§5.2.5 内边距(`padding`)](###§5.2.5 内边距(`padding`))一节的规则。当然，也可以分别使用`border-top-style`、`border-right-style`、`border-bottom-style`、`border-left-style`。
+
+| `border-style`属性值 | 作用                             |
+| -------------------- | -------------------------------- |
+| `none`               | 不显示边框                       |
+| `hidden`             | 除表格样式冲突之外，等价于`none` |
+| `solid`              | 实线边框                         |
+| `dotted`             | 点线边框                         |
+| `dashed`             | 短划线边框                       |
+| `double`             | 双实线边框                       |
+| `groove`             | 雕刻效果，与`ridge`相对          |
+| `ridge`              | 浮雕效果，与`groove`相对         |
+| `inset`              | 陷入效果，与`outset`相对         |
+| `outset`             | 突出效果，与`inset`相对          |
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 20rem;
+            margin-bottom: 0.5rem;
+            border-width: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div style="border-style: none;">border-style: none</div>
+    <div style="border-style: hidden;">border-style: hidden</div>
+    <div style="border-style: solid;">border-style: solid</div>
+    <div style="border-style: dotted;">border-style: dotted</div>
+    <div style="border-style: dashed;">border-style: dashed</div>
+    <div style="border-style: double;">border-style: double</div>
+    <div style="border-style: groove;">border-style: groove</div>
+    <div style="border-style: ridge;">border-style: ridge</div>
+    <div style="border-style: inset;">border-style: inset</div>
+    <div style="border-style: outset;">border-style: outset</div>
+    <div style="border-style: none;">border-style: none</div>
+    <div style="border-style: solid dotted double inset;">border-style: solid dotted double inset</div>
+</body>
+</html>
+```
+
+### §5.7.2 边框宽度(`border-width`)
+
+`border-width`用于指定边框的宽度。该属性只能设置一个属性值，而且应用于各个方向。如果向分别设置各个方向的边框宽度，只能使用`border-top-width`、`border-right-width`、`border-bottom-width`、`border-left-width`分别指定。
+
+| `border-width`属性值 | 作用                                              |
+| -------------------- | ------------------------------------------------- |
+| 长度                 | 当`border-style`为`none`或`hidden`时，强制设为`0` |
+| `thin`               |                                                   |
+| `medium`(缺省)       |                                                   |
+| `thick`              |                                                   |
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 20rem;
+            margin-bottom: 0.5rem;
+            border-style: outset;
+        }
+        .style1 {
+            border-top-width: 2px;
+            border-right-width: 5px;
+            border-bottom-width: 10px;
+            border-left-width: 20px;
+            border-style: solid dashed double inset;
+        }
+    </style>
+</head>
+<body>
+    <div style="border-width: 1px;">border-width: 1px</div>
+    <div style="border-width: thin;">border-width: thin</div>
+    <div style="border-width: 2px;">border-width: 2px</div>
+    <div style="border-width: medium;">border-width: medium</div>
+    <div style="border-width: 5px;">border-width: 5px</div>
+    <div style="border-width: thick;">border-width: thick</div>
+    <div style="border-width: 10px;">border-width: 10px</div>
+    <div style="border-width: 20px;">border-width: 20px</div>
+    <div style="border-width: 40px;">border-width: 40px</div>
+    <div class="style1">Mixed border-width</div>
+</body>
+</html>
+```
+
+### §5.7.3 边框颜色(`border-color`)
+
+`border-color`属性用于指定边框的颜色。当其属性值有四个、三个、两个、一个值时，参考[§5.2.5 内边距(`padding`)](###§5.2.5 内边距(`padding`))一节的规则。当然，也可以分别使用`border-top-color`、`border-right-color`、`border-bottom-color`、`border-color`。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 10rem;
+            border-style: solid;
+            border-width: 10px;
+            border-color: black blue red green;
+        }
+    </style>
+</head>
+<body>
+    <div>Hello World!</div>
+</body>
+</html>
+```
+
+> 注意：之前我们说过，当`border-style`为`none`或`hidden`时，那么就算强制声明`border-width`，CSS也会将其视为`0`。如果我们就是想让边框的宽度占着位，同时不想让边框本体显示，也就是设置透明边框，可以考虑将`border-color`设为`transparent`。
+
+对于行内非置换元素而言，垂直方向的边框并不会影响`line-height`，而水平方向的边框会推开文本。而对于行内置换元素而言，任何方向的边框都会推开文本：
+
+```html
+<html>
+<head>
+    <style>
+        strong {
+            border-top: 5px solid lightgray;
+            border-bottom: 20px solid lightcoral;
+            border-left: 1rem solid lightblue;
+            border-right: 1rem solid lightgreen;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 150px;">
+        This is a long sentence which takes up <strong>many</strong> lines.
+    </div>
+</body>
+</html>
+```
+
+### §5.7.4 圆角边框(`border-radius`)
+
+`border-radius`属性用于设置边框的圆角半径。当其属性值有四个、三个、两个、一个值时，参考[§5.2.5 内边距(`padding`)](###§5.2.5 内边距(`padding`))一节的规则。当然，也可以分别使用`border-top-left-radius`、`border-top-right-radius`、`border-bottom-left-radius`、`border-bottom-right-radius`。
+
+圆角的绘制过程如下所述：
+
+1. 找到该圆角半径所描述的角落顶点
+2. 以该顶点为圆心，圆角半径为半径绘制圆
+3. 每个顶点重复以上步骤，得到四个圆，取其圆弧与公切线线段。
+
+> 注意：如果某个圆的半径过大，使得公切线线段难以判断，则强制令其半径缩小到刚好不发生冲突的长度。
+>
+> 例如`border-radius: 9999em`的作用是：让元素边框中长度最短的两侧变成半圆形：
+>
+> ```html
+> <html>
+> <head>
+>     <style>
+>         div {
+>             background-color: lightgray;
+>             border-radius: 9999em;
+>             margin-bottom: 1rem;
+>         }
+>     </style>
+> </head>
+> <body>
+>     <div style="width: 100px; height: 50px;"></div>
+>     <div style="width: 75px; height: 50px;"></div>
+>     <div style="width: 50px; height: 50px;"></div>
+>     <div style="width: 25px; height: 50px;"></div>
+> </body>
+> </html>
+> ```
+
+如果圆角半径为百分数，则百分数的计算参照物为相邻一边的变长。例如某矩形的尺寸为`10px*5px`，圆角半径为`20%`，则圆角的长半径为`2px`，短半径为`1px`，即为椭圆的一部分。
+
+我们还可以分别指定圆角的横向半径和纵向半径，只需用斜线隔开即可。斜线两侧仍然可以填1~4个属性值：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 200px; 
+            height: 100px;
+            background-color: lightgray;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div style="border-radius: 2em / 1em;"></div>
+    <div style="border-radius: 1em 1.5em 2em 2.5em / 2.5em 2em 1.5em 1em;"></div>
+</body>
+</html>
+```
+
+### §5.7.5 图像边框
+
+到此为止，我们介绍的边框都是由浏览器根据规则绘制的矢量图，样式不够丰富。`border-image`系列属性允许我们加载外部图像作为边框。
+
+`border-image-source`用于指示图像边框的资源地址。在以下例子中，边框的四个角都有一个圆点图片：
+
+```
+<html>
+<head>
+    <style>
+        div {
+            width: 200px; 
+            height: 100px;
+            background-color: lightgray;
+            border-width: 25px;
+            border-style: solid;
+            border-image-source: url("https://meyerweb.github.io/csstdg4figs/08-padding-borders-outlines-and-margins/i/circle.png");
+        }
+    </style>
+</head>
+<body>
+    <div></div>
+</body>
+</html>
+```
+
+> 注意：`border-image`系列属性生效的前提是`border-style`不为`none`和`hidden`。
+
+`border-image-slice`属性在图像上放置4条裁剪线，这4条裁剪线将整个图像边框分为了九宫格，其中包括四个角、四条边和一个中心。CSS将四个角作为边框四个角使用的图像，四条边作为边框四边使用的图像，至于一个中心则废弃不用。`border-image-slice`的属性值依然可以接受1~4个值，分别指示上、右、下、左四边的偏移量，这里推荐使用百分数进行划分：
+
+```html
+
+```
 
 
 
