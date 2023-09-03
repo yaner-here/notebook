@@ -3158,7 +3158,7 @@ flowchart LR
 </html>
 ```
 
-### §5.7.5 图像边框
+### §5.7.5 图像边框(`border-image`)
 
 到此为止，我们介绍的边框都是由浏览器根据规则绘制的矢量图，样式不够丰富。`border-image`系列属性允许我们加载外部图像作为边框。
 
@@ -3186,13 +3186,683 @@ flowchart LR
 
 > 注意：`border-image`系列属性生效的前提是`border-style`不为`none`和`hidden`。
 
-`border-image-slice`属性在图像上放置4条裁剪线，这4条裁剪线将整个图像边框分为了九宫格，其中包括四个角、四条边和一个中心。CSS将四个角作为边框四个角使用的图像，四条边作为边框四边使用的图像，至于一个中心则废弃不用。`border-image-slice`的属性值依然可以接受1~4个值，分别指示上、右、下、左四边的偏移量，这里推荐使用百分数进行划分：
+`border-image-slice`属性在图像上放置4条裁剪线，这4条裁剪线将整个图像边框分为了九宫格，其中包括四个角、四条边和一个中心。该属性的默认值为`100%`CSS将四个角作为边框四个角使用的图像，四条边作为边框四边使用的图像，至于一个中心则默认废弃不用，除非为其属性值添加`fill`。`border-image-slice`的属性值依然可以接受1~4个值，分别指示上、右、下、左四边的偏移量，可以使用百分数表示比例或纯数字表示像素数：
+
+> 注意：`border-image-slice`除了接受正常的百分数以外，还有以下特例：
+>
+> - 当`border-image-slice`检测到留给四条边的区域面积不为正，而是小于等于`0`时，就不显示四条边的图像。
+> - 准确地来说，四个角使用的图像分别是由对应的两条裁剪线法向量决定的二维子平面。因此当裁剪线重叠甚至越过时，四个角使用的图像会有公共部分。
 
 ```html
-
+<html>
+<head>
+    <style>
+        div {
+            width: 200px; 
+            height: 100px;
+            background-color: lightgray;
+            margin-bottom: 0.5rem;
+            border-width: 25px;
+            border-style: solid;
+            border-image-source: url("https://meyerweb.github.io/csstdg4figs/08-padding-borders-outlines-and-margins/i/circle.png");
+        }
+    </style>
+</head>
+<body>
+    <div style="border-image-slice: 30%;"></div>
+    <div style="border-image-slice: 30% fill;"></div>
+    <div style="border-image-slice: 49.9%;"></div>
+    <div style="border-image-slice: 50%;"></div>
+    <div style="border-image-slice: 80%;"></div>
+</body>
+</html>
 ```
 
+默认情况下，图像边框的长度取决于`border-width`属性。如果开发者想让图像边框的长度不同于`border-width`，可以使用`border-image-width`属性。该属性没有下属的子属性，可以接收1~4个参数。其属性值可以接受以下单位：
 
+- 绝对长度单位：效果等价于`border-width`
+- 纯数字：这一边`border-width`的倍数
+- 百分数：以边框图片的这一边长度为基准
+- `auto`：使用`border-image-slice`的计算结果，如果不存在则使用`border-width`
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 200px; 
+            height: 100px;
+            background-color: lightgray;
+            margin-bottom: 0.5rem;
+            border-width: 25px;
+            border-style: solid;
+            border-image-source: url("https://meyerweb.github.io/csstdg4figs/08-padding-borders-outlines-and-margins/i/circle.png");
+            border-image-slice: 49.9%;
+        }
+    </style>
+</head>
+<body>
+    <!-- border-image-source使用的图片为50px×50px -->
+    <div style="border-image-width: 1;"></div>
+    <div style="border-image-width: 25px;"></div>
+    <div style="border-image-width: 10%;"></div>
+    <div style="border-image-width: auto;"></div>
+</body>
+</html>
+```
+
+我们已经知道了`padding`属性可以防止边框与内容区挨的太近。其实除了内边距以外，还可以从边框入手，在边框区域内扩大边框的粗细程度，让原先的图像边框向外扩充。这就是`border-image-outset`属性。使用审查工具，就能看到`padding`和`border-image-outset`的作用区域并不一样。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 200px; 
+            height: 100px;
+            background-color: lightgray;
+            padding: 0.5rem;
+            margin: 3rem;
+
+            border-width: 25px;
+            border-style: solid;
+            
+            border-image-slice: 49.9%;
+            border-image-source: url("https://meyerweb.github.io/csstdg4figs/08-padding-borders-outlines-and-margins/i/circle.png");
+            border-image-outset: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="style1"></div>
+    <script>
+        window.onload = () => {
+            const divDOM = document.getElementsByTagName("div");
+            console.log(divDOM);
+            for(let i = 0 ; i < divDOM.length ; ++i){
+                divDOM[i].innerText = "这是一段文本。".repeat(6);
+            }            
+        };
+    </script>
+</body>
+</html>
+```
+
+到目前位置，四条边的图像边框都是拉伸而成的。`border-image-repeat`属性控制着各边的边框图像处理方式。其属性值可以有1~2个关键词，分别控制纵轴和横轴：
+
+| `border-image-repeat`属性值 | 作用                                                         |
+| --------------------------- | ------------------------------------------------------------ |
+| `stretch`(缺省)             | 拉伸图像                                                     |
+| `repeat`                    | 沿中轴平铺图像，到边缘处直接截断                             |
+| `round`                     | 沿该边重复$\displaystyle\text{round}(\frac{边框该边的长度}{图像该边的长度})$次，并辅以拉伸图像 |
+| `space`                     | 沿该边重复$\displaystyle\text{floor}(\frac{边框该边的长度}{图像该边的长度})$次，并调节各段间距 |
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 200px; 
+            height: 100px;
+            background-color: lightgray;
+            padding: 0.5rem;
+            margin: 3rem;
+
+            border-width: 25px;
+            border-style: solid;
+            
+            border-image-slice: 25%;
+            border-image-source: url("https://meyerweb.github.io/csstdg4figs/08-padding-borders-outlines-and-margins/i/circle.png");
+        }
+    </style>
+</head>
+<body>
+    <div style="border-image-repeat: stretch;"></div>
+    <div style="border-image-repeat: repeat;"></div>
+    <div style="border-image-repeat: round;"></div>
+    <div style="border-image-repeat: space;"></div>
+    <script>
+        window.onload = () => {
+            const divDOM = document.getElementsByTagName("div");
+            console.log(divDOM);
+            for(let i = 0 ; i < divDOM.length ; ++i){
+                divDOM[i].innerText = "这是一段文本。".repeat(6);
+            }            
+        };
+    </script>
+</body>
+</html>
+```
+
+现在我们已经介绍了五个相关的图像边框属性：`border-image-source`、`border-image-slice`、`border-image-width`、`border-image-outset`、`border-image-repeat`。这五个子属性合在一起，可以简写为`border-image`属性：
+
+```
+border-image: <source>
+border-image: <source> <slice> / <width>? / <outset>? <repeat>?
+```
+
+## §5.8 轮廓(`outline`)
+
+`outline`属性决定元素的轮廓，可以的取值为：
+
+```css
+outline: <ouline-color>? <outline-style>? <outline-width>? 
+```
+
+轮廓与边框的区别体现在三个方面：
+
+1. 轮廓不占空间
+
+2. 轮廓可以不是矩形
+
+   ```html
+   <html>
+   <head>
+       <style>
+           div {
+               width: 200px;
+               background-color: lightgray;
+               margin-bottom: 1rem;
+           }
+           span.style1 {
+               outline: dotted 2px black;
+           }
+           span.style2 {
+               border: dotted 2px black;
+           }
+       </style>
+   </head>
+   <body>
+       <div style="width: 200px;">
+           这是一段话。
+           <span class="style1">这是一段话。这是一段话。这是一段话。这是一段话。</span>
+           这是一段话。
+       </div>
+       <div style="width: 200px;">
+           这是一段话。
+           <span class="style2">这是一段话。这是一段话。这是一段话。这是一段话。</span>
+           这是一段话。
+       </div>
+   </body>
+   </html>
+   ```
+
+3. 浏览器只在元素处于`:focus`状态时渲染轮廓
+
+4. 不能给单边设置轮廓
+
+### §5.8.1 轮廓式样(`outline-style`)
+
+除了`hidden`换为`auto`以外，轮廓式样的取值与边框式样的取值完全一致。详见[§5.7.1 边框式样(`border-style`)](###§5.7.1 边框式样(`border-style`))一节。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 20rem;
+            margin-bottom: 0.5rem;
+            outline-width: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div style="outline-style: none;">outline-style: none</div>
+    <div style="outline-style: auto;">outline-style: auto</div>
+    <div style="outline-style: solid;">outline-style: solid</div>
+    <div style="outline-style: dotted;">outline-style: dotted</div>
+    <div style="outline-style: dashed;">outline-style: dashed</div>
+    <div style="outline-style: double;">outline-style: double</div>
+    <div style="outline-style: groove;">outline-style: groove</div>
+    <div style="outline-style: ridge;">outline-style: ridge</div>
+    <div style="outline-style: inset;">outline-style: inset</div>
+    <div style="outline-style: outset;">outline-style: outset</div>
+</body>
+</html>
+```
+
+### §5.8.2 轮廓宽度(`outline-width`)
+
+轮廓宽度的取值与边框宽度的取值完全一致。唯一的区别是`outline-width`没有下属的子属性，不能为某一边设置特定的宽度。
+
+### §5.8.3 轮廓颜色(`outline-color`)
+
+轮廓颜色的取值与边框颜色的取值完全一致。
+
+## §5.9 外边距(`margin`)
+
+开发者也可以针对每一遍设置外边距属性，可以接收1~4个关键字使用子属性`margin-top`、`margin-right`、`margin-bottom`、`margin-left`即可。
+
+### §5.9.1 外边距折叠
+
+在[§5.4 纵向格式化属性](##§5.4 纵向格式化属性)一节我们已经讨论了外边距的折叠行为。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 200px;
+            background-color: lightgray;
+            margin-bottom: 1rem; /* 发生重叠 */
+        }
+        div:not(:first-child) {
+            margin-top: 1rem; /* 发生重叠 */
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 200px;">123</div>
+    <div style="width: 200px;">123</div>
+    <div style="width: 200px;">123</div>
+</body>
+</html>
+```
+
+如果子元素的外边距超出了父元素的范围，那么子元素的外边距虽然不会计入父元素的外边距，但实际上也会被当成父元素外边距的一部分。
+
+```html
+<html>
+<head>
+    <style>
+        header { background-color: lightblue;}
+        h1 { margin: 1em; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Hello World!</h1>
+    </header>
+</body>
+</html>
+```
+
+### §5.9.2 负外边距
+
+给子元素设置负外边距，可以让子元素从父元素中冒出来。这一特性在平面设计中非常好用：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 500px; 
+            background-color: lightgray;
+            margin: 1rem;
+            border: 1px solid; /* 很重要！ */
+        }
+        h1 { 
+            padding: 2rem 2rem 0rem 2rem;
+        }
+        p { 
+            margin: 0rem;
+            padding: 1rem;
+        }
+        p.punch {
+            background-color: white;
+            margin-left: 5rem;
+            margin-right: 0px;
+            border-width: 2px;
+            border-style: solid;
+            border-right-style: hidden;
+        }
+        p.mond {
+            background-color: rgba(255, 0, 0, 0.2);
+            margin: 1em 3em -3em -3em;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <a href="https://baijiahao.baidu.com/s?id=1699590831615037098&wfr=spider&for=pc"><h1>2021年5月12日外交部发言人华春莹主持例行记者会</h1></a>
+        <p>香港中评社记者：昨天中国公布第七次人口普查结果。之前《金融时报》发表所谓独家消息，......，称“中国面临人口危机”，认为中国人口出生率下降、老龄化问题加剧、劳动力人口萎缩会对中国经济造成严重影响，并预言“在可预见的未来，中国可能无法取代美国成为最大的经济体”，甚至会影响中国领导人承诺实现的“中国梦”。对此你怎么看？</p>
+        <p class="punch">华春莹：......，根据国家统计局权威发布，......。这个数据表明，中国人口十年来继续保持低速增长态势，中国人口总量持续增长，仍然是世界第一人口大国。人口质量稳步提升，人口受教育程度明显提高。人口结构调整变化，性别结构改善。人口流动集聚的趋势更加明显，城镇化水平持续提高。......</p>
+        <p>......，中国人口14.1178亿，不是仍然比美欧国家人口总数加起来还多吗？不知有关媒体记者如何摇身变成人口统计学专家和社会学家，从何得出“中国人口危机说”的结论？......</p>
+        <p class="mond">回顾一下过去几十年来，在中国发展的几乎每一个关键阶段，西方都会对中国做出种种评判和预测，出现了各种各样的论调，如各种版本的“中国威胁论”“中国崩溃论”。但随着中国持续发展，这些论调后来都一一被事实打脸。中国已经开启全面建设社会主义现代化国家新征程，我们将继续沿着已经被证明是正确的道路坚定前行。希望热衷于炮制各种涉华论调的人也能和我们中国人民一样健康快乐地生活，共同迎接并且见证“中国梦”的实现。</p>
+    </div>
+</body>
+</html>
+```
+
+> 注意：边框会影响内容区的范围。我们已经知道盒模型由内容区、内边距、边框、外边距四部分组成，而且`background`只包括内边距和内容区。然而，如果我们不设置边框，而且子元素的外边距为负值，想冒出父元素的`auto`高度范围，那么内容区会在垂直方向上自动扩充，将本应冒出父元素的子元素重新包含到父元素的内容区中。
+>
+> 要让子元素真正的从父元素中冒出，可以考虑给边框设置透明颜色：
+>
+> ```css
+> border: 1px solid rgba(0, 0, 0, 0);
+> ```
+
+### §5.9.3 行内元素的外边距
+
+对于行内非置换元素而言，外边距不会在垂直方向上产生影响，只会在水平方向上有影响。同理，将其设置为父外边距，则元素两端可能会与周围的内容重叠。
+
+```html
+<html>
+<head>
+    <style>
+        span { background-color: lightblue; }
+        strong {background-color: lightpink;}
+        strong.style1 {
+            margin-top: 25px;
+            margin-bottom: 50px;
+        }
+        strong.style2 {
+            margin-left: 25px;
+            margin-right: 25px;
+        }
+    </style>
+</head>
+<body>
+    <span><strong class="style2">Hello</strong>, <strong class="style1">World</strong>!</span>
+</body>
+</html>
+```
+
+对于行内置换元素而言，外边距在垂直和水平方向上都能产生影响。
+
+# §6 背景与前景
+
+CSS可以为任何元素设置前景色和背景色。
+
+## §6.1 前景色(`color`)
+
+`color`属性用于设置元素的前景色。其中前景指的是元素的文本和四周的边框。如果指定了`border-color`，那么边框的颜色将优先使用`border-color`。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 20rem;
+            margin-bottom: 1em;
+            border-style: solid;
+        }
+    </style>
+</head>
+<body>
+    <div style="color: red;">Hello World!</div>
+    <div style="color: blue;">Hello World!</div>
+    <div style="color: green;">Hello World!</div>
+    <div style="color: green; border-color: blue;">Hello World!</div>
+</body>
+</html>
+```
+
+`color`属性也可应用于表单元素的文字上：
+
+```html
+<html>
+<head>
+    <style>
+        select { color: red; }
+        label { color: red; }
+        button { color: red ;}
+    </style>
+</head>
+<body>
+    <select>
+        <option>Alice</option>
+        <option>Bob</option>
+        <option>Carol</option>
+    </select>
+    <input type="checkbox" id="demo1"><label for="demo1">Hello</label></input>
+    <input type="checkbox" id="demo2"><label for="demo2">World</label></input>
+    <button>Click me</button>
+</body>
+</html>
+```
+
+## §6.2 背景 
+
+### §6.2.1 背景色(`background-color`)
+
+`background-color`属性用于设置元素的背景色。其中背景指的是元素的内容区、内边距区和边框区。
+
+在实际项目中，`color`与`background-color`通常配套使用。因为浏览器的默认`color`与`background-color`千奇百怪，如果只设置其中的一个，那么浏览器的另一个可能就会发生冲突，使得文字与背景颜色难以辨认，不利于用户阅读。
+
+```html
+<html>
+<head>
+    <style>
+        h1 {
+            background-color: rgb(20%,20%,20%);
+            color: white;
+            padding: 0.5rem;
+        }
+        a:link {
+            color: blue;
+            background-color: lightgray;
+        }
+        a:visited {
+            color: red;
+            background-color: gray;
+        }
+        a:hover {
+            color: greenyellow;
+            background-color: gray;
+        }
+    </style>
+</head>
+<body>
+    <h1>这是一段标题</h1>
+    <p>
+        这是一段文本。<a href="./">这是一个超链接。</a>
+    </p>
+</body>
+</html>
+```
+
+这里有个小技巧——边框和背景颜色可以配合使用，实现"双色边框"的效果：
+
+```html
+<html>
+<head>
+    <style>
+        h1 {
+            background-color: skyblue;
+            padding: 0.5rem;
+            border: 0.5rem solid lightblue;
+        }
+        div {
+            padding: 0.5rem;
+            background-color: rgb(30%, 30%, 30%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>
+        <div>这个黑色&lt;div&gt;被"双色边框"覆盖了</div>
+    </h1>
+</body>
+</html>
+```
+
+### §6.2.2 裁剪背景(`background-clip`)
+
+我们知道，`background`的范围默认为内容区、内边距区和边框区。`background-clip`属性可以更精细的控制背景的范围。如果设置了`border-radius`，就等边框渲染完毕后，根据圆角边框的范围再做一次裁剪。
+
+| `background-clip`属性 | 作用                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| `border-box`          | 背景的范围为内容区、内边距区、边框区                         |
+| `padding-box`         | 背景的范围为内容区、内边距区                                 |
+| `content-box`         | 背景的范围为内容区                                           |
+| `text`                | 背景的范围仅为文字，相当于背景与文字取交集(前提是`color: transparent`) |
+
+> 注意：根据[MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/background-clip#%E6%B5%8F%E8%A7%88%E5%99%A8%E5%85%BC%E5%AE%B9%E6%80%A7)，截止到2023年，Chromium系浏览器仍不支持`background:  text`属性值。该属性值仅被`-webkit-background-clip: text`支持。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 40rem;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1rem dashed black;
+            background-color: royalblue;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-clip: border-box;">background-clip: border-box</div>
+    <div style="background-clip: padding-box;">background-clip: padding-box</div>
+    <div style="background-clip: content-box;">background-clip: content-box</div>
+    <div style="color: transparent; -webkit-background-clip: text; background-clip: text;">background-clip: content-box</div>
+</body>
+</html>
+```
+
+### §6.2.3 背景图(`background-image`)
+
+`background-image`属性允许加载外部图像作为背景，是一个非继承属性。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 30rem;
+            height: 8rem;
+            padding: 0.5rem;
+            padding-left: 9rem;
+            margin-bottom: 1rem;
+            border: 1px solid black;
+
+            background-color: lightgray;
+            background-repeat: no-repeat;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-image: url('https://cdn-icons-png.flaticon.com/128/1164/1164651.png');">Hello World!</div>
+</body>
+</html>
+```
+
+在实际工程中，`background-image`与`background-color`通常配套使用，防止`background-image`资源失效而导致排版混乱。
+
+### §6.2.4 背景定位(`background-position`)
+
+`background-position`属性决定了背景的具体位置。该属性接受1~2个参数，分别表示横向坐标与纵向坐标。当然也可以使用`top`、`right`、`bottom`、`left`关键字强行指定：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 20rem;
+            height: 15rem;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid black;
+
+            background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/radio-warn-fade.png");
+            background-color: lightgray;
+            background-repeat: no-repeat;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-position: center;">Hello World!</div>
+    <div style="background-position: 10% 25%;">Hello World!</div>
+    <div style="background-position: right bottom;">Hello World!</div>
+    <div style="background-position: right 10% bottom 10%;">Hello World!</div>
+</body>
+</html>
+```
+
+当`background-position`的属性值为百分数时，其规则较为复杂。以横轴为例，横轴的百分比参照的基准是$\text{width}-2\times背景图像的宽度$，操控的是背景图像中点的位置，其变化范围为$[背景图像的宽度, \text{width}-背景图像的宽度]$。纵轴同理。
+
+| 等效的单参数关键字 | 等效的双参数关键字               | 等效的百分数关键字 |
+| ------------------ | -------------------------------- | ------------------ |
+| `center`           | `center center`                  | `50%`与`50% 50%`   |
+| `right`            | `center right`与`right center`   | `100%`与`100% 50%` |
+| `left`             | `center left`与`left center`     | `0%`或`0% 50%`     |
+| `top`              | `top center`与`center top`       | `50% 0%`           |
+| `bottom`           | `bottom center`与`center bottom` | `50% 100%`         |
+|                    | `top left`与`left top`（缺省）   | `0% 0%`            |
+|                    | `top right`与`right top`         | `100% 0%`          |
+|                    | `bottom left`与`left bottom`     | `100% 100%`        |
+|                    | `bottom right`与`right bottom`   | `0% 100%`          |
+
+### §9.2.5 改变定位框(`background-origin`)
+
+`background-origin`属性决定背景图像中点活动范围的计算方式。乍一看，该属性与`background-clip`属性的取值非常相近，但是两者承担的职能还是不同的。`background-clip`决定的是背景的绘制区域，而`background-origin`决定的是背景相对位置的参考基准位置。
+
+| `background-origin`属性值 | 作用                                 |
+| ------------------------- | ------------------------------------ |
+| `border-box`              | 背景图像左上角默认在边框区的左上角   |
+| `padding-box`             | 背景图像左上角默认在内边距区的左上角 |
+| `content-box`             | 背景图像左上角默认在内容区的左上角   |
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 20rem;
+            height: 20rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 20px dotted black;
+
+            background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/yinyang.png");
+            background-color: lightgray;
+            background-repeat: no-repeat;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-origin: border-box;">Hello World</div>
+    <div style="background-origin: padding-box;">Hello World</div>
+    <div style="background-origin: content-box;">Hello World</div>
+</body>
+</html>
+```
+
+现在考虑`background-clip`与`background-origin`组合作用的情景：
+
+```html
+.style1 {
+    background-clip: content-box;
+    background-origin: padding-box;
+}
+.style2 {
+    background-clip: padding-box;
+    background-origin: content-box;
+}
+<div class="style1">Hello World</div>
+<div class="style2">Hello World</div>
+```
+
+在上面的例子中，`.style1`将背景图片的左上角移动到内边距区的左上角，然后只允许内容区内显示背景图片，从而造成背景图像被裁剪；`.style2`将背景图片的左上角移动到内容区的左上角，然后只允许内边距区内显示背景图像，这一步不会产生任何影响。
+
+### §9.2.6 背景重复方式(`background-repeat`)
+
+`background-repeat`属性决定了背景图片的重复方式。其属性值的正则表达式可以表示为`[repeat-x | repeat-y] | [repeat | space | round | no-repeat]{1,2}`。
+
+| `background-repeat`属性值 | 作用                     |
+| ------------------------- | ------------------------ |
+| `repeat-x`                | 沿横轴无限平铺图像       |
+| `repeat-y`                | 沿纵轴无限平铺图像       |
+| `repeat`                  | 沿横轴和纵轴无限平铺图像 |
+| `space`                   |                          |
+| `round`                   |                          |
+| `no-repeat`               | 不重复背景图             |
+
+| 等效单个关键词 | 等效两个关键词        |
+| -------------- | --------------------- |
+| `repeat-x`     | `repeat no-repeat`    |
+| `repeat-y`     | `no-repeat repeat`    |
+| `repeat`       | `repeat repeat`       |
+| `no-repeat`    | `no-repeat no-repeat` |
+| `space`        | `space space`         |
+| `round`        | `round round`         |
+
+> 习题：给一个矩形元素设置波浪线边框。
+>
+> 在[§5.7.5 图像边框(`border-image`)](###§5.7.5 图像边框(`border-image`))一节中，我们学过可以使用预先设计好的波浪环素材绘制
 
 # §A 附录
 
