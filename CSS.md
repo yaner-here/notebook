@@ -3786,7 +3786,7 @@ CSS可以为任何元素设置前景色和背景色。
 |                    | `bottom left`与`left bottom`     | `100% 100%`        |
 |                    | `bottom right`与`right bottom`   | `0% 100%`          |
 
-### §9.2.5 改变定位框(`background-origin`)
+### §6.2.5 改变定位框(`background-origin`)
 
 `background-origin`属性决定背景图像中点活动范围的计算方式。乍一看，该属性与`background-clip`属性的取值非常相近，但是两者承担的职能还是不同的。`background-clip`决定的是背景的绘制区域，而`background-origin`决定的是背景相对位置的参考基准位置。
 
@@ -3838,18 +3838,18 @@ CSS可以为任何元素设置前景色和背景色。
 
 在上面的例子中，`.style1`将背景图片的左上角移动到内边距区的左上角，然后只允许内容区内显示背景图片，从而造成背景图像被裁剪；`.style2`将背景图片的左上角移动到内容区的左上角，然后只允许内边距区内显示背景图像，这一步不会产生任何影响。
 
-### §9.2.6 背景重复方式(`background-repeat`)
+### §6.2.6 背景重复方式(`background-repeat`)
 
 `background-repeat`属性决定了背景图片的重复方式。其属性值的正则表达式可以表示为`[repeat-x | repeat-y] | [repeat | space | round | no-repeat]{1,2}`。
 
-| `background-repeat`属性值 | 作用                     |
-| ------------------------- | ------------------------ |
-| `repeat-x`                | 沿横轴无限平铺图像       |
-| `repeat-y`                | 沿纵轴无限平铺图像       |
-| `repeat`                  | 沿横轴和纵轴无限平铺图像 |
-| `space`                   |                          |
-| `round`                   |                          |
-| `no-repeat`               | 不重复背景图             |
+| `background-repeat`属性值 | 作用                                                         |
+| ------------------------- | ------------------------------------------------------------ |
+| `repeat-x`                | 沿横轴无限平铺图像                                           |
+| `repeat-y`                | 沿纵轴无限平铺图像                                           |
+| `repeat`                  | 沿横轴和纵轴无限平铺图像                                     |
+| `space`                   | 在横轴和纵轴重复$\lfloor\displaystyle\frac{元素该边长度}{背景图像该边长度}\rfloor$次，并自动调整间距。如果该值小于$1$，则向上取整到$1$，使其在该轴方向上至少出现一次 |
+| `round`                   | 在横轴和纵轴重复$\text{round}(\displaystyle\frac{元素该边长度}{背景图像该边长度})$次，并自动调整背景图像的尺寸 |
+| `no-repeat`               | 不重复背景图                                                 |
 
 | 等效单个关键词 | 等效两个关键词        |
 | -------------- | --------------------- |
@@ -3860,9 +3860,299 @@ CSS可以为任何元素设置前景色和背景色。
 | `space`        | `space space`         |
 | `round`        | `round round`         |
 
+```html
+<html>
+<head>
+    <style>
+        h1 {
+            border: 2px solid black;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/yinyang-sm.png");
+            background-color: lightgray;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="background-repeat: repeat-x;">background-repeat: repeat-x</h1>
+    <h1 style="background-repeat: repeat-y;">background-repeat: repeat-y</h1>
+    <h1 style="background-repeat: repeat;">background-repeat: repeat</h1>
+    <h1 style="background-repeat: no-repeat;">background-repeat: no-repeat</h1>
+    <h1 style="background-repeat: space;">background-repeat: space</h1>
+    <h1 style="background-repeat: round;">background-repeat: round</h1>
+</body>
+</html>
+```
+
 > 习题：给一个矩形元素设置波浪线边框。
 >
-> 在[§5.7.5 图像边框(`border-image`)](###§5.7.5 图像边框(`border-image`))一节中，我们学过可以使用预先设计好的波浪环素材绘制
+> 在[§5.7.5 图像边框(`border-image`)](###§5.7.5 图像边框(`border-image`))一节中，我们学过可以使用预先设计好的波浪环素材绘制波浪线边框。经过本节学习，我们可以使用`background-repeat: repeat-x`在上下两边界绘制波浪线。
+>
+> ```html
+> <html>
+> <head>
+>     <style>
+>         h1 {
+>             background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/wavybord.gif");
+>             background-repeat: repeat-x;
+>             background-color: lightgray;
+>         }
+>     </style>
+> </head>
+> <body>
+>     <h1>这是一个标题</h1>
+> </body>
+> </html>
+> ```
+
+### §6.2.7 背景粘附(`background-attachment`)
+
+之前我们学习的背景都是粘附与含有`background`相关属性的元素上的。这意味这背景图像的位置会跟随者元素位置而变化，也就是说文档视图滚动时，背景图像会随之一起滚动。
+
+`background-attachment`属性用于调整背景粘附的行为。
+
+| `background-attachment` | 作用                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| `scroll`(缺省)          | 当该元素本身有滚动条时，背景图像只受本身滚动条的影响，不受外界滚动条的影响 |
+| `fixed`                 | 把背景图像固定在视区中，不受滚动的影响。此时背景图像对齐所参考的原点是**视区的左上角** |
+| `local`                 | 把背景图像固定在元素中，受滚动的影响                         |
+
+`background-attachment: fixed`很特殊的一点在于背景图像对齐所参考的原点是**视区的左上角**。这就允许我们实现某些背景图像素材的完美对齐。例如在下面的示例中，白底黑框的`<h1>`长框灰色网格与背景白色网格都是从视图的左上角开始排列的，因此对齐得十分整齐。而且从视觉效果上，就好像是背景是白色网格，保持不动，而`<h1>`是透明的灰色框体。以下两种方式实现的视觉效果完全相同，均如上所述：
+
+1. 使用`background-attachment: fixed;`修饰`<h1>`
+
+   ```html
+   <html>
+   <head>
+       <style>
+           body {
+               /* 灰色背景格子图像 */
+               background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/grid1.gif");
+               background-repeat: repeat;
+               background-attachment: fixed;
+           }
+           h1 {
+               /* 白色背景格子图像 */
+               background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/grid2.gif");
+               background-repeat: repeat;
+               background-attachment: fixed;
+               margin: 3rem;
+               border: 5px solid ;
+           }
+       </style>
+   </head>
+   <body>
+       <span style="font-size: xx-large; font-weight: bold;">&lt;body&gt; background-attachment: fixed;</span>
+       <h1 style="background-attachment: fixed;">&lt;h1&gt; background-attachment: fixed</h1>
+       <h1 style="background-attachment: fixed;">&lt;h1&gt; background-attachment: fixed</h1>
+       <h1 style="background-attachment: fixed;">&lt;h1&gt; background-attachment: fixed</h1>
+       <h1 style="background-attachment: fixed;">&lt;h1&gt; background-attachment: fixed</h1>
+   </body>
+   </html>
+   ```
+
+2. 使用`background-color: rgba(0,0,0,0.2);`修饰`<h1>`
+
+   ```html
+   <html>
+   <head>
+       <style>
+           body {
+               /* 白色背景格子图像 */
+               background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/grid2.gif");
+               background-repeat: repeat;
+               background-attachment: fixed;
+           }
+           h1 {
+               /* 灰色透明背景 */
+               background-color: rgba(0, 0, 0, 0.2);
+               margin: 3rem;
+               border: 5px solid ;
+           }
+       </style>
+   </head>
+   <body>
+       <span style="font-size: xx-large; font-weight: bold;">&lt;body&gt; background-attachment: fixed;</span>
+       <h1 >&lt;h1&gt; background-color: rgba(0,0,0,0.2)</h1>
+       <h1 >&lt;h1&gt; background-color: rgba(0,0,0,0.2)</h1>
+       <h1 >&lt;h1&gt; background-color: rgba(0,0,0,0.2)</h1>
+       <h1 >&lt;h1&gt; background-color: rgba(0,0,0,0.2)</h1>
+   </body>
+   </html>
+   ```
+
+### §6.2.8 背景尺寸(`background-size`)
+
+`background-size`属性用于控制背景的尺寸。其属性值的正则表达式为`[[<length>|<percentage>|auto]{1,2}|cover|contain]`。如果有两个关键字，则前一个是横向尺寸，后一个是纵向尺寸。
+
+| `background-size`属性值 | 作用                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| `<length>`              |                                                              |
+| `<percentage>`          | 参照基准为背景定位区的尺寸，由`background-origin`决定，而非`background-clip` |
+| `auto`(缺省)            |                                                              |
+| `cover`                 | 将图像等比例缩放，使得背景图片能包含整个元素（当然背景图片的可视区域只有元素，会进行裁剪） |
+| `contain`               | 讲图像等比例缩放，使得整个元素恰好能包含背景图片             |
+
+`auto`关键词的规则较为复杂：
+
+1. 给定一个具体的背景图像，如果一个轴的尺寸为`auto`，另一个轴的尺寸为具体值，则`auto`为保留背景图像宽高比计算得到的数值。
+2. 如果第一步计算失败，则`auto`被解析为背景图片的固有绝对尺寸。
+3. 如果第二步失败了(例如矢量图没有宽高比信息)，则`auto`被解析为`100%`。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 400px;
+            height: 150px;
+            border: 2px solid black;
+            margin-bottom: 0.5rem;
+            background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/yinyang-200.png");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-size: 100px 100px;">Hello, World!</div>
+    <div style="background-size: 100px 200px;">Hello, World!</div>
+    <div style="background-size: 200px 100px;">Hello, World!</div>
+</body>
+</html>
+```
+
+### §6.2.9 背景(综合属性)(`background`)
+
+`background`属性本质上是对所有与背景相关属性的整合。例如下面的两种写法产生的效果完全一致：
+
+```css
+body {
+    background-color: white;
+    background-image: url();
+    background-position: top left;
+    background-repeat: repeat-y;
+    background-attachment: fixed;
+    background-origin: padding-box;
+    background-clip: border-box;
+    background-size: 50% 50%;
+}
+body {
+    background-color: white url() repeat-y top left / 50% 50% fixed padding-box border-box;
+}
+```
+
+`background`对属性值的顺序有以下限制：
+
+1. `background-size`必须跟在`background-position`后面，而且二者之间必须用正斜杠`/`隔开。
+2. 横向值在前，纵向值在后。
+3. 我们知道`background-origin`和`background-clip`使用的关键词很相近。如果`background`属性值出现了两次类似的关键词，则最先出现的记为`background-origin`，后出现的记为`background-clip`。
+
+### §6.2.10 多个背景
+
+到目前为止，除了`background-color`之外，我们学过的所有背景属性，都支持设置多个值，每个值之间用个逗号隔开：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 40rem;
+            height: 15rem;
+            background-image: url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/bg01.png"),
+                url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/bg02.gif"),
+                url("https://meyerweb.github.io/csstdg4figs/09-colors-backgrounds-and-gradients/i/bg03.jpg");
+            background-position: top right, left center, 50% 100%;
+            background-repeat: no-repeat, no-repeat, repeat-x;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div>多个背景</div>
+</body>
+</html>
+```
+
+> 注意：绘制的多个背景中，先声明的处于较上的图层。
+
+假如`background-image`设置了7个值，而`background-repeat`只设置了3个值，两者不能一一对应，那么CSS将会自动按顺序重复这3个值，直到重复出7个值为止。
+
+## §9.3 渐变
+
+渐变指的是一种颜色到另一种颜色的平滑过渡。
+
+CSS支持两种类型的渐变：线性渐变和径向渐变。每种渐变又可细分为循环渐变和不循环渐变。
+
+### §9.3.1 线性渐变
+
+线性渐变的基本语法为：`[[角度|to 哪一侧|to 哪个四分之一角],]? [色标 [,中色点]?]#, 中色点`。其中`#`表示前面的值可以重复一次及以上，但是每次重复之间都要加逗号`,`分隔。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            border: 2px solid black;
+            width: 20rem;
+            height: 5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-image: linear-gradient(purple, gold);"></div>
+    <div style="background-image: linear-gradient(90deg, purple, gold);"></div>
+    <div style="background-image: linear-gradient(to left, purple, gold);"></div>
+    <div style="background-image: linear-gradient(to bottom left, purple, gold);"></div>
+    <div style="background-image: linear-gradient(to bottom left, purple, gold, navy);"></div>
+</body>
+</html>
+```
+
+中色点的定义为：`颜色 [绝对长度|百分比]?`。前面的`颜色`表示了该点的颜色，后面的表示了该点相对起始位置的距离（注意，不是相对上一个中色点的距离）。
+
+```html
+<div style="background-image: linear-gradient(purple 10%, gold 50%);"></div>
+<div style="background-image: linear-gradient(purple 1rem, gold 6rem);"></div>
+```
+
+如果带有距离信息的和没有距离信息的中色点混用，那么如何确定没有距离信息的中色点的位置呢？答案是：选取两侧邻近的有距离信息的中色点，让没有距离信息的中色点在其中均匀分布。
+
+```html
+<div style="background-image: linear-gradient(purple 10%, green, blue, gold 90%);"></div>
+```
+
+如果两个中色点的位置发生重合，那么颜色在这一点会发生突变。与高等数学中的左极限和右极限相类比，虽然位置重合，但声明顺序一定有先后之分。首先声明的颜色就是左极限，后声明的就是右极限，而左极限不一定等于右极限。
+
+这种方法经常用于实现颜色相间的"条纹"：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            border: 2px solid black;
+            width: 20rem;
+            height: 5rem;
+            margin-bottom: 0.5rem;
+
+            background-image: linear-gradient(90deg,
+                gray 0%, gray 25%,
+                transparent 25%, transparent 50%, 
+                gray 50%, gray 75%,
+                transparent 75%, transparent
+            );
+        }
+    </style>
+</head>
+<body>
+    <div></div>
+</body>
+</html>
+```
+
+
 
 # §A 附录
 
