@@ -4078,13 +4078,13 @@ body {
 
 假如`background-image`设置了7个值，而`background-repeat`只设置了3个值，两者不能一一对应，那么CSS将会自动按顺序重复这3个值，直到重复出7个值为止。
 
-## §9.3 渐变
+## §6.3 渐变
 
 渐变指的是一种颜色到另一种颜色的平滑过渡。
 
 CSS支持两种类型的渐变：线性渐变和径向渐变。每种渐变又可细分为循环渐变和不循环渐变。
 
-### §9.3.1 线性渐变
+### §6.3.1 线性渐变(`linear-gradient`)
 
 线性渐变的基本语法为：`[[角度|to 哪一侧|to 哪个四分之一角],]? [色标 [,中色点]?]#, 中色点`。其中`#`表示前面的值可以重复一次及以上，但是每次重复之间都要加逗号`,`分隔。
 
@@ -4152,7 +4152,354 @@ CSS支持两种类型的渐变：线性渐变和径向渐变。每种渐变又�
 </html>
 ```
 
+到此，我们都默认中色点的位置随着声明的顺序而增大。如果一个中色点的位置很靠前，但是声明顺序很落后，那么这个中色点的声明顺序是不正常的。CSS对此的处理方法是：令该中色点的位置与前一个声明的中色点位置重合，使该中色点的作用位置靠后。
 
+```html
+<html>
+<head>
+    <style>
+        div {
+            border: 2px solid black;
+            width: 20rem;
+            height: 5rem;
+            margin-bottom: 0.5rem;
+
+            background-image: linear-gradient(90deg,
+                red 10%, blue 90%, green 50%
+            ); /* 实际上green的位置在90% */
+        }
+    </style>
+</head>
+<body>
+    <div></div>
+</body>
+</html>
+```
+
+在讲解`角度`之前，首先要明确梯度线的概念。在二维平面内确定一条直线需要两个变量，下面给定确定该梯度线的两个条件：
+
+1. 当角度为$x$`deg`时，渐变的方向向量的极坐标角度$\theta=90\degree-x$
+
+2. 沿渐变方向向量最贴近的一条对角线，这条对角线对应矩形上的两个端点。这两点到梯度线的距离应该相等。过这两点向梯度线做垂线，得到的两个垂足分别记为起点和终点。
+
+   该约束条件等价于“梯度线必须通过矩形中心”。
+
+![梯度线示例](https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient/linear-gradient.png)
+
+以下是带有`角度`的`linear-gradient`颜色计算方式：
+
+1. 如果点$(x,y)$恰好在梯度线上，则令起点和中点分别对应`linear-gradient`中色点的起点和终点，对颜色进行线性插值。
+2. 如果点$(x,y)$不在梯度线上，则过改点向梯度线做垂足，令该点的颜色为垂足的颜色。
+
+带有`to 哪个四分之一角`的行为比较特殊。例如`to top right`，你可能猜测该梯度线指向的方向恰为$45\degree$。然而实际是，CSS会过矩形中心，做一条主对角线的垂线，令其为梯度线。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            border: 2px solid black;
+            margin-bottom: 0.5rem;
+            background-image: linear-gradient(to top right, red, blue);
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 10rem; height: 2rem;"></div>
+    <div style="width: 10rem; height: 5rem;"></div>
+    <div style="width: 10rem; height: 10rem;"></div>
+    <div style="width: 5rem; height: 10rem;"></div>
+    <div style="width: 2rem; height: 10rem;"></div>
+</body>
+</html>
+```
+
+### §6.3.2 径向渐变(`radial-gradient`)
+
+径向渐变的语法为：
+
+```
+radial-gradient(
+	[[<shape>||<size>] [at <position>]?, | at <position>,]?
+	[<color-stop> [, <color-hint>]?] [,<color-stop>]+
+)
+```
+
+其中：
+
+- `[x||y]`表示可以取其中的一个值或多个值，而且顺序任意。
+- `+`表示重复一次或多次
+
+对于径向渐变而言，梯度线的方向不再是一个定值，而是一个包含约束的极坐标点$(r,\theta)$的区域集合。这里我们令左上角、右上角、右下角、左下角对应的角度组成一个集合，即$\Theta=\{\theta_1,\theta_2,\theta_3,\theta_4\}$。
+
+`<shape>`指明径向渐变的形状，只有两种取值：`circle`圆和`ellipse`椭圆
+
+`<size>`指明径向渐变的尺寸，可以接受1~2个尺寸值，描述为`50px`或`50px 100px`；也可以接受以下四种关键词：
+
+| `<shape>`关键词         | 圆形时的作用                                                 | 椭圆时的作用                                                 |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `closest-side`          | 梯度线的末端为$(\underset{r,\theta\in[0,2\pi)}{\text{argmin}(\theta)},r_{min})$ | 梯度线横轴的末端为$(\underset{r,\theta\in\{90\degree,270\degree\}}{\text{argmin}(\theta)},r_{min})$，纵轴的末端为梯度线的末端为$(\underset{r,\theta\in\{0\degree,180\degree\}}{\text{argmin}(\theta)},r_{min})$ |
+| `farthest-side`         | 梯度线的末端为$(\underset{r,\theta\in[0,2\pi)}{\text{argmax}(\theta)},r_{max})$ | 梯度线横轴的末端为$(\underset{r,\theta\in\{90\degree,270\degree\}}{\text{argmax}(\theta)},r_{max})$，纵轴的末端为梯度线的末端为$(\underset{r,\theta\in\{0\degree,180\degree\}}{\text{argmax}(\theta)},r_{max})$ |
+| `closest-corner`        | 梯度线的末端为$(\underset{r,\theta\in\Theta}{\text{argmin}(\theta)},r_{min})$ | 与圆形时相同，渐变宽高比与`closest-side`一样                 |
+| `farthest-corner`(缺省) | 梯度线的末端为$(\underset{r,\theta\in\Theta}{\text{argmax}(\theta)},r_{max})$ | 与圆形时相同，渐变宽高比与`farthest-side`一样                |
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            border: 2px solid black;
+            margin-bottom: 0.5rem;
+            width: 10rem; 
+            height: 5rem;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-image: radial-gradient(closest-side at 33% 66%, yellow, purple);">closest-side</div>
+    <div style="background-image: radial-gradient(farthest-side at 33% 66%, yellow, purple);">farthest-side</div>
+    <div style="background-image: radial-gradient(closest-corner at 33% 66%, yellow, purple);">closest-corner</div>
+    <div style="background-image: radial-gradient(farthest-corner at 33% 66%, yellow, purple);">farthest-corner</div>
+</body>
+</html>
+```
+
+| `<shape>`取值\\`<size>`数值 | 无   | 单属性值     | 多属性值   |
+| --------------------------- | ---- | ------------ | ---------- |
+| 无                          |      | 圆形         | 圆形或椭圆 |
+| `circle`                    | 圆形 | 不能填百分比 |            |
+| `ellipse`                   | 椭圆 |              |            |
+
+`at <position>`用于定位径向渐变，可以把径向渐变的中心放在默认中央以外的位置，属性值与`background-position`完全一致：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            border: 2px solid black;
+            margin-bottom: 0.5rem;
+            width: 10rem; 
+            height: 5rem;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div style="background-image: radial-gradient(at bottom left, yellow, purple);">at bottom left</div>
+    <div style="background-image: radial-gradient(at center right, yellow, purple);">at center right</div>
+    <div style="background-image: radial-gradient(at top center, yellow, purple);">at top center</div>
+    <div style="background-image: radial-gradient(at center left, yellow, purple);">at center left</div>
+</body>
+</html>
+```
+
+`<color-stop>`中色点的取值与线性渐变的规则完全一致。
+
+
+
+
+
+
+
+# §7 浮动
+
+“浮动”指的是元素的对齐方向。CSS标准规定：浮动通过`float`属性实现。有趣的是，在浮动的标准确定以前，就已经有了浮动的实现了。例如`<img align="right"/>`：
+
+```html
+<html>
+<head>
+    <style>
+        img {
+            background-color: gray;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <img src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_272x92dp.png" align="right"/>
+</body>
+</html>
+```
+
+在浏览器的审查元素中打开，会看到`<img>`中的`align="right"`被转换成了现代的`float: right`CSS属性。
+
+| `float`属性值 | 作用           |
+| ------------- | -------------- |
+| `left`        | 元素浮动到左侧 |
+| `right`       | 元素浮动到右侧 |
+| `none`(缺省)  |                |
+
+## §7.1 浮动的影响
+
+1. 浮动的元素脱离了常规的文档流。元素浮动后，原来所占的位置空了出来，新位置参与实际的占位。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           div {
+               border: 1px solid black;
+               width: 20rem;
+           }
+           p {
+               margin: 0.5rem;
+           }
+           p.aside {
+               width: 6rem;
+               float: right;
+               border: 1px solid black;
+               background-color: lightgrey;
+           }
+       </style>
+   </head>
+   <body>
+       <div>
+           <p>这是标题</p>
+           <p class="aside">我是侧栏说明。我脱离了正常的文本布局，所以外层的&lt;div&gt;不会管我。</p>
+           <p>这是正文。右面是一个&lt;p class="aside"&gt;，设置了float:right的CSS属性。</p>
+       </div>
+   </body>
+   </html>
+   ```
+
+2. 元素浮动后，无论元素原先是行内框还是块级框，都会变成块级框。也就是说，CSS给浮动的元素自动加上`display: block`属性。
+
+3. 浮动元素的左、右、上边界不能超过容纳块的左、右、上边界，却可以超过下边界。
+
+   > 注意：如果给浮动元素设置负外边距，从视觉效果上来说，确实会发生越界。但是从规范上来说，这依然不矛盾。因为越界的判定标准是“子元素的外边界超出了父元素的容纳框”，而负外边距相当于覆盖了自己的外边界，使得外边界向容纳框中移动，因此外边界仍然在容纳框中。
+
+4. 如果前面声明浮动的元素靠左，且后一个浮动元素的顶边**不在**前一个浮动元素底边的下边，那么后面元素的左边界必须在前面元素的右边界的右侧。同理，如果前面声明浮动的元素靠右，且同样后一个浮动元素**不在**下边，则后面元素的右边界必须在前面元素左边界的左侧。这条规则能避免浮动元素相互覆盖。
+
+   > 注意：前一个浮动元素下边界在后一个浮动元素的上边界，有可能是因为两个浮动元素间相隔了若干个非浮动元素，也有可能是两个浮动元素的宽度之和超过了容纳块的宽度，使得CSS不得不换行。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           div {
+               border: 1px solid black;
+               width: 20rem;
+           }
+           p {
+               margin: 0.5rem;
+           }
+           p.aside {
+               float: left;
+               border: 1px solid black;
+               background-color: lightgrey;
+           }
+           p.rightFloat {
+               width: 3rem;
+               float: left;
+               border: 1px solid black;
+               background-color: lightgrey;  
+           }
+       </style>
+   </head>
+   <body>
+       <div>
+           <p>这是标题</p>
+           <p class="aside" style="width: 6rem;">我是靠左的侧栏说明。</p>
+           <p class="aside" style="width: 6rem;">我是另一个靠左的侧栏说明。 </p>
+           <p>这是正文。本页面设置了两个带有float属性的元素，都是靠左浮动。</p>
+       </div>
+   </body>
+   </html>
+   ```
+
+5. 浮动元素的顶边不能比前方任何浮动元素或块级元素的顶边高。
+
+6. 在不违反以上规则的前提下，浮动元素必须尽可能的放在高的位置上。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           div {
+               border: 1px solid black;
+               width: 20rem;
+           }
+           p {
+               margin: 0.5rem;
+           }
+           p.leftFloat {
+               float: left;
+               border: 1px solid black;
+               background-color: lightgrey;
+           }
+           p.rightFloat {
+               float: right;
+               border: 1px solid black;
+               background-color: lightgrey;  
+           }
+       </style>
+   </head>
+   <body>
+       <div>
+           <p>这是标题</p>
+           <p class="leftFloat" style="width: 3rem;">我是靠左的侧栏说明。</p>
+           <p class="leftFloat" style="width: 4rem;">我是另一个靠左的侧栏说明。 </p>
+           <p class="rightFloat" style="width: 4rem;">我是靠右的侧栏说明，因为横向空间足够，所以没有另起一行。 </p>
+           <p>这是正文。本页面设置了三个带有float属性的元素，前两个都是靠左浮动，后一个是靠右浮动。</p>
+       </div>
+   </body>
+   </html>
+   ```
+
+7. 在满足以上规则的前提下，左浮动元素应该尽量靠左，右浮动元素应该尽量靠右。
+
+8. 若浮动元素的后代中存在浮动元素，且子元素尺寸较大时，才扩大父元素的尺寸。反之如果是非浮动元素的后代，则不会扩大父元素的尺寸。
+
+   为了防止浮动元素被遮盖，浮动元素的背景永远在非浮动元素之上。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .box {
+               border: 1px solid black;
+               width: 16rem;
+               background-color: lightcoral;
+           }
+           .float_picture {
+               width: 2rem;
+               height: 7rem;
+               float: right;
+               background: url('https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/down-arrow.png') repeat-y, lightgreen;
+           }
+       </style>
+   </head>
+   <body>
+       <div class="box">
+           <p>
+               <span class="float_picture"></span>
+               这是一个非浮动元素，右面的背景图片是靠右浮动的。
+           </p>
+       </div>
+       <p style="background-color: lightcyan;">这是一段文本，但是被上面浮动元素隔开了，导致上半段间距较小，下半段间距较大。而且浮动元素的背景永远在非浮动元素之上。</p>
+       <div class="box" style="float: left">
+           <p>
+               <span class="float_picture"></span>
+               这是一个浮动元素，图片是靠右浮动的。<strong>注意到背景图像撑大了父元素的尺寸。</strong>
+           </p>
+       </div>
+   </body>
+   </html>
+   ```
+
+
+
+9.6 13w字
+
+9.7 14w字
+
+9.8 15w字
+
+9.9 16w字
+
+9.10 17w字
 
 # §A 附录
 
