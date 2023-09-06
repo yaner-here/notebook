@@ -2958,6 +2958,44 @@ flowchart LR
 </html>
 ```
 
+使用`box-decoration-box`属性，可以改变行内元素每一行的内边距行为：
+
+```html
+<html>
+<head>
+    <style>
+        body {
+            background-color: darkgray;
+        }
+        div.root {
+            border: 1px solid black;
+            width: 8rem;
+            margin-bottom: 1rem;
+            background-color: black;
+        }
+        span {
+            margin: 1rem;
+            line-height: 3rem;
+            box-shadow: 8px 8px 10px 0 #ff1492, -5px -5px 5px 0 #00f, 5px 5px 15px 0 #ff0;
+            border-style: solid;
+            border-radius: 8px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <span>这段话横跨了两行。</span>
+    </div>
+    <div class="root">
+        <span style="box-decoration-break: clone; -webkit-box-decoration-break: clone;">这段话横跨了两行。</span>
+    </div>
+</body>
+</html>
+```
+
+
+
 ## §5.7 边框(`border`)
 
 边框时元素的内容区或内边距外部周围的一条或多条线段，由三要素组成：宽度、式样和颜色。
@@ -4271,7 +4309,7 @@ radial-gradient(
 | `circle`                    | 圆形 | 不能填百分比 |            |
 | `ellipse`                   | 椭圆 |              |            |
 
-`at <position>`用于定位径向渐变，可以把径向渐变的中心放在默认中央以外的位置，属性值与`background-position`完全一致：
+`at <position>`用于定位径向渐变，可以把径向渐变的中心放在默认中央以外的位置，属性值与`background-position`完全一致，其中第一个参数如果是长度的话，表示渐变中心距离左边界的距离；第二个参数同理，表示距离上边界的距离：
 
 ```html
 <html>
@@ -4367,6 +4405,8 @@ radial-gradient(
 2. 元素浮动后，无论元素原先是行内框还是块级框，都会变成块级框。也就是说，CSS给浮动的元素自动加上`display: block`属性。
 
 3. 浮动元素的左、右、上边界不能超过容纳块的左、右、上边界，却可以超过下边界。
+
+   > 注意：如果浮动元素太宽，超出了左边界或右边界（却绝育浮动方向），则CSS不得不渲染，
 
    > 注意：如果给浮动元素设置负外边距，从视觉效果上来说，确实会发生越界。但是从规范上来说，这依然不矛盾。因为越界的判定标准是“子元素的外边界超出了父元素的容纳框”，而负外边距相当于覆盖了自己的外边界，使得外边界向容纳框中移动，因此外边界仍然在容纳框中。
 
@@ -4488,6 +4528,333 @@ radial-gradient(
    </body>
    </html>
    ```
+
+9. 当浮动元素与行内元素重叠时，两者位于同一图层渲染。当浮动元素与块级元素重叠时，块级元素的内容覆盖在浮动元素之上，块级元素的背景和边框在浮动元素之下。
+
+## §7.2 清除浮动(`clear`)
+
+有时我们想把文档划分为多个区域，每个区域相互独立。但是`float`的出现使得该规则被打破。在[§7.1 浮动的影响](##§7.1 浮动的影响)第八条规则中，我们能观察到这一异常行为。当时我们是将父元素也设为浮动元素，才解决了问题。实际上，CSS提供了另一种方法，能够确保父元素跟随子浮动元素自动增长，防止影响到其它区域。这就是`clear`属性。
+
+| `clear`属性值 | 作用                           |
+| ------------- | ------------------------------ |
+| `left`        | 让左浮动元素的右侧不出现该元素 |
+| `right`       | 让右浮动元素的左侧不出现该元素 |
+| `both`        | 同时启用`left`和`right`        |
+| `none`(缺省)  |                                |
+
+下面的例子中，父元素的下面是一个同级`<p>`元素，父元素包含一个子浮动元素`<img>`：
+
+```html
+<html>
+<head>
+    <style>
+        .box {
+            border: 1px solid black;
+            width: 16rem;
+            background-color: lightcoral;
+        }
+        .float_picture {
+            width: 2rem;
+            height: 7rem;
+            float: right;
+            background: url('https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/down-arrow.png') repeat-y, lightgreen;
+        }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <p>
+            <span class="float_picture"></span>
+            这是一个非浮动元素，右面的背景图片是靠右浮动的。
+        </p>
+    </div>
+    <p style="background-color: lightcyan; clear: right;">这是一段文本，启用了clear: right，不会受到上面浮动元素的影响了</p>
+</body>
+</html>
+```
+
+> 注意：`clear`的实现方式发生过改变。CSS2及之前，`clear`的实现方式是增加元素的`margin-top`属性值，这会导致原先摄者的上外边距被覆盖掉。CSS2.1及之后引入了间距(`clearance`)，负责将元素向下移动，从而不再影响上外边距。
+
+还有一个问题：我们看到子浮动元素与外级`<p>`元素是贴在一起的。如果我们要让这两者保持一点间隔，应该给这三者之中的谁添加`margin`属性呢？**答案是子浮动元素**。经过实践可知，另两者都不行。使用审查元素可知，CSS认为两个同级的元素根本没有挨在一起，所以给父元素是无效的；如果给另一个同级元素添加`margin`属性，就会发现它的外边距对浮动元素没有任何作用。
+
+## §7.3 浮动形状
+
+CSS3增加了新模块CSS Shapes，使得浮动框的形状可以不再局限于矩形。
+
+### §7.3.1 定义形状(`shape-outside`)
+
+`shape-outside`属性用于定义内容流动的形状。该属性计算图像中的透明部分，使得内容流入与其直接接触的那一侧的透明部分。也就是说，内容要么流向浮动元素的左侧，要么是右侧，不可能同时是左右侧。
+
+| `shape-outside`属性值          | 作用 |
+| ------------------------------ | ---- |
+| `none`(缺省)                   |      |
+| `<basic-shape> || <shape-box>` |      |
+| `<image>`                      |      |
+
+对于`<image>`，CSS将提取图片资源（带有Alpha通道的PNG、GIF）中的透明部分。
+
+```html
+<html>
+<head>
+    <style>
+        .root {
+            border: 1px solid black;
+            width: 11rem;
+            margin-bottom: 0.5rem;
+        }
+        img {
+            float: left;
+            width: 5rem;
+        }
+        img.float {
+            shape-outside: url("https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/moon.png");
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <img class="float" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/moon.png"/>
+        这是一个包含向左浮动图片的div。这段文字被图片的形状隔开了。
+    </div>
+    <div class="root">
+        <img src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/moon.png"/>
+        这是一个包含向左浮动图片的div。图像被当成一个矩形，而不是弯的。
+    </div>
+</body>
+</html>
+```
+
+`<basic-shape>`可以是下面类型中的某一个：
+
+- `inset()`([MDN文档](https://developer.mozilla.org/en-US/docs/Web/CSS/basic-shape/inset))：接受1~4个参数与质心位置，作为与容纳框的上右下左的边距绘制矩形
+- `circle()`([MDN文档](https://developer.mozilla.org/en-US/docs/Web/CSS/basic-shape/circle))：接受半径参数与圆心位置，绘制圆形
+- `ellipse()`([MDN文档](https://developer.mozilla.org/en-US/docs/Web/CSS/basic-shape/ellipse))：接受2个参数或四个关键词与圆心位置，绘制椭圆
+- `polygen()`([MDN文档](https://developer.mozilla.org/en-US/docs/Web/CSS/basic-shape/polygon))：接受若干个端点位置，绘制多边形
+
+```html
+<html>
+<head>
+    <style>
+        .root {
+            border: 1px solid black;
+            width: 18rem;
+            margin-bottom: 1rem;
+        }
+        img {
+            float: left;
+            width: 2rem;
+            background-color: lightblue;
+            border: 1rem solid lightskyblue;
+            padding: 1rem;
+            margin: 1rem;
+        }
+        p {
+            margin-top: 2rem;
+            margin-bottom: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <img style="shape-outside: inset(30px);" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>矩形：shape-outside: inset(30px);</p>
+    </div>
+    <div class="root">
+        <img style="shape-outside: circle(15px);" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>圆形：shape-outsise: border-box</p>
+    </div>
+    <div class="root">
+        <img style="shape-outside: ellipse(50px 20px);" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>竖椭圆：shape-outside: ellipse(50px 20px);</p>
+    </div>
+    <div class="root">
+        <img style="shape-outside: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>扁棱形：shape-outside: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);</p>
+    </div>
+</body>
+</html>
+```
+
+`<shape-box>`可以是下面类型中的某一个：
+
+- `margin-box`：以外边距区的边界作为流动流入的区域
+- `border-box`：以边框区的边界作为流动流入的区域
+- `padding-box`：以内边距区边界作为流动流入的区域
+- `content-box`：以内容区的边界作为流动流入的区域
+
+```html
+<html>
+<head>
+    <style>
+        .root {
+            border: 1px solid black;
+            width: 15rem;
+            margin-bottom: 0.5rem;
+        }
+        img {
+            float: left;
+            width: 2rem;
+            background-color: lightblue;
+            border: 1rem solid lightskyblue;
+            padding: 1rem;
+            margin: 1rem;
+        }
+        p {
+            margin-top: 3rem;
+            margin-bottom: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <img style="shape-outside: margin-box;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>shape-outsise: margin-box</p>
+    </div>
+    <div class="root">
+        <img style="shape-outside: border-box;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>shape-outsise: border-box</p>
+    </div>
+    <div class="root">
+        <img style="shape-outside: padding-box;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>shape-outsise: padding-box</p>
+    </div>
+    <div class="root">
+        <img style="shape-outside: content-box;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/chrome.jpg"/>
+        <p>shape-outsise: content-box</p>
+    </div>
+</body>
+</html>
+```
+
+### §7.3.2 形状透明阈值(`shape-image-threshold`)
+
+前面我们提到过，图像的透明部分允许内容流入。至于像素点要怎么才算透明，Alpha值要怎么高才算符合要求，可以使用`shape-image-threshold`属性设置阈值。
+
+```html
+<html>
+<head>
+    <style>
+        .root {
+            border: 1px solid black;
+            width: 18rem;
+            margin-bottom: 1rem;
+        }
+        img {
+            float: left;
+            width: 5rem;
+            background-color: lightblue;
+            shape-outside: url("https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/sit-gradient.png");
+        }
+        p {
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <img style="shape-image-threshold: 0.1;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/sit-gradient.png"/>
+        <p>这是一段文本，shape-image-threshold: 0.1;这是一段文本，shape-image-threshold: 0.1;</p>
+    </div>
+    <div class="root">
+        <img style="shape-image-threshold: 0.5.;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/sit-gradient.png"/>
+        <p>这是一段文本，shape-image-threshold: 0.5;这是一段文本，shape-image-threshold: 0.5;</p>
+    </div>
+    <div class="root">
+        <img style="shape-image-threshold: 0.9;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/sit-gradient.png"/>
+        <p>这是一段文本，shape-image-threshold: 0.9;这是一段文本，shape-image-threshold: 0.9;</p>
+    </div>
+</body>
+</html>
+```
+
+### §7.3.3 形状外边距(`shape-margin`)
+
+`shape-margin`属性将形状沿各个边的法向方向向外或向内移动，也就是为形状添加"外边距"。
+
+```html
+<html>
+<head>
+    <style>
+        .root {
+            border: 1px solid black;
+            width: 15rem;
+            margin-bottom: 1rem;
+        }
+        img {
+            float: left;
+            width: 10rem;
+            shape-outside: url("https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/star.svg");
+        }
+        p {
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <img src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/star.svg"/>
+        <p>这个元素中包含了一个向左浮动的图片和一个p标签，其中图片没有设置了shape-margin</p>
+    </div>
+    <div class="root">
+        <img style="shape-margin: 1.4rem;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/star.svg"/>
+        <p>这个元素中包含了一个向左浮动的图片和一个p标签，其中图片设置了shape-margin: 1.4rem;</p>
+    </div>
+    <div class="root">
+        <img style="shape-margin: 2rem;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/star.svg"/>
+        <p>这个元素中包含了一个向左浮动的图片和一个p标签，其中图片设置了shape-margin: 2rem;。超出容纳块的形状会被裁剪。</p>
+    </div>
+</body>
+</html>
+```
+
+我们注意到最后一个`<div>`设置的`shape-margin`过大，导致文字没有按照预期的那样让形状周围排列。这是因为形状外边距生效的范围只在父元素容纳块中，否则过大的外边距会被容纳块边缘裁剪。为了解决这一问题，我们可以同步扩大`margin`的范围：
+
+```html
+<html>
+<head>
+    <style>
+        .root {
+            border: 1px solid black;
+            width: 15rem;
+            margin-bottom: 1rem;
+        }
+        img {
+            float: left;
+            width: 10rem;
+            shape-outside: url("https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/star.svg");
+        }
+        p {
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <img style="shape-margin: 2rem; margin: 0 2rem 2rem 0;" src="https://meyerweb.github.io/csstdg4figs/10-floating-and-shapes/i/star.svg"/>
+        <p>这个元素中包含了一个向左浮动的图片和一个p标签，其中图片设置了shape-margin: 2rem;。超出容纳块的形状会被裁剪。</p>
+    </div>
+</body>
+</html>
+```
+
+# §8 定位
+
+CSS一共提供了五种定位类型，由`position`属性指定：
+
+| `position`属性值 | 中文名称 | 作用                                               | 非根元素的容纳块                                             |
+| ---------------- | -------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| `static`(缺省)   | 静态定位 | 块级元素生成矩形框，行内元素生成若干行框           | 父块级元素容纳块                                             |
+| `relative`       | 相对定位 | 元素框的位置偏移一定的距离，形状与`static`一样不变 | 父块级元素容纳块                                             |
+| `sticky`         | 粘性定位 | 当且仅当达到触发粘滞的条件是，元素框才脱离文档流   | 如果父元素是块级元素，则为父元素的内边距块（即边框区以内）；如果父元素是行内元素，则为父元素内容区的外切矩形。 |
+| `absolute`       | 绝对定位 | 元素框完全脱离文档流，位置参照物依然是父元素容纳块 |                                                              |
+| `fixed`          | 固定定位 | 元素框完全脱离文档流，位置参照物是视图容纳块       |                                                              |
+
+## §8.1 偏移属性
+
+在相对定位、绝对定位、粘滞定位和固定定位中，需要声明指定定位元素的各边相对容纳块的偏移距离，使用的属性成为偏移属性：`top`、`right`、`bottom`、`left`。
 
 
 
