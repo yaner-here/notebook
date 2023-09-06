@@ -4333,13 +4333,247 @@ radial-gradient(
 </html>
 ```
 
-`<color-stop>`中色点的取值与线性渐变的规则完全一致。
+`<color-stop>`中色点的取值与线性渐变的规则完全一致：
 
+1. 首个色标的位置默认为`0%`，最后一个色标的位置默认为`100%`。例如`green, red`等价于`green 0%, red 100%`。
+2. 如果某个中色点为显示声明位置，则其位置为最临近的首尾两个位置确定的中色点的线性插值。例如`red, green, blue`等价于`red, green 50%, blue`。
 
+考虑`<size>`为`0px`时的极端情况。此时CSS会将`0px`视为一个非常小的值，类似于数学上的$\displaystyle\lim_{\epsilon\rightarrow0}{\epsilon}$。在Chrome上，这一点$\epsilon$是不可见的。
 
+### §6.3.3 循环线性渐变(`repeating-linear-gradient`)
 
+在之前的渐变中，首尾两个色标决定了颜色渐变的范围，超出这个范围都是纯色。而循环渐变允许色标和中色点也不断重复排列。
 
+> 注意：循环渐变要求所有色标和中色点的位置均为**绝对长度**，而不能是**相对长度（例如百分数）**，否则循环渐变的行为将退化为非循环渐变，在整个背景显示区域内只重复一次。
+>
+> ```html
+> <html>
+> <head>
+>     <style>  
+>         div {
+>             width: 20rem;
+>             height: 40px;
+>             border: 2px solid black;
+>             color: white;
+>             font-size: large;
+>             font-weight: bold;
+>             margin-bottom: 1rem;
+>         }
+>     </style>
+> </head>
+> <body>
+>     <div style="background: repeating-linear-gradient(-45deg, black 0, black 25px,  25px, darkgoldenrod 50px) top left repeat;">这才应该是警戒线的样式</div>
+>     <div style="background: repeating-linear-gradient(-45deg, black 0, black 50%,  50%, darkgoldenrod 100%) top left repeat;">这条警戒线只循环了一次，不正常</div>
+> </body>
+> </html>
+> ```
 
+> 注意：之前的非循环渐变默认首尾色标的位置分别为`0%`和`100%`，但是循环渐变要求末尾色标的位置必须显式声明，用以确定一个循环的长度。
+
+当首尾色标的颜色不一样时，会出现“急停”现象，颜色在两个循环的交界处发生突变。这对于平滑渐变是不利的，但是有时我们可以故意利用这种现象绘制图案，例如下面的警戒线示例：
+
+```html
+<html>
+<head>
+    <style>  
+        div {
+            width: 20rem;
+            height: 40px;
+            border: 2px solid black;
+            color: white;
+            font-size: large;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div style="background: linear-gradient(-45deg, black 0, black 25px,  25px, darkgoldenrod 50px) top left/40px 40px repeat;">这条警戒线不正常</div>
+    <div style="background: repeating-linear-gradient(-45deg, black 0, black 25px,  25px, darkgoldenrod 50px) top left repeat;">这才应该是警戒线的样式</div>
+</body>
+</html>
+```
+
+### §6.3.4 循环径向渐变(`repeating-radial-gradient`)
+
+循环径向渐变`repeating-radial-gradient`的语法与径向渐变基本一致。
+
+```html
+<html>
+<head>
+    <style>  
+        div {
+            width: 20rem;
+            height: 10rem;
+            border: 2px solid black;
+            color: black;
+            font-size: large;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div style="background: repeating-radial-gradient(100px 50px, lightblue 20px, skyblue 50px, lightblue 80px);">这是循环镜像渐变</div>
+</body>
+</html>
+```
+
+> 注意：虽然循环线性渐变要求所有色标和中色点的位置不能为百分数，但是在循环径向渐变中却可以。
+
+> 注意：如果要让循环径向渐变真正地循环起来，就必须显式声明循环径向渐变的尺寸。这是因为循环渐变尺寸的缺省值为`farthest-corner`。如果渐变中心恰好在容纳块中心，那么它等价于`50% 50%`。这会导致一次循环就会充满整个容纳块，导致渐变只会循环一次。
+
+### §6.3.5 渐变设计技巧
+
+渐变的本质就是图像，这意味着我们可以像图像那样，控制渐变、尺寸和控制方式。以下示例使用渐变创建了图像，作为`background`属性的`<image>`，作为背景图像进行平铺：
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            border: 2px solid black;
+            width: 10rem; 
+            color: white;
+            background: darkcyan center / 25px 25px repeat radial-gradient(
+                circle at center, rgba(0,0,0,0.2), rgba(0,0,0,0.2) 10px, transparent 10px 
+            );
+        }
+    </style>
+</head>
+<body>
+    <div>使用渐变创建图像，作为background属性的&lt;image&gt;，地位等价于url(...)</div>
+</body>
+</html>
+```
+
+利用多个渐变绘制多个图像，应用到多个背景中，可以实现很惊艳的效果。以下示例使用了多个深红-浅红-深红的渐变，绘制了舞台的幕布：
+
+```html
+<html>
+<head>
+    <style>  
+        div {
+            border: 2px solid black;
+            width: 80%;
+            height: 10rem;
+            margin: 0.5rem auto 0.5rem auto;
+            color: #eeeeee;
+            text-shadow: 1px 1px 2px black;
+            font-size: larger;
+            text-align: center;
+            padding-top: 1rem;
+        }
+        div.layer1 {
+            background: linear-gradient(0deg, rgba(255, 128, 128, 0.25), transparent 75%);
+        }
+        div.layer2 {
+            background: linear-gradient(89deg, transparent, transparent 30%, #510A0E 35%, #510A0E 40%, #61100F 43%, #B93F3A 50%,
+                    #4B0408 55%, #6A0F18 60%, #651015 65%, #510A0E 70%,
+                    #510A0E 75%, rgba(255, 128, 128, 0) 80%, transparent);
+        }
+        div.layer3 {
+            background: linear-gradient(92deg,
+                    #510A0E, #510A0E 20%, #61100F 25%, #B93F3A 40%, #4B0408 50%,
+                    #6A0F18 70%, #651015 80%, #510A0E 90%, #510A0E);
+        }
+        div.final {
+            background:
+                linear-gradient(0deg, rgba(255, 128, 128, 0.25), transparent 75%),
+                linear-gradient(89deg, transparent, transparent 30%, #510A0E 35%, #510A0E 40%, #61100F 43%, #B93F3A 50%,
+                    #4B0408 55%, #6A0F18 60%, #651015 65%, #510A0E 70%,
+                    #510A0E 75%, rgba(255, 128, 128, 0) 80%, transparent),
+                linear-gradient(92deg,
+                    #510A0E, #510A0E 20%, #61100F 25%, #B93F3A 40%, #4B0408 50%,
+                    #6A0F18 70%, #651015 80%, #510A0E 90%, #510A0E);
+        }
+    </style>
+</head>
+<body>
+    <div class="layer1">第一层<br/>background: linear-gradient(0deg, rgba(255, 128, 128, 0.25), transparent 75%);</div>
+    <div class="layer2">第二层<br/>background: linear-gradient(89deg, transparent, transparent 30%, #510A0E 35%, #510A0E 40%, #61100F 43%, #B93F3A 50%,
+        #4B0408 55%, #6A0F18 60%, #651015 65%, #510A0E 70%,
+        #510A0E 75%, rgba(255, 128, 128, 0) 80%, transparent);</div>
+    <div class="layer3">第三层<br/>、background: linear-gradient(92deg,
+        #510A0E, #510A0E 20%, #61100F 25%, #B93F3A 40%, #4B0408 50%,
+        #6A0F18 70%, #651015 80%, #510A0E 90%, #510A0E);</div>
+    <div class="final">三层叠加的结果</div>
+</body>
+</html>
+```
+
+## §6.4 盒子投影(`box-shadow`)
+
+`box-shadow`属性用于给元素所在的框体创建投影。其语法与`text-shadow`大致一致。`box-shadow`接受1~4个距离参数与1个颜色参数，其中前两个距离参数代表横轴与纵轴的偏移量，第三个参数表示阴影半径，第四个参数表示阴影扩散距离。但是`box-shadow`支持在属性值开头声明`inset`属性，表示这是个内阴影。
+
+```html
+<html>
+<head>
+    <style>  
+        body {
+            background-image: repeating-linear-gradient(45deg, #eee, #eee 4px, #ccc 4px, #ccc 8px);
+        }
+        div {
+            width: 12rem;
+            height: 6rem;
+            border: 2px solid black;
+            border-radius: 1rem;
+            font-weight: bold;
+            margin: 0.5rem;
+            padding: 0.5rem;
+            background-color: lightblue;
+            float: left;
+        }
+        div:nth-child(1){
+            box-shadow: 10px 10px gray;
+        }
+        div:nth-child(2){
+            box-shadow: inset 10px 10px gray;
+        }
+        div:nth-child(3){
+            box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.5);
+        }
+        div:nth-child(4){
+            box-shadow: inset 0 0 5px 5px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div>这是一个box-shadow: 10px 10px gray;的盒子，是外阴影</div>
+    <div>这是一个inset 10px 10px gray;的盒子，是内阴影</div>
+    <div>这是一个box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.5);的盒子，是向外扩展的渐变阴影</div>
+    <div>这是一个box-shadow: inset 0 0 5px 5px rgba(0, 0, 0, 0.5);的盒子，是向内扩展的渐变阴影</div>
+</body>
+</html>
+```
+
+乍一看，这个投影仿佛就是原框体的复制品，形状上一模一样，只不过被挡住了而已。但实际上并不是这样。做个实验，我们给框体设置透明背景，会发现框体的正下方根本没有盒子投影。这说明盒子投影的形状是不完整的。
+
+```html
+<html>
+<head>
+    <style>  
+        body {
+            background-image: repeating-linear-gradient(45deg, #eee, #eee 4px, #ccc 4px, #ccc 8px);
+        }
+        div {
+            width: 20rem;
+            height: 5rem;
+            border: 2px solid black;
+            font-size: large;
+            font-weight: bold;
+            
+            background-color: rgba(255, 0, 0, 0.3);
+            box-shadow: 10px 10px gray;
+        }
+    </style>
+</head>
+<body>
+    <div>这是一个有投影的盒子</div>
+</body>
+</html>
+```
+
+与`text-shadow`一样，`box-shadow`也可以应用多个投影，用逗号`,`隔开即可。
 
 # §7 浮动
 
