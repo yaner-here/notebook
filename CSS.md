@@ -5090,9 +5090,74 @@ CSS一共提供了五种定位类型，由`position`属性指定：
 
 在相对定位、绝对定位、粘滞定位和固定定位中，需要声明指定定位元素的各边相对容纳块的偏移距离，使用的属性成为偏移属性：`top`、`right`、`bottom`、`left`。
 
+```html
+<html>
+<head>
+    <style>  
+        div.container {
+            background-color: lightgray;
+            width: 20rem;
+            height: 10rem;
+            position: relative;
+        }
+        div.item {
+            background-color: lightblue;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            bottom: 0;
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        这是一个容纳框
+        <div class="item">这是一个定位元素</div>
+    </div>
+</body>
+</html>
+```
+
+在定位元素中，宽度和高度不一定非要用`width`和`height`属性所定义，我们还可以用`top`、`right`、`bottom`、`left`四个便宜属性完全确定。
+
+## §6.2 限制高度和宽度
+
+CSS可以限制一个元素的高度范围与宽度范围，可以通过`min-width`和`max-width`指定宽度的范围，通过`min-height`和`max-height`指定高度的范围。这也是许多响应式设计、移动端视图的基础。
+
+```html
+<html>
+<head>
+    <style>  
+        div.container {
+            background-color: lightgray;
+            width: 80%;
+            height: 10rem;
+            position: relative;
+        }
+        div.item {
+            background-color: lightblue;
+            position: absolute;
+            min-width: 20rem;
+            top: 50%;
+            left: 50%;
+            bottom: 0;
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        这是一个容纳框
+        <div class="item">为了保证这个元素能容纳其中的内容，只有当页面足够宽时，这个定位元素的宽度才是父元素的50%。</div>
+    </div>
+</body>
+</html>
+```
+
+## §6.3 内容溢出和裁剪
 
 
-9.6 13w字
 
 9.7 14w字
 
