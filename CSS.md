@@ -5155,17 +5155,80 @@ CSS可以限制一个元素的高度范围与宽度范围，可以通过`min-wid
 </html>
 ```
 
-## §6.3 内容溢出和裁剪
+## §6.3 内容溢出(`overflow`)
+
+`overflow`属性决定了内容溢出容纳框时的行为：
+
+| `overflow`属性值 | 作用                             |
+| ---------------- | -------------------------------- |
+| `visiable`(缺省) | 超出元素的内容是可见的           |
+| `hidden`         | 超出元素的内容是隐形的           |
+| `scroll`         | 超出元素的内容以滚动条的形式展示 |
+| `auto`           | 由浏览器自行决定                 |
+
+```html
+<html>
+<head>
+    <style>  
+        div.container {
+            background-color: lightgray;
+            width: 20rem;
+            height: 5rem;
+            position: relative;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" style="overflow: visible;">
+        <p>这个容纳框包含着多行文本</p>
+        <p>这个容纳框的样式为overflow: visible;</p>
+        <p>这意味着溢出的内容是可见的</p>
+    </div>
+    <div class="container" style="overflow: hidden;">
+        <p>这个容纳框包含着多行文本</p>
+        <p>这个容纳框的样式为overflow: hidden;</p>
+        <p>这意味着溢出的内容是隐形的</p>
+    </div>
+    <div class="container" style="overflow: scroll;">
+        <p>这个容纳框包含着多行文本</p>
+        <p>这个容纳框的样式为overflow: scroll;</p>
+        <p>这意味着溢出的内容以滚动条的形式展示</p>
+    </div>
+    <div class="container" style="overflow: auto;">
+        <p>这个容纳框包含着多行文本</p>
+        <p>这个容纳框的样式为overflow: auto;</p>
+        <p>这意味着溢出的内容由浏览器自行决定</p>
+    </div>
+</body>
+</html>
+```
+
+## §6.4 可见性(`visibility`)
+
+`visibility`属性决定着元素的可见性
+
+| `visibility`属性值 | 作用                                                   |
+| ------------------ | ------------------------------------------------------ |
+| `visible`(缺省)    | 元素可见                                               |
+| `hidden`           | 语速不可见，但仍然影响布局                             |
+| `collapse`         | 对于渲染表格来说负责折叠，对于非表格元素等价于`hidden` |
+
+> 注意：虽然`display: none`也能让元素隐形，但是实际上该属性将元素完全从文档流中移除，不再占据位置。而`visibility: hidden`不会影响页面布局，甚至边框也依然保留，从视觉效果来说等价于`opacity: 0`。
+
+`visibility`属性是继承的，但是给子元素设置`visibility: visible`，可以突破父元素`visibility: none`的限制。
+
+## §6.5 绝对定位
+
+绝对定位的元素完全从文档流中移除，其位置由相对容纳块的距离确定。绝对定位元素的容纳块是**`position`属性不是`static`的最近的祖辈元素**。我们直到`position`属性的默认值就是`static`。所以我们选中容纳块后，一般将其属性改为`position: relative`，而且不设置偏移。
 
 
-
-9.7 14w字
 
 9.8 15w字
 
 9.9 16w字
 
-9.10 17w字
+
 
 # §A 附录
 
