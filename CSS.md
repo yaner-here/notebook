@@ -5121,7 +5121,7 @@ CSS一共提供了五种定位类型，由`position`属性指定：
 
 在定位元素中，宽度和高度不一定非要用`width`和`height`属性所定义，我们还可以用`top`、`right`、`bottom`、`left`四个便宜属性完全确定。
 
-## §6.2 限制高度和宽度
+## §8.2 限制高度和宽度
 
 CSS可以限制一个元素的高度范围与宽度范围，可以通过`min-width`和`max-width`指定宽度的范围，通过`min-height`和`max-height`指定高度的范围。这也是许多响应式设计、移动端视图的基础。
 
@@ -5155,7 +5155,7 @@ CSS可以限制一个元素的高度范围与宽度范围，可以通过`min-wid
 </html>
 ```
 
-## §6.3 内容溢出(`overflow`)
+## §8.3 内容溢出(`overflow`)
 
 `overflow`属性决定了内容溢出容纳框时的行为：
 
@@ -5204,7 +5204,7 @@ CSS可以限制一个元素的高度范围与宽度范围，可以通过`min-wid
 </html>
 ```
 
-## §6.4 可见性(`visibility`)
+## §8.4 可见性(`visibility`)
 
 `visibility`属性决定着元素的可见性
 
@@ -5218,15 +5218,675 @@ CSS可以限制一个元素的高度范围与宽度范围，可以通过`min-wid
 
 `visibility`属性是继承的，但是给子元素设置`visibility: visible`，可以突破父元素`visibility: none`的限制。
 
-## §6.5 绝对定位
+## §8.5 绝对定位(`position:absolute`)
 
 绝对定位的元素完全从文档流中移除，其位置由相对容纳块的距离确定。绝对定位元素的容纳块是**`position`属性不是`static`的最近的祖辈元素**。我们直到`position`属性的默认值就是`static`。所以我们选中容纳块后，一般将其属性改为`position: relative`，而且不设置偏移。
 
+```html
+<html>
+<head>
+    <style>
+        body {
+            width: 40rem;
+            background-color: lightgray;
+            border: 1px solid black;
+            position: relative;
+        }
+        div {
+            width: 20rem;
+            margin-bottom: 1rem;
+            background-color: gray;
+        }
+        .contain {
+            position: relative;
+        }
+        b {
+            position: absolute;
+            top: auto;
+            right: 0;
+            bottom: 0;
+            left: auto;
+            border: 1px solid black
+        }
+    </style>
+</head>
+<body>
+    <div>This is a <b>paragraph.</b></div>
+    <div class="contain">This is a <b>paragraph.</b></div>
+</body>
+</html>
+```
+
+接下来我们重点讨论绝对定位中的偏移属性的`auto`行为。设想这个绝对定位元素的改为默认值`position: static`，那么它肯定会回到文档流中，并占据一定的位置。这个位置所处的`top`/`right`/`left`即为`position: absolute`与偏移属性值`auto`所采用的值。
+
+```html
+<html>
+<head>
+    <style>
+        div {
+            width: 13rem;
+            border: 1px solid black;
+            margin-left: 1rem;
+        }
+        div > span {
+            position: absolute; /* 偏移属性相对于body */
+            top: auto;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <span>[1]</span>
+        This is a item for reference of some books and articles.
+    </div>
+</body>
+</html>
+```
+
+我们在[§5.3 横向格式化属性](##§5.3 横向格式化属性)一节已经知道了盒模型的横向尺寸必须满足七个属性相加恰好为为容纳块横向距离。现在我们根据学习的定位知识，完善这一条件：
+$$
+\begin{cases}\begin{align}
+	&\text{\textcolor{red}{left}} +
+	\text{margin\_left} + 
+	\text{border\_left} + 
+	\text{padding\_left} + \\
+	&\text{width} + \\
+	&\text{\textcolor{red}{right}} + 
+	\text{margin\_right} +
+	\text{border\_right} +
+	\text{padding\_right}
+\end{align}\end{cases} = 容纳块宽度
+$$
+
+1. 当`width`为`auto`时，当宽度剩余空间足够时，宽度会跟随着内容自动缩放，尽量取得最小值；当宽度剩余空间不足，导致必须换行时，宽度会尽量取得最大值。
+
+2. 当`left`/`right`/`top`为`auto`时，参照本节中偏移属性值`auto`的行为。
+
+   ```html
+   <html>
+   <head>
+       <style>
+       </style>
+   </head>
+   <body>
+       <div style="
+           position: relative; 
+           width: 15em; 
+           border: 1px solid black;"
+       >
+           这句话的一部分被绝对定位元素遮盖住了。
+           <span style="
+               position: absolute; 
+               top: 0; 
+               left: 0; 
+               right: auto; 
+               width: auto;
+               background: silver;"
+           >
+               绝对定位元素
+           </span> 
+           它本应在文档流的中间，但是被因为被设定为绝对定位元素，脱离了文档流。
+       </div>
+   </body>
+   </html>
+   ```
+
+3. 当`margin-left`/`margin-right`均为`auto`时，元素将水平居中：
+
+   ```html
+   <html>
+   <head>
+       <style>
+       </style>
+   </head>
+   <body>
+       <div style="
+           position: relative; 
+           width: 15em; 
+           border: 1px solid black;"
+       >
+           这句话的一部分被绝对定位元素遮盖住了。
+           <span style="
+               position: absolute; 
+               top: 0; 
+               left: 0;
+               margin-left: auto;
+               margin-right: auto;
+               width: auto;
+               background: silver;"
+           >
+               绝对定位元素
+           </span> 
+           它本应在文档流的中间，但是被因为被设定为绝对定位元素，脱离了文档流。
+       </div>
+   </body>
+   </html>
+   ```
+
+4. 如果产生过约束，那么对于从左向右书写的语言，`right`属性将失效，其属性值自动变为`auto`。反之对于从右向左的书写的语言，`left`属性将失效。
+
+   ```html
+   <html>
+   <head>
+       <style>
+       </style>
+   </head>
+   <body>
+       <div style="
+           position: relative; 
+           width: 15em; 
+           border: 1px solid black;"
+       >
+           这句话的一部分被绝对定位元素遮盖住了。
+           <span style="
+               position: absolute; 
+               top: 0; 
+               left: 1rem;
+               right: 1rem; /*右边缘距离容纳框显然不足1rem*/
+               width: 8rem;
+               background: silver;"
+           >
+               绝对定位元素
+           </span> 
+           它本应在文档流的中间，但是被因为被设定为绝对定位元素，脱离了文档流。
+       </div>
+   </body>
+   </html>
+   ```
+
+到目前为止，我们已经讲完了水平方向的定位行为。垂直方向的定位行为非常相似，只有以下两点不同：
+
+1. `bottom: auto`将会被无条件忽略，一切以`top`为准。
+2. 当产生过约束时，`top`具体属性值永远不会被重置。
+
+## §8.6 固定定位(`position:fixed`)
+
+在[§8.5 绝对定位](##§8.5 绝对定位)一节中，我们直到绝对定位参照的容纳块是从父级向上找到的第一个`position`属性非`static`的最近元素。但是固定定位参照的容纳块恒为视区。两者都会将元素从文档流中完全移除。
+
+固定定位经常被用于后台管理页面的页眉、侧边栏、内容区和页脚的排版中：
+
+```html
+<html>
+<head>
+    <style>
+        body { margin: 0; }
+        body > div { 
+            position: fixed; 
+            text-align: center;
+        }
+        div.header {
+            background-color: lightgray;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2rem;
+        }
+        div.footer {
+            background-color: lightgray;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2rem;
+        }
+        div.sidebar {
+            background-color: antiquewhite;
+            top: 2rem;
+            left: 0;
+            width: 10rem;
+            height: calc(100% - 4rem);
+        }
+        div.container {
+            background-color: aquamarine;
+            top: 2rem;
+            left: 10rem;
+            width: calc(100% - 10rem);
+            height: 100%;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header">我是页眉</div>
+    <div class="sidebar">我是侧边栏</div>
+    <div class="container">我是内容</div>
+    <div class="footer">我是页脚</div>
+</body>
+</html>
+```
+
+## §8.7 相对定位(`position:relative`)
+
+相对定位较为特殊，因为它不会让元素脱离文档流，而且身上的偏移属性强调的是变化量：
+
+```html
+<html>
+<head>
+    <style>
+        strong {
+            background-color: lightcoral;
+            position: relative;
+            top: 5px;
+            left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <p>This is a <strong>paragraph</strong>.</p>
+</body>
+</html>
+```
+
+如果相对定位产生了过约束，从CSS2.1开始，强行令`bottom`为`-top`，或者`right`为`-left`。
+
+## §8.8 粘滞定位(`position:sticky`)
+
+粘滞定位指的是某个元素可以在固定定位和绝对定位之间切换。例如在某些面向移动端的无序列表中，`<ul>`刚出现时是绝对定位；当视区顶部已经没过第一个`<li>`时，`<ul>`改为固定定位，固定在视区顶部；当视区顶部没过最后一个`<li>`时，`<ul>`改为绝对定位。
+
+```html
+<html>
+
+<head>
+    <style>
+        div.container {
+            width: 15rem;
+            height: 20rem;
+            border: 1px solid black;
+            overflow: scroll;
+            position: relative;
+        }
+        .container>h2.start {
+            margin: 0;
+            padding: 0.5rem 0.25rem 0.25rem;
+            background-color: lightgray;
+            position: sticky;
+            top: 0;
+        }
+        .container>h2.end {
+            margin: 0;
+            padding: 0.5rem 0.25rem 0.25rem;
+            background-color: lightgray;
+            position: sticky;
+            bottom: 0;
+        }
+        .container>ol {
+            margin: 0;
+            padding: 0;
+        }
+        .container>ol>li {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="start">A start</h2>
+        <ol>
+            <li>abandon</li>
+            <li>ability</li>
+            <li>able</li>
+            <li>abnormal</li>
+            <li>aboard</li>
+            <li>above</li>
+            <li>abroad</li>
+            <li>absence</li>
+        </ol>
+        <h2 class="start">B start</h2>
+        <ol>
+            <li>Baddd Spellah</li>
+            <li>Bif Naked</li>
+        </ol>
+        <h2 class="start">C start</h2>
+        <ol>
+            <li>Cake</li>
+            <li>Chemical Brothers</li>
+            <li>Crystal Method</li>
+        </ol>
+        <h2 class="start">D start</h2>
+        <ol>
+            <li>Deee-Lite</li>
+            <li>Die Kreuzen</li>
+            <li>DJ Z-Trip</li>
+            <li>Django Reinhardt</li>
+        </ol>
+        <h2 class="end">Contact us: ...</h2>
+        <ol>
+            <li>Address: ...</li>
+            <li>Phone: ...</li>
+        </ol>
+    </div>
+</body>
+</html>
+```
+
+## §8.9 Z轴位置(`z-index`)
+
+当多个元素重叠在一起时，`z-index`负责控制图层覆盖。该属性可以设置为任意整数（包括负数）。
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            width: 30rem;
+            height: 15rem;
+            position: relative;
+            background-color: lightgoldenrodyellow;
+            z-index: 1;
+        }
+        .container > div { 
+            position: absolute;
+            padding-top: 0.5rem;
+            text-align: center;
+        }
+        .container > div:nth-child(1) {
+            top: 1rem;
+            bottom: 1rem;
+            left: 2rem;
+            width: 15rem;
+            background-color: lightblue;
+            z-index: 2;
+        }
+        .container > div:nth-child(2) {
+            top: 2rem;
+            height: 2rem;
+            left: 15rem;
+            width: 10rem;
+            background-color: lightcoral;
+            z-index: 3;
+        }
+        .container > div:nth-child(3) {
+            top: 5rem;
+            height: 2rem;
+            left: 15rem;
+            width: 10rem;
+            background-color: lightgreen;
+            z-index: 4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>这是书</div>
+        <div>这是书签</div>
+        <div>这是书签</div>
+    </div>
+</body>
+</html>
+```
+
+`z-index: auto`完全等价于`z-index: 0`。
+
+这里的`z-index`虽然会继承给子元素，但是严格来说继承的不是属性值，而是堆叠上下文。这有点类似于字典序：如果事先给定了`a`和`z`这两个"`z-index`"，那么无论后面的`z-index`多么高，也就像`azzzz`和`zaaaa`一样，`a`开头的始终大于`z`开头的。
+
+确定元素间的堆叠顺序，需要按照如下规则：
+
+1. 如果两个元素互为父子关系，那么无论子元素的`z-index`属性值有多低，它始终在父元素的前面。
+2. 如果两个元素不为父子关系，则向上寻找它们的共同祖辈元素，根据祖辈元素的两个下属父元素的`z-index`判断。
+
+# §9 弹性盒布局
+
+弹性盒依赖于父子关系。在父元素上声明`display:flex`或`display:inline=flex`就能让父元素变成弹性容器，其子元素成为弹性元素。弹性盒布局尤其适用于响应式设计，可以让元素根据可用空间的大小改变尺寸。
+
+> 注意：新版本CSS可以将`flex`和`inline-flex`分别拆成两个关键字，记为`display: flex block`和`display: flex inline`。
+
+弹性盒布局最初的目的是实现一维方向上的布局。栅格布局实现的才是二维布局。
+
+## §9.1 主轴方向(`flex-direction`)
+
+`flex-direction`属性控制排布弹性元素的主轴方向。
+
+| `flex-direction`属性值 | 作用               |
+| ---------------------- | ------------------ |
+| `row`                  | 沿语言水平书写方向 |
+| `row-reverse`          | 沿语言水平书写逆向 |
+| `column`               | 沿语言垂直书写方向 |
+| `column-reverse`       | 沿语言垂直书写逆向 |
+
+```html
+<html>
+<head>
+    <style>
+        .nav {
+            display: flex;
+            border-bottom: 1px solid black;
+            margin: 1rem;
+        }
+        .nav:nth-child(1) { flex-direction: row; }
+        .nav:nth-child(2) { flex-direction: row-reverse; }
+        .nav:nth-child(3) { flex-direction: column; }
+        .nav:nth-child(4) { flex-direction: column-reverse; }
+        a {
+            margin: 0 5px;
+            padding: 5px 15px;
+            border-radius: 3px 3px 0 0;
+            background-color: lightgray;
+            text-decoration: none;
+            color: black;
+        }
+        a:hover, a:focus, a:active {
+            background-color: lightblue;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="#">Home</a>
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+    </div>
+    <div class="nav">
+        <a href="#">Home</a>
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+    </div>
+    <div class="nav">
+        <a href="#">Home</a>
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+    </div>
+    <div class="nav">
+        <a href="#">Home</a>
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+    </div>
+</body>
+</html>
+```
+
+> 注意：遇到从右向左书写的预言时，在实践中不推荐使用`flex-direction`来改变弹性盒布局的主轴方向，而是使用`<div dir="">`或`writing-mode`属性来指定。
+>
+> ```html
+> <html>
+> <head>
+>     <style>
+>         .nav {
+>             display: flex;
+>             border-bottom: 1px solid black;
+>             margin: 1rem;
+>         }
+>         a {
+>             margin: 0 5px;
+>             padding: 5px 15px;
+>             border-radius: 3px 3px 0 0;
+>             background-color: lightgray;
+>             text-decoration: none;
+>             color: black;
+>         }
+>         a:hover, a:focus, a:active {
+>             background-color: lightblue;
+>         }
+>     </style>
+> </head>
+> <body>
+>     <div class="nav" dir="rtl" style="flex-direction: row;">
+>         <a href="#">א</a>
+>         <a href="#">ב</a>
+>         <a href="#">ג</a>
+>     </div>
+>     <div class="nav" style="writing-mode: vertical-rl; flex-direction: row;">
+>         <a href="#">一</a>
+>         <a href="#">二</a>
+>         <a href="#">三</a>
+>     </div>
+> </body>
+> </html>
+> ```
+
+## §9.2 换行(`flex-wrap`)
+
+`flex-wrap`属性决定了弹性元素的换行行为。
+
+| `flex-wrap`属性值 | 作用                                         |
+| ----------------- | -------------------------------------------- |
+| `nowrap`(缺省)    | 不允许弹性元素换哈格                         |
+| `wrap`            | 允许弹性元素换行，溢出的内容在第一行之前显示 |
+| `wrap-reverse`    | 允许弹性元素换行，溢出的内容在第一行之后显示 |
+
+```html
+<html>
+<head>
+    <style>
+        body > div {
+            margin-bottom: 1rem;
+        }
+        div.container {
+            display: flex;
+            background-color: lightgray;
+            width: 15rem;
+        }
+        div.container > * {
+            background-color: lightblue;
+            margin: 1rem;
+            padding: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        flex-wrap: nowrap;
+        <div class="container" style="flex-wrap: nowrap;">
+            <div>A</div>
+            <div>B</div>
+            <div>C</div>
+            <div>D</div>
+            <div>E</div>
+        </div>
+    </div>
+    <div>
+        flex-wrap: nowrap;
+        <div class="container" style="flex-wrap: wrap;">
+            <div>A</div>
+            <div>B</div>
+            <div>C</div>
+            <div>D</div>
+            <div>E</div>
+        </div>
+    </div>
+    <div>
+        flex-wrap: nowrap;
+        <div class="container" style="flex-wrap: wrap-reverse;">
+            <div>A</div>
+            <div>B</div>
+            <div>C</div>
+            <div>D</div>
+            <div>E</div>
+        </div>
+    </div>
+</body>
+</html>
+```
+
+## §9.3 弹性流(`flex-flow`)
+
+`flex-flow`属性是`flex-direction`和`flex-wrap`的两个属性的简写形式。例如`flex-flow: row nowrap`就同时定义了`flex-direction: row`和`flex-wrap: nowrap`两个属性。
+
+`flex-flow`属性最后同时接受两个关键字。若其中一个未指定，则采用对应属性的缺省值。
+
+## §9.4 调整内容(`justify-content`)
+
+`justify-content`属性控制弹性容器在主轴上为弹性元素排版的行为。该属性应用于弹性容器上，而非弹性元素上。
+
+| `justify-content`属性值 | 内容                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| `flex-start`(缺省)      | 居左紧排。若溢出，则只从主轴终边溢出                         |
+| `flex-end`              | 居右紧排。若溢出，则只从主轴起边溢出                         |
+| `center`                | 居中紧排。若溢出，则从主轴起边和终边溢出相等距离             |
+| `space-between`         | 间隔比例为`0:1:1:...:1:1:0`。如果只有一个弹性子元素，则向主轴起边对齐。若溢出，则只从主轴终边溢出 |
+| `space-around`          | 间隔比例为`1:2:2:...:2:2:1`。如果只有一个子元素，则居中排列。若溢出，则从主轴起边和终边溢出相等距离 |
+| `space-evenly`          | 间隔比例为`1:1:1:...:1:1:1`。如果只有一个子元素，则居中排列。若溢出，则从主轴起边和终边溢出相等距离 |
+
+```html
+<html>
+<head>
+    <style>
+        body > div {
+            margin-bottom: 1rem;
+        }
+        div.container {
+            display: flex;
+            background-color: lightgray;
+            width: 15rem;
+        }
+        div.container > * {
+            background-color: skyblue;
+            margin: 0.2rem;
+            padding: 0.2rem;
+        }
+        div.container:nth-child(1) { justify-content: flex-start; }
+        div.container:nth-child(2) { justify-content: flex-end; }
+        div.container:nth-child(3) { justify-content: center; }
+        div.container:nth-child(4) { justify-content: space-between; }
+        div.container:nth-child(5) { justify-content: space-around; }
+        div.container:nth-child(6) { justify-content: space-evenly; }
+    </style>
+</head>
+<body>
+    justify-content: flex-start;
+    <div class="container">
+        <div>A</div><div>B</div><div>C</div>
+    </div>
+
+    justify-content: flex-end;
+    <div class="container">
+        <div>A</div><div>B</div><div>C</div>
+    </div>
+
+    justify-content: center;
+    <div class="container">
+        <div>A</div><div>B</div><div>C</div>
+    </div>
+
+    justify-content: space-between;
+    <div class="container">
+        <div>A</div><div>B</div><div>C</div>
+    </div>
+
+    justify-content: space-around;
+    <div class="container">
+        <div>A</div><div>B</div><div>C</div>
+    </div>
+
+    justify-content: space-evenly;
+    <div class="container">
+        <div>A</div><div>B</div><div>C</div>
+    </div>
+</body>
+</html>
+```
 
 
-9.8 15w字
 
-9.9 16w字
+9.18 14w字
+
+9.19 15w字
+
+9.20 16w字
+
+9.21 17w字
+
+9.22 18w字
 
 
 
