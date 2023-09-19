@@ -5633,7 +5633,9 @@ $$
 
 弹性盒布局最初的目的是实现一维方向上的布局。栅格布局实现的才是二维布局。
 
-## §9.1 主轴方向(`flex-direction`)
+## §9.1 弹性容器
+
+### §9.1.1 主轴方向(`flex-direction`)
 
 `flex-direction`属性控制排布弹性元素的主轴方向。
 
@@ -5734,13 +5736,13 @@ $$
 > </html>
 > ```
 
-## §9.2 换行(`flex-wrap`)
+### §9.1.2 换行(`flex-wrap`)
 
 `flex-wrap`属性决定了弹性元素的换行行为。
 
 | `flex-wrap`属性值 | 作用                                         |
 | ----------------- | -------------------------------------------- |
-| `nowrap`(缺省)    | 不允许弹性元素换哈格                         |
+| `nowrap`(缺省)    | 不允许弹性元素换行                           |
 | `wrap`            | 允许弹性元素换行，溢出的内容在第一行之前显示 |
 | `wrap-reverse`    | 允许弹性元素换行，溢出的内容在第一行之后显示 |
 
@@ -5798,13 +5800,13 @@ $$
 </html>
 ```
 
-## §9.3 弹性流(`flex-flow`)
+### §9.1.3 弹性流(`flex-flow`)
 
 `flex-flow`属性是`flex-direction`和`flex-wrap`的两个属性的简写形式。例如`flex-flow: row nowrap`就同时定义了`flex-direction: row`和`flex-wrap: nowrap`两个属性。
 
 `flex-flow`属性最后同时接受两个关键字。若其中一个未指定，则采用对应属性的缺省值。
 
-## §9.4 调整内容(`justify-content`)
+### §9.1.4 调整内容(`justify-content`)
 
 `justify-content`属性控制弹性容器在主轴上为弹性元素排版的行为。该属性应用于弹性容器上，而非弹性元素上。
 
@@ -5876,17 +5878,587 @@ $$
 </html>
 ```
 
+### §9.1.5 对齐元素(`align-items`)
+
+`align-items`属性决定弹性元素在垂轴上的对齐方式。该属性只能应用于弹性容器上，而不能用在单个弹性元素上。
+
+| `align-items`属性值 | 作用                                                         |
+| ------------------- | ------------------------------------------------------------ |
+| `flex-start`        | 将所有弹性元素沿垂轴起边对齐                                 |
+| `flex-end`          | 将所有弹性元素沿垂轴终边对齐                                 |
+| `center`            | 让所有弹性元素的中心线重叠                                   |
+| `baseline`          | 将所有元素的第一条基线重叠在一起，让基线最低的元素保持不动（受`margin-top`和`font-size`影响），其他元素移动位置 |
+| `stretch`(缺省)     | 将所在行中的弹性元素拉伸至与最高弹性元素一样的水平，除非设置了`width`/`min-width`/`max-width`/`height`/`min-height`/`max-height` |
+
+```html
+<html>
+<head>
+    <style>
+        body > div.container {
+            display: flex;
+            flex-wrap: wrap;
+            background-color: lightgray;
+            width: 15rem;
+            margin-bottom: 1rem;
+        }
+        body > div.container > * {
+            background-color: lightblue;
+            border: 1px solid black;
+            margin: 0.2rem;
+            width: 4rem;
+            text-align: center;
+        }
+        .larger {
+            font-size: x-large;
+            font-weight: bold;
+        }
+        body > div.container:nth-child(1) { align-items: flex-start; }
+        body > div.container:nth-child(2) { align-items: flex-end; }
+        body > div.container:nth-child(3) { align-items: center;}
+        body > div.container:nth-child(4) { align-items: baseline; }
+        body > div.container:nth-child(5) { align-items: stretch; }
+    </style>
+</head>
+<body>
+    align-items: flex-start;
+    <div class="container"></div>
+
+    align-items: flex-end;
+    <div class="container"></div>
+
+    align-items: center;
+    <div class="container"></div>
+
+    align-items: baseline;
+    <div class="container"></div>
+
+    align-items: stretch;
+    <div class="container"></div>
+
+    <script>
+        const containerDOMs = document.querySelectorAll('.container');
+        containerDOMs.forEach(element => {
+            element.innerHTML = "<div>1</div><div>2<br>2</div><div class='larger'>3<br>3<br>3</div><div>4<br>4<br>4<br>4</div><div>5<br>5<br>5<br>5<br>5</div>";
+        });
+    </script>
+</body>
+</html>
+```
+
+### §9.1.6 对齐元素(`align-self`)
+
+前面在[§9.5 对齐元素(`align-items`)](##§9.5 对齐元素(`align-items`))一节我们提到，`align-items`属性只能用在弹性容器身上，从而作用于所有弹性元素。`align-self`的作用与取值与`align-items`完全一致，唯一不同的是`align-self`只能用在弹性元素身上，而且可以覆盖父元素的`align-items`。
+
+```html
+<html>
+<head>
+    <style>
+        body > div.container {
+            display: flex;
+            flex-wrap: wrap;
+            background-color: lightgray;
+            width: 30rem;
+            margin-bottom: 1rem;
+        }
+        body > div.container > * {
+            background-color: lightblue;
+            border: 1px solid black;
+            margin: 0.2rem;
+            width: 4rem;
+            text-align: center;
+        }
+        body > div.container:nth-child(1) { align-items: flex-start; }
+        body > div.container > *:nth-child(1) { align-self: stretch; } /* 单独的stretch */
+        body > div.container > *:nth-child(2) { align-self: center; } /* 单独的center */
+        body > div.container > *:nth-child(3) { align-self: flex-end; } /* 单独的center */
+    </style>
+</head>
+<body>
+    align-items: stretch;
+    <div class="container"></div>
+    <script>
+        const containerDOMs = document.querySelectorAll('.container');
+        containerDOMs.forEach(element => {
+            element.innerHTML = "<div>1</div><div>2<br>2</div><div>3<br>3<br>3</div><div>4<br>4<br>4<br>4</div><div>5<br>5<br>5<br>5<br>5</div>";
+        });
+    </script>
+</body>
+</html>
+```
+
+### §9.1.7 对齐内容(`align-content`)
+
+`align-content`属性决定弹性容器空间充足时如何在垂轴方向对齐每一行元素，也决定空间不足时让弹性元素从哪一个方向溢出。该属性可以看作是`justify-content`的垂轴版，只不过调整的不再是各个弹性元素的横向间隔，而是各个行的纵向间隔。
+
+| `align-content`属性值 | 作用                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| `flex-start`          | 所有的弹性元素行都靠弹性容器顶部对齐                         |
+| `flex-end`            | 所有的弹性元素行都靠弹性容器底部对齐                         |
+| `center`              | 最上元素行与弹性容器顶部，和最下元素行与弹性容器底部之间的距离相等 |
+| `space-between`       | 间隔比例为`0:1:1:...:1:1:0`。如果只有一个弹性子元素，则向主轴起边对齐。若溢出，则只从主轴终边溢出 |
+| `space-around`        | 间隔比例为`1:2:2:...:2:2:1`。如果只有一个弹性子元素，则向主轴起边对齐。若溢出，则只从主轴终边溢出 |
+| `space-evenly`        | 间隔比例为`1:1:1:...:1:1:1`。如果只有一个弹性子元素，则向主轴起边对齐。若溢出，则只从主轴终边溢出 |
+| `stretch`(缺省)       | 调整行高填满弹性容器的整个高度                               |
+
+```html
+<html>
+<head>
+    <style>
+        body > div.container {
+            display: flex;
+            flex-wrap: wrap;
+            background-color: lightgray;
+            width: 30rem;
+            height: 15rem;
+        }
+        body > div.container > * {
+            background-color: lightblue;
+            border: 1px solid black;
+            width: 6rem;
+            text-align: center;
+        }
+        body > div.container:nth-child(1) { align-content: flex-start; }
+        body > div.container:nth-child(2) { align-content: flex-end; }
+        body > div.container:nth-child(3) { align-content: center; }
+        body > div.container:nth-child(4) { align-content: space-between; }
+        body > div.container:nth-child(5) { align-content: space-around; }
+        body > div.container:nth-child(6) { align-content: space-evenly; }
+        body > div.container:nth-child(7) { align-content: stretch; }
+    </style>
+</head>
+<body>
+    align-content: flex-start;
+    <div class="container"></div>
+    align-content: flex-end;
+    <div class="container"></div>
+    align-content: center;
+    <div class="container"></div>
+    align-content: space-between;
+    <div class="container"></div>
+    align-content: space-around;
+    <div class="container"></div>
+    align-content: space-evenly;
+    <div class="container"></div>
+    align-content: stretch;
+    <div class="container"></div>
+    <script>
+        const containerDOMs = document.querySelectorAll('.container');
+        containerDOMs.forEach(element => {
+            element.innerHTML = "<div>1</div><div>2<br>2</div><div>3<br>3<br>3</div><div>4<br>4<br>4<br>4</div><div>5<br>5<br>5<br>5<br>5</div>";
+        });
+    </script>
+</body>
+</html>
+```
+
+## §9.2 弹性元素
+
+### §9.2.1 弹性元素的特点
+
+我们知道，被`display: flex`或`display: flex-inline`修饰的元素是弹性容器，其直接的子元素称为弹性元素。弹性元素的"弹性"一词，指的是弹性元素能在主轴方向上灵活地改变尺寸。
+
+弹性元素有以下特点：
+
+1. 弹性元素的外边距(`margin`)不折叠。
+
+2. 弹性元素不会受到浮动(`float`)和`clear`属性的影响，给弹性元素设置这些元素会被忽略，因此不会脱离文档流。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .container {
+               display: flex;
+               background-color: lightgray;
+           }
+           .container > img {
+               float: left; /* 这个属性没有生效 */
+           }
+       </style>
+   </head>
+   <body>
+       <div class="container">
+           <h1>标题</h1>
+           <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_light_color_272x92dp.png" style="width: 10rem;height: 4rem;">
+           <span>内容</span>
+       </div>
+   </body>
+   </html>
+   ```
+
+3. 所有弹性元素都会转变为块级元素，除非它被声明为`position: absolute`，这会导致弹性元素脱离文档流，因此不会再参与弹性布局。但是弹性布局的相关属性（例如`justify-content`和`align-self`）会影响`top`/`left`的默认值。
+
+### §9.2.2 弹性增长因子(`flex-grow`)
+
+`flex-grow`表示弹性元素为了占满可用空间可以增加多少距离。其属性值是一个非负实数，默认值为0。
+
+`flex-grow`的对元素宽度的计算算法如下：
+
+1. 如果$\displaystyle\sum_{i}{\text{width}(i)}\geq\text{width}(弹性容器)$，则退出算法。
+2. 记$\Delta\text{width}=\text{width}(弹性容器)-\displaystyle{\sum_{i}{\text{width}(i)}}>0$。也就是说所有弹性元素的宽度加起来还能增加$\Delta\text{width}$。而每个元素的$\text{flex-grow}(i)\times\text{width}(i)$就是按比例瓜分$\Delta\text{width}$的权重。综上所述，各个元素增长后的宽度为$\text{width}'(i)=\text{width}(i)+\displaystyle\frac{\text{flex-grow}(i)\times\text{width}(i)}{\displaystyle\sum_{i}{(\text{flex-grow}(i)\times\text{width}(i))}}\times\Delta\text{width}$。
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            display: flex;
+            background-color: lightgray;
+            border: 1px solid black;
+            width: 60rem;
+            margin-bottom: 0.5rem;
+        }
+        .container > * {
+            height: 3rem;
+            border: 1px solid black;
+            margin: 0.5rem 0.2rem;
+        }
+        body > .container:nth-child(1) > *:nth-child(1){ width: 10rem; flex-grow: 0; }
+        body > .container:nth-child(1) > *:nth-child(2){ width: 15rem; flex-grow: 0; }
+        body > .container:nth-child(1) > *:nth-child(3){ width: 20rem; flex-grow: 0; }
+
+        body > .container:nth-child(2) > *:nth-child(1){ width: 10rem; flex-grow: 1; }
+        body > .container:nth-child(2) > *:nth-child(2){ width: 15rem; flex-grow: 2; }
+        body > .container:nth-child(2) > *:nth-child(3){ width: 20rem; flex-grow: 5; }
+
+        body > .container:nth-child(3) > *:nth-child(1){ width: 10rem; flex-grow: 0.125; }
+        body > .container:nth-child(3) > *:nth-child(2){ width: 15rem; flex-grow: 0.250; }
+        body > .container:nth-child(3) > *:nth-child(3){ width: 20rem; flex-grow: 0.625; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>flex-grow: 0<br>width: 10rem</div>
+        <div>flex-grow: 0<br>width: 15rem</div>
+        <div>flex-grow: 0<br>width: 20rem</div>
+    </div>
+    <div class="container">
+        <div>flex-grow: 1<br>width: 10rem</div>
+        <div>flex-grow: 2<br>width: 15rem</div>
+        <div>flex-grow: 5<br>width: 20rem</div>
+    </div>
+    <div class="container">
+        <div>flex-grow: 0.125<br>width: 10rem</div>
+        <div>flex-grow: 0.250<br>width: 15rem</div>
+        <div>flex-grow: 0.625<br>width: 20rem</div>
+    </div>
+</body>
+</html>
+```
+
+### §9.2.3 弹性缩减因子(`flex-shrink`)
+
+`flex-shrink`表示为了防止溢出可以减少多少距离。该属性值是一个非负实数，初始值为1。
+
+`flex-shrink`的对元素宽度的计算算法如下：
+
+1. 如果$\displaystyle\sum_{i}{\text{width}(i)}\leq\text{width}(弹性容器)$，则退出算法。
+2. 记$\Delta\text{width}=\displaystyle{\sum_{i}{\text{width}(i)}}-\text{width}(弹性容器)>0$。也就是说所有弹性元素的宽度加起来还能缩减$\Delta\text{width}$。而每个元素的$\text{flex-shrink}(i)\times\text{width}(i)$就是按比例瓜分$\Delta\text{width}$的权重。综上所述，各个元素增长后的宽度为$\text{width}'(i)=\text{width}(i)-\displaystyle\frac{\text{flex-shrink}(i)\times\text{width}(i)}{\displaystyle\sum_{i}{(\text{flex-shrink}(i)}\times\text{width}(i))}\times\Delta\text{width}$。
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            display: flex;
+            flex-wrap: nowrap;
+            background-color: lightgray;
+            border: 1px solid black;
+            width: 40rem;
+            margin-bottom: 0.5rem;
+        }
+        .container > * {
+            height: 3rem;
+            border: 1px solid black;
+            margin: 0.5rem 0.2rem;
+        }
+        body > .container:nth-child(1) > *:nth-child(1){ width: 10rem; flex-shrink: 0; }
+        body > .container:nth-child(1) > *:nth-child(2){ width: 15rem; flex-shrink: 0; }
+        body > .container:nth-child(1) > *:nth-child(3){ width: 20rem; flex-shrink: 0; }
+
+        body > .container:nth-child(2) > *:nth-child(1){ width: 10rem; flex-shrink: 1; }
+        body > .container:nth-child(2) > *:nth-child(2){ width: 15rem; flex-shrink: 1; }
+        body > .container:nth-child(2) > *:nth-child(3){ width: 20rem; flex-shrink: 1; }
+
+        body > .container:nth-child(3) > *:nth-child(1){ width: 10rem; flex-shrink: 10; }
+        body > .container:nth-child(3) > *:nth-child(2){ width: 15rem; flex-shrink: 10; }
+        body > .container:nth-child(3) > *:nth-child(3){ width: 20rem; flex-shrink: 10; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>flex-shrink: 0<br>width: 10rem</div>
+        <div>flex-shrink: 0<br>width: 15rem</div>
+        <div>flex-shrink: 0<br>width: 20rem</div>
+    </div>
+    <div class="container">
+        <div>flex-shrink: 1<br>width: 10rem</div>
+        <div>flex-shrink: 1<br>width: 15rem</div>
+        <div>flex-shrink: 1<br>width: 20rem</div>
+    </div>
+    <div class="container">
+        <div>flex-shrink: 10<br>width: 10rem</div>
+        <div>flex-shrink: 10<br>width: 15rem</div>
+        <div>flex-shrink: 10<br>width: 20rem</div>
+    </div>
+</body>
+</html>
+```
+
+> 提示：规范明确不鼓励通过`flex-shrink`属性指定弹性缩减因子，而是通过`flex`属性统一指定。
+
+### §9.2.4 弹性基准(`flex-basis`)
+
+`flex-basis`属性用于定义弹性元素的初始尺寸，也就是在`flex-grow`和`flex-shrink`生效前的尺寸。该属性值可以为绝对长度，也可以为参照主轴长度的相对长度，也可以为`auto`，此时优先参考`width`/`height`，若未指定则为`content`。
+
+> 注意：弹性元素的`flex`/`flex-basis`属性永远优先，因此即使`height`和`width`有`!important`也不会生效。除非`flex-basis`的属性值为缺省状态下的`auto`，此时`flex-basis`优先参考`width`/`height`。
+>
+> ```html
+> <html>
+> <head>
+>     <style>
+>         .container {
+>             display: flex;
+>             width: 30rem;
+>             background-color: lightgray;
+>             border: 1px solid black;
+>             flex-wrap: nowrap;
+>         }
+>         .container > * {
+>             padding: 1rem;
+>             margin: 0.1rem;
+>             border: 1px solid black;
+>         }
+>         .container > *:nth-child(1) { flex-basis: 10rem; width: 5rem; } /* width属性没有生效 */
+>         .container > *:nth-child(2) { flex-basis: 10rem; width: 10rem; }
+>     </style>
+> </head>
+> <body>
+>     <div class="container">
+>         <div>Hello</div>
+>         <div>World</div>
+>     </div>
+> </body>
+> </html>
+> ```
+
+如果没有声明`flex`和`flex-basis`属性，则`flex-basis`默认为`auto`。但是如果声明了`flex`，却没有在其中显示声明`flex-basis`，则`flex-basis`默认为`0`，这代表着其弹性基准默认为整个主轴。
+
+### §9.2.5 弹性属性(`flex`)
+
+`flex`属性是`flex-grow`、`flow-shrink`、`flex-basis`三个属性的集合体。语法为`[flex-grow flex-shrink>? || flex-basis] | none`，也就是说`flex-grow flex-shrink?`和`flex-basis`至少出现一个，顺序任意。初始值为`0 1 auto`。
+
+除此以外，CSS也为`flex`属性定义了一些常用的关键字，用于简写：
+
+| `flex`简写关键字 | 作用                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| `initial`        | 等价于`flex: 0 1 auto`。根据`width`/`height`属性值，作为`max-width`/`max-height`和`flex-basis` |
+| `auto`           | 等价于`flex: 1 1 auto`。根据`width`/`height`属性值，作为`flex-basis` |
+| `none`           | 等价于`flex: 0 0 auto`。根据`width`/`height`属性值，作为`max-width`/`max-height`和`min-width`/`min-height`和`flex-basis` |
+| `<number>`       | 等价于`flex: <numbder> 0 0`。将该`<numbder>`作为`flex-grow`属性值 |
+
+### §9.2.6 顺序(`order`)
+
+默认情况下，弹性元素的显示顺序与源代码完全相同或相反。如果要对齐进行更细致的排列，可以使用`order`属性控制单个弹性元素的显示顺序。改属性值为任意整数（包括负整数），初始值为0。数值越大，排列位置越靠后。
+
+`order`属性值相同的弹性元素属于同一个排序组。排序组之间的顺序由`order`属性值决定，排序组之内的顺序还是由源代码决定。
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            display: flex;
+            width: 30rem;
+            background-color: lightgray;
+            border: 1px solid black;
+            flex-wrap: nowrap;
+        }
+        .container > * {
+            padding: 1rem;
+            margin: 0.1rem;
+            border: 1px solid black;
+            text-align: center;
+            width: 1rem;
+        }
+        .container > *:nth-child(2) { order: 1; } /* 2排到了最后 */
+        .container > *:nth-child(5) { order: -1; } /* 5排到了最前 */
+        .container > *:nth-child(8) { order: -1; } /* 2和5同属一个排序组，在源代码中2在5的前面 */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>1</div>
+        <div>2</div>
+        <div>3</div>
+        <div>4</div>
+        <div>5</div>
+        <div>6</div>
+        <div>7</div>
+        <div>8</div>
+        <div>9</div>
+    </div>
+</body>
+</html>
+```
+
+> 注意：`order`属性改变的是显示顺序，它不能改变Tab键的索引顺序。
+
+## §9.3 响应式设计
+
+弹性盒布局被广泛应用与响应式设计中。考虑以下需求：将页面垂直分成三列，从左往右分别为菜单、内容区、侧边栏。我们给出以下通用示例CSS并进行分析：
+
+```css
+nav {flex: 0 1 200px; min-width: 150px}
+article {flex: 1 2 600px;}
+aside {flex: 0 1 200px; min-width: 150px}
+```
+
+1. 当页面空间足够时，由于左右两列的`flex-grow`均为0，所以尺寸不变，均为`200px`。只有`<article>`参与拉伸，填满所有空余空间。
+2. 当页面空间略有不足时，由于三列的`flex-shrink`均不为0，所以尺寸都会减小。三者按照$1\times 200 :2\times600:1\times 200=1:6:1$的比例缩小。
+3. 当页面空间继续不足时，触发了左右两列的`min-width: 150px`限制，所以左右两列不再参与尺寸变化，只有中间一列继续缩小。
+
+```html
+<html>
+<head>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            width: 100%;
+            font-size: xx-large;
+            color: white;
+            background-color: darkblue;
+            text-align: center;
+            height: 4rem;
+            line-height: 4rem;
+        }
+        main {
+            width: 100%;
+            height: calc(100% - 4rem);
+            background-color: lightgray;
+            display: flex;
+        }
+        main > nav {
+            flex: 0 1 200px;
+            min-width: 150px;
+            background: linear-gradient(180deg, black, #333);
+        }
+        main > nav > ul {
+            list-style-type: none;
+        }
+        main > nav > ul > li {
+            margin-top: 0.2rem;
+            margin-bottom: 0.2rem;
+            height: 3rem;
+            line-height: 3rem;
+            padding-left: 1rem;
+            /* padding-top: 0.5rem; */
+            background: linear-gradient(90deg, #111, gray);
+        }
+        main > nav > ul > li:hover, main > nav > ul > li:active {
+            background: linear-gradient(90deg, #444, gray);
+        }
+        main > nav > ul > li > a {
+            text-decoration: none;
+            color: white;
+        }
+
+        main > article {
+            padding: 1rem;
+            flex: 1 2 600px;
+            background-color: lightyellow;
+        }
+        main > aside {
+            flex: 0 1 200px;
+            min-width: 150px;
+            background-color: lightpink;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header>这是标题</header>
+    <main>
+        <nav>
+            <ul>
+                <li><a href="#">首页</a></li>
+                <li><a href="#">新闻</a></li>
+                <li><a href="#">支持</a></li>
+                <li><a href="#">关于我们</a></li>
+            </ul>
+        </nav>
+        <article>这是内容</article>
+        <aside>这是侧边栏</aside>
+    </main>
+</body>
+</html>
+```
+
+# §10 栅格布局
+
+栅格布局更加普适，它基于行和列的二维布局。它的子元素被称为栅格元素。
+
+## §10.1 栅格容器
+
+开发者可以通过`display`属性声明栅格容器。栅格容器分为两种，一种是常规栅格（`display: grid`），另一种是行内栅格（`display: inline-grid`）。
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            background-color: lightgray;
+            margin-bottom: 1rem;
+        }
+        .container > .grid {
+            border: 1px solid black;
+            width: 100px; 
+            height: 50px;
+	        grid-template-rows: repeat(2,1fr); 
+            grid-template-columns: repeat(2,1fr);
+        }
+        .container:nth-child(1) > .grid { display: grid; }
+        .container:nth-child(2) > .grid { display: inline-grid; }
+        .container > .grid > * { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        This is a <div class="grid"></div> in the middle of this sentence.
+    </div>
+    <div class="container">
+        This is a <div class="grid"></div> in the middle of this sentence.
+    </div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach(element => {
+            element.innerHTML = "<span></span><span></span><span></span><span></span>"
+        });
+    </script>
+</body>
+</html>
+```
+
+之所以不将常规栅格称为"块级栅格"，是因为CSS规范明确指出栅格容器不是块级容器。栅格容器与块级元素这两者之间有以下两点区别：
+
+1. 浮动的元素不会打乱栅格容器。块级元素面对浮动元素时，倾向于在浮动元素的下方开始显示。而栅格元素在垂直方向上见缝插针。
+2. 栅格容器的外边距(`margin`)不与其后代的外边距折叠。例如对于块级元素及其子元素而言，两者同时设置`margin-top: 1rem`时，在父元素内部来看，相当于父元素设置了`padding-top: 0`，也就是两个外边距发生的折叠，导致从视觉上来看子元素的顶部紧贴父元素的顶部。而在栅格容器中，这样做从视觉上来看两者顶部间隔的距离就是子元素的`margin-top`值。
+3. 栅格容器的所有`column`系列属性都会被忽略。`columns`/`column-count`是CSS3新增的属性。
+4. 栅格容器没有`::first-line`和`::first-letter`伪元素，如果使用将会被忽略。
+5. 栅格元素（不是栅格容器）上的`float`和`clear`属性将会被忽略。
+6. `vertical-align`属性对栅格元素不起作用。
+7. 如果栅格元素被`display: float`或`display: absolute`修饰，且栅格容器被为行内栅格（被`display: inline-grid`修饰），则栅格容器自动转变为常规栅格（用`grid`取代`inline-grid`）。
 
 
-9.18 14w字
 
-9.19 15w字
+9.20 19w字
 
-9.20 16w字
+9.21 20w字
 
-9.21 17w字
-
-9.22 18w字
+9.22 21w字
 
 
 
