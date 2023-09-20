@@ -6401,6 +6401,10 @@ aside {flex: 0 1 200px; min-width: 150px}
 
 栅格布局更加普适，它基于行和列的二维布局。它的子元素被称为栅格元素。
 
+- 栅格轨道：两条位于栅格边缘且相对着的栅格线之间夹住的整个区域。从栅格容器的一边延伸到对边，即栅格列或栅格行。
+- 栅格单元：四条相邻的栅格线围成的矩形区域，且内部没有其它栅格线贯穿。
+- 栅格区域：任意四条栅格线围成的矩形区域，由一个或多个栅格单元组成。
+
 ## §10.1 栅格容器
 
 开发者可以通过`display`属性声明栅格容器。栅格容器分为两种，一种是常规栅格（`display: grid`），另一种是行内栅格（`display: inline-grid`）。
@@ -6452,6 +6456,407 @@ aside {flex: 0 1 200px; min-width: 150px}
 6. `vertical-align`属性对栅格元素不起作用。
 7. 如果栅格元素被`display: float`或`display: absolute`修饰，且栅格容器被为行内栅格（被`display: inline-grid`修饰），则栅格容器自动转变为常规栅格（用`grid`取代`inline-grid`）。
 
+## §10.2 栅格线(`grid-template-rows/columns`)
+
+`grid-template-rows`和`grid-template-columns`用于大致定义栅格模版中的栅格线。这两个属性的语法及其复杂：
+
+```mermaid
+flowchart TB
+	grid-template["grid-template-rows/grid-template-columns:<br>none|&lt;track-list&gt;|&lt;auto-track-list&gt;"]
+	track-list["&lt;track-list>:<br>[&lt;line-names&gt;?[&lt;track-size&gt;|&lt;track-repeat&gt;]]+&lt;line-names&gt;?"]
+	auto-track-list["&lt;auto-track-list&gt;<br>[&lt;line-names&gt;?[&lt;fixed-size&gt;|&lt;fixed-repeat&gt;]]*&lt;line-names&gt;?&lt;auto-repeat&gt;[&lt;line-names&gt;?[&lt;fixed-size&gt;|&lt;fixed-repeat&gt;]]*&lt;line-names&gt;?"]
+	line-name-list["&lt;line-name-list&gt;:<br>[&lt;line-names&gt;|&lt;name-repeat&gt;]+"]
+	line-names["&lt;line-names&gt;:<br>'['&lt;custom-ident&gt;*']'"]
+	track-size["&lt;track-size&gt;:<br>&lt;track-breadth&gt;|minmax(&lt;inflexible-breadth&gt;,&lt;track-breadth&gt;)|fit-content(&lt;length-percentage&gt;)"]
+	track-repeat["&lt;track-repeat&gt;:<br>repeat([&lt;integer[1,∞]&gt;],[&lt;line-names&gt;?&lt;track-size&gt;]+&lt;line-names&gt;?)"]
+	fixed-size["&lt;fixed-size&gt;:<br>&lt;fixed-breadth&gt;|minmax(&lt;fixed-breadth&gt;,&lt;track-breadth&gt;)|minmax(&lt;inflexible-breadth&gt;,&lt;fixed-breadth&gt;)"]
+	fixed-repeat["&lt;fixed-repeat&gt;:<br>repeat([&lt;integer[1,∞]&gt;],[&lt;line-names&gt;?&lt;fixed-size&gt;]+&lt;line-names&gt;?)"]
+	auto-repeat["&lt;auto-repeat&gt;:<br>repeat([auto-fill|auto-fit],[&lt;line-names&gt;?&lt;fixed-size&gt;]+&lt;line-names&gt;?)"]
+	name-repeat["&lt;name-repeat&gt;:<br>repeat([&lt;integer[1,∞]&gt;|auto-fill],&lt;line-names&gt;+)"]
+	track-breadth["&lt;track-breadth&gt;:<br>&lt;length-percentage&gt;|&lt;flex&gt;|min-content|max-content|auto"]
+	inflexible-breadth["&lt;inflexible-breadth&gt;:<br>&lt;length-percentage&gt;|min-content|max-content|auto"]
+	length-percentage["&lt;length-percentage&gt;:<br>&lt;length&gt;|&lt;percentage&gt;"]
+	fixed-breadth["&lt;fixed-breadth&gt;:<br>&lt;length-percentage&gt;"]
+	
+	grid-template --> track-list & auto-track-list & line-name-list
+	track-list --> line-names & track-size & track-repeat 
+	auto-track-list --> line-names & fixed-size & fixed-repeat & auto-repeat
+	line-name-list --> line-names & name-repeat
+	line-names
+	track-size --> track-breadth & inflexiable-breadth & length-percentage
+	track-repeat --> line-names & track-size & line-names
+	fixed-size --> fixed-breadth & inflexiable-breadth
+	fixed-repeat --> line-names & fixed-size & line-names
+	auto-repeat --> line-names & fixed-size & line-names
+	name-repeat --> line-names
+```
+
+### §10.2.1 宽度固定的栅格轨道
+
+这里所说的“固定”，指的是栅格线之间的距离不受内容的影响。
+
+在下面的例子中，我们创建了一个三列的栅格容器，宽度分别为`200px`、栅格容器宽度的`50%`、`100px`。
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            background-color: lightgray;
+            width: 40rem;
+            height: 12rem;
+            display: grid;
+            grid-template-columns: 200px 50% 100px;
+        }
+        .grid > * {
+            background-color: lightblue;
+            border: 1px solid black;
+            margin-right: 0.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid">
+        <div>Test</div>
+        <div>Test</div>
+        <div>Test</div>
+    </div>
+</body>
+</html>
+```
+
+我们还可以在此基础上为三列的四条栅格线分别指定名称：
+
+```css
+grid-template-columns:
+	[first-line second-line] 200px [third-line] 50% [fourth-line] 100px;
+```
+
+> 注意：`grid-template-rows`和`grid-template-columns`命名的栅格线名称可以重复，**甚至一个属性内也可以出现重名的具名栅格线**。
+
+除了绝对长度单位，和以栅格容器为基准的相对百分比之外，开发者还可以使用`minmax(...,...)`关键字指定 最小值和最大值。如果最大值小于最小值，那么仅以最小值为基准。
+
+```css
+grid-template-columns:
+	[fisrt-line second-line] 200px [third-line] calc(100% - 200px - 100px) [fourth-line] 100px;
+
+grid-template-rows:
+	[first-line second-line] 200px [third-line] minmax(100px, calc(100% - 200px - 100px)) [fourth-line] 100px;
+```
+
+### §10.2.2 弹性栅格轨道(`fr`)
+
+`fr`单位（也成为份数单位）不同于`px`、`vw`这些单位，它代表着一个抽象的长度单元，具体长度随着上下文而改变。
+
+例如把竖向栅格轨道分成四等分，可以写成以下两种等价的形式：
+
+```css
+grid-template-columns: 1fr 1fr 1fr 1fr;
+grid-template-columns: 25% 25% 25% 25%;
+```
+
+如果要分成五等分，`fr`允许直接在后面加`fr`，但是绝对单位和相对单位不行。
+
+```css
+grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+grid-template-columns: 25% 25% 25% 25% 25%; /* 错误的写法 */
+```
+
+
+$$
+\text{length}_i=\begin{cases}
+	\text{track\_size}_i,\textcolor{green}{when\ \text{track\_size}\in\{绝对长度单位\}}
+	\\
+	\displaystyle\frac{\text{track\_size}_i}{100\%}\times栅格容器尺寸,\textcolor{green}{when\ \text{track\_size}\in\{相对长度单位\}}
+	\\
+	\displaystyle\frac{\text{track\_size}_i}{
+        \displaystyle\sum_{
+            \begin{align}
+                &i\in[1,n]\in\Z^+,\\
+                &\text{track\_size}_i\textcolor{red}{\in}\{fr\}
+            \end{align}
+        }^{n}{(\text{track\_size}_i)}
+	}\times(
+		100\%-\displaystyle\sum_{
+            \begin{align}
+                &i\in[1,n]\in\Z^+,\\
+                &\text{track\_size}_i\textcolor{red}{\notin}\{fr\}
+            \end{align}
+        }^{n}{(\text{track\_size}_i)}
+    ), \textcolor{green}{when\ \text{track\_size}_i\in\{fr\}}
+\end{cases}
+$$
+
+> 注意：`minmax()`的最小值不允许使用`fr`，否则将导致声明失效。
+
+如果在无法确定各部分尺寸的情况下，想要对齐某些部分，可以使用`min-content`和`max-content`关键字。
+
+`max-content`关键字的作用是占据内容所需的最大空间，尽可能减少换行。`min-content`关键词的作用是占据尽可能少的空间，只保证最长的行内元素能在一行内完整显示即可。
+
+```html
+<html>
+<head>
+    <style>
+        #grid-1 {
+            width: 50rem;
+            display: grid;
+            grid-template-columns: max-content max-content max-content max-content;
+            grid-template-rows: max-content max-content max-content;
+            padding-bottom: 1rem;
+        }
+        #grid-2 {
+            width: 50rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+        }
+        span {
+            border: 1px solid gray; 
+            margin: -1px -1px 0 0;
+        }
+        img { 
+            margin: 0.25em;
+            background-color: lightgray;
+            width: 40px;
+            height: 40px;
+        }
+        img.wide { width: 90px; height: 60px; }
+        img.tall { width: 60px; height: 90px; }
+        img.big { width: 90px; height: 90px; }
+    </style>
+</head>
+<body>
+    <div id="grid-1">
+        <span> <img class=""> </span>
+        <span> <img class="wide"> </span>
+        <span> <img class=""> </span>
+        <span> <img class="tall"> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class="big"> </span>
+        <span> <img class="wide"> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+    </div>    
+    <div id="grid-2">
+        <span> <img class=""> </span>
+        <span> <img class="wide"> </span>
+        <span> <img class=""> </span>
+        <span> <img class="tall"> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class="big"> </span>
+        <span> <img class="wide"> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+    </div>    
+    <script>
+        const imgDOMs = document.querySelectorAll('img');
+        imgDOMs.forEach(element => {
+            element.setAttribute("src","https://developer.mozilla.org/static/media/github-mark-small.348586b8904b950b8ea8.svg");
+        });
+    </script>
+</body>
+</html>
+```
+
+在上面的例子中，分数单位修饰的栅格单元是均匀分布的，而`max-content`修饰的栅格单元是由内部元素的尺寸按需分配，每一行的高度均为这一行内容的最大高度，每一列的宽度均为这一列内容的最大宽度。容易发现，份数单位强调的是占据所有空间且按指定比例分配，而`max-content`强调的是按内容分配，合适即止。
+
+事实上，`max-content`和`min-content`也可以用作`minmax(...,...)`的实参。`max-content`和`minmax(0,max-content)`的区别是：`max-content`只是指定了栅格元素尺寸的行为，要求必须容纳最长的行内元素，因此栅格轨道可能会超出栅格容器规定的尺寸范围(`width`/`height`)。而`minmax(0,max-content)`指定了栅格元素的尺寸范围，要求在不超出弹性容器范围的基础上，尽量向最大值靠拢，因此栅格轨道不会溢出。
+
+```html
+<html>
+<head>
+    <style>
+        #grid-1 {
+            width: 50rem;
+            display: grid;
+            grid-template-columns: minmax(1rem, max-content) minmax(1rem, max-content) minmax(1rem, max-content) minmax(1rem, max-content);
+            grid-template-rows: minmax(1rem, max-content) minmax(1rem, max-content) minmax(1rem, max-content);
+            padding-bottom: 1rem;
+        }
+        span {
+            border: 1px solid gray; 
+            margin: -1px -1px 0 0;
+        }
+        img { 
+            margin: 0.25em;
+            background-color: lightgray;
+            width: 40px;
+            height: 40px;
+        }
+        img.wide { width: 90px; height: 60px; }
+        img.tall { width: 60px; height: 90px; }
+        img.big { width: 90px; height: 90px; }
+    </style>
+</head>
+<body>
+    <div id="grid-1">
+        <span> <img class=""> </span>
+        <span> <img class="wide"> </span>
+        <span> <img class=""> </span>
+        <span> <img class="tall"> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class="big"> </span>
+        <span> <img class="wide"> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+        <span> <img class=""> </span>
+    </div>     
+    <script>
+        const imgDOMs = document.querySelectorAll('img');
+        imgDOMs.forEach(element => {
+            element.setAttribute("src","https://developer.mozilla.org/static/media/github-mark-small.348586b8904b950b8ea8.svg");
+        });
+    </script>
+</body>
+</html>
+```
+
+除此以外，`auto`关键字也可以作为`minmax(...,...)`的实参。当`auto`用于第一个形参时，`minmax(auto,...)`表示的是最小值等于`min-width`/`min-height`属性；当`auto`用于第二个形参时，`minmax(...,auto)`完全等价于`max-content`。
+
+### §10.2.3 根据轨道中的内容适配
+
+在上一节中，我们知道`max-content`和`min-content`是按照轨道中的内容适配的两个极端。要实现更精细的控制，我们可以使用`fit-content()`函数。我们可以认为这是一个语法糖，它只接受一个绝对长度参数或百分数参数，`fit-content(x)`完全等价于`min(max-content, max(min-content, x))`，也就是把`x`限制在`min-content`和`max-content`区间内。
+
+```html
+<html>
+<head>
+    <style>
+        #grid {
+            width: 50rem;
+            display: grid;
+            grid-template-columns: fit-content(15rem) fit-content(15rem) fit-content(15rem);
+            grid-template-rows: max-content;
+            padding-bottom: 1rem;
+        }
+        span {
+            border: 1px solid gray; 
+            margin: -1px -1px 0 0;
+        }
+        img { 
+            margin: 0.25em;
+            background-color: lightgray;
+            width: 40px;
+            height: 40px;
+        }
+        img.wide { width: 90px; height: 60px; }
+        img.tall { width: 60px; height: 90px; }
+        img.big { width: 90px; height: 90px; }
+    </style>
+</head>
+<body>
+    <div id="grid">
+        <span>这句话很短。</span>
+        <span>这句话的长度适中。</span>
+        <span>这句话很长很长很长很长很长很长很长很长很长很长很长很长很长。</span>
+    </div>     
+    <script>
+        const imgDOMs = document.querySelectorAll('img');
+        imgDOMs.forEach(element => {
+            element.setAttribute("src","https://developer.mozilla.org/static/media/github-mark-small.348586b8904b950b8ea8.svg");
+        });
+    </script>
+</body>
+</html>
+```
+
+可以看到，在上面的例子中，如果内容宽度小于`min-content`和`fit-content(15rem)`，那么列宽以内容宽度为准；如果内容宽度很长，那么此时`max-content`就是内容宽度，大于`15rem`，所以最终宽度就是`15rem`。
+
+### §10.2.4 重复栅格线
+
+如果各栅格轨道的宽度或高度是一致的，我们可以用`repeat()`批量创建。该函数接受两个形参，第一个是重复次数，第二个是一个或多个栅格轨道的尺寸。
+
+```css
+grid-template-columns: repeat(3, 5rem); /* 等价于5rem 5rem 5rem */
+grid-template-columns: repeat(2, 3rem 4rem 5rem); /* 等价于3rem 4rem 5rem 3rem 4rem 5rem */
+```
+
+`repeat()`也可以创建重名的具名栅格线：
+
+```css
+grid-template-columns: repeat(2, 4rem [start] 4rem [end] 4rem);
+/* 等价于 [匿名栅格线] 4rem [start] 4rem [end] 4rem [匿名栅格线] 4rem [start] 4rem [end] 4rem [匿名栅格线]  */
+```
+
+> 注意：相邻的两条具名栅格线将合并为一条同时具有两个名称的栅格线。
+>
+> ```css
+> /* 以下两种声明完全等价 */
+> grid-template-columns: repeat(3, [top] 5rem [bottom]);
+> grid-template-columns: [top] 5em [bottom top] [top bottom] 5em [bottom];
+> ```
+
+前面提到过`repeat()`的第一个形参是重复次数。除了一切正整数以外，重复次数也可以是`auto-fill`关键字，表示填满为止，称为“自动重复”。自动重复的有以下缺陷：
+
+1. `repeat(auto-fill, ...)`的第二个形参必须是`<line-names>? <fixed-size> <line-names>?`。其中最多出现两次`<line-names>`。
+
+2. `repeat(auto-fill, ...)`的第二个形参如果包含份数单位，则只会重复一次。因为只需`1fr`就能填满所有的空间，不必多个`1fr 1fr ...`。
+
+3. 在单个`grid-template-rows`和`grid-template-columns`属性值最多只能使用一次自动重复。
+
+   ```css
+   /* 语法无效 */
+   grid-template-columns: repeat(auto-fill, 3rem) repeat(auto-fill, 4rem);
+   
+   /* 语法有效 */
+   grid-template-columns: repeat(5, 3rem) repeat(auto-fill, 4rem);
+   grid-template-columns: repeat(auto-fill, 3rem) repeat(5, 4rem);
+   ```
+
+除了`auto-fill`外，也可以使用`auto-fit`。它们唯一的区别是：当栅格元素中没有任何内容时，`auto-fit`会剔除该栅格元素对应的栅格轨道，而`auto-fill`不会。
+
+## §10.3 栅格区域(`grid-template-areas`)
+
+如果说`grid-template-rows`和`grid-template-columns`定义了栅格区域的尺寸，那么`grid-template-areas`定义了栅格区域的形状。
+
+
+
+
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            width: 40rem;
+            display: grid;
+            grid-template-rows: 2rem 10rem 2rem;
+            grid-template-areas: 
+                "header header header header"
+                "leftside content content rightside"
+                "leftside footer footer footer";
+        }
+        .grid > * {
+            border: 1px solid black;
+            text-align: center;
+            line-height: 2rem;
+        }
+        .grid > *:nth-child(1) { background-color: lightblue; }
+        .grid > *:nth-child(2) { background-color: lightcoral; }
+        .grid > *:nth-child(3) { background-color: lightcyan; }
+        .grid > *:nth-child(4) { background-color: lightgoldenrodyellow; }
+        .grid > *:nth-child(5) { background-color: lightgray; }
+    </style>
+</head>
+<body>
+    <div class="grid">
+        <div style="grid-area: header;">Header</div>
+        <div style="grid-area: leftside;">LeftSide</div>
+        <div style="grid-area: content;">Content</div>
+        <div style="grid-area: footer;">Footer</div>
+        <div style="grid-area: rightside;">RightSide</div>
+    </div>
+</body>
+</html>
+```
+
 
 
 9.20 19w字
@@ -6459,6 +6864,20 @@ aside {flex: 0 1 200px; min-width: 150px}
 9.21 20w字
 
 9.22 21w字
+
+9.23 22w字
+
+9.24 23w字
+
+9.25 24w字
+
+9.26 25w字
+
+9.27 26w字
+
+9.28 27w字
+
+9.29 28w字
 
 
 
