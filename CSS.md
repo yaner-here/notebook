@@ -6812,13 +6812,24 @@ grid-template-columns: repeat(2, 4rem [start] 4rem [end] 4rem);
 
 除了`auto-fill`外，也可以使用`auto-fit`。它们唯一的区别是：当栅格元素中没有任何内容时，`auto-fit`会剔除该栅格元素对应的栅格轨道，而`auto-fill`不会。
 
-## §10.3 栅格区域(`grid-template-areas`)
+## §10.3 栅格区域
+
+### §10.3.1 定义栅格区域(`grid-template-areas`)
 
 如果说`grid-template-rows`和`grid-template-columns`定义了栅格区域的尺寸，那么`grid-template-areas`定义了栅格区域的形状。
 
+`grid-template-areas`属性值是一群字符串，每个字符串包含着数量相等的标识符，代表这一行的栅格布局。例如在下面的例子中，我们将一个$3\times4$的栅格容器划分为了五个矩形区域：
 
+```css
+grid-template-areas:
+	"header header header header"
+	"leftside content content rightside"
+	"leftside footer footer footer";
+```
 
+> 注意：`grid-template-areas`定义的栅格区域只能为矩形，否则声明无效。
 
+给栅格容器的子元素的`grid-area`赋予对应的标识符：
 
 ```html
 <html>
@@ -6857,9 +6868,652 @@ grid-template-columns: repeat(2, 4rem [start] 4rem [end] 4rem);
 </html>
 ```
 
+如果存在不需要合并到任何栅格区域的栅格单元，可以在`grid-template-areas`中使用一个或多个小数点`.`命名：
+
+```css
+grid-template-areas:
+	"header header header header"
+	"leftside content content ."
+	"leftside . .. ...";
+```
+
+### §10.3.2 使用栅格区域(`grid-area`)
 
 
-9.20 19w字
+
+当我们通过`grid-area`属性为栅格区域命名`xxx`时，CSS会自动为栅格区域的首尾两条栅格线命名`xxx-start`和`xxx-end`。这种命名机制称为“隐式命名机制”。这也正是给子元素赋值`grid-area`属性就能确定栅格区域的原理。利用这一原理，我们可以反向在`grid-template-rows`和`grid-template-columns`中只给栅格线赋名，而不使用`grid-template-areas`，就能定义栅格区域：
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            width: 40rem;
+            display: grid;
+            grid-template-rows: [header-start] 2rem [header-end leftside-start content-start rightside-start] 10rem [content-end rightside-end footer-start] 2rem [leftside-end footer-end];
+            grid-template-columns: [header-start leftside-start] 10rem [leftside-end content-start footer-start] 20rem [content-end rightside-start] 10rem [header-end rightside-end footer-end] ;
+        }
+        .grid > * {
+            border: 1px solid black;
+            text-align: center;
+            line-height: 2rem;
+        }
+        .grid > *:nth-child(1) { background-color: lightblue; }
+        .grid > *:nth-child(2) { background-color: lightcoral; }
+        .grid > *:nth-child(3) { background-color: lightcyan; }
+        .grid > *:nth-child(4) { background-color: lightgoldenrodyellow; }
+        .grid > *:nth-child(5) { background-color: lightgray; }
+    </style>
+</head>
+<body>
+    <div class="grid">
+        <div style="grid-area: header;">Header</div>
+        <div style="grid-area: leftside;">LeftSide</div>
+        <div style="grid-area: content;">Content</div>
+        <div style="grid-area: footer;">Footer</div>
+        <div style="grid-area: rightside;">RightSide</div>
+    </div>
+</body>
+</html>
+```
+
+在上例中，我们指定了每一个栅格区域的行与列的全部四条具名栅格线的位置。如果行与列中有一个定义了两行，另一个没定义，那么该栅格区域将会被放置在后者的最后一行/列。
+
+## §10.4 栅格元素
+
+当我们定义好栅格线和栅格区域后，我们就可以给栅格容器填充栅格元素了。接下来我们把栅格元素附加到栅格的网架中。
+
+### §10.4.1 通过栅格线附加(`grid-row/column`)
+
+`grid-row-start`、`grid-row-end`、`grid-column-start`、`grid-column-end`这四个属性作用于栅格元素，表示该元素的四条边界分别附加到哪个栅格线上。
+
+1. 当这四个属性值为**正整数**时，表示四条边界附着到的栅格线的序号（从`1`开始计数）：
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .grid {
+               width: 40rem;
+               display: grid;
+               grid-template-rows: 2rem 10rem 2rem;
+               grid-template-columns: 10rem 20rem 10rem;
+           }
+           .grid > * {
+               border: 1px solid black;
+               text-align: center;
+               line-height: 2rem;
+           }
+           .grid > *:nth-child(1) { 
+               grid-row-start: 1;
+               grid-row-end: 2;
+               grid-column-start: 1;
+               grid-column-end: 4;
+               background-color: lightblue; 
+           }
+           .grid > *:nth-child(2) { 
+               grid-row-start: 2;
+               grid-row-end: 4;
+               grid-column-start: 1;
+               grid-column-end: 2;
+               background-color: lightcoral; 
+           }
+           .grid > *:nth-child(3) { 
+               grid-row-start: 2;
+               grid-row-end: 3;
+               grid-column-start: 2;
+               grid-column-end: 3;
+               background-color: lightcyan; 
+           }
+           .grid > *:nth-child(4) { 
+               grid-row-start: 3;
+               grid-row-end: 4;
+               grid-column-start: 2;
+               grid-column-end: 4;
+               background-color: lightgoldenrodyellow; 
+           }
+           .grid > *:nth-child(5) { 
+               grid-row-start: 2;
+               grid-row-end: 3;
+               grid-column-start: 3;
+               grid-column-end: 4;
+               background-color: lightgray; 
+           }
+       </style>
+   </head>
+   <body>
+       <div class="grid">
+           <div>Header</div>
+           <div>LeftSide</div>
+           <div>Content</div>
+           <div>Footer</div>
+           <div>RightSide</div>
+       </div>
+   </body>
+   </html>
+   ```
+
+2. 当这四个属性值为`span <integer>`时，表示跨越指定数量的栅格轨道确定的栅格线。如果`span`关键字用于`...start`属性，则表示从`...end`确定的栅格线向起边往回数`<integer>`个栅格轨道；如果`span`关键字用于`...end`属性，则表示从`...start`确定的栅格线向终边往前数`<integer>`个栅格轨道。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .grid {
+               width: 40rem;
+               display: grid;
+               grid-template-rows: 2rem 10rem 2rem;
+               grid-template-columns: 10rem 20rem 10rem;
+           }
+           .grid > * {
+               border: 1px solid black;
+               text-align: center;
+               line-height: 2rem;
+           }
+           .grid > *:nth-child(1) { 
+               grid-row-start: 1;
+               grid-row-end: span 1;
+               grid-column-start: 1;
+               grid-column-end: span 3;
+               background-color: lightblue; 
+           }
+           .grid > *:nth-child(2) { 
+               grid-row-start: 2;
+               grid-row-end: span 2;
+               grid-column-start: span 1;
+               grid-column-end: 2;
+               background-color: lightcoral; 
+           }
+           .grid > *:nth-child(3) { 
+               grid-row-start: span 1;
+               grid-row-end: 3;
+               grid-column-start: 2;
+               grid-column-end: span 1;
+               background-color: lightcyan; 
+           }
+           .grid > *:nth-child(4) { 
+               grid-row-start: span 1;
+               grid-row-end: 4;
+               grid-column-start: 2;
+               grid-column-end: span 2;
+               background-color: lightgoldenrodyellow; 
+           }
+           .grid > *:nth-child(5) { 
+               grid-row-start: 2;
+               grid-row-end: 3;
+               grid-column-start: 3;
+               grid-column-end: 4;
+               background-color: lightgray; 
+           }
+       </style>
+   </head>
+   <body>
+       <div class="grid">
+           <div>Header</div>
+           <div>LeftSide</div>
+           <div>Content</div>
+           <div>Footer</div>
+           <div>RightSide</div>
+       </div>
+   </body>
+   </html>
+   ```
+
+3. 当这四个属性值为**负整数**时，表示四条边界附着到的栅格线的序号（从`-1`开始从终边向起边反向计数）：
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .grid {
+               width: 40rem;
+               display: grid;
+               grid-template-rows: 2rem 10rem 2rem;
+               grid-template-columns: 10rem 20rem 10rem;
+           }
+           .grid > * {
+               border: 1px solid black;
+               text-align: center;
+               line-height: 2rem;
+           }
+           .grid > *:nth-child(1) { 
+               grid-row-start: -4;
+               grid-row-end: -3;
+               grid-column-start: -4;
+               grid-column-end: -1;
+               background-color: lightblue; 
+           }
+           .grid > *:nth-child(2) { 
+               grid-row-start: -3;
+               grid-row-end: -1;
+               grid-column-start: -4;
+               grid-column-end: -3;
+               background-color: lightcoral; 
+           }
+           .grid > *:nth-child(3) { 
+               grid-row-start: -3;
+               grid-row-end: -2;
+               grid-column-start: -3;
+               grid-column-end: -2;
+               background-color: lightcyan; 
+           }
+           .grid > *:nth-child(4) { 
+               grid-row-start: -2;
+               grid-row-end: -1;
+               grid-column-start: -3;
+               grid-column-end: -1;
+               background-color: lightgoldenrodyellow; 
+           }
+           .grid > *:nth-child(5) { 
+               grid-row-start: -3;
+               grid-row-end: -2;
+               grid-column-start: -2;
+               grid-column-end: -1;
+               background-color: lightgray; 
+           }
+       </style>
+   </head>
+   <body>
+       <div class="grid">
+           <div>Header</div>
+           <div>LeftSide</div>
+           <div>Content</div>
+           <div>Footer</div>
+           <div>RightSide</div>
+       </div>
+   </body>
+   </html>
+   ```
+
+4. 当这四个属性值为具名栅格线的名称时，表示四条边界附着到的栅格线为这条栅格线。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .grid {
+               width: 40rem;
+               display: grid;
+               grid-template-rows: [A] 2rem [B] 10rem [C] 2rem [D];
+               grid-template-columns: [A] 10rem [B] 20rem [C] 10rem [D];
+           }
+           .grid > * {
+               border: 1px solid black;
+               text-align: center;
+               line-height: 2rem;
+           }
+           .grid > *:nth-child(1) { 
+               grid-row-start: A;
+               grid-row-end: B;
+               grid-column-start: A;
+               grid-column-end: D;
+               background-color: lightblue; 
+           }
+           .grid > *:nth-child(2) { 
+               grid-row-start: B;
+               grid-row-end: D;
+               grid-column-start: A;
+               grid-column-end: B;
+               background-color: lightcoral; 
+           }
+           .grid > *:nth-child(3) { 
+               grid-row-start: B;
+               grid-row-end: C;
+               grid-column-start: B;
+               grid-column-end: C;
+               background-color: lightcyan; 
+           }
+           .grid > *:nth-child(4) { 
+               grid-row-start: C;
+               grid-row-end: D;
+               grid-column-start: B;
+               grid-column-end: D;
+               background-color: lightgoldenrodyellow; 
+           }
+           .grid > *:nth-child(5) { 
+               grid-row-start: B;
+               grid-row-end: C;
+               grid-column-start: C;
+               grid-column-end: D;
+               background-color: lightgray; 
+           }
+       </style>
+   </head>
+   <body>
+       <div class="grid">
+           <div>Header</div>
+           <div>LeftSide</div>
+           <div>Content</div>
+           <div>Footer</div>
+           <div>RightSide</div>
+       </div>
+   </body>
+   </html>
+   ```
+
+5. 当存在多条重名的具名栅格线时，可以使用`<custom-ident> <integer>`表示选择这一行/列中众多具有`<custom-ident>`的第`<integer>`条栅格线。这个`<integer>`也可以是负数。
+
+   同理，`span <integer> <custom-ident>`表示选择再往前/后数的第`<integer>`条名为`<custom-ident>`的具名栅格线。
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .grid {
+               width: 40rem;
+               display: grid;
+               grid-template-rows: [A] 2rem [A] 10rem [A] 2rem [A];
+               grid-template-columns: [A] 10rem [A] 20rem [A] 10rem [A];
+           }
+           .grid > * {
+               border: 1px solid black;
+               text-align: center;
+               line-height: 2rem;
+           }
+           .grid > *:nth-child(1) { 
+               grid-row-start: A 1;
+               grid-row-end: span 1 A;
+               grid-column-start: A 1;
+               grid-column-end: A -1;
+               background-color: lightblue; 
+           }
+           .grid > *:nth-child(2) { 
+               grid-row-start: A 2;
+               grid-row-end: A -1;
+               grid-column-start: A 1;
+               grid-column-end: A 2;
+               background-color: lightcoral; 
+           }
+           .grid > *:nth-child(3) { 
+               grid-row-start: A 2;
+               grid-row-end: A 3;
+               grid-column-start: A 2;
+               grid-column-end: A 3;
+               background-color: lightcyan; 
+           }
+           .grid > *:nth-child(4) { 
+               grid-row-start: A 3;
+               grid-row-end: A 4;
+               grid-column-start: A 2;
+               grid-column-end: A 4;
+               background-color: lightgoldenrodyellow; 
+           }
+           .grid > *:nth-child(5) { 
+               grid-row-start: A 2;
+               grid-row-end: A 3;
+               grid-column-start: A 3;
+               grid-column-end: A 4;
+               background-color: lightgray; 
+           }
+       </style>
+   </head>
+   <body>
+       <div class="grid">
+           <div>Header</div>
+           <div>LeftSide</div>
+           <div>Content</div>
+           <div>Footer</div>
+           <div>RightSide</div>
+       </div>
+   </body>
+   </html>
+   ```
+
+6. 在使用标识符声明`grid-template-areas`时，CSS就已经根据创建的矩形栅格区域隐式创建了栅格线名称。我们可以直接使用这个栅格线名称作为这四个属性的属性值：
+
+   ```html
+   <html>
+   <head>
+       <style>
+           .grid {
+               width: 40rem;
+               display: grid;
+               grid-template-rows: 2rem 10rem 2rem;
+               grid-template-areas: 
+                   "header header header header"
+                   "leftside content content rightside"
+                   "leftside footer footer footer";
+           }
+           .grid > * {
+               border: 1px solid black;
+               text-align: center;
+               line-height: 2rem;
+           }
+           .grid > *:nth-child(1) { 
+               grid-row-start: header;
+               grid-row-end: header;
+               grid-column-start: header;
+               grid-column-end: header;
+               background-color: lightblue; }
+           .grid > *:nth-child(2) { 
+               grid-row-start: leftside;
+               grid-row-end: leftside;
+               grid-column-start: leftside;
+               grid-column-end: leftside;
+               background-color: lightcoral; }
+           .grid > *:nth-child(3) { 
+               grid-row-start: content;
+               grid-row-end: content;
+               grid-column-start: content;
+               grid-column-end: content;
+               background-color: lightcyan; }
+           .grid > *:nth-child(4) { 
+               grid-row-start: footer;
+               grid-row-end: footer;
+               grid-column-start: footer;
+               grid-column-end: footer;
+               background-color: lightgoldenrodyellow; }
+           .grid > *:nth-child(5) { 
+               grid-row-start: rightside;
+               grid-row-end: rightside;
+               grid-column-start: rightside;
+               grid-column-end: rightside;
+               background-color: lightgray; }
+       </style>
+   </head>
+   <body>
+       <div class="grid">
+           <div>Header</div>
+           <div>LeftSide</div>
+           <div>Content</div>
+           <div>Footer</div>
+           <div>RightSide</div>
+       </div>
+   </body>
+   </html>
+   ```
+
+   > 注意：当这四个属性遇到标识符时，会寻找该标识符对应和栅格线，也会尝试在后面添加`-start`/`-end`（取决于属性是开始属性还是结束属性）再开始寻找。因此在上面的例子中，以下两种写法等效：
+   >
+   > ```css
+   > grid-row-start: rightside;
+   > grid-row-start: rightside-start;
+   > ```
+
+我们已经分别介绍了行与列各自的两个子属性。它们可以分别简写为一个子属性：`grid-row`和`grid-column`，接受一到两个参数。
+
+当`grid-row`和`grid-column`接受到两个由`/`分隔的子属性值时，它们分别表示开始子属性与结束子属性。如果只接受到一个参数，那么该参数表示开始子属性，而结束子属性的值为`auto`——如果第一个参数是整数，那么`auto`表示该整数加一；如果第一个参数是标识符，那么CSS会尝试在标识符后面添加`-end`寻找对应的栅格线。
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            width: 40rem;
+            display: grid;
+            grid-template-rows: 2rem 10rem 2rem;
+            grid-template-areas: 
+                "header header header header"
+                "leftside content content rightside"
+                "leftside footer footer footer";
+        }
+        .grid > * {
+            border: 1px solid black;
+            text-align: center;
+            line-height: 2rem;
+        }
+        .grid > *:nth-child(1) { 
+            grid-row: header; /* 等价于header / header */
+            grid-column: header / header;
+            background-color: lightblue; }
+        .grid > *:nth-child(2) { 
+            grid-row: 2 / 4;
+            grid-column: 1 / 2;
+            background-color: lightcoral; }
+        .grid > *:nth-child(3) { 
+            grid-row: 2 / span 1;
+            grid-column: 2 / span 2;
+            background-color: lightcyan; }
+        .grid > *:nth-child(4) { 
+            grid-row: span 1 / 4;
+            grid-column: span 3 / 5;
+            background-color: lightgoldenrodyellow; }
+        .grid > *:nth-child(5) { 
+            grid-row: 2 / 3;
+            grid-column: -2 / -1;
+            background-color: lightgray; }
+    </style>
+</head>
+<body>
+    <div class="grid">
+        <div>Header</div>
+        <div>LeftSide</div>
+        <div>Content</div>
+        <div>Footer</div>
+        <div>RightSide</div>
+    </div>
+</body>
+</html>
+```
+
+我们已经知道了如何使用`grid-template-rows`/`grid-template-columns`或`grid-template-areas`定义栅格轨道。但是如果定义栅格区域时，使用的栅格线超出了栅格轨道，那么CSS就会为其创建***隐式栅格**。
+$$
+\text{起始栅格线编号}=\begin{cases}
+	\text{grid-...-start}&,\text{grid-...-start}\ge 1\notin\{\text{span}\}
+	\\
+	N+\text{grid-...-start}+1&,\text{grid-...-start}\le-1
+	\\
+	\text{grid-...-start}-\text{span}&,\text{grid-...-start}\in\left[1,N\right]\in\{\text{span}\}
+	\\
+	\textcolor{red}{N-\text{span}} &,\textcolor{red}{\text{grid-...-end}>N\in\{\text{span}\}}
+\end{cases}
+\\
+\text{终止栅格线编号}=\begin{cases}
+	\text{grid-...-end}&,\text{grid-...-end}\ge 1\notin\{\text{span}\}
+	\\
+	N+\text{grid-...-end}+1&,\text{grid-...-end}\le-1
+	\\
+	\text{grid-...-start}+\text{span}&,\text{grid-...-start}\in\left[1,N\right]\in\{\text{span}\}
+\end{cases}
+$$
+上面的公式有两点需要注意：
+
+1. 如果引用的栅格线序号大于范围，则可以直接引用，也可以使用`span`；如果小于范围，则不能直接使用负数引用，因为负数计数的起点是栅格轨道内该方向的最后一条不超出范围的栅格线，所以只能用`span`。
+2. 当$\textcolor{red}{\text{grid-...-end}>N\in\{\text{span}\}}$时，计算起始栅格线编号时，`span`采用的起点是`min(grid-...-end, N)`，而不是单纯的`grid-...-end`。
+
+```html
+<html>
+<head>
+    <style>
+        .grid > span {
+            border: 1px gray dotted;
+        }
+        .grid > *[class^="box"] {
+            border: 5px solid;
+            font-weight: bold;
+            font-size: larger;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .grid > *:nth-child(1) { grid-column: 1; grid-row: 1 / 4; color: rgb(255, 0, 0); }
+        .grid > *:nth-child(2) { grid-column: 2; grid-row: 3 / span 2; color: rgb(255, 128, 0); }
+        .grid > *:nth-child(3) { grid-column: 3; grid-row: span 2 / 3; color: rgb(216, 168, 0); }
+        .grid > *:nth-child(4) { grid-column: 4; grid-row: span 4 / 5; color: rgb(0, 128, 0); }
+        .grid > *:nth-child(5) { grid-column: 5; grid-row: span 6 / 5; color: rgb(0, 0, 255); }
+        .grid > *:nth-child(6) { grid-column: 6; grid-row: -1 / span 3; color: rgb(128, 0, 128); }
+        .grid > *:nth-child(7) { grid-column: 7; grid-row: span 3 / -1; color: rgb(0, 0, 0); }
+        .grid {
+            display: grid;
+            grid-auto-rows: 2em;
+            grid-auto-columns: 5em;
+            grid-template-rows: repeat(2, 2rem);
+            grid-template-columns: repeat(6, 5rem);
+        }
+        .grid > .explicit {
+            background: rgba(0, 0, 0, 0.1);
+            grid-area: 1 / 1 / 3 / 7;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid">
+    </div>
+    <script>
+        
+        function getSpanHTML(className, content){
+            if(!className instanceof String){
+                return "<span></span>"
+            }
+            if(!content instanceof String || content === undefined){
+                return "<span></span>"
+            }
+            return `<span class="${className}">${content}</span>`;
+        }
+
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach(element => {
+            let gridHTML = "";
+            gridHTML += getSpanHTML("box1", 1);
+            gridHTML += getSpanHTML("box2", 2);
+            gridHTML += getSpanHTML("box3", 3);
+            gridHTML += getSpanHTML("box4", 4);
+            gridHTML += getSpanHTML("box5", 5);
+            gridHTML += getSpanHTML("box6", 6);
+            gridHTML += getSpanHTML("box7", 7);
+            gridHTML += getSpanHTML("explicit");
+            gridHTML += getSpanHTML("").repeat(25);
+            element.innerHTML = gridHTML;
+        });
+
+    </script>
+</body>
+</html>
+```
+
+前面我们提到了`grid-row/column-start/end`的语法。如果给予不符合语法的属性值，CSS不会一概认为声明无效，而是尝试修复。
+
+1. 如果`grid-...-start > grid-...-start`（结束在前，开始在后），则两个属性值对调。
+2. 如果`grid-...-start`和`grid-...-start`都包含`span`，则开始子属性的属性值得到保留，例如`span`视为`span 1`。结束子属性的属性值被抛弃，替换为`auto`，取决于元素边界所在的栅格流。
+3. 如果`grid-...-start`或`grid-...-start`出现了`span <custom-ident>`，缺少了后继的`<integer>`，CSS会将其自动替换为`span 1`。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 9.21 20w字
 
