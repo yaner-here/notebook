@@ -6812,6 +6812,73 @@ grid-template-columns: repeat(2, 4rem [start] 4rem [end] 4rem);
 
 除了`auto-fill`外，也可以使用`auto-fit`。它们唯一的区别是：当栅格元素中没有任何内容时，`auto-fit`会剔除该栅格元素对应的栅格轨道，而`auto-fill`不会。
 
+### §10.2.5 自动增加栅格线(`grid-auto-rows/columns`)
+
+`grid-auto-rows`和`grid-auto-columns`分别负责控制自动增加的栅格轨道的尺寸，其属性值可以是一个表示长度的形参，也可以是`minmax(..., ...)`函数。
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            display: grid;
+            margin-bottom: 1rem;
+            padding: 5px;
+            grid-auto-rows: 25px;
+            grid-auto-columns: 20px;
+            margin-bottom: 2rem;
+        }
+        .grid:nth-child(1) {
+            grid-template-rows: repeat(5, 50px);
+            grid-template-columns: repeat(3, 50px);
+        }
+        .grid:nth-child(2) {
+            grid-template-rows: repeat(5, 50px);
+            grid-template-columns: repeat(3, 50px);
+        }
+        .grid > * { border: 1px solid black; }
+        .grid:nth-child(1){ grid-auto-flow: row; }
+        .grid:nth-child(2){ grid-auto-flow: row dense; }
+        .grid:nth-child(3){ grid-auto-flow: column; }
+        .grid:nth-child(4){ grid-auto-flow: column dense; }
+        .grid > img {
+            width: 50px;
+            height: 50px;
+        }
+        .grid > img:nth-child(2) {
+            width: 100px; 
+            grid-column: auto / span 2;
+        }
+        .grid > img:nth-child(4) {
+            height: 100px; 
+            grid-row: auto / span 2;
+        }
+        .grid > img:nth-child(7) {
+            width: 100px; height: 100px; 
+            grid-row: auto / span 2;
+            grid-column: auto / span 2;
+        }
+        .grid > img:nth-child(8) {
+            width: 100px; 
+            grid-column: auto / span 2;
+        }
+    </style>
+</head>
+<body>
+    grid-auto-flow: row;
+    <div class="grid"></div>
+    grid-auto-flow: column;
+    <div class="grid"></div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach(element => {
+            element.innerHTML = "<img src='https://meyerweb.github.io/csstdg4figs/13-grid-layout/i/yinyang.png'>".repeat(12);
+        });
+    </script>
+</body>
+</html>
+```
+
 ## §10.3 栅格区域
 
 ### §10.3.1 定义栅格区域(`grid-template-areas`)
@@ -6829,7 +6896,20 @@ grid-template-areas:
 
 > 注意：`grid-template-areas`定义的栅格区域只能为矩形，否则声明无效。
 
-给栅格容器的子元素的`grid-area`赋予对应的标识符：
+如果存在不需要合并到任何栅格区域的栅格单元，可以在`grid-template-areas`中使用一个或多个小数点`.`命名：
+
+```css
+grid-template-areas:
+	"header header header header"
+	"leftside content content ."
+	"leftside . .. ...";
+```
+
+### §10.3.2 使用栅格区域(`grid-area`)
+
+在[§10.4.1 栅格线附加(`grid-row/column`)](###§10.4.1 栅格线附加(`grid-row/column`))一节中，我们知道可以为栅格元素手动指定矩形边界的四条栅格线的位置。本节我们可以给栅格元素附加`grid-area`属性，让CSS根据`grid-template-areas`的布局自动指定栅格线。该属性接受1~4个形参。
+
+当该属性接受一个形参时，表示给栅格容器的子元素的`grid-area`赋予对应的标识符：
 
 ```html
 <html>
@@ -6868,20 +6948,47 @@ grid-template-areas:
 </html>
 ```
 
-如果存在不需要合并到任何栅格区域的栅格单元，可以在`grid-template-areas`中使用一个或多个小数点`.`命名：
+当该属性接受四个用`/`分割形参时，表示栅格元素使用的四条栅格线，顺序为`grid-row-start`、`grid-column-start`、`grid-row-end`、`grid-column-end`，这是逆时针的顺序，与之前我们接触较多的顺时针顺序相反。如果接受到的形参为2~3个，那么缺少的值必定是结束子元素。CSS将寻找其对应的开始子元素的值，如果恰为栅格线名称，则结束子元素的值等于开始子元素的值，添加`-end`后缀尝试寻找栅格线。如果不是栅格线名称，则变为`auto`。
 
-```css
-grid-template-areas:
-	"header header header header"
-	"leftside content content ."
-	"leftside . .. ...";
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            width: 40rem;
+            display: grid;
+            grid-template-rows: [A] 2rem [B] 10rem [C] 2rem [D];
+            grid-template-columns: [A] 8rem [B] 15rem [C] 8rem [D];
+            grid-template-areas: 
+                "header header header header"
+                "leftside content content rightside"
+                "leftside footer footer footer";
+        }
+        .grid > * {
+            border: 1px solid black;
+            text-align: center;
+            line-height: 2rem;
+        }
+        .grid > *:nth-child(1) { background-color: lightblue; }
+        .grid > *:nth-child(2) { background-color: lightcoral; }
+        .grid > *:nth-child(3) { background-color: lightcyan; }
+        .grid > *:nth-child(4) { background-color: lightgoldenrodyellow; }
+        .grid > *:nth-child(5) { background-color: lightgray; }
+    </style>
+</head>
+<body>
+    <div class="grid">
+        <div style="grid-area: A / A / B / D;">Header</div>
+        <div style="grid-area: B / A / D / B;">LeftSide</div>
+        <div style="grid-area: B / B / C / C;">Content</div>
+        <div style="grid-area: C / B / D / D;">Footer</div>
+        <div style="grid-area: B / C / C / D;">RightSide</div>
+    </div>
+</body>
+</html>
 ```
 
-### §10.3.2 使用栅格区域(`grid-area`)
-
-
-
-当我们通过`grid-area`属性为栅格区域命名`xxx`时，CSS会自动为栅格区域的首尾两条栅格线命名`xxx-start`和`xxx-end`。这种命名机制称为“隐式命名机制”。这也正是给子元素赋值`grid-area`属性就能确定栅格区域的原理。利用这一原理，我们可以反向在`grid-template-rows`和`grid-template-columns`中只给栅格线赋名，而不使用`grid-template-areas`，就能定义栅格区域：
+上面的例子中，我们先定义了`grid-template-areas`，后在`grid-area`中使用了标识符。其实当我们通过`grid-area`属性为栅格区域命名`xxx`时，CSS会自动为栅格区域的首尾两条栅格线命名`xxx-start`和`xxx-end`。这种命名机制称为“隐式命名机制”。这也正是给子元素赋值`grid-area`属性就能确定栅格区域的原理。利用这一原理，我们可以反向在`grid-template-rows`和`grid-template-columns`中只给栅格线赋名，而不使用`grid-template-areas`，就能定义栅格区域：
 
 ```html
 <html>
@@ -6923,7 +7030,7 @@ grid-template-areas:
 
 当我们定义好栅格线和栅格区域后，我们就可以给栅格容器填充栅格元素了。接下来我们把栅格元素附加到栅格的网架中。
 
-### §10.4.1 通过栅格线附加(`grid-row/column`)
+### §10.4.1 附加栅格线(`grid-row/column`)
 
 `grid-row-start`、`grid-row-end`、`grid-column-start`、`grid-column-end`这四个属性作用于栅格元素，表示该元素的四条边界分别附加到哪个栅格线上。
 
@@ -7487,6 +7594,551 @@ $$
 2. 如果`grid-...-start`和`grid-...-start`都包含`span`，则开始子属性的属性值得到保留，例如`span`视为`span 1`。结束子属性的属性值被抛弃，替换为`auto`，取决于元素边界所在的栅格流。
 3. 如果`grid-...-start`或`grid-...-start`出现了`span <custom-ident>`，缺少了后继的`<integer>`，CSS会将其自动替换为`span 1`。
 
+默认情况下，一个栅格元素只占用一个栅格单元。即使强行改变栅格元素的尺寸，也不会超出一个栅格单元的范围：
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            display: grid;
+            width: 20rem;
+            height: 8rem;
+            grid-template-rows: repeat(3, 50px);
+            grid-template-columns: repeat(4, 50px);
+        }
+        .grid > * { border: 1px solid black; }
+        .grid > img {
+            width: 50px;
+            height: 50px;
+        }
+        .grid > img:nth-child(2) { width: 100px; }
+        .grid > img:nth-child(4) { height: 100px; }
+        .grid > img:nth-child(7) { width: 100px; height: 100px; }
+        .grid > img:nth-child(8) { width: 100px; }
+    </style>
+</head>
+<body>
+    <div class="grid"></div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach(element => {
+            element.innerHTML = "<img src='https://meyerweb.github.io/csstdg4figs/13-grid-layout/i/yinyang.png'>".repeat(12);
+        });
+    </script>
+</body>
+</html>
+```
+
+如果要让一个栅格元素横跨多个栅格单元，可以考虑使用`grid-row/column`声明栅格元素的起始位置。至于横跨多个栅格单元之后的排版，可参考[§10.5 栅格流(`grid-auto-flow`)](##§10.5 栅格流(`grid-auto-flow`))一节：
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-rows: repeat(3, 50px);
+            grid-template-columns: repeat(4, 50px);
+        }
+        .grid > * { border: 1px solid black; }
+        /* .grid:nth-child(1){ grid-auto-flow: row; } */
+        /* .grid:nth-child(2){ grid-auto-flow: row dense; } */
+        /* .grid:nth-child(3){ grid-auto-flow: column; } */
+        /* .grid:nth-child(4){ grid-auto-flow: column dense; } */
+        .grid > img {
+            width: 50px;
+            height: 50px;
+        }
+        .grid > img:nth-child(2) {
+            width: 100px; 
+            grid-column: auto / span 2;
+        }
+        .grid > img:nth-child(4) {
+            height: 100px; 
+            grid-row: auto / span 2;
+        }
+        .grid > img:nth-child(7) {
+            width: 100px; height: 100px; 
+            grid-row: auto / span 2;
+            grid-column: auto / span 2;
+        }
+        .grid > img:nth-child(8) {
+            width: 100px; 
+            grid-column: auto / span 2;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid"></div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach(element => {
+            element.innerHTML = "<img src='https://meyerweb.github.io/csstdg4figs/13-grid-layout/i/yinyang.png'>".repeat(12);
+        });
+    </script>
+</body>
+</html>
+```
+
+### §10.4.2 栅格元素重叠
+
+当多个栅格元素占用了同一个栅格单元时，会导致栅格元素重叠。`z-index`较大栅格元素（包括背景、边框）在最上层。如果`z-index`相同，则排在源代码后面的在最上层。
+
+## §10.5 栅格流(`grid-auto-flow`)
+
+如果不明确指定栅格元素在栅格容器中的位置，那么栅格元素将会自动放入栅格容器中，具体的位置受栅格流的影响，放入第一个适合的区域中。
+
+栅格流分为两种模式——行优先和列优先，通过`grid-auto-flow`属性设置。
+
+| `grid-auto-flow`属性值 | 作用         |
+| ---------------------- | ------------ |
+| `row`(缺省)            | 行优先       |
+| `row dense`            | 行优先密集流 |
+| `column`               | 列优先       |
+| `column dense`         | 列优先密集流 |
+
+在之前的实践中，容易发现默认的行优先会将栅格元素按照从左到右、从上到下的顺序填充。而列优先会按照从上到下、从左到右的顺序填充：
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            display: grid;
+            width: 20rem;
+            height: 8rem;
+            grid-template-rows: repeat(3, 2rem);
+            grid-template-columns: repeat(2, 4rem);
+        }
+        .grid > * {
+            border: 1px solid black;
+            text-align: center;
+            line-height: 2rem;
+        }
+        .grid:nth-child(1){ grid-auto-flow: row; }
+        .grid:nth-child(2){ grid-auto-flow: row dense; }
+        .grid:nth-child(3){ grid-auto-flow: column; }
+        .grid:nth-child(4){ grid-auto-flow: column dense; }
+    </style>
+</head>
+<body>
+    <div class="grid"></div>
+    <div class="grid"></div>
+    <div class="grid"></div>
+    <div class="grid"></div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach(element => {
+            element.innerHTML = "<div>1</div><div>2</div><div>3</div><div>4</div><div>5</div>";
+        });
+    </script>
+</body>
+</html>
+```
+
+密集流的区别在于，它会想尽一切办法填充栅格流中的空白区域。对于非密集流而言，CSS安排好上一个栅格元素后，会从**这个位置**起向后搜索空余位置；对于密集流而言，CSS安排好上一个元素后，会从**初始位置**起向后搜索，确保利用每一个违背占用的栅格单元。
+$$
+非密集流:=\begin{cases}
+	\textcolor{red}{栅格元素序号k:=1;}\\
+	\text{foreach}(i\in[1,M])\{ \\
+		\ \ \ \ \text{forearch}(j\in[1,N])\{\\
+			\ \ \ \ \ \ \ \ \text{if}(元素k需要的栅格单元均未被占用)\{\\
+			\ \ \ \ \ \ \ \ \ \ \ \ 占用所需的单元格;\\
+			\ \ \ \ \ \ \ \ \ \ \ \ \textcolor{red}{k\text{++};}\\
+			\ \ \ \ \ \ \ \ \}\text{else}\\
+			\ \ \ \ \ \ \ \ \ \ \ \ \text{continue};\\
+			\ \ \ \ \ \ \ \ \}\\
+		\ \ \ \ \}\\
+	\}
+\end{cases}
+,
+密集流:=\begin{cases}
+	\textcolor{red}{\text{foreach}(栅格元素序号k\in[1,K])\{}\\
+		\ \ \ \ \text{foreach}(i\in[1,M])\{ \\
+		\ \ \ \ \ \ \ \ \text{forearch}(j\in[1,N])\{\\
+			\ \ \ \ \ \ \ \ \ \ \ \  \text{if}(元素k需要的栅格单元均未被占用)\{\\
+			\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 占用所需的单元格;\\
+			\ \ \ \ \ \ \ \ \ \ \ \ \}\text{else}\\
+			\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \text{continue};\\
+			\ \ \ \ \ \ \ \ \ \ \ \ \}\\
+		\ \ \ \ \ \ \ \ \}\\
+		\ \ \ \ \}\\
+	\}
+\end{cases}
+$$
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            display: grid;
+            margin-bottom: 1rem;
+            padding: 5px;
+        }
+        .grid:nth-child(1), .grid:nth-child(2) {
+            grid-template-rows: repeat(6, 50px);
+            grid-template-columns: repeat(4, 50px);
+        }
+        .grid:nth-child(3), .grid:nth-child(4) {
+            grid-template-rows: repeat(4, 50px);
+            grid-template-columns: repeat(6, 50px);
+        }
+        .grid > * { border: 1px solid black; }
+        .grid:nth-child(1){ grid-auto-flow: row; }
+        .grid:nth-child(2){ grid-auto-flow: row dense; }
+        .grid:nth-child(3){ grid-auto-flow: column; }
+        .grid:nth-child(4){ grid-auto-flow: column dense; }
+        .grid > img {
+            width: 50px;
+            height: 50px;
+        }
+        .grid > img:nth-child(2) {
+            width: 100px; 
+            grid-column: auto / span 2;
+        }
+        .grid > img:nth-child(4) {
+            height: 100px; 
+            grid-row: auto / span 2;
+        }
+        .grid > img:nth-child(7) {
+            width: 100px; height: 100px; 
+            grid-row: auto / span 2;
+            grid-column: auto / span 2;
+        }
+        .grid > img:nth-child(8) {
+            width: 100px; 
+            grid-column: auto / span 2;
+        }
+    </style>
+</head>
+<body>
+    grid-auto-flow: row;
+    <div class="grid"></div>
+    grid-auto-flow: row dense;
+    <div class="grid"></div>
+    grid-auto-flow: column;
+    <div class="grid"></div>
+    grid-auto-flow: column dense;
+    <div class="grid"></div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach(element => {
+            element.innerHTML = "<img src='https://meyerweb.github.io/csstdg4figs/13-grid-layout/i/yinyang.png'>".repeat(12);
+        });
+    </script>
+</body>
+</html>
+```
+
+## §10.6 栏距(`grid-gap`)
+
+栏距是两个栅格轨道之间的间隔。一个轴上只能设定一个间隔值，使用`grid-gap`属性指定，其属性值由两个长度决定——分别为行栏距和列栏距，只需空格分隔。
+
+> 注意：`grid-row-gap`和`grid-column-gap`已被弃用，而且已从MDN文档中移除。虽然Chromium依然支持，但还是应该避免使用。
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-rows: repeat(4, 3rem);
+            grid-template-columns: repeat(4, 3rem);
+            grid-gap: 5px 20px;
+        }
+        .grid > * {
+            border: 1px solid black;
+            text-align: center;
+            line-height: 3rem;
+            font-size: x-large;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid"></div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach((element, key) => {
+            let elementHTML = "";
+            for (let i = 0 ; i < 16 ; i++) {
+                let redCode = Math.floor((1 + Math.sin(2 * Math.PI * i / 16)) / 2 * 255).toString();
+                let greenCode = Math.floor((1 + Math.sin(2 * Math.PI * i / 16 + Math.PI * 2 / 3)) / 2 * 255).toString();
+                let blueCode = Math.floor((1 + Math.sin(2 * Math.PI * i / 16 + Math.PI * 4 / 3)) / 2 * 255).toString();
+                console.log(redCode);
+                elementHTML += `<span style="background: rgba(${redCode}, ${greenCode}, ${blueCode}, 0.5);">${i}</span>`;
+            }
+            element.innerHTML = elementHTML;
+        });
+    </script>
+</body>
+</html>
+```
+
+## §10.7 栅格的对齐方式
+
+栅格布局也提供了完善的栅格对齐方案。使用的属性与[§9 弹性盒布局](#§9 弹性盒布局)基本一致。
+
+| 属性名称          | 控制哪些元素的对齐行为         | 应用于   |
+| ----------------- | ------------------------------ | -------- |
+| `justify-self`    | 行内方向(横向)上的一个栅格元素 | 栅格元素 |
+| `justify-items`   | 行内方向(横向)上的全部栅格元素 | 栅格容器 |
+| `justify-content` | 行内方向(横向)上的整个栅格     | 栅格容器 |
+| `align-self`      | 块级方向(纵向)上的一个栅格元素 | 栅格元素 |
+| `align-items`     | 块级方向(纵向)上的全部栅格元素 | 栅格容器 |
+| `align-content`   | 块级方向(纵向)上的整个栅格     | 栅格容器 |
+
+### §10.7.1 对齐单个元素(`justify-self`/`align-self`)
+
+让栅格元素内部使用`display: flex`布局，就可以使用`justify-self`和`align-self`分别控制水平和垂直方向的对齐行为。
+
+| `justify-self`/`align-self`的属性值 | 在`justify-self`的作用                              | 在`align-self`的作用                                         |
+| ----------------------------------- | --------------------------------------------------- | ------------------------------------------------------------ |
+| `start`                             | 向栅格区域的起边(左边)对齐                          | 向栅格区域的起边(上边)对齐                                   |
+| `end`                               | 向栅格区域的终边(右边)对齐                          | 向栅格区域的终边(下边)对齐                                   |
+| `center`                            | 向栅格区域的水平中心对齐                            | 向栅格区域的水平中心对齐                                     |
+| `left`                              | 等价于`start`                                       | 等价于`start`                                                |
+| `right`                             | 等价于`end`                                         | 注意！**等价于`start`**！                                    |
+| `self-start`                        | 受`<div dir="...">`的影响，向书写方向起点的一侧对齐 | 不受`<div dir="...">`的影响，等价于`start`                   |
+| `self-end`                          | 受`<div dir="...">`的影响，向书写方向终点的一侧对齐 | 不受`<div dir="...">`的影响，等价于`end`                     |
+| `stretch`                           | 拉伸元素，同时向`start`和`end`对齐                  | 拉伸元素，同时向`start`和`end`对齐                           |
+| `baseline`                          |                                                     | 将该栅格元素的第一条基线，与同水平栅格轨道中最高的栅格元素的第一条基线对齐 |
+| `last-baseline`                     |                                                     | 将该栅格元素的最后一条基线，与同水平栅格轨道中最高的栅格元素的最后一条基线对齐 |
+| `flex-start`                        | 仅在弹性盒布局中有意义，在栅格布局中等价于`start`   | 仅在弹性盒布局中有意义，在栅格布局中等价于`start`            |
+| `flex-end`                          | 仅在弹性盒布局中有意义，在栅格布局中等价于`end`     | 仅在弹性盒布局中有意义，在栅格布局中等价于`end`              |
+
+```html
+<html>
+<head>
+    <style type="text/css">
+        body { padding: 1rem; }
+
+        .grid {
+            display: grid;
+            padding: 0.5em;
+            grid-gap: 0.75em 0.5em;
+            grid-template-rows: 6em;
+            grid-template-columns: repeat(10, 9em);
+        }
+
+        .grid > *[class^="box"] {
+            font-size: 1em;
+            padding: 0.25em;
+            border: 0.2rem solid;
+
+            display: flex; /* 让文字居中 */
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid:nth-child(1) [class*="box"] { align-self: center; }
+        .grid:nth-child(1) .box1 { justify-self: start; }
+        .grid:nth-child(1) .box2 { justify-self: end; }
+        .grid:nth-child(1) .box3 { justify-self: center; }
+        .grid:nth-child(1) .box4 { justify-self: left; }
+        .grid:nth-child(1) .box5 { justify-self: right; }
+        .grid:nth-child(1) .box6 { justify-self: self-start; direction: rtl; }
+        .grid:nth-child(1) .box7 { justify-self: self-end; direction: rtl; }
+        .grid:nth-child(1) .box8 { justify-self: stretch; }
+        
+        .grid:nth-child(2) [class*="box"] { justify-self: center; }
+        .grid:nth-child(2) .box1 { align-self: start; }
+        .grid:nth-child(2) .box2 { align-self: end; }
+        .grid:nth-child(2) .box3 { align-self: center; }
+        .grid:nth-child(2) .box4 { align-self: left; }
+        .grid:nth-child(2) .box5 { align-self: right; }
+        .grid:nth-child(2) .box6 { align-self: self-start; direction: rtl; }
+        .grid:nth-child(2) .box7 { align-self: self-end; direction: rtl; }
+        .grid:nth-child(2) .box8 { align-self: stretch; }
+
+        /* 绘制栅格元素的边框 */
+        .grid > *[class*="gridline"] {
+            border: 1px dashed blue;
+        }
+
+        .grid > *[class*="1"] { grid-row: 1; grid-column: 1; }
+        .grid > *[class*="2"] { grid-row: 1; grid-column: 2; }
+        .grid > *[class*="3"] { grid-row: 1; grid-column: 3; }
+        .grid > *[class*="4"] { grid-row: 1; grid-column: 4; }
+        .grid > *[class*="5"] { grid-row: 1; grid-column: 5; }
+        .grid > *[class*="6"] { grid-row: 1; grid-column: 6; }
+        .grid > *[class*="7"] { grid-row: 1; grid-column: 7; }
+        .grid > *[class*="8"] { grid-row: 1; grid-column: 8; }
+    </style>
+</head>
+<body>
+    justify-self: (默认align-self: center;)
+    <div class="grid">
+        <span class="box1">start</span>
+        <span class="box2">end</span>
+        <span class="box3">center</span>
+        <span class="box4">left</span>
+        <span class="box5">right</span>
+        <span class="box6">self-start (RTL)</span>
+        <span class="box7">self-end (RTL)</span>
+        <span class="box8">stretch</span>
+        <span class="gridline1"></span>
+        <span class="gridline2"></span>
+        <span class="gridline3"></span>
+        <span class="gridline4"></span>
+        <span class="gridline5"></span>
+        <span class="gridline6"></span>
+        <span class="gridline7"></span>
+        <span class="gridline8"></span>
+    </div>
+    align-self: (默认justify-self: center;)
+    <div class="grid">
+        <span class="box1">start</span>
+        <span class="box2">end</span>
+        <span class="box3">center</span>
+        <span class="box4">left</span>
+        <span class="box5">right</span>
+        <span class="box6">self-start (RTL)</span>
+        <span class="box7">self-end (RTL)</span>
+        <span class="box8">stretch</span>
+        <span class="gridline1"></span>
+        <span class="gridline2"></span>
+        <span class="gridline3"></span>
+        <span class="gridline4"></span>
+        <span class="gridline5"></span>
+        <span class="gridline6"></span>
+        <span class="gridline7"></span>
+        <span class="gridline8"></span>
+    </div>
+</body>
+</html>
+```
+
+### §10.7.2 对齐所有元素(`align-items`/`justify-items`)
+
+`align-items`与`justify-items`作用于栅格容器的CSS属性，负责调整栅格容器内的所有栅格元素的水平与垂直的对齐行为。其属性值与`justify-self`和`align-self`完全相同。
+
+### §10.7.3 分布所有元素(`align-content`/`justify-content`)
+
+`align-content`和`justify-content`负责决定栅格元素的分布方式。
+
+```html
+<html>
+<head>
+    <style>
+        .grid {
+            display: grid;
+            background-color: lightgray;
+            margin-bottom: 1rem;
+        }
+        .grid:nth-child(1), .grid:nth-child(2), .grid:nth-child(3) {
+            width: 30rem;
+            grid-template-rows: repeat(1, 3rem);
+            grid-template-columns: repeat(4, 3rem);
+        }
+        .grid:nth-child(4), .grid:nth-child(5), .grid:nth-child(6) {
+            height: 15rem;
+            grid-template-rows: repeat(4, 3rem);
+            grid-template-columns: repeat(1, 3rem);
+        }
+        .grid:nth-child(1){ justify-content: space-between; }
+        .grid:nth-child(2){ justify-content: space-around; }
+        .grid:nth-child(3){ justify-content: space-evenly; }
+        .grid:nth-child(4){ align-content: space-between; }
+        .grid:nth-child(5){ align-content: space-around; }
+        .grid:nth-child(6){ align-content: space-evenly; }
+        .grid > * {
+            border: 1px solid black;
+            text-align: center;
+            line-height: 3rem;
+            font-size: x-large;
+        }
+    </style>
+</head>
+<body>
+    justify-content: space-between;
+    <div class="grid"></div>
+    justify-content: space-around;
+    <div class="grid"></div>
+    justify-content: space-evenly;
+    <div class="grid"></div>
+    align-content: space-between;
+    <div class="grid"></div>
+    align-content: space-around;
+    <div class="grid"></div>
+    align-content: space-evenly;
+    <div class="grid"></div>
+    <script>
+        const gridDOMs = document.querySelectorAll('.grid');
+        gridDOMs.forEach((element, key) => {
+            let elementHTML = "";
+            for (let i = 0 ; i < 4 ; i++) {
+                let redCode = Math.floor((1 + Math.sin(2 * Math.PI * i / 16)) / 2 * 255).toString();
+                let greenCode = Math.floor((1 + Math.sin(2 * Math.PI * i / 16 + Math.PI * 2 / 3)) / 2 * 255).toString();
+                let blueCode = Math.floor((1 + Math.sin(2 * Math.PI * i / 16 + Math.PI * 4 / 3)) / 2 * 255).toString();
+                console.log(redCode);
+                elementHTML += `<span style="background: rgba(${redCode}, ${greenCode}, ${blueCode}, 0.5);">${i}</span>`;
+            }
+            element.innerHTML = elementHTML;
+        });
+    </script>
+</body>
+</html>
+```
+
+
+
+## §10.114514 栅格总属性(`grid`)
+
+`grid`属性以简洁的语法定义栅格模版和栅格流，但是二者不能同时设置。
+
+<iframe src="https://embed.ihateregex.io/make/KG5vbmUpJTdDKHN1YmdyaWQpJTdDKCUzQ2dyaWQtdGVtcGxhdGUtcm93cyUzRSU1QyU1QyUyRiUzQ2dyaWQtdGVtcGxhdGUtY29sdW1ucyUzRSklN0MoKCglM0NsaW5lLW5hbWVzJTNFKSUzRiUzQ3N0cmluZyUzRSglM0N0cmFjay1zaXplJTNFKSUzRiglM0NsaW5lLW5hbWVzJTNFKSUzRiklMkIoJTVDJTVDJTJGJTNDdHJhY2stbGlzdCUzRSklM0YpJTdDKCUzQ2dyaWQtYXV0by1mbG93JTNFKCUzQ2dyaWQtYXV0by1yb3dzJTNFKCU1QyU1QyUyRiUzQ2dyaWQtYXV0by1jb2x1bW5zJTNFKSUzRiklM0Yp"
+        height="400"
+        style="width:100%"
+        frameborder="0"></iframe>
+
+`grid`其中的一种取值是`<grid-template-rows>/<grid-template-columns>`，例如下面两种写法完全等效：
+
+```css
+.grid {
+	grid:
+        "header header header header" 3rem
+        "leftside content content rightside" 1fr
+        "footer footer footer footer" 5rem / 
+        2rem 3fr minmax(10rem, 1fr) 2rem;
+}
+.grid {
+	grid-template-areas:
+        "header header header header"
+        "leftside content content rightside"
+        "footer footer footer footer";
+    grid-template-rows: 3rem 1fr 5rem;
+    grid-template-columns: 2rem 3ft minmax(10rem, 1ft) 2rem;
+}
+```
+
+`grid`的另一种取值是`(<line-names>? <string> <track-size>? <line-names>?)+ (/<track-list>)?`。这本质是上一种方式的升级版：
+
+```css
+.grid {
+    grid:
+	    "header header header header" 3rem,
+    	[main-start] "leftside content content rightside" 1fr [main=stop],
+        "footer footer footer footer" 5rem [page-end] /
+        2rem 3fr minmax(10rem, 1fr) 2rem;
+}
+```
+
+` [<grid-auto-flow>[<grid-auto-rows>[/<grid-auto-columns>]?]?]`，例如下面两种写法完全等效：
+
+```css
+.grid {
+	grid: dense rows 2rem / minmax(1rem, 3rem);
+}
+.grid {
+	grid-auto-flow: dense rows;
+    grid-auto-rows: 2rem;
+    grid-auto-columns: minmax(1rem, 3rem);
+}
+```
+
+> 注意：`grid: subgrid;`属性值还不成熟，因此不过多介绍。 
 
 
 
@@ -7495,43 +8147,19 @@ $$
 
 
 
+每天8小时，7分钟一页书。
 
+9.22 21w字 P312
 
+9.23 22w字 P381
 
+9.24 23w字 P450
 
+9.25 24w字 P519
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-9.21 20w字
-
-9.22 21w字
-
-9.23 22w字
-
-9.24 23w字
-
-9.25 24w字
-
-9.26 25w字
+9.26 25w字 P588（结束）
 
 9.27 26w字
-
-9.28 27w字
-
-9.29 28w字
 
 
 
