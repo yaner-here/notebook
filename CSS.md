@@ -7681,9 +7681,13 @@ $$
 </html>
 ```
 
-### §10.4.2 栅格元素重叠
+### §10.4.2 栅格分层(`order`)
 
 当多个栅格元素占用了同一个栅格单元时，会导致栅格元素重叠。`z-index`较大栅格元素（包括背景、边框）在最上层。如果`z-index`相同，则排在源代码后面的在最上层。
+
+栅格布局提供了一种新的方式：`order`属性。将该属性附在栅格元素上，就能改变**渲染顺序**。`order`属性值越大，渲染顺序就越靠后，等价于图层就越靠上。
+
+`z-index`与`order`的区别是：`z-index`仅影响栅格元素的图层，不影响其位置。而`order`较大的元素，可能本应被自动安排到某位置，但是由于它渲染顺序靠后，那么该位置就会被`order`较小的栅格元素所抢占，因此`order`较大的栅格元素的位置有可能会靠后。
 
 ## §10.5 栅格流(`grid-auto-flow`)
 
@@ -8082,9 +8086,7 @@ $$
 </html>
 ```
 
-
-
-## §10.114514 栅格总属性(`grid`)
+## §10.8 栅格总属性(`grid`)
 
 `grid`属性以简洁的语法定义栅格模版和栅格流，但是二者不能同时设置。
 
@@ -8140,7 +8142,379 @@ $$
 
 > 注意：`grid: subgrid;`属性值还不成熟，因此不过多介绍。 
 
+# §11 表格布局
 
+表格布局是最原始的布局方式。在弹性盒布局和栅格布局出现之前，只有表格布局能对齐不同尺寸的元素。它有诸多限制，例如每个单元格的长宽必须相等，除表题之外的元素都没有外边距等等。
+
+以下是表格布局常用的术语：
+
+- 行框：由栅格单元构成的行
+- 行组：由相邻的行框组成的集合
+- 列框：由一个或多个栅格单元构成的列
+- 列组：由相邻的列框组成的集合
+
+## §11.0 前置知识
+
+HTML可以使用标签直接定义表格，下面是一个示例：
+
+```html
+<table>
+	<thead> <!-- 定义表头 -->
+    	<tr> <!-- 定义一行 -->
+            <th>列标题1</th> <!-- 定义表头单元格 -->
+      		<th>列标题2</th>
+      		<th>列标题3</th>
+    	</tr>
+  	</thead>
+  	<tbody>
+    	<tr>
+      		<td>行1，列1</td> <!-- 定义表体单元格 -->
+      		<td>行1，列2</td>
+      		<td>行1，列3</td>
+    	</tr>
+    	<tr>
+      		<td>行2，列1</td>
+      		<td>行2，列2</td>
+      		<td>行2，列3</td>
+    	</tr>
+  	</tbody>
+</table>
+```
+
+### §11.0.1 匿名表格对象
+
+如果源代码中定义的表格缺少了一些元素，HTML会尝试以匿名对象的形式插入缺少的表格组件。这种行为遵守的规则称为“对象插入规则”。
+
+1. 如果`<td>`/`<th>`的父元素不是`<tr>`，则在`<td>`/`<th>`及其父元素之间插入一个匿名`<tr>`对象。
+2. 如果`<tr>`的父元素不是`<table>`/`<inline-table>`/`<tbody>`，则在`<tr>`及其父元素之间插入一个匿名`<table>`对象。
+3. 如果`<col>`的父元素不是`<table>`/`<inline-table>`/`<colgroup>`，则在`<col>`及其父元素之间插入一个匿名`<table>`对象。
+4. 如果`<tbody>`/`<thead>`/`<tfoot>`/`<colgroup>`/`<caption>`的父元素不是`<table>`，则在该元素及其父元素之间插入一个匿名`<table>`对象。
+5. 如果`<table>`/`<inline-table>`的子元素不是`<tbody>`/`<tfoot>`/`<tr>`/`<caption>`，则在该元素与其子元素之间插入一个匿名`<tr>`对象。
+6. 如果`<tbody>`/`<thead>`/`<tfoot>`的子元素不是`<tr>`，则在该元素与其子元素之间插入一个匿名`<tr>`对象。
+7. 如果`<tr>`的子元素不是`<td>`/`<th>`，则在该元素与其子元素之间插入一个匿名`<td>`/`<th>`对象。
+
+## §11.1 表格布局的定义
+
+与弹性盒布局和栅格布局不同，HTML其实可以通过`<tr>`和`<td>`就能创建表格布局。但是XML就没有这种规范了，只能使用CSS的`display`属性定义。由于`display`的语法极其繁琐，这里我们只介绍和表格布局有关的属性值。
+
+| `display`属性值      | 对应的HTML元素 | 作用                                          |
+| -------------------- | -------------- | --------------------------------------------- |
+| `table`              | `<table>`      | 把元素定义为块级表格                          |
+| `inline-table`       |                | 把元素定义为行内表格                          |
+| `table-row`          | `<tr>`         | 把元素定义为由单元格构成的行                  |
+| `table-row-group`    | `<tbody>`      | 把元素定义为由一行或多行构成的组              |
+| `table-header-group` | `<thead>`      | 与`table-row-group`相似，但是永远显示在最前面 |
+| `table-footer-group` | `<tfoot>`      | 与`table-row-group`相似，但是永远显示在最后面 |
+| `table-column`       | `<col>`        | 把元素定义为由单元格构成的列，不会被渲染      |
+| `table-column-group` | `<colgroup>`   | 把元素定义为由一列或多列构成的组，不会被渲染  |
+| `table-cell`         | `<td>`/`<th>`  | 把元素定义为一个单元格                        |
+| `table-caption`      | `<caption>`    | 把元素定义为一个表题                          |
+
+开发者应熟记上表中`display`属性值的作用。例如给定下列XML文档，我们可以根据该表赋予对应的`display`属性值，使其转化为表格数据：
+
+```xml
+<scores>
+    <headers>
+        <label>Team</label>
+        <label>Score</label>
+    </headers>
+    <game sport="football">
+        <team>
+            <name>Red</name>
+            <score>8</score>
+        </team>
+        <team>
+            <name>Red</name>
+            <score>5</score>
+        </team>
+    </game>
+</scores>
+```
+
+```css
+scores { display: table; }
+headers { display: table-header-group; }
+game { display: table-row-group; }
+team { display: table-row; }
+label, name, score { display: table-cell; }
+```
+
+CSS的表格布局是"行主导"的。具体来说，CSS默认源代码中会显式地声明行，而列从行中的单元格布局衍生而来。于是，第一列从每行的第一个单元格抽取而来，第二列、第三列......同理。
+
+CSS规定：一个完整的表格包含了6个独立的图层，从上到下分别是：单元格、行、行组、列、列组、表格。
+
+```html
+<html>
+<head>
+    <style>
+        table { background-color: lightblue; }
+        table > thead > tr:nth-child(1) > td:nth-child(2) { background-color: lightgreen; }
+        table > tbody > tr:nth-child(2) > td:nth-child(2) { background-color: lightcoral; }
+    </style>
+</head>
+<body>
+    <table>
+        <thead>
+            <tr>
+                <td>Team</td>
+                <td>Points</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>A</td>
+                <td>15</td>
+            </tr>
+            <tr>
+                <td>B</td>
+                <td>21</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>
+```
+
+## §11.2 表格表题(`caption-side`)
+
+| `caption-side`属性值 | 作用       |
+| -------------------- | ---------- |
+| `top`(缺省)          | 表题在上方 |
+| `bottom`             | 表题在下方 |
+
+```html
+<html>
+<head>
+    <style>
+        table { width: 200px; background-color: lightblue; margin-bottom: 2rem; }
+        table:nth-of-type(1) > caption { caption-side: top; color: red;}
+        table:nth-of-type(2) > caption { caption-side: bottom; color: red;}
+    </style>
+</head>
+<body>
+    caption-side: top;
+    <table>
+        <caption>Figure1: Scores List</caption>
+        <thead>
+            <tr><td>Team</td><td>Points</td></tr>
+        </thead>
+        <tbody>
+            <tr><td>A</td><td>15</td></tr>
+            <tr><td>B</td><td>21</td></tr>
+        </tbody>
+    </table>
+    caption-side: bottom;
+    <table>
+        <caption>Figure1: Scores List</caption>
+        <thead>
+            <tr><td>Team</td><td>Points</td></tr>
+        </thead>
+        <tbody>
+            <tr><td>A</td><td>15</td></tr>
+            <tr><td>B</td><td>21</td></tr>
+        </tbody>
+    </table>
+</body>
+</html>
+```
+
+## §11.3 表格边框(`border-collapse`)
+
+CSS有两种不同的边框模型——早期默认使用折叠边框模型，后期默认使用分离边框模型。我们可以使用`border-collapse`属性单独指定使用哪种模型。
+
+| `border-collapse`属性值 | 作用             |
+| ----------------------- | ---------------- |
+| `collapse`(CSS2缺省)    | 使用折叠边框模型 |
+| `separate`(CSS3缺省)    | 使用分离边框模型 |
+| `inherit`               |                  |
+
+### §11.3.1 分离边框模型
+
+在分离边框模型中，每个单元格都与其它单元格相隔一定的距离，且边框不会重叠。
+
+```html
+<html>
+<head>
+    <style>
+        table { 
+            width: 200px; 
+            background-color: lightblue;
+            margin-bottom: 2rem; 
+            border-collapse: separate;
+        }
+        table td {
+            border: 2px solid black;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    caption-side: top;
+    <table>
+        <caption>Figure1: Scores List</caption>
+        <thead><tr><td>Team</td><td>Points</td></tr></thead>
+        <tbody><tr><td>A</td><td>15</td></tr><tr><td>B</td><td>21</td></tr></tbody>
+    </table>
+</body>
+</html>
+```
+
+在分离边框模型的基础上，可以使用`border-spacing`属性指定边框的横向与纵向间距。该属性附在`<table>`元素上，由1~2个形参组成，形参之间用空格分割，前者表示横向间距，后者表示纵向间距。
+
+```html
+<html>
+<head>
+    <style>
+        table { 
+            width: 200px; 
+            background-color: lightblue;
+            margin-bottom: 2rem; 
+            border-collapse: separate;
+            border-spacing: 1px 10px; /* 设置的边框间距 */
+        }
+        table td {
+            border: 2px solid black;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    caption-side: top;
+    <table>
+        <caption>Figure1: Scores List</caption>
+        <thead><tr><td>Team</td><td>Points</td></tr></thead>
+        <tbody><tr><td>A</td><td>15</td></tr><tr><td>B</td><td>21</td></tr></tbody>
+    </table>
+</body>
+</html>
+```
+
+如果单元格中没有内容，则被称为空单元格。我们可以使用`empty-cells`属性决定是否显示空单元格（包括该单元格的背景和边框）。该属性值有`show`(缺省)/`hide`两种取值。
+
+```html
+<html>
+<head>
+    <style>
+        table { 
+            width: 200px; 
+            background-color: lightblue;
+            margin-bottom: 2rem; 
+            border-collapse: separate;
+            empty-cells: hide; /* 隐藏空白单元格 */
+        }
+        table td {
+            border: 2px solid black;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <table>
+        <caption>Figure1: Scores List</caption>
+        <thead><tr><td>Team</td><td>Points</td></tr></thead>
+        <tbody><tr><td>A</td><td>15</td></tr><tr><td>B</td><td></td></tr></tbody>
+    </table>
+</body>
+</html>
+```
+
+### §11.3.2 折叠边框模型
+
+折叠边框模型具有以下特点：
+
+1. 单元格的边框之间一定没有间隔。
+2. `display: table`/`display: inline-table`的元素不能有内边距，但是可以有内边距。这意味着边框一定紧贴着最外层的单元格。
+
+其实在折叠边框模型中，边框不是真的折叠了，而是重叠了。两条相邻的边框都会被绘制，至于哪一条边框在图层上方，需要按照以下规则确定：
+
+1. 如果某一条边框为`border-style: hidden`，则该条边框优先级最低。
+
+2. 如果所有边框均可见，则较窄边框的优先级高于较宽边框。
+
+3. 如果所有边框的宽度相同，那么按照边框式样(`border-style`)对优先级从高到低排序：
+
+   ```
+   double > solid > dashed > dotted > ridge > outset > groove > inset > none
+   ```
+
+4. 如果所有边框的式样相同，那么边框会按照下列顺序尝试继承颜色：
+
+   ```
+   单元格 > 行 > 行组 > 列 > 列组 > 表格
+   ```
+
+## §11.4 表格尺寸
+
+### §11.4.1 宽度(`table-layout`)
+
+`table-layout`
+
+| `table-layout`属性值 | 作用         |
+| -------------------- | ------------ |
+| `auto`               | 使用固定布局 |
+| `fixed`              | 使用自动布局 |
+
+固定布局无需考虑单元格中的内容，因此加载速度更快。它具有以下特点：
+
+1. 如果列元素**不是**`width: auto`，那么设定的就是整列的宽度。
+2. 如果列元素是`width: auto`，但是该列中的存在一个单元格，其所在的行恰为第一行，而且规定了这个单元格不是`width: auto`，那么这个单元格的宽度就是整列的宽度。如果这个单元格横跨多列，那么宽度会平分到到各列中。
+3. 如果列元素与其第一行的单元格都是`width: auto`，那么CSS将自行确定宽度，尽量保证各列宽度相等。
+
+分析上面的规则，我们不难发现固定布局加载速度快的原因：每一列的宽度只由第一行确定，后面所有行的这一列单元格都与第一行确定的列宽度保持一致。
+
+固定布局最终的宽度为$\max\left({\text{width}_{\text{table}},\displaystyle\sum_{j}\text{width}_{1,j}}\right)$。如果$\displaystyle\sum_{j}\text{width}_{1,j}>\text{width}_{\text{table}}$，那么多出来的这部分宽度会均匀的增加给各列的宽度。
+
+```html
+<html>
+<head>
+    <style>
+        table {
+            table-layout: fixed;
+            width: 400px;
+            border-collapse: collapse;
+        }
+        td { border: 1px solid; }
+        col#c1 { width: 200px; }
+        #r1c2 { width: 75px; }
+        #r2c3 { width: 500px; }
+    </style>
+</head>
+<body>
+    <table>
+        <colgroup>
+            <col id="c1">
+            <col id="c2">
+            <col id="c3">
+            <col id="c4">
+        </colgroup>
+        <tr>
+            <td id="r1c1">1-1</td>
+            <td id="r1c2">1-2</td>
+            <td id="r1c3">1-3</td>
+            <td id="r1c4">1-4</td>
+        </tr>
+        <tr>
+            <td id="r2c1">2-1</td>
+            <td id="r2c2">2-2</td>
+            <td id="r2c3">2-3</td>
+            <td id="r2c4">2-4</td>
+        </tr>
+        <tr>
+            <td id="r3c1">3-1</td>
+            <td id="r3c2">3-2</td>
+            <td id="r3c3">3-3</td>
+            <td id="r3c4">3-4</td>
+        </tr>
+        <tr>
+            <td id="r4c1">4-1</td>
+            <td id="r4c2">4-2</td>
+            <td id="r4c3">4-3</td>
+            <td id="r4c4">4-4</td>
+        </tr>
+    </table>
+</body>
+</html>
+```
 
 
 
@@ -8148,8 +8522,6 @@ $$
 
 
 每天8小时，7分钟一页书。
-
-9.22 21w字 P312
 
 9.23 22w字 P381
 
