@@ -8516,6 +8516,221 @@ CSS有两种不同的边框模型——早期默认使用折叠边框模型，�
 </html>
 ```
 
+自动布局是CSS默认使用的布局。它加载较慢的原因是：CSS必须读去玩表格中的全部内容后，才能开始排布。具体步骤如下所示：
+
+1. 计算每一列中的每个单元格的最小宽度和最大宽度：
+   - 单元格的最小宽度：在内容可以换行，但是不能超出单元格边框的前提下，单元格所占的宽度。
+   - 单元格的最大宽度：在内容不能换行（除非遇到强制换行，例如`<br>`/`&#10;`）的前提下
+2. 计算各列的的最小宽度和最大宽度。
+3. 如果单元格横跨多列，那么涉及到的这几列的最小宽度之和，必须等于单元格的最小宽度。同理，涉及到的这几列的最大宽度之和也要等于该单元格的最大宽度。
+4. 到此为止，CSS已经知道每一列有多宽了。如果`<table>`是`width: auto`，则表格的最终宽度等于列宽度、边框、间距这三者之和。如果`<table>`不是`width: auto`，则表格的最终宽度为$\max{\left(\text{width}_{\text{table}},\displaystyle\sum_{}(\text{width}_{列}+\text{width}_\text{边框}+\text{width}_{间距})\right)}$。
+
+例如，我们假设有一个四行四列的表格，每个单元格包含的内容都较少，仅有`22px`，都有`1px`的边框，宽度为`auto`。第三列宽度为`25%`，一行二列单元格的宽度为`40%`，二行二列单元格的宽度为`50px`，二行三列单元格的宽度为`35px`，四行一列单元格的宽度为`100px`，四行撕裂单元格的宽度为`1px`。请求解这四列的实际宽度。接下来我们按照上面的算法进行计算：
+
+1. 计算每一列中的每个单元格的最小宽度和最大宽度。
+2. 计算各列的最小宽度和最大宽度。
+   - 第一列：四行一列单元格的宽度为`100px`，远高于单元格内容宽度，所以最小宽度和最大宽度都是`100px`。
+   - 第二列：一行二列单元格的宽度为`40%`，二行二列单元格的宽度为`50px`，因此最小宽度和最大宽度分别为`50px`和`40%`。
+   - 第三列：三行三列单元格的宽度是`35px`，这一列宽度为`25%`，以你最小宽度和最大宽度分别为`35px`和`25%`。
+   - 第四列：四行四列单元格的宽度为`1px`，远小于内容宽度`22px`，因此最小宽度和最大宽度都是内容宽度`22px`。
+3. 计算表格的最小宽度和最大宽度。
+   - 表格的最小宽度为$215\text{px}$，最大宽度为$123\text{px}+65\%$，其中$123\text{px}$是第一列与第四列的最大宽度与公用折叠边框宽度之和。由于$\text{123px}$占用了整个宽度的$1-40\%-25\%=35\%$，所以表格的最大宽度为$\displaystyle\frac{123\text{px}}{35\%}\approx351.43\text{px}$。
+
+### §11.4.2 高度
+
+开发者可以对表格显式使用`height`属性指定高度。对于表格而言，`height`的行为更类似于`min-height`——如果各行高度之和大于表格高度，那么表格的高度实际上会超出`height`的限制。如果反过来说小于表格高度，那么表格的高度就是`height`所规定的。
+
+> 注意：当各行高度之和小于表格高度时，CSS并没有规定这部分多出来的高度应该怎么办。不同的用户代理可能有不同的行为——有的会在表格中留白，有的会给所有行平分高度。
+
+### §11.4.3 对齐
+
+| `text-align`/`vertical-align`属性值 | `vertica-align`作用                            |
+| ----------------------------------- | ---------------------------------------------- |
+| `top`                               | 单元格中内容的顶部与（所跨第一的）行的顶部对齐 |
+| `bottom`                            | 单元格中内容的底部与（所跨最后的）行的底部对齐 |
+| `middle`                            | 单元格中内容的中线与（所跨各）行的中线对齐     |
+| `baseline`                          | 单元格中内容的基线与（所跨第一）行的基线对齐   |
+
+```html
+<html>
+<head>
+    <style>
+        table {
+            table-layout: fixed;
+            width: 50rem;
+            height: 10rem;
+            border-collapse: collapse;
+        }
+        table td { 
+            border: 1px solid; 
+            padding-top: 1rem;
+        }
+        table > tbody > tr > td:nth-of-type(1) { vertical-align: top; }
+        table > tbody > tr > td:nth-of-type(2) { vertical-align: bottom; }
+        table > tbody > tr > td:nth-of-type(3) { vertical-align: middle; }
+        table > tbody > tr > td:nth-of-type(4) { vertical-align: baseline; font-size: larger; }
+    </style>
+</head>
+<body>
+    <table>
+        <tbody>
+            <tr>
+                <td>vertical-align: top;</td>
+                <td>vertical-align: bottom;</td>
+                <td>vertical-align: middle;</td>
+                <td>vertical-align: baseline;</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>
+```
+
+# §12 列表与生成
+
+列表是CSS中最简单的块级框。从CSS2开始允许开发者控制列表项目的编号。
+
+## §12.1 列表样式
+
+### §12.1.1 列表记号(`list-style-type`)
+
+| `list-style-type`属性值 | 作用                      | `list-style-type`属性值 | 作用                    | `list-style-type`属性值 | 作用                                    |
+| ----------------------- | ------------------------- | ----------------------- | ----------------------- | ----------------------- | --------------------------------------- |
+| `disc`                  | 实心圆点                  | `kannada`               |                         | `hiragana`              |                                         |
+| `circle`                | 空心圆点                  | `lao`                   |                         | `hiragana-iroha`        |                                         |
+| `square`                | 实心正方形                | `malayalam`             |                         | `katakana`              |                                         |
+| `disclosure-open`       | 实心倒三角型              | `mongolian`             |                         | `katakana-ironha`       |                                         |
+| `disclosure-closed`     | 实心右三角形              | `myanmar`               |                         | `japanese-informal`     |                                         |
+| `decimal`               | 十进制数字                | `oriya`                 |                         | `japanese-formal`       |                                         |
+| `decimal-leading-zero`  | 十进制数字（带有前导`0`） | `persian`               |                         | `korean-hangul-formal`  |                                         |
+| `arabic-indic`          |                           | `lower-roman`           | 小写罗马字母            | `korean-hanja-informal` |                                         |
+| `armenian`              |                           | `upper-roman`           | 大写罗马字母            | `korean-hanja-formal`   |                                         |
+| `upper-armenian`        |                           | `tamil`                 |                         | `simp-chinese-infromal` |                                         |
+| `lower-armenian`        |                           | `telugu`                |                         | `simp-chinese-formal`   |                                         |
+| `bengail`               |                           | `thai`                  |                         | `trad-chinese-informal` |                                         |
+| `cambodian`             |                           | `tibetan`               |                         | `trad-chinese-formal`   |                                         |
+| `khmer`                 |                           | `lower-alpha`           | 实质上就是`lower-latin` | `ethiopic-numeric`      |                                         |
+| `cjk-decimal`           | 中日韩汉字计数            | `lower-latin`           | 小写拉丁字母            | **none**                | **不显示**                              |
+| `devanagari`            |                           | `upper-alpha`           | 实质上就是`upper-latin` | **`string`**            | 自行指定记号字符（包括特殊字符与Emoji） |
+| `gujarati`              |                           | `upper-latin`           | 大写拉丁字母            |                         |                                         |
+| `gurmukhi`              |                           | `cjk-earthly-branch`    |                         |                         |                                         |
+| `georgian`              |                           | `cjk-heavenly-stem`     |                         |                         |                                         |
+| `hebrew`                |                           | `lower-greek`           |                         |                         |                                         |
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            display: flex;
+            width: 60rem;
+            flex-wrap: wrap;
+        }
+        ol {
+            margin: 0.5rem;
+            padding-right: 2rem;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    list-style-type:
+    <div class="container"></div>
+    <script>
+        const listStyleTypes = [
+            "disc", "circle", "square", "disclosure-open", "disclosure-closed", "decimal", "decimal-leading-zero", "arabic-indic", "armenian",
+            "upper-armenian", "lower-armenian", "bengail", "cambodian", "khmer", "cjk-decimal", "devanagari", "gujarati", "gurmukhi", "georgian", "hebrew",
+            "kannada","lao", "malayalam", "mongolian", "myanmar", "oriya", "persian", "lower-roman", "upper-roman", 
+            "tamil", "telugu", "thai", "tibetan", "lower-alpha", "lower-latin", "upper-alpha", "upper-latin", "cjk-earthly-branch", "cjk-heavenly-stem", "lower-greek",
+            "hiragana", "hiragana-iroha", "katakana", "katakana-iroha", "japanese-informal", "japanese-formal", "korean-hangul-formal", "korean-hanja-informal", "korean-hanja-formal", 
+            "simp-chinese-informal", "simp-chinese-formal", "trad-chinese-informal", "trad-chinese-formal", "ethiopic-numeric"
+        ];
+        const conatinerDOM = document.querySelector(".container");
+        listStyleTypes.forEach((type, key) => {
+            conatinerDOM.innerHTML += `<ol style="list-style-type: ${type};">${listStyleTypes[key]}<li>Alice</li><li>Bob</li><li>Carol</li></ol>`;
+        });
+    </script>
+</body>
+</html>
+```
+
+### §12.1.2 列表记号图像(`list-style-image`)
+
+常规的列表记号只支持纯文本，CSS也支持使用`list-style-image`属性图像设置记号。其属性值可以是任何图像，包括渐变图像。
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            display: flex;
+            width: 60rem;
+            flex-wrap: wrap;
+        }
+        ol {
+            margin: 0.5rem;
+            padding-right: 2rem;
+            border: 1px solid black;
+            list-style-type: none;
+            list-style-image: radial-gradient(red, black, red);
+            font-size: xx-large;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <ol>
+            <li>Alice</li>
+            <li>Bob</li>
+            <li>Carol</li>
+        </ol>
+    </div>
+</body>
+</html>
+```
+
+> 注意：图表项目图像的有一个缺点：默认尺寸特别小。在2020年之前，没有任何方案能在不更改`font-size`的情况下单独改变这一图像的尺寸。在2020年后，各大浏览器开始支持CSS规范中的`::marker`伪元素，可以直接更改它的`font-size`/`color`/`margin`等属性。
+
+### §12.1.3 列表记号的位置(`list-style-position`)
+
+`list-style-position`属性决定列表记号的显示位置。
+
+| `list-style-position`属性值 | 作用                                                       |
+| --------------------------- | ---------------------------------------------------------- |
+| `inside`                    | 把记号放在列表内容之中，即记号左边与下面几行的首字左边对齐 |
+| `outside`(缺省)             | 把记号放在列表内容以外，即记号右边与下面几行的首字左边对齐 |
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            display: flex;
+            width: 60rem;
+            flex-wrap: wrap;
+        }
+        ol {
+            margin: 0.5rem;
+            padding-right: 2rem;
+            border: 1px solid black;
+            list-style-type: square;
+            width: 10rem;
+        }
+        ol > li:nth-of-type(1) { list-style-position: inside; }
+        ol > li:nth-of-type(2) { list-style-position: outside; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <ol>
+            <li>This is a long sentence with <code>list-style-position: inside;</code></li>
+            <li>This is a long sentence with <code>list-style-position: outside;</code></li>
+        </ol>
+    </div>
+</body>
+</html>
+```
+
 
 
 
