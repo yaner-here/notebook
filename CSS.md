@@ -1,5 +1,9 @@
 # CSS
 
+参考书籍：
+
+- CSS权威指南（第四版）[豆瓣](https://book.douban.com/subject/33398314/)
+
 # §0 前置知识
 
 ## §0.1 在HTML引入CSS
@@ -53,7 +57,39 @@ HTTP协议允许在响应头指定加载的CSS文件。
 <span style="color: red">Hello</span>
 ```
 
+### §0.1.5 `<style>标签`
 
+将`<style>`标签放在`<head>`内即可。
+
+> 注意：当`<style>`标签有`contenteditable`属性时，`<style>`标签变成一个可以编辑的元素。给`<head>`设置`display: block;`使得元素显示。
+>
+> ```html
+> <html>
+>     <head>
+>         <style contenteditable id="editme">
+>             head {display: block;}
+>             style#editme {
+>                 display: block;
+>                 white-space: pre-wrap;
+>                 border: 0.25ch solid rgba(0,0,0,0.33);
+>                 font: 1.2rem Consolas, "Courier New", Courier, monospace;
+>                 max-height: 11rem;
+>                 overflow: auto;
+>             }
+>             div {
+>                 width: 10rem;
+>                 height: 5rem;
+>                 border: 2px black solid;
+>             }
+>         </style>
+>     </head>
+>     <body>
+>         <div></div>
+>     </body>
+> </html>
+> ```
+>
+> 
 
 # §1 CSS语法
 
@@ -8451,8 +8487,8 @@ CSS有两种不同的边框模型——早期默认使用折叠边框模型，�
 
 | `table-layout`属性值 | 作用         |
 | -------------------- | ------------ |
-| `auto`               | 使用固定布局 |
-| `fixed`              | 使用自动布局 |
+| `auto`(缺省)         | 使用自动布局 |
+| `fixed`              | 使用固定布局 |
 
 固定布局无需考虑单元格中的内容，因此加载速度更快。它具有以下特点：
 
@@ -8731,70 +8767,2304 @@ CSS有两种不同的边框模型——早期默认使用折叠边框模型，�
 </html>
 ```
 
+## §12.2 生成内容
 
+CSS定义了生成内容的方式，不必通过源文档展示。例如前面提到的列表记号起始就是生成内容的一种。
 
+### §12.2.1 `::before`和`::after`
 
+我们可以使用`::before`和`::after`伪元素将生成的内容插入到文档中。
 
+```css
+a[href] { border: 1px solid black; }
 
-每天8小时，7分钟一页书。
-
-9.23 22w字 P381
-
-9.24 23w字 P450
-
-9.25 24w字 P519
-
-9.26 25w字 P588（结束）
-
-9.27 26w字
-
-
-
-# §A 附录
-
-## §A.1 厂商前缀
-
-有些CSS属性名会带有一个前缀（例如`-o-border-image`），用于让浏览器厂商标记实验用途或专属的CSS功能。
-
-| 前缀       | 厂商                                          |
-| ---------- | --------------------------------------------- |
-| `-epub-`   | 国际数字出版论坛指定的`ePub`格式              |
-| `-moz-`    | 基于`Mozilla`的浏览器（例如`Firefox`）        |
-| `-ms-`     | `Internet Explorer`                           |
-| `-o-`      | 基于`Opera`的浏览器                           |
-| `-webkit-` | 基于`Webkit`的浏览器（例如`Safari`,`Chrome`） |
-
-## §A.2 媒体类型
-
-CSS2引入了媒体类型，表示当前文档展示时所处的环境。
-
-可以用以下方法声明媒体类型：
-
-```html
-1.
-<link ... media="{{media}}">
-<link ... media="{{media}}, {{media}}, ...">
-
-2.
-<style media="{{media}}"></style>
-<style media="{{media}}, {{media}}, ..."></style>
-
-3.
-<style> @import url(index.css) {{media}}</style>
-<style> @import url(index.css) {{media}}, {{media}}, ...</style> /*引入多种媒体类型的样式*/
-<style> @import url(index.css) {{media}} and {{media}} and ...</style> /**/
-
-<style> @media {{media}} {color: red;}</style>
-<style> @media {{media}}, {{media}} {color: red;}</style>
+a[href]::before { content: "(Link)"; }
+a[href].link-pdf::after { content: url(./static/icon/pdf.png); }
 ```
 
-常见的媒体类型有：
+容易发现，`a[href]`的内容区被撑大了。CSS规定，除了列表记号，所有`::before`和`::after`伪元素都被规定位于元素框的内部。这意味着`text-decoration`属性会影响`content`属性的文字、`border`作用的边框区也会被撑大。
 
-| 媒体类型     | 作用         |
-| ------------ | ------------ |
-| `all`        | 全部         |
-| `print`      | 打印文档     |
-| `screen`     | 桌面显示器   |
-| `projection` | 幻灯片或投影 |
-| `handheld`   | 移动端浏览器 |
+`::before`和`::after`伪元素有以下特点：
 
+- CSS2规定：`::before`和`::after`伪元素禁止使用浮动属性(`float`)和定位属性(`position`)。
+- 如果`::before`和`::after`的选择目标是块级元素，那么`display`属性只能为`none`、`inline`、`block`、`marker`，其他属性值一律重置为`block`。
+- 如果`::before`和`::after`的选择目标是行内元素，那么`display`属性只能为`none`、`inline`，其他属性值一律重置为`inline`。
+
+```html
+<html>
+<head>
+    <style>
+        h1 { color: darkred; }
+        h1.life-category::before { 
+            content: "[LIFE]";
+            color: black;
+            padding: 1rem;
+            font-size: large;
+            text-align: center;
+        }
+        h1.social-category::before { 
+            content: "[SOCIAL]";
+            color: black;
+            padding: 1rem;
+            font-size: large;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="life-category">Healthy plan for jogging</h1>
+    <h1 class="social-category">America president election 2024 will start </h1>
+</body>
+</html>
+```
+
+### §12.2.2 指定内容(`content`)
+
+`contnet`属性用于指示生成的内容，只能用于`::before`和`::after`伪元素中。
+
+| `content`属性值                                          | 作用                               |
+| -------------------------------------------------------- | ---------------------------------- |
+| `normal`(缺省)                                           |                                    |
+| `<string>`                                               | 字符串                             |
+| `url(<uri>)`                                             | 加载图片资源                       |
+| `<counter>`                                              | 计数器                             |
+| `attr(<identifier>)`                                     | 获取当前标签的`<identifier>`属性值 |
+| `[open-quote|close-quote|no-open-quote|no-close-quote]+` | 引号                               |
+
+当`content`属性为`<string>`时，CSS会将字符串中的内容原封不动的展示出来。
+
+> 注意：我们知道CSS会显示`content: <string>`，这意味着`<string>`无法进程HTML包含注入，其中的HTML实体、便签也不会生效。正确的做法是使用转义符`\`（兼容性差）或Unicode字符`\????`。
+>
+> ```html
+> <html>
+> <head>
+>     <style>
+>         a:nth-of-type(1)::after {
+>             margin: 1rem;
+>             content: "<em>&nbsp;</em>"
+>         }
+>         a:nth-of-type(2)::after {
+>             margin: 1rem;
+>             content: "Hello \000A dfsdfsdf"
+>         }
+>     </style>
+> </head>
+> <body>
+>     <a>Hello</a>
+>     <br>
+>     <a>Hello</a>
+> </body>
+> </html>
+> ```
+>
+
+当`content`属性为`attr(<identifier>)`时，CSS会显示该元素的`<identifier>`属性值作为未经解析的字符串，原封不动地显示出来。
+
+```html
+<html>
+    <head>
+        <style>
+            a:nth-of-type(1)::after {
+                margin: 1rem;
+                content: attr(type)
+            }
+        </style>
+    </head>
+    <body>
+        <a type="news">Hello</a>
+    </body>
+</html>
+```
+
+当`content`属性为`[open-quote|close-quote|no-open-quote|no-close-quote]+`时，CSS绘制引号。`quotes`属性值必须是偶数个只由空格分隔的字符串，表示多级引号。例如英语中双引号`"`内的引号记为单引号`'`：
+
+| `content`引号相关属性值 | 作用                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| `open-quote`            | 从`quotes`属性值中选取奇数位置的字符，作为起始的引号字符，增加一层嵌套等级，通常用于`::before`伪元素 |
+| `close-quote`           | 从`quotes`属性值中选取偶数位置的字符，作为结尾的引号字符，减少一层嵌套等级，通常用于`::after`伪元素 |
+| `no-open-quote`         | 不显示起始的引号字符，增加一层嵌套等级，通常用于`::before`伪元素 |
+| `no-close-quote`        | 不显示结束的引号字符，增加一层嵌套等级，通常用于`::after`伪元素 |
+
+```html
+<html>
+    <head>
+        <style>
+            quotation { display: block; }
+            quote { quotes: '"' '"' "'" "'"; }
+            quotation > quote::before { content: open-quote; }
+            quotation > quote::after { content: close-quote; }
+            quotation > quotee { quotes: "(" ")"; }
+            quotation > quotee::before { content: open-quote; }
+            quotation > quotee::after { content: close-quote; }
+            quotation > quote > quote::before { content: open-quote; }
+            quotation > quote > quote::after { content: close-quote; }
+        </style>
+    </head>
+    <body>
+        <quotation>
+            <quote>Where's a will, there's a way</quote>
+            <quotee>George Herber</quotee>
+        </quotation>
+        <quotation>
+            <quote>George Herber said that 
+                <quote>Where's a will, there's a way</quote>
+            </quote>
+        </quotation>
+    </body>
+</html>
+```
+
+> 注意：`quotes`属性、`content: open-quote`和`content: close-quote`必须同时配合使用，否则不生效。
+
+### §12.2.3 计数器
+
+计数器较为常见，有序列表的记号就是计数器中的其中一种。CSS1中不能修改计数器，由HTML为有序列表定义计数行为；从CSS2开始，HTML得以使用两个关于计数器的新属性，配套`content`属性值，实现更多样的计数效果。
+
+`counter-reset`属性用于创建计数器。其语法可表示为`[<identifier> <integer>?]*`，其中`<integer>`缺省为0：
+
+```css
+ol {
+	counter-reset: timer1 timer2 1;
+    /* 定义计数器timer1为0,计数器timer2为1*/
+}
+```
+
+`counter-reset`属性用于指定计数器的递增间隔。其余法可表示为`[<identifiler> <integer>?]*`。其中`<integer>`缺省为1。
+
+```css
+ol > li {
+    counter-increment: timer1 timer2 -1;
+    /* 定义计数器timer1递增值为1,计数器timer2递增值为-1*/
+}
+```
+
+`content(计数器名称)`可以输出计数器的值。
+
+```html
+<html>
+    <head>
+        <style>
+            OrderedList { counter-reset: itemCounter 0; }
+            OrderedList > item { 
+                display: block;
+                counter-increment: itemCounter -1; 
+            }
+            OrderedList > item::before {
+                border: 1px solid black;
+                content: "<🥰" counter(itemCounter) "> " ;
+            }
+        </style>
+    </head>
+    <body>
+        <div>特殊的列表:</div>
+        <OrderedList>
+            <item>abc</item>
+            <item>123</item>
+        </OrderedList>
+    </body>
+</html>
+```
+
+利用多个计数器配合工作，我们就能实现章节的自动标注：
+
+```html
+<html>
+    <head>
+        <style>
+            h1 {
+                counter-reset: section 0 subsection 0;
+                counter-increment: chapter 1;
+                padding-left: 0rem;
+            }
+            h2 {
+                counter-reset: subsection;
+                counter-increment: section 1;
+                padding-left: 1rem;
+            }
+            h3 {
+                counter-increment: subsection 1;
+                padding-left: 2rem;
+            }
+            h1::before { content: counter(chapter) " "; }
+            h2::before { content: counter(chapter) "." counter(section) " "; }
+            h3::before { content: counter(chapter) "." counter(section) "." counter(subsection) " "; }
+        </style>
+    </head>
+    <body>
+        <h1>极限</h1>
+        <h2>极限的定义</h2>
+        <h3>数列的极限</h3>
+        <h3>函数的极限</h3>
+        <h3>极限的物理意义</h3>
+        <h2>极限的应用</h2>
+        <h1>导数</h1>
+    </body>
+</html>
+```
+
+其实，除了`counter(计数器名称)`以外，`counter()`还能接受第二个形参，表示列表类型的关键字，详见[§12.1.1 列表记号(`list-style-type`)](###§12.1.1 列表记号(`list-style-type`))一节。
+
+```html
+<html>
+    <head>
+        <style>
+            h1 {
+                counter-reset: section 0 subsection 0;
+                counter-increment: chapter 1;
+                padding-left: 0rem;
+            }
+            h2 {
+                counter-reset: subsection;
+                counter-increment: section 1;
+                padding-left: 1rem;
+            }
+            h3 {
+                counter-increment: subsection 1;
+                padding-left: 2rem;
+            }
+            h1::before { content: counter(chapter, upper-alpha) " "; }
+            h2::before { content: counter(chapter, upper-alpha) "." counter(section) " "; }
+            h3::before { content: counter(chapter, upper-alpha) "." counter(section) "." counter(subsection, lower-roman) " "; }
+        </style>
+    </head>
+    <body>
+        <h1>极限</h1>
+        <h2>极限的定义</h2>
+        <h3>数列的极限</h3>
+        <h3>函数的极限</h3>
+        <h3>极限的物理意义</h3>
+        <h2>极限的应用</h2>
+        <h1>导数</h1>
+    </body>
+</html>
+```
+
+> 注意：若元素有`display: none`，则不参与计数器的递增。但是`visibility: hidden`依然会参与递增。
+
+#### §12.2.3.1 计数器的作用域
+
+我们已经知道如何给有限嵌套深度的列表创建计数器了。如果嵌套层级变深，那么上述的列表就很难维护。基于此，CSS2.1提出了计数器的作用域概念，使得不同作用域的计数器可以重名。
+
+```html
+<html>
+    <head>
+        <style>
+            ol {
+                padding-left: 0;
+                list-style: none;
+                counter-reset: ordered;
+            }
+            ol li::before {
+                counter-increment: ordered 1;
+                content: counter(ordered) ".";
+            }
+        </style>
+    </head>
+    <body>
+        <ol>
+            <li></li>
+            <li></li>
+            <ol>
+                <li></li>
+                <li></li>
+                <ol>
+                    <li></li>
+                    <li></li>
+                </ol>
+            </ol>
+        </ol>
+    </body>
+</html>
+```
+
+计数器的作用域取决于HTML文档标签嵌套的区域。在上面的例子中，每当CSS遇到一个`<ol>`，就在当前作用域中创建一个计数器，就算当前作用域已经有一个上层定义的同名计数器，由于同名计数器是在上层作用域定义的，因此也不会影响这一层的定义。每当遇到一个`li::before`时，就给当前作用域的计数器加一。
+
+#### §12.2.3.2 `counters()`
+
+在[§12.2.3.1 计数器的作用域](####§12.2.3.1 计数器的作用域)一节中，我们发现这样作出的章节序号只能显示当前层级的序号（例如子节），无法显示上层层级的序号（例如章）。这时我们可以使用`counters()`，将`counter()`本应输出的内容贴到上级`content()`的后面。`counters()`必须接受两个参数，第一个参数是同名计数器的名称，负责选中**所有作用域中的同名计数器**，并按照嵌套顺序排在一起。第二个参数时各同名计数器的值之间使用的分隔符。
+
+```html
+<html>
+    <head>
+        <style>
+            ol {
+                list-style: none;
+                counter-reset: ordered;
+            }
+            ol li::before {
+                counter-increment: ordered 1;
+                content: counters(ordered, ".") ".";
+            }
+        </style>
+    </head>
+    <body>
+        <ol>
+            <li>极限
+                <ol>
+                    <li>极限的定义
+                        <ol>
+                            <li>数列的极限</li>
+                            <li>函数的极限</li>
+                            <li>极限的物理意义</li>
+                        </ol>
+                    </li>
+                    <li>极限的应用</li>
+                </ol>
+            </li>
+            <li>导数</li>
+        </ol>
+    </body>
+</html>
+```
+
+#### §12.2.3.3 `@counter-style`
+
+`@counter-style`块可以用于定义一些专门的描述符，从而控制计数模式。其格式大致如下所示：
+
+```css
+@counter-style <NAME> {
+    system: ...;
+    symbols: ...;
+    ... /* 更多的描述符 */
+}
+```
+
+| `@counter-style`描述符 | 作用                                                         | 缺省值     |
+| ---------------------- | ------------------------------------------------------------ | ---------- |
+| `system`               | 定义计数器使用的模式。可用的值有`fixed`、`cyclic`、`alphabetic`、`numeric`、`symbolic`、`additive`、`extends`。必须项 | `symbolic` |
+| `symbols`              | 定义计数器模式中使用的符号或`url()`图像。必须项（除了`additive`和`extends`） |            |
+| `additive-symbols`     | 定义`system: additive`时计数器模式使用的符号                 |            |
+| `prefix`               | 定义放在计数器之前的字符串                                   | `""`       |
+| `suffix`               | 定义放在计数器之后的字符串                                   | `"."`      |
+| `negative`             | 定义放在计数器负值左侧或两侧的字符串                         | `"-"`      |
+| `range`                | 定义计数器模式的范围值，超出范围后使用后备计数器             | `auto`     |
+| `fallback`             | 定义后备计数器                                               | `decimal`  |
+| `pad`                  | 定义计数器至少有几个字符，用指定字符串补齐                   | `0 ""`     |
+| `speak-as`             | 定义计数器在文字转语音时的发音策略                           | `auto`     |
+
+- 固定计数模式(`system: cyclic`)
+
+  这是最简单的计数器模式。由`symbols`给定有限数量的字符，用完后不再重复。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              @counter-style LimitedEmoji { system: fixed; symbols: 😀 😁 😂; }
+              ol.cyclic { list-style-type: LimitedEmoji; }
+          </style>
+      </head>
+      <body><ol class="cyclic"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol></body>
+  </html>
+  ```
+
+- 循环计数模式(`system: cyclic`)
+
+  由`symbols`给定有限数量的字符，用完后回到开始再重复。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              @counter-style BlinkTriangle { system: cyclic; symbols: ▶ ▷; }
+              ol.cyclic { list-style-type: BlinkTriangle; }
+          </style>
+      </head>
+      <body><ol class="cyclic"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol></body>
+  </html>
+  ```
+
+  > 注意：当`symbols`只有一个值时，起效果等价于不使用计数器，只用`list-style-type: "..."`。
+
+- 符号计数模式(`system: symbolic`)
+
+  在循环计数模式的基础上，每重复一次`symbols`列表，计数器输出的符号就多重复一个。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              @counter-style BreededEmoji { system: symbolic; symbols: 😀 😁; }
+              ol.symbolic { list-style-type: BreededEmoji; }
+          </style>
+      </head>
+      <body>
+          <ol class="symbolic"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol>
+      </body>
+  </html>
+  ```
+
+- 字母计数模式(`system: alphabetic`)
+
+  回想Excel软件中的列名，从小到大分别为`A`,`B`,`C`,...,`Y`,`Z`,`AA`,`AB`,...,`AZ`,...。这种计数模式就是字母计数模式的一种。要求`symbols`必须包含两个及以上的字符，表示字典序依次降低，否则整个`@counter-style`块无效。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              @counter-style AlphabetOrder { system: alphabetic; symbols: A B ;}
+              ol.alphabetic { list-style-type: AlphabetOrder; }
+          </style>
+      </head>
+      <body>
+          <ol class="alphabetic"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol>
+      </body>
+  </html>
+  ```
+
+- 数字计数模式(`system: numeric`)
+
+  数字计数模式类似于$n$进制的计数方式：`symbols`有几个属性值就记为多少进制，从左向右分别记为$0,1,2,...,n-1$对应的字符，最后从$n$进制的$0$开始向上计数。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              @counter-style Binary { system: numeric; symbols: '0' '1';}
+              ol.numeric { list-style-type: Binary; }
+          </style>
+      </head>
+      <body>
+          <ol class="numeric"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol>
+      </body>
+  </html>
+  ```
+
+- 累加计数模式(`system: additive`)
+
+  我们知道，人民币有`100`、`50`、`20`、`5`、`2`、`1`几种面值，对于一个给定的金额，我们想使用最少的纸币张数，拼凑出符合条件的金额。我们也知道，罗马数字使用`M`、`CM`、`D`、`CD`、`C`、`XC`、`L`、`XL`、`X`、`IX`、`V`、`IV`、`I`也能用最少的字符表示任意数字。累加计数模式就是这个作用。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              @counter-style Roman { 
+                  system: additive; 
+                  additive-symbols: 1000 M, 900 CM, 500 D, 400 CD,
+                           100 C, 90 XC, 50 L, 40 XL,
+                           10 X, 9 IX, 5 V, 4 IV, 1 I;
+              }
+              ol.additive { 
+                  list-style-type: Roman; 
+              }
+          </style>
+      </head>
+      <body>
+          <ol class="additive">
+              <li>abc</li>
+              <li>def</li>
+              <li>ghi</li>
+          </ol>
+          <script>
+              const olDOM = document.querySelector('.additive');
+              olDOM.innerHTML = Array.from({length: 100}, (_, index) => {return `<li>${index + 1}</li>`}).join('')
+          </script>
+      </body>
+  </html>
+  ```
+
+  > 注意：累加计数模式使用描述符的是`additive-symbols`，而不是`symbols`，就算使用`symbols`也会被忽略。在非累加计数模式中，严禁使用`additive-symbols`，这会导致整个`@counter-style`块失效。
+
+  > 注意：如果遇到一个给定的数，使得无法做到让`additive-symbols`中的每个字符最多只出现一次，就能表示该数字，那么就使用`fallback`。
+
+- 扩展计数模式(`symbol: extends <计数模式名称>`)
+
+  扩展计数模式的意义在于它能使用现有的计数模式，并在此基础上拓展，从而避免造轮子。例如下面两种`@counter-style`完全一样。
+
+  ```css
+  @counter-style A {
+  	system: numeric;
+      symbols: '0' '1' '2' '3' '4' '5' '6' '7' '8' '9';
+      suffix: ") "; pad: 2 "0";
+  }
+  
+  @counter-style B {
+  	system: extends decimal;
+      suffix: ") "; pad: 2 "0";
+  }
+  ```
+
+`prefix`和`suffix`描述符用于指定计数器的前后缀，缺省值分别为`""`和`"."`。
+
+```html
+<html>
+    <head>
+        <style>
+            @counter-style LimitedEmoji { system: fixed; symbols: 😀 😁 😂; prefix: "~"; suffix: "~" }
+            ol.cyclic { list-style-type: LimitedEmoji; }
+        </style>
+    </head>
+    <body>
+        <ol class="cyclic"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol>
+    </body>
+</html>
+```
+
+`range`描述符属性值语法为`[<integer> <integer>,]* (最后一个逗号不算) | auto(缺省)`，表示计数器在被调用第几次的次数区间内生效。生效的范围总共为所有区间的并集。例如为了防止符号计数模式生成过长的序号，我们可以为其加上`range`的限制：
+
+```css
+<html>
+    <head>
+        <style>
+            @counter-style BreededEmoji { system: symbolic; symbols: 😀 😁; range: 1 2, 4 4; }
+            ol.symbolic { list-style-type: BreededEmoji; }
+        </style>
+    </head>
+    <body>
+        <ol class="symbolic"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol>
+    </body>
+</html>
+```
+
+`fallback`描述符表示超出`range`范围时使用的计数器，其取值范围与`list-style-type`完全一致，缺省为`decimal`。
+
+```html
+<html>
+    <head>
+        <style>
+            @counter-style BreededEmoji { system: symbolic; symbols: 😀 😁; range: 1 2, 4 4; fallback: hebrew; }
+            ol.symbolic { list-style-type: BreededEmoji; }
+        </style>
+    </head>
+    <body>
+        <ol class="symbolic"><li>abc</li><li>def</li><li>ghi</li><li>jkl</li></ol>
+    </body>
+</html>
+```
+
+`negative`描述符用于表示计数器中负值的负号，语法为`<symbol> <symbol>?`，只能用于支持负数的计数系统中使用（例如`alphabetic`、`numeric`、`symbolic`、`additive`）。
+
+```css
+<html>
+    <head>
+        <style>
+            @counter-style DecimalYear { 
+                system: numeric; 
+                symbols: '0' '1' '2' '3' '4' '5' '6' '7' '8' '9';
+                negative: "BC.";
+            }
+            ol.numeric { 
+                counter-reset: DecimalYear -1;
+                list-style-type: DecimalYear; 
+            }
+        </style>
+    </head>
+    <body>
+        公历纪年的历史：
+        <ol class="numeric">
+            <li value="-1">abc</li>
+            <li>def</li>
+            <li>ghi</li>
+        </ol>
+    </body>
+</html>
+```
+
+`pad`描述符用于指定数字计数系统的填补长度与字符，语法为`<integer> <symbol>`：
+
+```html
+<html>
+    <head>
+        <style>
+            @counter-style FormattedDecimal { 
+                system: numeric; 
+                symbols: '0' '1' '2' '3' '4' '5' '6' '7' '8' '9';
+                pad: 4 "0"
+            }
+            ol.numeric { 
+                list-style-type: FormattedDecimal; 
+            }
+        </style>
+    </head>
+    <body>
+        <ol class="numeric">
+            <li>abc</li>
+            <li>def</li>
+            <li>ghi</li>
+        </ol>
+    </body>
+</html>
+```
+
+`speak-as`描述符用于定义语音转文字的行为。
+
+| `speak-as`描述符属性值 | 作用                                                         |
+| ---------------------- | ------------------------------------------------------------ |
+| `auto`                 | 效果取决于使用的计数系统。例如`system: alphabetic`使用`speak-as: speel-out`；`system: cyclic`使用`speak-as: bullets`；`system: extend`取决于；其余均使用`speak-as: numbers`。 |
+| `bullets`              | 蜂鸣器嘀一下                                                 |
+| `numbers`              | 以当地发音规则，读出该计数器对应的数字                       |
+| `words`                | 以单词为单位，逐个读出计数器单词                             |
+| `spell-out`            | 以字符为单位，逐个读出计数器字符                             |
+| `<counter-style-name>` | 让CSS根据指定的计数模式自行推断                              |
+
+# §13 变形
+
+CSS乃至计算机领域，常用的坐标系有：
+
+- 笛卡尔坐标系是三维坐标系，以屏幕左上角为原点，向右为X轴正方向，向下为Y轴正方向，向屏幕外为Z轴正方向。
+- 球坐标系是三维坐标系，沿坐标轴的正方向看过去，逆时针为正方向。或者沿坐标轴的负方向看过去，顺时针为正方向
+
+## §13.1 变形函数(`transform`)
+
+`transform`属性值的语法为`<transform-function>*`，表示众多变形函数按顺序执行。
+
+| `<transform-function>`属性值                   | 作用                                                         | `<transform-function>`属性值                      | 作用                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------- | ------------------------------------------------------------ |
+| `matrix()`                                     | 详见[MDN文档](https://developer.mozilla.org/en-US/docs/Web/CSS/transform-function/matrix) | `scaleY()`                                        | 沿Y轴缩放`<NUMBER>`倍                                        |
+| `matrix3d()`                                   | 详见[MDN文档](https://developer.mozilla.org/en-US/docs/Web/CSS/transform-function/matrix3d) | `scaleZ()`                                        | 沿Z轴缩放`<NUMBER>`倍                                        |
+| `perspective()`                                | 更改透视的视域，即观察者到该元素Z轴平面的距离。较小的视域类似于鱼眼镜头，较大的视域会产生等距效应，推荐在`500px`到`1000px`之间 | `skew(<NUMBER_X>, <NUMBER_Y>? = 0)`               | 将$(1,1)$掰到$(x,y)$处，进行`[ax,ay]`的矩阵运算。不能简单的拆分成`shewX()`和`shewY()` |
+| `rotate(<ANGLE>)`                              | 绕Z轴旋转`<ANGLE>`                                           | `skewX(<ANGLE>)`                                  | 对于X、Y轴，在其沿X轴构成的平面上，使得有向线线角$<\vec{x},\vec{y}或\vec{z}>$增大`<ANGLE>`角度 |
+| `rotate3d(<NUMBER>,<NUMBER>,<NUMBER>,<ANGLE>)` | 前三个值指定旋转轴法向量的X、Y、Z分量，第四个值指定角度      | `skewY(<ANGLE>)`                                  | 对于X、Z轴，在其沿X轴构成的平面上，使得有向线线角$<\vec{y},\vec{x}或\vec{z}>$增大`<ANGLE>`角度 |
+| `rotateX(<ANGLE>)`                             | 绕X轴旋转`<ANGLE>`                                           | `translate(<LENGTH_X>, <LENGTH_Y>? = 0)`          | 向X、Y轴正方向平移`<LENGTH>`长度，第二个形参缺省为0          |
+| `rotateY(<ANGLE>)`                             | 绕Y轴旋转`<ANGLE>`                                           | `translate3d(<LENGTH_X>, <LENGTH_Y>, <LENGTH_Z>)` | 向X、Y、Z轴正方向平移`<LENGTH>`长度                          |
+| `rotateZ(<ANGLE>)`                             | 绕Z轴旋转`<ANGLE>`                                           | `translateX(<LENGTH>)`                            | 向X轴正方向平移`<LENGTH>`长度                                |
+| `scale(<NUMBER>, <NUMBER>?)`                   | 沿X、Y轴缩放`<NUMBER>`倍，第二个值缺省时与第一个值相同       | `translateY(<LENGTH>)`                            | 向Y轴正方向平移`<LENGTH>`长度                                |
+| `scale3d(<NUMBER>,<NUMBER>,<NUMBER>)`          | 沿X、Y、Z轴缩放`<NUMBER>`倍                                  | `translateZ(<LENGTH>)`                            | 向Z轴正方向平移`<LENGTH>`长度                                |
+| `scaleX(<NUMBER>)`                             | 沿X轴缩放`<NUMBER>`倍                                        |                                                   |                                                              |
+
+```html
+<html>
+    <head>
+        <style>
+            body { display: flex; padding: 1rem; flex-wrap: wrap; }
+            div.container { width: 12rem; height: 7rem; border: 1px solid black; margin-right: 3rem; margin-bottom: 2rem;}
+            div.box { width: 12rem; height: 7rem; border: 1px solid black; background-color: lightblue; padding: 2px; }
+            
+            div.container:nth-of-type(1) > div.box { transform: translate(10px,10px); }
+            div.container:nth-of-type(2) > div.box { transform: scale(1.1, 0.8); }
+            div.container:nth-of-type(3) > div.box { transform: rotate(10deg); }
+            div.container:nth-of-type(4) > div.box { transform: skewX(-15deg); }
+            div.container:nth-of-type(5) > div.box { transform: perspective(150px) rotateY(30deg); }
+            div.container:nth-of-type(6) > div.box { transform: perspective(500px) rotateY(30deg); }
+            div.container:nth-of-type(7) > div.box { transform: matrix(1, 0.4, -0.5, 0.5, 40, 40); }
+        </style>
+    </head>
+    <body>
+        <div class="container"><div class="box">平移函数:<br/>translate(10px,10px)</div></div>
+        <div class="container"><div class="box">缩放函数:<br/>scale(1.1, 0.8)</div></div>
+        <div class="container"><div class="box">旋转函数:<br/>rotate(10deg)</div></div>
+        <div class="container"><div class="box">倾斜函数:<br/>skewX(-15deg)</div></div>
+        <div class="container"><div class="box">视距函数:<br/>perspective(150px) rotateY(30deg)</div></div>
+        <div class="container"><div class="box">视距函数:<br/>perspective(500px) rotateY(30deg)</div></div>
+        <div class="container"><div class="box">矩阵函数:<br/>matrix(1, 0.4, -0.5, 0.5, 40, 40)</div></div>
+    </body>
+</html>
+```
+
+## §13.2 移动原点(`transform-origin`)
+
+`transform-origin`用于指定变形的原点，接受二到三个参数，分别表示X、Y、Z（如果有的话）的偏移量。其中前两个参数可以接受`[left|center|right|top|bottom]`英文关键字。缺省为`50% 50%`。
+
+```html
+<html>
+<head>
+    <style>
+        .container {
+            float: left;
+            margin: 45px;
+            border: 1px solid red;
+        }
+        .container > * {
+            height: 150px;
+            width: 150px;
+            border: 1px solid gray;
+            text-align: center;
+            background: linear-gradient(0deg, rgba(255, 255, 255, 0.6), rgba(165, 175, 255, 0.6));
+            transform: rotate(30deg);
+        }
+        .container:nth-of-type(1) > div { transform-origin: 0 0; } 
+        .container:nth-of-type(2) > div { transform-origin: 0 100%; } 
+        .container:nth-of-type(3) > div { transform-origin: 100% 0; } 
+        .container:nth-of-type(4) > div { transform-origin: 100% 100%; } 
+        .container:nth-of-type(5) > div { transform-origin: 75% 25%; } 
+        .container:nth-of-type(6) > div { transform-origin: 25% 75%; } 
+        .container:nth-of-type(7) > div { transform-origin: 50% 100%; } 
+        .container:nth-of-type(8) > div { transform-origin: 50% 50%; } 
+    </style>
+</head>
+<body>
+    <div class="container"><div>Origin 0 0</div></div>
+    <div class="container"><div>Origin 0 100%</div></div>
+    <div class="container"><div>Origin 100% 0</div></div>
+    <div class="container"><div>Origin 100% 100%</div></div>
+    <div class="container"><div>Origin 75% 25%</div></div>
+    <div class="container"><div>Origin 25% 75%</div></div>
+    <div class="container"><div>Origin 50% 100%</div></div>
+    <div class="container"><div>Origin 50% 50%</div></div>
+</body>
+</html>
+```
+
+## §13.3 3D变形方式(`transform-sytle`)
+
+| `transform-style`属性值 | 作用                                                   |
+| ----------------------- | ------------------------------------------------------ |
+| `flat`(缺省)            | 只使用X、Y轴，视觉效果永远扁平，就像是印在父元素上一样 |
+| `preserve-3d`           | 加入Z轴，将父元素的3D变形也考虑进去                    |
+
+```html
+<html>
+<head>
+    <style>
+        body { padding: 3rem; display: flex; }
+        .container {
+            width: 20rem;
+            height: 10rem;
+            border: 1px solid black;
+            background-color: rgba(250, 235, 215, 0.8);
+            margin-right: 5rem;
+        }
+        .container > .item {
+            width: 10rem;
+            height: 5rem;
+            border: 1px solid black;
+            background-color: rgba(173, 216, 230, 0.5);
+            margin: 1rem auto 1rem auto;
+        }
+        .container { transform: perspective(500px) rotateY(60DEG) rotateX(-20deg); }
+        .container > .item {
+            transform-style: preserve-3d;
+            transform: perspective(500px) translateZ(60px) rotateX(45deg);
+        }
+        span {
+            color: red;
+            font-weight: bolder;
+            text-decoration: underline;
+        }
+        .container:nth-of-type(1) {transform-style: flat; }
+        .container:nth-of-type(2) {transform-style: preserve-3d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        Outer (transform-style: <span>flat</span>;)
+        <div class="item">
+            Inner
+        </div>
+    </div>
+    <div class="container">
+        Outer (transform-style: <span>preserve-3d</span>);
+        <div class="item">
+            Inner
+        </div>
+    </div>
+    <script>
+        const innerDOMs = document.querySelectorAll('.item');
+        let innerDOMRotateX = 0;
+        innerDOMs.forEach(element => {
+            setInterval(() => {
+                element.style['transform'] = `perspective(750px) translateZ(60px) rotateX(${innerDOMRotateX}deg)`;
+                innerDOMRotateX += 2;
+                innerDOMRotateX %= 360;
+            }, 33);
+        });
+
+        const outerDOMs = document.querySelectorAll('.container');
+        let outerDOMRotateY = 0;
+        outerDOMs.forEach(element => {
+            setInterval(() => {
+                element.style['transform'] = `perspective(500px) rotateY(${outerDOMRotateY}deg) rotateX(-20deg)`;
+                outerDOMRotateY += 0.5;
+                outerDOMRotateY %= 360;
+            }, 30);
+        });
+    </script>
+</body>
+</html>
+```
+
+> 注意：为了避免3D变形效果被覆盖，需要保证以下属性为其默认值：
+>
+> - `overflow: visible`
+> - `filter: none`
+> - `clip: auto`
+> - `clip: path`
+> - `mask-image: none`
+> - `mask-border-source: none`
+> - `mix-blend-mode: normal`
+
+## §13.4 视域(`perspective`/`perspective-origin`)
+
+在[§13.1 变形函数(`transform`)](##§13.1 变形函数(`transform`))一节中，我们提过`perspective()`可以用于定义视域的距离。初次以外，CSS还提供了`perspective`属性，用于修改视域的距离；也提供了`perspective-origin`属性，用于定义视域的原点。
+
+变形函数`perspective()`和`perspective`属性的区别在于：变形函数的作用域仅限其修饰的元素，而属性的作用范围包括其修饰的子元素，使其作为一个整体旋转，每个子元素的最终视觉效果互不相同，组合起来更能体现出整体的一面。
+
+```html
+<html>
+<head>
+    <style>
+        body { padding: 2rem; display: flex; }
+        .container {
+            display: flex;
+            width: 25rem;
+            height: 8rem;
+            border: 1px solid black;
+            background-color: rgba(250, 235, 215, 0.8);
+            margin-right: 5rem;
+            margin-bottom: 3rem;
+            transform-style: preserve-3d;
+        }
+        .container > .item {
+            width: 7rem;
+            height: 5rem;
+            border: 1px solid black;
+            background-color: rgba(173, 216, 230, 0.5);
+            margin: 1rem auto 1rem auto;
+        }
+        
+        body > div:nth-of-type(1) > .container > .item {
+            transform: perspective(400px) rotateX(60deg);
+        }
+        body > div:nth-of-type(2) > .container { perspective: 400px; }
+        body > div:nth-of-type(2) > .container > .item {
+            transform: rotateX(60deg);
+        }
+    </style>
+</head>
+<body>
+    <div>
+        Outer - transform: perspective(400px); - 各转各的
+        <div class="container">
+            <div class="item"></div>
+            <div class="item"></div>
+            <div class="item"></div>
+        </div>
+    </div>
+    <div>
+        Outer - perspective: 400px; - 作为一个整体旋转
+        <div class="container">
+            <div class="item"></div>
+            <div class="item"></div>
+            <div class="item"></div>
+        </div>
+    </div>
+    <script>
+        const outerDOMs = document.querySelectorAll('.container');
+        let outerDOMRotateY = 0;
+        outerDOMs.forEach(element => {
+            setInterval(() => {
+                element.style['transform'] = `perspective(400px) rotateY(${outerDOMRotateY}deg) rotateX(-20deg)`;
+                outerDOMRotateY += 0.5;
+                outerDOMRotateY %= 360;
+            }, 30);
+        });
+    </script>
+</body>
+</html>
+```
+
+视域的原点表示一点透视的消隐点（Vanishing Point），同时也表示着观察者的位置。在观察者能观察到的二维投影上，设想消隐点发出的无数条光线构成一个圆锥体。以`perspective`属性的长度，沿物体平面向外平移，得到一个新的平行平面，记为观察者眼睛的移动范围。现在随意选定物体平面上的一点，尝试在平行平面中移动视角，使得纸面上选定的点与消隐点重合，即为最终的视图。其属性值语法与`transform-origin`完全一致，以元素的左上角为原点，通过指定消隐点在X、Y、Z(如果有的话)的偏移量。详见[MDN文档](https://developer.mozilla.org/zh-CN/docs/Web/CSS/perspective-origin)。
+
+## §13.5 背面可见性(`backface-visibility`)
+
+`backface-visibility`属性只有两个取值——`visible`和`hidden`，决定元素背面面朝观察者时是否渲染。
+
+```html
+<html>
+<head>
+    <style>
+        body { padding: 3rem; display: flex; }
+        .container {
+            width: 20rem;
+            height: 10rem;
+            border: 1px solid black;
+            background-color: rgba(250, 235, 215, 0.8);
+            margin-right: 5rem;
+        }
+        .container > .item {
+            width: 10rem;
+            height: 5rem;
+            border: 1px solid black;
+            background-color: rgba(173, 216, 230, 0.5);
+            margin: 1rem auto 1rem auto;
+        }
+        .container { 
+            transform: perspective(500px) rotateY(60DEG) rotateX(-20deg);
+            backface-visibility: hidden;
+        }
+        .container > .item {
+            transform-style: preserve-3d;
+            transform: perspective(500px) translateZ(60px) rotateX(45deg);
+        }
+        span {
+            color: red;
+            font-weight: bolder;
+            text-decoration: underline;
+        }
+        .container:nth-of-type(1) {transform-style: flat; }
+        .container:nth-of-type(2) {transform-style: preserve-3d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        Outer (transform-style: <span>flat</span>;)
+        <div class="item">
+            Inner
+        </div>
+    </div>
+    <div class="container">
+        Outer (transform-style: <span>preserve-3d</span>);
+        <div class="item">
+            Inner
+        </div>
+    </div>
+    <script>
+        const innerDOMs = document.querySelectorAll('.item');
+        let innerDOMRotateX = 0;
+        innerDOMs.forEach(element => {
+            setInterval(() => {
+                element.style['transform'] = `perspective(750px) translateZ(60px) rotateX(${innerDOMRotateX}deg)`;
+                innerDOMRotateX += 2;
+                innerDOMRotateX %= 360;
+            }, 33);
+        });
+
+        const outerDOMs = document.querySelectorAll('.container');
+        let outerDOMRotateY = 0;
+        outerDOMs.forEach(element => {
+            setInterval(() => {
+                element.style['transform'] = `perspective(500px) rotateY(${outerDOMRotateY}deg) rotateX(-20deg)`;
+                outerDOMRotateY += 0.5;
+                outerDOMRotateY %= 360;
+            }, 30);
+        });
+    </script>
+</body>
+</html>
+```
+
+利用这一特性，我们可以实现旋转翻页的效果。在下面的代码中，`div.info`翻转了180度，因此被隐藏了起来，从而让`img`显示。当鼠标移动到`.container`时，整体翻转了180度，导致`div.info`翻转了0度，因此尝试显示，同时图片发生了镜像翻转到后面。又因为开启了3D旋转，因此`div.info`在图层最前面，配上透明度背景，从而实现这一效果。
+
+```html
+<html>
+<head>
+    <style type="text/css">
+        .container {
+            position: relative; /* 使得 。container > * {position: absolute;} 找到参照物 */
+            border: 1px solid black;
+            width: 250px;
+            height: 250px;
+        }
+        .container > * { position: absolute; top: 0; left: 0; }
+        .container > div.info {
+            width: 100%;
+            height: 100%;
+            padding: 1rem;
+            box-sizing: border-box;
+
+            transform: rotateY(180deg);
+            backface-visibility: hidden;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .container:hover {
+            transform: rotateY(180deg);
+            transform-style: preserve-3d;
+        }
+        </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://meyerweb.github.io/csstdg4figs/16-transforms/img/box-salmon.png">
+        <div class="info">
+            <h3>这是介绍文字</h3>
+        </div>
+    </div>
+</body>
+</html>
+```
+
+# §14 过渡
+
+CSS的过渡能控制属性在一段时间内，从一个值缓慢变为另一个值，使得样式变化得更自然一些。
+
+## §14.1 定义过渡的属性
+
+### §14.1.1 过渡属性(`transition-property`)
+
+`transition-property`属性用于指定应用过渡效果的CSS属性名称。数据值可以接受数个用逗号分隔的CSS属性，也可以作用于所有CSS属性`all`(缺省)，也可以禁用所有CSS属性(`none`)。
+
+```html
+<html>
+    <head>
+        <style type="text/css">
+            body {
+                padding: 10rem;
+            }
+            div {
+                color: #ff0000;
+                border: 2px solid #00ff00;
+                border-radius: 0;
+                transform: scale(1) rotate(0deg);
+                transform-origin: center center;
+                opacity: 1;
+                box-shadow: 3px 3px rgba(0, 0, 0, 0.1);
+                width: 50px;
+                padding: 100px;
+            }
+            div:hover {
+                color: #000000;
+                border: 5px dashed #000000;
+                border-radius: 50%;
+                transform: scale(2) rotate(-10deg);
+                opacity: 0.5;
+                box-shadow: -3px -3px rgba(255, 0, 0, 0.5);
+                width: 100px;
+                padding: 20px;
+                background-color: lightblue;
+
+                transition-property: all;
+                transition-duration: 500ms;
+            }
+        </style>
+    </head>
+    <body>
+        <div>Hello</div>
+    </body>
+</html>
+```
+
+### §14.1.2 过渡持续时间(`transition-duration`)
+
+`transition-duration`属性用于指定**从其它状态到当前状态**（而不是反过来）的用时，单位为`s`或`ms`，属性值是若干个用逗号分隔的数字。缺省值为`0s`。
+
+```html
+<html>
+    <head>
+        <style type="text/css">
+            div { background-color: lightblue; width: 10rem; height: 5rem; border-radius: 2rem; text-align: center; line-height: 5rem; }
+            div {
+                width: 10rem;
+                transition-duration: 0.05s;
+            }
+            div:hover {
+                width: 30rem;
+                transition-duration: 0.4s;
+            }
+        </style>
+    </head>
+    <body>
+        <div>Hello</div>
+    </body>
+</html>
+```
+
+`transition-property`和`transition-duration`配套使用，可以为不同的CSS属性指定不同的过渡持续时间：
+
+```css
+div:hover {
+    transition-property: all, color, border, border-radius;
+	transition-duration: 5ms, 10ms, 20ms, 40ms;
+}
+```
+
+> 注意：实践中经常把`all`放在`transition-property`的最前面，防止覆盖后面的CSS属性。
+
+### §14.1.3 过渡内部时序(`transition-timing-function`)
+
+`transition-timing-function`接受一个表示数值变化速率的函数`<easing-function>`。
+
+| `<easing-function>`(部分值) | 等价的三次贝塞尔曲线               | 作用                                                         |
+| --------------------------- | ---------------------------------- | ------------------------------------------------------------ |
+| `cubix-bezier(x,y,z)`       |                                    | 指定一个三次贝塞尔曲线                                       |
+| `ease`                      | `cubic-bezier(0.25, 0.1, 0.25, 1)` | 慢快慢                                                       |
+| `linear`                    | `cubic-bezier(0, 0, 1, 1)`         | 匀速                                                         |
+| `ease-in`                   | `cubic-bezier(0.42, 0, 1, 1)`      | 慢快                                                         |
+| `ease-out`                  | `cubic-bezier(0, 0, 0.58, 1)`      | 快慢                                                         |
+| `ease-in-out`               | `cubic-bezier(0.42, 0, 0.58, 1)`   | 快慢快                                                       |
+| `step-start`                |                                    | 在开始时完成突变                                             |
+| `step-end`                  |                                    | 在接受时完成突变                                             |
+| `step(n, start)`            |                                    | 将时间均分成$n$等份，每份时间内保持不变，时间段两端突变。`start`表示开始时的正导数为+∞，结束时的负导数为0。 |
+| `step(n, end)`              |                                    | 将时间均分成$n$等份，每份时间内保持不变，时间段两端突变。`end`表示开始时的正导数为0，结束时的负导数为+∞。 |
+
+CSS标准预置的`<easing-function>`远远没有发挥出贝塞尔曲线的全部能力。[easings.net](https://easings.net/zh-cn#)提供了更多的预设。
+
+当过渡完成后，想退回起点时，设正向位置与时间的函数为$f(t)$，则退回的函数为$1-f(1-t)$。
+
+### §14.1.4 延迟过渡(`transition-delay`)
+
+`transition-delay`属性用于指定触发过渡与过渡开始之间的时间间隔，缺省值为`0s`。
+
+当`trainsition-delay`列出的值多于`transition-property`，则多出的值将会被忽略。反之如果少于，则会重复使用最后一个延时值。
+
+如果延时值为负，那么当触发过渡时，过渡不会从头(`0s`)开始，而是从延时值的绝对值的那一时刻开始。
+
+### §14.1.5 延时总属性(`transition`)
+
+`transition`是以上四个子属性的复合体，语法为`[<transition-property>? <transition-duration> <transition-timing-function> <transition-delay>]* (用逗号分隔) | none`。
+
+## §14.2 过渡事件
+
+当某个CSS子属性过渡结束后（包括过渡结束与过渡完全恢复初始值），都会出发`transtitionend`事件。这里的子属性指的是最小单位的属性（例如`background-color`），而不是由众多子属性缝合成的大属性（例如`background`）。
+
+`transitionend`事件通过如下方式监听：
+
+```javascript
+document.querySelector('...').addEventListener('transitionend',
+	(e) => {console.log(e);} /* TransitionEvent实例 */
+)
+```
+
+| `TransitionEvent`实例属性(部分) | 属性值取值范围                | 作用                     |
+| ------------------------------- | ----------------------------- | ------------------------ |
+| `propertyName`                  | `string`                      | 过渡结束的CSS属性名称    |
+| `pesudoElement`                 | `"::after"`/`"::before"`/`""` | 应用过渡效果的伪元素     |
+| `elapsedTime`                   | `number`                      | 过渡持续的时间，单位为秒 |
+
+## §14.3 支持动画的属性
+
+过渡属性(`transition-property`)中可以使用的属性有很多，他们有一个共同点——都能插值。如果这个属性能找到两个值的中间点，那么该属性就大概率支持动画。对于由众多子属性构成的大属性而言，只要其中有一个子属性能插值，那么这个大属性就能插值。
+
+详见[MDN文档](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_animated_properties#%E6%97%A0%E5%8A%A8%E7%94%BB%E6%80%A7)。
+
+# §15 动画
+
+前文提到的过渡是一种简单的动画，我们只能控制起始和终止状态，没有办法单独控制过渡进行时的属性。而CSS动画允许开发者有更多控制权，但需要开发者显式声明关键帧。
+
+## §15.1 关键帧块(`@keyframes`)
+
+`@keyframes`块用于定义可重复使用的关键帧块，用动画标识符进行标识。每个关键帧块包含若干个关键帧选择符，表示动画持续时间内的时间点，可以是`from`/`to`或百分数。其语法大致如下所示：
+
+```css
+@keyframes 动画标识符 {
+	关键帧选择符[, 关键帧选择符, ......] {
+    	CSS属性: ...;
+        CSS属性: ...;
+    }
+	关键帧选择符[, 关键帧选择符, ......] {
+    	CSS属性: ...;
+        CSS属性: ...;
+    }
+    ......
+}
+```
+
+动画标识符的命名规则有点复杂：
+
+1. 动画标识符使用的字符只能从正则表达式`[A-Za-z0-9\-_\u00A0-\u10FFFF]`中选取。
+2. 特殊字符（`!@#$%&*`等等）必须使用反斜杠`\`转义。
+3. 动画标识符不能以数字开头。
+4. 动画标识符不能以两个连续的连字符`-`开头。
+5. 动画标识符如果以一个连字符`-`开头，则后面不能紧跟数字字符，除非对数字字符用反斜杠`\`转义。
+6. 动画标识符推荐不要与关键字重名。虽然CSS没有明令禁止，但浏览器可能无法识别。
+
+关键帧选择符表示在这一个或多个时刻，给元素附加上如下状态。
+
+```html
+<html>
+    <head>
+        <style type="text/css">
+            div { background-color: lightblue; width: 10rem; height: 3rem; border-radius: 2rem; text-align: center; line-height: 3rem; }
+            @keyframes BreathePurpleLight {
+                from, 10% {
+                    background-color: #ff00ff;
+                }
+                90%, to {
+                    background-color: purple
+                }
+            }
+            
+            div {
+                animation: BreathePurpleLight infinite 2s alternate;
+            }
+        </style>
+    </head>
+    <body>
+        <div>呼吸灯效果</div>
+    </body>
+</html>
+```
+
+如果没有显式指定`from`/`0%`和`end`/`100%`，那么首尾的效果都会以元素本身的属性为准。例如下面两个动画应用到`<div>`时完全等价：
+
+```css
+div { color: blue; }
+@keyframes A {
+    33% { color: red; }
+    66% { color: green; }
+}
+@keyframes B {
+    0% { color: blue; }
+    33% { color: red; }
+    66% { color: green; }
+    100% { color: blue; }
+}
+
+/* 下面两种方案完全等价 */
+div { animation: A infinite 2s alternate; }
+div { animation: B infinite 2s alternate; }
+```
+
+如果关键帧选择符被多次声明，则采取覆盖原则：先声明、无冲突的属性得以保留，后声明、有冲突的属性会覆盖先声明的属性。
+
+### §15.1.1 使用动画(`animation-name`)
+
+`animation-name`属性用于指定元素使用的动画名称。由若干个用逗号分隔的名称组成，缺省为`none`。
+
+> 注意：如果其中的一个动画名称不存在，则仅忽略动画，其它动画照常工作。
+>
+> 如果通过脚本中途添加了动画，使其又存在了，那么自存在的这一刻起立即生效。
+
+### §15.1.2 动画时长(`animation-duration`)
+
+`animation-duration`属性规定动画运行一次所需的时间。由若干个用逗号分隔的时间组成，单位为`s`或`ms`。
+
+> 注意：如果其中的一个时间非法（语法错误、`0s`/负数秒等），会导致这条CSS属性声明全部失效。
+
+> 注意：如果同一时刻有多个动画规则控制同一个CSS属性，导致引起冲突，那么就按照`animation-name`中目前正在生效的、排名顺序最后的规则为准。
+>
+> 例如在下面的例子中，前`2s`都是`blue`在生效，`2s~5s`内是`green`生效，`5s~10s`由`red`生效。
+>
+> ```css
+> @keyframes red { from, to { color: red; } }
+> @keyframes green { from, to { color: green; } }
+> @keyframes blue { from, to { color: blue; } }
+> div {
+> 	animation-name: red, green, blue;
+>     animation-duration: 10s, 5s, 2s;
+> }
+> ```
+
+### §15.1.3 动画迭代次数(`animation-iteration-count`)
+
+`animation-iteration-count`属性用于规定动画的重复次数，属性值为`[<number>|infinite]* (用逗号分隔)`，缺省值为1。
+
+> 注意：如果其中的一个数字非法（例如负数），该数字会被重置为1。
+
+当动画迭代次数为正的浮点数时，动画在最后一次迭代时不会进行到关键帧的`100%`，而是会在中途无限停下来，同时触发`animationend`事件，就像是`animation-play-state: pause`一样。
+
+### §15.1.4 动画方向(`animation-direction`)
+
+`animation-direction`决定了各个关键帧播放的次序，属性值为下列表格关键字中的一个或多个，用逗号分隔。缺省值为1。
+
+| `animation-direction`属性值 | 作用                                                         |
+| --------------------------- | ------------------------------------------------------------ |
+| `normal`(缺省)              | 动画每次迭代都从`0%`关键帧到`100%`关键帧                     |
+| `reverse`                   | 动画每次迭代都从`100%`关键帧到`0%`关键帧                     |
+| `alternate`                 | 动画奇数次迭代从`0%`关键帧到`100%`关键帧，偶数次迭代从`100%`关键帧到`0%`关键帧 |
+| `alternate-reverse`         | 动画奇数次迭代从`100%`关键帧到`0%`关键帧，偶数次迭代从`0%`关键帧到`100%`关键帧 |
+
+### §15.1.5 动画延迟(`animation-delay`)
+
+`animation-delay`决定了动画附加到元素上之后，经过多长时间才开始播放第一次迭代。由若干个用逗号分隔的时间组成，单位为`s`或`ms`。
+
+### §15.1.6 动画内部时序(`animation-timing-function`)
+
+`animation-timing-function`属性负责控制动画的内部时许，其属性值取值与[§14.1.3 过渡内部时序(`transition-timing-function`)](###§14.1.3 过渡内部时序(`transition-timing-function`))类似。
+
+```html
+<html>
+    <head>
+        <style>
+            @keyframes progressBar {
+                from {width: 20rem;}
+                to {width: 3rem;}
+            }
+            div {
+                width: 20rem;
+                height: 0.5rem;
+                margin-bottom: 0.2rem;
+                background-color: black;
+                animation: progressBar 2s cubic-bezier(0,4,1,-4) both;
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+            const bodyDOM = document.getElementsByTagName('body')[0];
+            const bodyDOMContent = Array.from({length: 40}, (_,index)=>{return index;}).map((index, _)=>{
+                let animationIterationCount = (index / 40).toFixed(2);
+                return `<div style="animation-iteration-count: ${animationIterationCount}"></div>`;
+            }).join("");
+            bodyDOM.innerHTML = bodyDOMContent;
+        </script>
+    </body>
+</html>
+```
+
+`animation-timing-function`也可以在关键帧中说明，只作用于该关键帧声明的其它属性。当动画运行到此关键帧时，里面的内部时序函数将会覆盖原有的，并一致保持下去，直到遇到下一个内部时序函数。
+
+```css
+@keyframes demo {
+    from { left:0; top:0; }
+    33% { left: 100px; animation-timing-function: ease-in; }
+    66% { top: 200px;}
+    66% { animation-timing-function: ease-in; } /* 无效，因为关键帧中没有其它属性*/
+}
+```
+
+### §15.1.7 动画播放状态(`animation-play-state`)
+
+`animation-play-state`属性用于控制动画的播放与暂停（包括`animation-delay`延时的计时），对应的属性值分别是`running`(缺省)和`paused`，可以接受多个用逗号分隔的属性值。
+
+```html
+<html>
+    <head>
+        <style>
+            @keyframes progressBar {
+                from {width: 20rem;}
+                to {width: 3rem;}
+            }
+            div {
+                width: 20rem;
+                height: 0.5rem;
+                background-color: black;
+                animation: progressBar 5s cubic-bezier(0,4,1,-4) both;
+            }
+            div:hover {
+                animation-play-state: paused; /* 鼠标悬停时暂停动画 */
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+            const bodyDOM = document.getElementsByTagName('body')[0];
+            const bodyDOMContent = Array.from({length: 40}, (_,index)=>{return index;}).map((index, _)=>{
+                let animationIterationCount = 'infinite';
+                return `<div style="animation-iteration-count: ${animationIterationCount}"></div>`;
+            }).join("");
+            bodyDOM.innerHTML = bodyDOMContent;
+        </script>
+    </body>
+</html>
+```
+
+> 注意：如果在播放动画时赋予`display: none`属性，则这一瞬间的动画状态全部遗忘，就算让`display`恢复正常，动画也不会继承上次的状态继续播放，而是从头开始。
+
+### §15.1.8 动画填充模式(`animation-fill-mode`)
+
+`animation-fill-mode`属性用于控制动画播放结束后是否使用原来的属性值，接受若干个由逗号分隔的属性值。
+
+| `animation-fill-mode`属性值 | 作用                                                     |
+| --------------------------- | -------------------------------------------------------- |
+| `none`(缺省)                | 只有在动画播放时，才应用关键帧的属性                     |
+| `forwards`                  | 在`animationend`事件触发之后，也应用`to`关键帧的属性     |
+| `backwards`                 | 在`animationstart`事件触发之前，就应用`from`关键帧的属性 |
+| `both`                      | `forwards`和`backwards`的结合体                          |
+
+```html
+<html>
+    <head>
+        <style>
+            @keyframes progressBar {
+                from {width: 20rem;}
+                to {width: 3rem;}
+            }
+            div {
+                width: 20rem;
+                height: 0.5rem;
+                background-color: black;
+                animation: progressBar 5s cubic-bezier(0,4,1,-4) both;
+            }
+            div:hover {
+                animation-play-state: paused;
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+            const bodyDOM = document.getElementsByTagName('body')[0];
+            const bodyDOMContent = Array.from({length: 40}, (_,index)=>{return index;}).map((index, _)=>{
+                let animationIterationCount = 'infinite';
+                return `<div style="animation-iteration-count: ${animationIterationCount}"></div>`;
+            }).join("");
+            bodyDOM.innerHTML = bodyDOMContent;
+        </script>
+    </body>
+</html>
+```
+
+### §15.1.9 动画总属性(`animation`)
+
+`animation`属性是前八个子属性的合集，语法为：`[<animation-name> <animation-duration> <animation-timing-function> <animation-delay> <animation-iteration-count> <animation-direction> <animation-fill-mode> <animation-play-state> ,](用逗号分隔)`，初始值为`0s ease 0s 1 normal none running none`。
+
+该属性的简写规则如下：
+
+- 如果有两个时间相关的属性值，那么前一个被判定为`<animation-duration>`，第二个被判定为`<animaiton-delay>`。
+
+- 如果`<animation-name>`与某个关键字重名，那么应该放在最后，否则会被当成关键字解析。（`none`除外，`<animation-name>`不能与`none`这个关键字重名）
+
+- 如果`<animation-name>`与某个子属性的属性值格式一致，除了放在最后以外，还需要使用转义符。
+
+  例如：`@keyframes 4s`，就不能`animaiton: 1s 2s 4s`。因为`4s`的数字在前，不是有效的标识符，需要改为`animation: 1s 2s \4s`。
+
+## §15.2 关键帧对象与事件
+
+Chrome提供的JavaScript运行时包含了完善的关键帧API。
+
+一个`@keyframes`关键帧块对应着一个`CSSKeyframesRule`实例，包含若干个表示关键帧的`CSSKeyframeRule`实例。关键帧`CSSKeyframeRule`实例提供了`appendRule(str)`、`deleteRule(str)`、`findRule(str)`这三个API，用于实现增删查改。
+
+```javascript
+<html>
+    <head>
+        <style type="text/css">
+            @keyframes BreathePurpleLight {
+                from, 10% {
+                    background-color: #ff00ff;
+                }
+                90%, to {
+                    background-color: purple
+                }
+            }
+            div { background-color: lightblue; width: 10rem; height: 3rem; border-radius: 2rem; text-align: center; line-height: 3rem; }
+            div {
+                animation: BreathePurpleLight infinite 2s alternate;
+            }
+        </style>
+    </head>
+    <body>
+        <div>Hello</div>
+        <script>
+            // 获取关键帧块
+            let keyframesObject = document.styleSheets[0].cssRules[0]; /* CSSKeyframesRule实例 */
+            console.log(keyframesObject);
+            
+            // 获取关键帧
+            let keyframesRule = keyframesObject.findRule('from,10%'); /* CSSKeyframeRule实例 */
+            console.log(keyframesRule.cssText)
+            
+            // 删除关键帧
+            keyframesObject.deleteRule('from, 10%');
+
+            // 添加关键帧
+            keyframesObject.appendRule('50% {background-color: darkgreen;}')
+        </script>
+    </body>
+</html>
+```
+
+CSS的动画有以下三个事件，均对应着同一类`AnimationEvent`的实例，不同事件之间由其`type`属性区分：
+
+| CSS动画事件名称<br/>`AnimationEvent.type`值 | 事件含义                                                     |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| `animationstart`                            | 动画的开始。若`animation-delay`为负值，则立即触发。          |
+| `animationend`                              | 动画的结束。若`animation-iteration-count: infinite`且`animation-duration`为正，则永远不触发。 |
+| `animationiteration`                        | 一次迭代结束与下一次迭代开始。要求实际上的一次迭代时间必须大于0。与`animationend`不会同时触发。 |
+
+```javascript
+<html>
+    <head>
+        <style type="text/css">
+            @keyframes BreatheLight {
+                from, 10% {
+                    background-color: #ff00ff;
+                }
+                90%, to {
+                    background-color: purple
+                }
+            }
+            div { background-color: lightblue; width: 10rem; height: 3rem; border-radius: 2rem; text-align: center; line-height: 3rem; }
+            div {
+                animation: BreatheLight infinite 2s alternate;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="animated">Hello</div>
+        <script>
+            let animatedDOM = document.getElementsByClassName('animated')[0];
+            animatedDOM.addEventListener('animationstart', (e) => {console.log(e);});
+            animatedDOM.addEventListener('animationend', (e) => {console.log(e);});
+            animatedDOM.addEventListener('animationiteration', (e) => {console.log(e);});
+        </script>
+    </body>
+</html>
+```
+
+下面是一道测试题：请问三种动画时间分别触发了多少次？
+
+```css
+div {
+    animation-name: xxx;
+    animation-duration: 1s;
+    animation-iteration-count: 4;
+    animation-delay: -2s;
+}
+```
+
+动画刚开始运行时，肯定有一次`animationstart`。每次迭代时，由于`animation-delay`为负值，且其绝对值大于`animation-duration`，所以每次迭代开始时就已经结束了，因此永远不会触发`animationiteration`时间。重复上述过程四次后，触发一次`animationend`事件。
+
+## §15.3 动画链
+
+在[过渡](###§14.1.1 过渡属性(`transition-property`))一节，我们直到可以让许多属性同时进行过渡，但是没有办法分批过渡。CSS动画提供的所有子属性，都支持多个值用逗号连在一起，本来也没有办法按顺序执行。但是通过精确设计`animation-duration`和`animation-delay`的关系，我们就能让下一个动画在前一个动画结束后立即开始。这种效果称为动画链。
+
+### §15.3.1 基于`animation-delay`
+
+下面是一个动画链的例子，其时间线如下所述：`red`动画会先延时`3s`，在第`3s`时执行`red`动画共计`1s`，在第`4s`时结束。恰巧`orange`动画已经延时了`4s`，正好开始运行了。依次类推，`animation-duration`和`animation-delay`两者之间必须满足恒等式：$\text{animation-delay}_{i+1}=\text{animation-delay}_i+\text{animation-duration}_i$。
+
+```html
+<html>
+    <head>
+        <style>
+            @keyframes red {100%{background-color: red;}}
+            @keyframes orange {100%{background-color: orange;}}
+            @keyframes yellow {100%{background-color: yellow;}}
+            @keyframes green {100%{background-color: green;}}
+            @keyframes blue {100%{background-color: blue;}}
+            div {
+                width: 10rem;
+                height: 5rem;
+                border: 2px black solid;
+            }
+            div:nth-of-type(1) {
+                animation-name: red, orange, yellow, blue, green;
+                animation-duration: 1s, 3s, 5s, 7s, 11s;
+                animation-delay: 3s, 4s, 7s, 12s, 19s;
+            }
+        </style>
+    </head>
+    <body>
+        <div></div>
+    </body>
+</html>
+```
+
+### §15.3.2 基于JavaScript
+
+使用JavaScript脚本实现动画链的思路大致是：给每个元素增加`animationend`的`EventListener`，触发时为下一个元素添加动画。
+
+```html
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <style>
+            @keyframes red {100%{background-color: red;}}
+            @keyframes orange {100%{background-color: orange;}}
+            @keyframes yellow {100%{background-color: yellow;}}
+            @keyframes green {100%{background-color: green;}}
+            @keyframes blue {100%{background-color: blue;}}
+            div {
+                width: 10rem;
+                height: 2rem;
+                border: 2px black solid;
+                margin-bottom: 0.5rem;
+            }
+            div {
+                animation-duration: 1s;
+            }
+            div:nth-of-type(1) {
+                animation-name: red;
+            }
+        </style>
+    </head>
+    <body>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+    </body>
+    <script>
+        const divDOMs = document.querySelectorAll('div');
+        const keyframeStyles = document.styleSheets;
+        divDOMs.forEach((element, index) => {
+            element.addEventListener('animationend', (event)=>{
+                let animationName = [0,1,2,3,4].map((index) => {return document.styleSheets[0].rules[index].name;})[index + 1];
+                document.querySelectorAll('div')[index + 1].style.animationName = animationName;
+            })
+        });
+    </script>
+</html>
+```
+
+> 注意：当动画正在执行时，除了`animation-name`以外，更改动画的所有属性都不会终止动画的执行。
+
+## §15.4 动画延时迭代
+
+我们知道，`animation-iteration-count`仅仅是对单次动画的多次重复，这导致各个关键帧状态的出现具有周期性。如果我们需要打破这种周期性，例如“红一秒、白两秒、红三秒、白四秒”，应该怎么办呢？本节我们试着探讨这一问题，并提出几种解决方案。
+
+1. 把所有动作压缩在一个动画中
+
+   ```css
+   @keyframes demo {
+       from, 10% { color: red; } /* 10秒的0%~10%为一秒 */
+       10.1%,30% { color: white; } /* 以此类推... */
+       30.1%,60% { color: red; }
+       60.1%,to  { color: white; }
+   }
+   div {
+   	animation-name: demo;
+       animation-duration: 10s; /* 总长度为10秒 */
+   }
+   ```
+
+2. 取时间的最大公因数，创建若干个动画构建动画链
+
+   ```css
+   @keyframes red { from,to {color: red;} }
+   @keyframes white { from,to {color: white;} }
+   div {
+       animation-name: red, white, white, red, red, red, white, white, white, white;
+       animation-delay: 0s, 1s, 2s, 3s, 4s, 5s, 6s, 7s, 8s, 9s;
+   }
+   ```
+
+3. 使用JavaScript监听`animationend`事件，动态地增加和删除动画
+
+   ```javascript
+   let divDOM = document.querySelectorAll('div')[0];
+   
+   /* 只控制动画之间的间隔，动画执行时长由其自己控制 */
+   div.addEventListener('animationend', (event)=>{
+       let delay = parseInt(Math.random() * 2000);
+   	div.classList.remove('CSS名称'); /* 进入动画的延时 */
+       setTimeout(()=>{
+       	div.classList,add('CSS名称'); /* 开始动画 */
+       }, delay);
+   });
+   ```
+
+## §15.6 动画性能调优
+
+市面上大部分浏览器将动画的计算放在GPU中执行，其它任务放在CPU的UI线程中。如果存在视觉属性，它不属于动画，而是其它非动画的地方，那么它就会占用CPU，导致视觉效果卡顿。
+
+对于透明度、3D变换来说，推荐把这些任务交给GPU。对于`top`/`right`/`bottom`/`left`/`visibility`而言，它们的改变会导致盒模型的重排和重绘，推荐交给CPU。
+
+```css
+/* CPU */
+div { transform: translateZ(0); }
+
+/* GPU */
+@keyframes demo {
+    from { transform: translateZ(0); }
+}
+```
+
+## §15.7 减少动画(`prefers-reduced-motion`)
+
+2017年年底，CSS标准增加了一个名为`prefers-reduced-motion`的媒体查询，旨在减少动画的出现，避免癫痫和晕动病。浏览器会根据用户代理，选择是否启用该媒体查询中的CSS属性。
+
+```css
+@media (prefers-reduced-motion){
+    * {
+    	animation: none !important;
+        transition: none !important;
+    }
+}
+```
+
+# §16 图像处理
+
+## §16.1 滤镜
+
+十多年以前，微软的Internet Explorer首次为CSS引入`filter`属性，用于实现DirectX效果。后来CSS也创建并通过了这一提案。
+
+`filter`属性用于增加滤镜，接受若干个用逗号分隔的函数：
+
+| `filter()`属性值                  | 作用                                                   |
+| --------------------------------- | ------------------------------------------------------ |
+| `none`(缺省)                      |                                                        |
+| `blur(<length>)`                  | 高斯模糊                                               |
+| `brightness()`                    | 控制元素的亮度                                         |
+| `contrast()`                      | 控制元素的对比度                                       |
+| `drop-shadow()`                   | 沿元素的`alpha`通道创建形状一致的投影                  |
+| `grayscale()`                     | 把元素的元素变为灰阶                                   |
+| `hue-rotate()`                    | 把元素的颜色在色轮上旋转色相，同时保持饱和度和明度不变 |
+| `invert()`                        | 把元素的颜色反相处理，取`255`的补数                    |
+| `opacity(<number>, <percentage>)` | 不透明度                                               |
+| `sepia()`                         | 把元素的所有颜色向红褐色转换(`rgb(112,66,20)`)         |
+| `saturate()`                      | 控制元素的饱和度                                       |
+| `url()`                           | SVG滤镜                                                |
+
+```html
+<html>
+    <head>
+        <style>
+            body { padding: 1rem; }
+            .item {
+                width: 12rem;
+                border: 1px solid black;
+                border-radius: 1rem;
+                padding: 1rem;
+                margin-right: 1rem;
+            }
+            .item:hover { 
+                transition: background-color 0.08s ease-in 0s; 
+                background-color: #eee; 
+            }
+            .item > * {
+                margin: 0.5rem auto 0.5rem auto;
+                text-align: center;
+            }
+            .container {
+                display: flex;
+            }
+            .img {
+                width: 5rem;
+                height: 5rem;
+                background: linear-gradient(45deg, 
+                    #5566ff 0%,#5566ff 33%, lightblue 33%, lightblue 66%, purple 66%, purple 100%
+                );
+            }
+        </style>
+    </head>
+    <body>
+        <section>
+            <h1>基本滤镜</h1>
+            <div class="container">
+                <div class="item"><div class="img" style="filter: blur(3px);"></div><div>filter: blur(3px);</div></div>
+                <div class="item"><div class="img" style="filter: opacity(0.2);"></div><div>filter: opacity(0.2);</div></div>
+                <div class="item"><div class="img" style="filter: drop-shadow(5px 5px 4px #555555);"></div><div>filter: drop-shadow(5px 5px 4px gray);</div></div>
+            </div>
+        </section>
+        <section>
+            <h1>颜色滤镜</h1>
+            <div class="container">
+                <div class="item"><div class="img" style="filter: grayscale(0.9);"></div><div>filter: grayscale(0.9);</div></div>
+                <div class="item"><div class="img" style="filter: sepia(0.6);"></div><div>filter: sepia(0.6);</div></div>
+                <div class="item"><div class="img" style="filter: invert(0.8);"></div><div>filter: invert(0.8);</div></div>
+                <div class="item"><div class="img" style="filter: hue-rotate(30deg);"></div><div>filter: hue-rotate(30deg);</div></div>
+            </div>
+        </section>
+        <section>
+            <h1>亮度、对比度、饱和度滤镜</h1>
+            <div class="container">
+                <div class="item"><div class="img" style="filter: brightness(1.4);"></div><div>filter: brightness(1.4);</div></div>
+                <div class="item"><div class="img" style="filter: contrast(2.2);"></div><div>filter: contrast(2.2);</div></div>
+                <div class="item"><div class="img" style="filter: saturate(3);"></div><div>filter: saturate(3);</div></div>
+            </div>
+        </section>
+    </body>
+</html>
+```
+
+### §16.1.1 基本滤镜
+
+- `blur(<length>)`负责给元素使用高斯模糊。`<length>`表示高斯模糊使用的标准差，设为`0`时不生效，设为负数时无效。
+- `opacity([<number>|<percentage>])`负责给元素使用不透明度。`0`为完全透明，`1`为完全不透明。当值大于`1`时，会自动取到上限`1`；当值小于`0`时无效。
+- `drop-shadow(<length>{2,3} <color>?)`负责沿元素的`alpha`通道创建形状一致的投影。前两（三）个参数分别表示横向偏移、纵向偏移、（模糊半径）。`<color>`用于指定颜色，缺省为元素的CSS`color`属性。
+
+### §16.1.2 颜色滤镜
+
+- `grayscale([<number>]|<percentage>)`：把元素的元素变为灰阶。
+- `sepia([<number>|<percentage>])`：把元素的所有颜色向红褐色转换(`rgb(112,66,20)`)。
+- `invert([<number>|<percentage>])`：把元素的颜色反相处理，取`255`的补数。
+- `hue-rotate(<angle>)`：把元素的颜色在色轮上旋转色相，同时保持饱和度和明度不变。
+
+### §16.1.3 亮度、对比度、饱和度滤镜
+
+## §16.2 合成与混合
+
+将若干个元素合在一起，称为元素的合成。
+
+### §16.3.1 混合元素(`mix-blend-mode`)
+
+`mix-blend-mode`属性用于定义元素的混合方式。使用该属性的元素是前景，它的背景是位于该元素背后的元素，或者背后的元素背景。该属性的取值范围如下所示：
+
+- `normal`(缺省)
+
+  我们知道，无论是声明的先后顺序，还是`z-index`，其实元素之间在Z轴上都有着严格的先后顺序。我们遍历两个元素的同一位置的每一个像素，如果在该处坐标，两个元素的`alpha`值都为`1`，则意味着都不透明，直接选取Z轴层级最高的；如果前景元素`alpha`小于`1`，则进行线性混合。
+
+- `darken`：各取RGB分量中最小的
+  $$
+  \overrightarrow{\text{image}'_{i,j}}=\left[\begin{matrix}
+  	(\text{image}'_{i,j})_R \\ (\text{image}'_{i,j})_G \\ (\text{image}'_{i,j})_B
+  \end{matrix}\right]=\left[\begin{matrix}
+  	\min{((\text{background}_{i,j})_R, (\text{foreground}_{i,j})_R)} \\
+  	\min{((\text{background}_{i,j})_G, (\text{foreground}_{i,j})_G)} \\
+  	\min{((\text{background}_{i,j})_B, (\text{foreground}_{i,j})_B)} \\
+  \end{matrix}\right]
+  $$
+
+- `brighten`：各取RGB分量中最大的
+  $$
+  \overrightarrow{\text{image}'_{i,j}}=\left[\begin{matrix}
+  	(\text{image}'_{i,j})_R \\ (\text{image}'_{i,j})_G \\ (\text{image}'_{i,j})_B
+  \end{matrix}\right]=\left[\begin{matrix}
+  	\max{((\text{background}_{i,j})_R, (\text{foreground}_{i,j})_R)} \\
+  	\max{((\text{background}_{i,j})_G, (\text{foreground}_{i,j})_G)} \\
+  	\max{((\text{background}_{i,j})_B, (\text{foreground}_{i,j})_B)} \\
+  \end{matrix}\right]
+  $$
+
+- `difference`：各取各取RGB分量中两者之差的绝对值
+  $$
+  \overrightarrow{\text{image}'_{i,j}}=\left[\begin{matrix}
+  	(\text{image}'_{i,j})_R \\ (\text{image}'_{i,j})_G \\ (\text{image}'_{i,j})_B
+  \end{matrix}\right]=\left[\begin{matrix}
+  	\left|(\text{background}_{i,j})_R- (\text{foreground}_{i,j})_R)\right| \\
+  	\left|(\text{background}_{i,j})_G- (\text{foreground}_{i,j})_G)\right| \\
+  	\left|(\text{background}_{i,j})_B- (\text{foreground}_{i,j})_B)\right| \\
+  \end{matrix}\right]
+  $$
+
+- `exclusion`：各取各取RGB分量，换算成位于`o~1`区间内的百分数，代入表达式$x+y-2xy$，而不是`difference`的$|x-y|$，将计算的结果转回`uint8`。这是`difference`的温和版本
+
+- `multiply`：将`exclusion`的表达式换为$x\times y$
+
+- `screen`：将`exclusion`的表达式换为$1-(1-x)\times(1-y)$
+
+- `overlay`：如果**前景**在该点的像素RGB分量中的一个小于`128`（即百分比小于`50%`），则使用`multiply`；反之则使用`screen`
+
+- `hard-light`：如果**后景**在该点的像素RGB分量中的一个小于`128`（即百分比小于`50%`），则使用`multiply`；反之则使用`screen`
+
+- `soft-light`：`hard-light`的柔和版本，计算公式详见[维基百科](https://en.wikipedia.org/wiki/Blend_modes#Soft_Light)
+
+- `color-dodge`：将`exclusion`的表达式换为$\displaystyle\frac{y}{1-x}$，颜色减淡
+
+- `color-burn`：将`exclusion`的表达式换为$\displaystyle\frac{1-y}{x}$，颜色加深
+
+- `hue`：取前景的色相角度、背景的明度和饱和度
+
+- `saturation`：取前景的饱和度、背景的明度和色相角度
+
+- `color`：取前景的色相角度和饱和度、背景的明度
+
+- `luminosity`：取前景的明度、背景的色相角度和饱和度
+
+### §16.3.2 混合背景(`background-blend-mode`)
+
+前面我们提到的背景颜色取自于后面元素的颜色，本节将取自于后面元素的`background`。`background-blend-mode`的取值与上一节完全相同，这里不再赘述。
+
+### §16.3.3 独立混合(`isolation`)
+
+我们知道，`filter`属性是串联执行的，也就是说CSS会从最后一个值向前执行，最后构成一个$f=f_{n}(f_{n-1}(...(f_2(f_1))))$的总变换。然而有些属性不是串联执行的，而是各自执行完毕再混合起来，例如`background`，最后构成一个$f=f(f_1,f_2,...,f_{n-1},f_n)$的总变换，具有独立性。
+
+`isolation`属性用于控制`filter`在图像处理时是否需要独立混合，是否需要排除父元素、后背元素等等的影响。"是"代表`isolate`，"否"代表`auto`(缺省)。
+
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                padding: 1rem;
+                background: linear-gradient(to top, goldenrod, skyblue);
+                display: flex;
+            }
+            .container > * {
+                margin: 1rem;
+            }
+            img { 
+                height: 200px; 
+                mix-blend-mode: difference; 
+            }
+            .container > div:nth-of-type(2) { 
+                isolation: isolate; 
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div><img src="https://meyerweb.github.io/csstdg4figs/19-filters-blending-clipping-masking/i/diamond.png"></div>
+            <div><img src="https://meyerweb.github.io/csstdg4figs/19-filters-blending-clipping-masking/i/diamond.png"></div>
+        </div>
+    </body>
+</html>
+```
+
+在上面的例子中，第一个图片经过了与后面的上级元素的差值处理，符合我们的预期。然而第二个图片的上级元素有`isolation: isolate`，因此将图片与`.container`隔离开来，从而显示原图。
+
+## §16.3 裁剪和遮罩
+
+虽然在`filter`中使用SVG滤镜也能实现裁剪，但是为方便起见，如果只需踩掉一部分，我们也可以使用`clip-path`属性。该属性用于定义裁切形状。
+
+### §16.3.1 裁剪形状
+
+`clip-path`可以用以下四个简单的形状函数定义——`inset()`、`circle()`、`ellipse()`、`polygon()`。它们已经在[§7.3.1 定义形状(`shape-outside`)](###§7.3.1 定义形状(`shape-outside`))详细解释过了，这里不再赘述。
+
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                display: flex;
+                flex-wrap: wrap;
+            }
+            .item {
+                width: 15rem;
+                margin: 0.5rem;
+                border: 1px solid black;
+                padding: 0.5rem;
+            }
+            .image {
+                width: 100%;
+                height: 7rem;
+                border: 3px solid red;
+                background: linear-gradient(45deg, purple, blue);
+            }
+            .text { text-align: center; }
+
+            .item:nth-of-type(1) > .image { clip-path: none; }
+            .item:nth-of-type(2) > .image { clip-path: inset(10px 0 25% 2rem); }
+            .item:nth-of-type(3) > .image { clip-path: circle(5rem at 50% 50%); }
+            .item:nth-of-type(4) > .image { clip-path: ellipse(10rem 3rem at 50% 50%); }
+            .item:nth-of-type(5) > .image { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+            .item:nth-of-type(6) > .image { clip-path: circle(5rem at 50% 50%); }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="item"><div class="image"></div><div class="text">clip-path:<br/>none;</div></div>
+            <div class="item"><div class="image"></div><div class="text">clip-path:<br/>inset(10px 0 25% 2rem);</div></div>
+            <div class="item"><div class="image"></div><div class="text">clip-path:<br/>circle(5rem at 50% 50%);</div></div>
+            <div class="item"><div class="image"></div><div class="text">clip-path:<br/>ellipse(10rem 3rem at 50% 50%);</div></div>
+            <div class="item"><div class="image"></div><div class="text">clip-path:<br/>polygon(50% 0, 100% 50%, 50% 100%, 0 50%);</div></div>
+        </div>
+    </body>
+</html>
+```
+
+### §16.3.2 裁剪框
+
+裁剪形状需要使用长度或百分比来指定顶点位置，而裁剪框直接对应盒模型的区域边界。
+
+| `clip-path`属性值(裁剪框部分) | 作用                        |
+| ----------------------------- | --------------------------- |
+| `margin-box`                  | 恰好包含外边距的区域        |
+| `border-box`                  | 恰好包含边框的区域          |
+| `padding-box`                 | 恰好包含内边距的区域        |
+| `content-box`                 | 恰好包含内容区的区域        |
+| `view-box`                    | 使用最近的父辈元素的SVG视区 |
+| `fill-box`                    | 使用SVG对象范围作为裁剪框   |
+| `stroke-box`                  | 使用SVG描边范围作为裁剪框   |
+
+> 注意：截止到Chrome 118，Chrome依然不支持上述属性。详见[MDN文档](https://developer.mozilla.org/zh-CN/docs/Web/CSS/clip-path#%E6%B5%8F%E8%A7%88%E5%99%A8%E5%85%BC%E5%AE%B9%E6%80%A7)。
+
+### §16.3.3 裁剪填充规则(`clip-rule`)
+
+`clip-rule`用于控制裁剪路径交汇时创建裁剪形状的行为。
+
+| `clip-rule`属性值 | 作用                           |
+| ----------------- | ------------------------------ |
+| `nonzero`         | 同样填充路径路径交汇的区域     |
+| `evenodd`         | 当且仅当奇数次路径交汇时才填充 |
+
+```html
+<html>
+	<head>
+		<style>
+			body {display: flex; justify-content: center;}
+			ol {position: relative; list-style: none; margin: 0; padding: 0;}
+			ol li {
+                background: 
+                    radial-gradient(rgba(255,255,255,0.5) 50%, white 75%),
+                    linear-gradient(42deg, white 45%, teal, white 65%);
+            }
+			ol li img {width: 250px;}
+			ol li b + * {display: block; width: 100%; text-align: center; font-size: 1.5em;}
+		</style>
+	</head>
+	<body>
+		<ol>
+			<li><b><img src="https://meyerweb.github.io/csstdg4figs/19-filters-blending-clipping-masking/i/star-nonzero.svg"></b><code>nonzero</code></li>
+			<li><b><img src="https://meyerweb.github.io/csstdg4figs/19-filters-blending-clipping-masking/i/star-evenodd.svg"></b><code>evenodd</code></li>
+		</ol>
+	</body>
+</html>
+```
+
+## §16.4 蒙版
+
+蒙版限定了一块区域，位于区域内部的内容可见，位于外部的区域隐藏起来。蒙版与裁剪区域的区别是：蒙版是通过图像定义的，而裁切区域是通过卢进共定义的。除此以外，蒙版提供的属性更多。
+
+> 注意：截止到Chrome 118，Chrome对蒙版的支持已经仍不完善。大部分属性必须使用`-webkit-`前缀，有些属性甚至仍然不支持（例如`mask-mode`）。
+
+### §16.4.1 定义蒙版(`mask-image`)
+
+`mask-image`属性用于指定用作蒙版的图像。
+
+```css
+img.A { 
+	mask-image: url(...) /* 图像B */
+}
+```
+
+在上面的例子中，B图像的形状会限制A图像的显示范围。
+
+### §16.4.2 蒙版模式(`mask-mode`)
+
+`mask-mode`属性决定了蒙版图像到蒙版的生成方式，接受若干个用逗号分隔的属性值。
+
+| `mask-mode`属性值    | 作用                                                         |
+| -------------------- | ------------------------------------------------------------ |
+| `alpha`              | 把蒙版的alpha通道当作图像的透明度                            |
+| `luminance`          | 把蒙版的亮度当作图像的透明度                                 |
+| `match-source`(缺省) | `alpha`和`luminance`的结合体。如果蒙版是`<img>`(包括`SVG`/`linear-gradient()`/`element()`...)，则使用`alpha`；如果蒙版是SVG的`<mask>`，则使用`liminance` |
+
+### §16.4.3 蒙版尺寸(`mask-size`)
+
+在之前的例子中，蒙版图像和蒙版这两者的尺寸是一致的。我们可以使用`mark-size`属性，来单独改变蒙版的尺寸。该属性的区域与`background-size`完全相同。
+
+| `mask-size`属性值                   | 作用                                                         |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `[<length>|<percentage>|auto]{1,2}` | 蒙版的长与宽                                                 |
+| `cover`                             | 尽可能的在保持长宽比的前提下，将蒙版缩放至能覆盖被修饰元素的尺寸 |
+| `contain`                           | 尽可能的在保持长宽比的前提下，将蒙版缩放至能由被修饰元素的尺寸覆盖的尺寸 |
+
+### §16.4.4 蒙版重复方式(`mask-repeat`)
+
+与`background-repeat`的取值范围完全相同，这里不再赘述。
+
+### §16.4.5 蒙版定位(`mask-position`/`mask-origin`)
+
+与`background-position`/`background-origin`的取值范围完全相同，这里不再赘述。
+
+### §16.4.6 蒙版裁剪(`mask-clip`)
+
+蒙版本身也可以进行裁剪。`mask-clip`属性决定了蒙版的裁剪框，其属性值与[§16.3.2 裁剪框](###§16.3.2 裁剪框)完全一致，这里不再赘述。
+
+### §16.4.7 蒙版合成(`mask-composite`)
+
+`mask-composite`属性用于规定若干个蒙版之间的布尔运算，可以接收若干个用逗号分隔的属性值。多个布尔运算的顺序是按属性值从后往前的顺序计算的。假设第$i$个`mask`（记为$\text{mask}_i$）的`mask-composite`为$f_i(x,y)$，则有如下递推公式：
+$$
+\begin{cases}
+	\text{output}_{n+1}=空白\\
+	\text{output}_i=f_i(\text{mask}_i,\text{output}_{i+1})\\
+	\text{output}_1即为最终结果
+\end{cases}
+$$
+
+| `mask-composite`属性值 | 作用                    |
+| ---------------------- | ----------------------- |
+| `add`                  | 布尔运算并              |
+| `substract`            | 布尔运算减              |
+| `intersect`            | 布尔运算交              |
+| `exclude`              | 布尔运算并$-$布尔运算交 |
+
+### §16.4.8 蒙版总属性(`mask`)
+
+`mask`属性是以上七个子属性的集合体，语法为若干个由逗号分隔的`[<mask-image> <mask-position>[/<mask-size>]? <mask-repeat> <mask-clip> <mask-origin> <mask-composite> <mask-mode>]`。
+
+### §16.4.9 蒙版类型(`mask-type`)
+
+使用CSS装饰SVG元素时，可以通过`mask-type`设置SVG中的`<mask>`类型。
+
+| `mask-type`属性值 | 作用                             |
+| ----------------- | -------------------------------- |
+| `luminance`       | 把SVG的alpha通道当作蒙版的透明度 |
+| `alpha`           | 把SVG的透明度当作蒙版的透明度    |
+
+如果`mask-type`和`mask-mode`发生了冲突，则最终以`mask-mode`为准。
+
+### §16.4.10 蒙版边框(`mask-border-*`)
+
+目前为止，我们介绍的蒙版都是针对整个元素的。起始CSS1中也规定了只针对边框的蒙版，而且Chrome从第一版起就全部支持了（需要使用`-webkit-`前缀），然而Firefox至今也没有支持。
+
+蒙版边框也有着相似的一系列属性：
+
+- `mask-border-source`：蒙版边框使用的图像
+- `mask-border-slice`：定义如何裁切原图分，从而用作各边边框
+- `mask-border-width`：各边边框的宽度
+- `mask-border-outset`：定义蒙版边框与默认边框的距离，确定蒙版边框绘制的位置
+- `mask-border-repeat`：定义蒙版边框图像小于或大于图像切片时的行为
+- `mask-border-mode`：定义使用`alpha`蒙版模式还是明度蒙版模式
+- `mask-border`：总属性
+
+### §16.4.11 对象填充(`object-fit`)
+
+有一种专门针对置换元素的遮罩。`object-fit`用于规定置换元素在元素框中的填充方式。
+
+| `object-fit`属性值 | 作用                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| `fill`(缺省)       | 变比例缩放，填满整个元素的内容区，不考虑元素本身的边框长度   |
+| `contain`          | 定比例缩放，使得与元素边缘内切，不考虑元素本身的边框长度     |
+| `cover`            | 变比例缩放，填满整个元素的内容区，需要考虑元素本身的边框长度 |
+| `scale-down`       | 在`none`和`contain`之间选择最小的                            |
+| `none`             | 不缩放，直接按照图片原始大小显示                             |
+
+### §16.4.12 对象定位(`object-position`)
+
+`object-position`属性用于控制置换元素在元素框中的对齐方式，接受`<length> <length>`形式的坐标。
+
+# §17 媒体样式
+
+CSS允许针对不同的屏幕，设置不同种类的样式。
+
+## §17.1 媒体查询
+
+### §17.1.1 基本的媒体查询
+
+在HTML中，开发者可以使用`media`属性，为`<style>`和`<link>`标签限制使用的媒体。`media`属性的值可以是若干个由逗号分隔的值。
+
+```html
+<link rel="stylesheet" type="text/css" media="print" />
+<style type="text/css" media="speech, screen">
+    body { font-family: sans-serif; }
+</style>
+```
+
+开发者也可以在CSS中使用`@import`规则，限制使用的媒体：
+
+```css
+@import url(/static/index.css) screen, print;
+```
+
+CSS还定义了`@media`块，可以在同一个样式表中定义多个媒体样式：
+
+```css
+@media screen {
+    body { font-family: sans-serif; }
+    h1 { margin-top: 0.5rem; }
+}
+@media print {
+    body { font-family: serif; }
+    hi { margin-top: 1rem; }
+}
+```
+
+> 注意：如果不设定媒体信息，样式将应用于所有媒体。
+
+### §17.1.2 复杂的媒体查询
+
+前面我们提到过，多个媒体类型可以通过逗号分隔，合并在一起。本节将在此基础上更进一步，引入了逻辑运算符。其中逻辑与等价于`and`，逻辑或等价于`,`，逻辑非等价于`not`。
+
+```css
+@media all and (min-resolution: 96dpi), screen { ... }
+@media not (orientation: landscape) { ... }
+```
+
+> 注意：`not`只能在媒体查询的开头使用。
+
+`only`关键字的唯一作用是保证向后兼容性。在不支持媒体查询的浏览器中，我们在媒体类型`xxx`前添加用空格隔开的`only`，会让浏览器认为这是一个名为`onlyxxx`的媒体类型，这显然是无效的，从而让浏览器忽略。在支持的浏览器中，`only`关键字会被忽略。
+
+## §17.2 媒体类型
+
+| 媒体类型 | 作用                                 |
+| -------- | ------------------------------------ |
+| `all`    | 能呈现所有内容的媒体                 |
+| `print`  | 打印给非盲用户的文档/打印预览        |
+| `screen` | 显示在屏幕上的媒体                   |
+| `speech` | 语音合成器、屏幕阅读器等音频渲染设备 |
+
+HTML4曾经定义了很多媒体类型，但是大多数都被弃用了。
+
+以下是一个实际场景：一般来说，小说网站不希望读者以任何方式复制、传播只有会员才能看的内容。虽然现在的网站使用了“禁用右键”、“审查元素反调试”等措施，但是大部分网站都没有抵抗“`Ctrl+P`打印为PDF”这种行为。我们就可以使用`@media print{}`，让内容在打印时消失：
+
+```html
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <style>
+            img {
+                border: 1px solid black;
+                width: 20rem;
+            }
+            @media print {
+                body > .content {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>这是一段小说。现在假设它有版权保护，你打印不了下面的文本。</h1>
+        <div class="content">
+            <h2>第1章 洪荒重生成了柳树</h2>
+            <p>洪荒天地，东荒大山。</p>
+            <p>千丈悬崖之上，一颗柳树突然一颤，三万六千条柳枝也随之激烈的颤动起来。</p>
+            <p>柳烽难以置信的看着眼前的一切，他竟然重生了，还是最为凶险的洪荒时期，而且还重生成一株柳树。</p>
+            <p>活了十亿年的柳树！</p>
+           </div>
+    </body>
+</html>
+```
+
+## §17.3 媒体特性描述符
+
+媒体特性描述符必须放在括号中，而且下列所有描述符的值都不能为负数。
+
+- `width`、`min-width`、`max-width`：取值`<length>`，表示用户代理显示区域的宽度，即视区宽度+横向滚动条宽度
+- `height`、`min-height`、`max-height`：取值`<length>`，表示用户代理显示区域的高度，即视区高度+纵向滚动条高度
+- `device-width`、`min-device-width`、`max-device-width`：取值`<length>`，表示视区宽度
+- `device-height`、`min-device-height`、`max-device-height`：取值`<length>`，表示视区高度
+- `aspect-ratio`、`min-aspect-ratio`、`max-aspect-ratio`：取值`<integer>/<integer>`，表示`width`与`height`的比值
+- `device-aspect-ratio`、`min-device-aspect-ratio`、`max-device-aspect-ratio`：取值`<integer>/<integer>`，表示`device-width`与`device-height`的比值
+- `color`、`min-color`、`max-color`：取值`<integer>`，表示用户代理支持的色深
+- `color-index`、`min-color-index`、`max-color-index`：取值`<integer>`，表示用户代理支持的色彩数量，数值上等于`2^color`
+- `monochrome`、`min-monochrome`、`max-monochrome`：取值`<integer>`，表示显示屏是否为单色，如果是，则表示帧缓冲器的每像素有多少位
+- `resolution`、`min-resolution`、`max-resolution`：取值`<integer> dpi`，表示输出设备的分辨率
+- `orientation`：取值`portrait|landscape`，表示用户代理设置的显示区域防止方向。横屏为`landscape`，竖屏为`portrait`
+- `scan`：取值`progressive|interlace`，表示输出设备使用的扫描方式。CRT和等离子显示器对应`interlace`，现在的液晶显示器对应`progressive`
+- `grid`：取值`0|1`，表示是否为基于栅格的输出设备。例如TTY终端对应`1`，否则对应`0`
+
+> 注意：在实际的响应式设计中，一般不使用`orientation`作为判断横屏与竖屏的依据。这是因为`orientation`取决于`aspect-ratio`，而不是`device-aspect-ratio`。
+
+## §17.4 分页媒体(`@page`)
+
+`@page`块用于定义分页相关的特征。
+
+```css
+@page ABC {
+    ......
+}
+```
+
+### §17.4.1 定义页面尺寸(`size`)
+
+`size`属性用于定义打印时使用的页面尺寸。**该属性只有在`@page`块中才有效。**
+
+```css
+@page {
+	size: 7.5in 10in;
+    margin: 0.5in;
+}
+```
+
+| `size`属性值                       | 作用             |
+| ---------------------------------- | ---------------- |
+| `auto`(缺省)                       |                  |
+| `<length>{1,2}`                    | 页面的宽度和高度 |
+| `<page-size> [portrait|landscape]` |                  |
+
+`<page-size>`有以下几种常见的取值：`A3`、`A4`、`A5`、`B4`、`B5`。
+
+### §17.4.2 选择页面类型(`page`)
+
+我们可以使用`page`属性控制某个HTML元素使用什么名称的`@page`特征。
+
+例如我们想要竖版打印，但是对于其中一个很长的表格要求横版打印，就可以使用`page`属性：
+
+```css
+@page { margin: 0.5in; }
+@page normal { size: portrait; }
+@page rotate { size: landscape; }
+
+body { page: normal; }
+table.long { page: rotate; }
+```
+
+除了给`@page <identifier>`取名，我们还能`@page <selector>`指定选择符：
+
+```css
+/* 更改书脊两侧的页面的边距 */
+@page :left { margin: 0.5in; }
+@page :right { margin: 0.5in; }
+
+/* 第一页横向打印 */
+@page :first { size: landscape; }
+```
+
+### §17.4.3 分页(`page-break-*`)
+
+`page-break-after`和`page-break-before`属性都用于控制元素上下的换页行为，取值为`auto`(缺省)、`always`、`avoid`。
+
+```css
+h1.chapter {
+	page-break-after: always;
+}
+h2.section {
+    page-break-before: always;
+}
+```
+
+```html
+<h1></h1>
+<!-- ========分页 -->
+<h2></h2>
+......
+<!-- ========分页 -->
+<h2></h2>
+......
+```
+
+`page-break-inside`属性顾名思义负责控制元素内的换页行为，取值只有`auto`(缺省)和`avoid`。
+
+以上的三个属性都是建议性的，而不是强制性的。
+
+### §17.4.4 孤行和寡行(`widows`/`orphans`)
+
+`widows`和`orphans`的属性值都是`<integer>`，缺省都是`2`。
+
+- `widows`属性定义：如果在元素的中间插入分页符，那么元素在后一页中至少要有多少行出现在后一页的顶部。
+- `orphans`属性定义：如果在元素的中间插入分页符，那么元素在前一页中至少要有多少行出现在前一页的底部。
+
+这两个属性值越大，越不鼓励CSS在元素的中间插入分页符。
