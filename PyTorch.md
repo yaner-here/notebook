@@ -278,7 +278,7 @@ weight_aligned = weight.align_as(img_batch)
 img_gray_batch = (img_batch * weight_aligned).sum('channel')
 ```
 
-## §1.4 张量数据类型
+## §1.4 张量的数据类型
 
 一个张量只能存储一批数据类型相同的数据。PyTorch支持的部分数据类型如下所示：
 
@@ -297,5 +297,434 @@ img_gray_batch = (img_batch * weight_aligned).sum('channel')
 我们可以通过给`torch.Tensor`的构造函数传递`dtype`参数，来指定张量的数据类型：
 
 ```python
->>>
+>>> a = torch.ones(10, dtype=torch.double)
+tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=torch.float64)
 ```
+
+也可以对张量实例使用对应类型的转换方法：
+
+```python
+>>> a.short()
+tensor([1, 1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=torch.int16)
+```
+
+或者在张量实例的`.to()`方法中指定数据类型：
+
+```python
+>>> a.to(torch.int8)
+tensor([1, 1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=torch.int8)
+
+>>> a.to(dtype=torch.float16)
+tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=torch.float16)
+```
+
+## §1.5 张量的存储视图
+
+张量中的数据储存在连续的内存块中，由`torch.Storage`实例统一管理。张量只是这片内存块的一个视图，因此多个张量可以索引同一存储区。
+
+```python
+>>> a = torch.tensor([[[1,2],[3,4],[5,6]]])
+
+>>> type(a.storage())
+torch.storage.TypedStorage
+
+>>> a.storage()
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+[torch.storage.TypedStorage(dtype=torch.int64, device=cpu) of size 6]
+```
+
+我们也可以直接修改存储区的值：
+
+```python
+>>> a.storage()[0] = 999
+
+>>> a
+tensor([[[999,   2],
+         [  3,   4],
+         [  5,   6]]])
+```
+
+## §1.6 张量元数据
+
+为了在存储区中建立索引，张量需要一些定义自己的信息，统称为元数据，包括形状、偏移量、步长。
+
+- 形状：张量在每个纬度上有多少个元素
+- 偏移量：某个元素相对张量中第一个元素的索引
+- 步长：为了获得下一个元素需要跳过的元素数量
+
+```python
+>>> a = torch.tensor([[1,2],[3,4],[5,6]])
+
+>>> a[2].size()
+torch.Size([2])
+
+>>> a[2].storage_offset() # 偏移量
+4
+
+>>> a.stride() # 步长
+(2, 1)
+```
+
+访问一个二维张量中的第$(i,j)$个元素，其实是在访问位于$\text{首地址}+\text{stride[0]}\times i+\text{stride}[1]\times j$的元素。
+
+例如，给定下列二维张量，其步长为$(2,1)$，则转置后的步长为$(1,2)$：
+
+```python
+>>> a = torch.tensor([[1,2],[3,4],[5,6]])
+# 存储区为: 1 2 3 4 5 6
+>>> a.stride()
+(2, 1)
+
+>>> a.to().stride()
+(1, 2)
+```
+
+## §1.7 连续张量
+
+在[§1.6 张量元数据](##§1.6 张量元数据)一节中，我们已经知道了张量步长的最后一维`torch.Tensor(...).stride()[-1]`并不总是$1$。这使得该张量对应的视图在存储区上不连续。我们可以用`torch.Tensor(...).is_contiguous()`方法来验证这一点：
+
+```python
+>>> a = torch.randn((20,5,2))
+
+>>> a.is_contiguous()
+True
+
+>>> a.transpose(0,2).is_contiguous()
+False
+```
+
+`torch.Tensor(...).contiguous()`可以**另外开辟一块存储区**，对非连续张量使用的数据进行重排，使其变成连续张量：
+
+```python
+>>> a = torch.randn((20,5,2))
+	a_T = a.transpose(0,2)
+
+>>> print(a.shape, a.stride(), a.is_contiguous(), sep=' '*4)
+	print(a_T.shape, a_T.stride(), a_T.is_contiguous(), sep=' '*4)
+torch.Size([20, 5, 2])    (10, 2, 1)    True
+torch.Size([2, 5, 20])    (1, 2, 10)    False
+
+>>> a_T_contious = a_T.contiguous()
+
+>>> print(a.shape, a.stride(), a.is_contiguous(), sep=' '*4)
+	print(a_T.shape, a_T.stride(), a_T.is_contiguous(), sep=' '*4)
+	print(a_T_contious.shape, a_T_contious.stride(), a_T_contious.is_contiguous(), sep=' '*4)
+torch.Size([20, 5, 2])    (10, 2, 1)    True
+torch.Size([2, 5, 20])    (1, 2, 10)    False
+torch.Size([2, 5, 20])    (100, 20, 1)    True
+```
+
+## §1.8 张量的存储位置
+
+PyTorch支持将张量在以下位置存储和计算：
+
+- 在CPU上计算，存储在内存中
+- 在Nvidia GPU（CUDA）上计算，存储在显存中
+- 在AMD GPU（ROCm）上计算，存储在显存中
+- 在Google TPU上计算，存储在显存中
+
+张量数据在计算机上的位置由其`device`属性指定，默认情况是CPU：
+
+```python
+>>> a = torch.randn((20,5,2))
+>>> a_T = a.transpose(0,2)
+
+>>> type(a.device), a.device
+(torch.device, device(type='cpu'))
+```
+
+我们可以在创建张量时或使用`to()`方法，指定`device`形参，来更改张量的存储位置：
+
+```python
+>>> b = torch.ones(2,2).to(device='cuda')
+>>> b
+tensor([[1., 1.],
+        [1., 1.]], device='cuda:0')
+```
+
+如果有多个CUDA设备，可以指定`device='cuda:<序号>'`：
+
+```python
+>>> b = torch.ones(2,2).to(device='cuda:0')
+```
+
+我们也可以用简写的`cuda()`和`cpu()`方法实现互转：
+
+```python
+>>> b = torch.ones(2,2)
+
+>>> b = b.cuda()
+>>> b
+tensor([[1., 1.],
+        [1., 1.]], device='cuda:0')
+
+>>> b = b.cpu()
+>>> b
+tensor([[1., 1.],
+        [1., 1.]])
+```
+
+## §1.9 与NumPy交互
+
+PyTorch框架使用了Python缓冲区协议，可以实现零拷贝开销的互操作性。
+
+将`torch.Tensor(...)`转化为`numpy.ndarray(...)`，可以使用张量提供的`numpy()`方法：
+
+```python
+>>> import torch, numpy
+
+>>> a = torch.Tensor([1,2,3]).numpy()
+>>> type(a)
+numpy.ndarray
+```
+
+将`numpy.ndarray(...)`转化为`torch.Tensor(...)`，可以使用`torch.from_numpy()`方法：
+
+```python
+>>> import torch, numpy
+
+>>> a = numpy.array([1,2,3])
+>>> type(torch.from_numpy(a))
+torch.Tensor
+```
+
+> 注意：NumPy默认的数据类型是`float64`，而PyTorch默认的数据类型是`float32`。为提高训练效率，加载NumPy的持久化文件`*.npy`后最好降低精度。
+
+## §1.10 张量序列化/持久化
+
+PyTorch内部使用Python的`pickle`来对张量对象进行序列化。`torch.load()`和`torch.save()`的定义如下图所示
+
+```python
+torch.save(
+	obj: torch.Tensor,
+    f: Union[str, PathLike, BinaryIO, IO[bytes]] # 例如文件描述符open()
+)
+
+torch.load(
+    f: Union[str, PathLike, BinaryIO, IO[bytes]]
+) -> torch.Tensor
+```
+
+# §2 数据处理
+
+## §2.1 图像数据
+
+图像本质上是颜色编码的矩阵，其中最流行的颜色编码方式是RGB。这里我们使用Python的第三方库`imageio`来操纵图片。
+
+```python
+>>> import torch, numpy
+>>> import imageio.v3 as imageio
+
+>>> image_array = imageio.imread('./dlwpt-code-master/data/p1ch4/image-dog/bobby.jpg')
+>>> type(image_array), image_array.shape
+(numpy.ndarray, (720, 1280, 3))
+```
+
+
+
+
+
+
+
+# §A PyTorch API
+
+> 注意：无特殊说明，本章涉及到的函数均为“浅拷贝”。可以实现“深拷贝”的方法如下所示：
+>
+> - `torch.Tensor(...).clone()`/`torch.clone()`
+> - `torch.Tensor(...).contiguous()`
+> - `torch.Tensor(...).cuda()`
+> - `torch.Tensor(...).reshape()`/`torch.reshape()`（当且仅当输入的张量不连续时）
+
+## §A.1 创建操作
+
+创建操作指的是用于构造张量的函数。例如`ones()`和`from_numpy()`。
+
+## §A.2 索引/切片/连接/转换操作
+
+本节函数用于改变张量的形状、步长或内容。例如`transpose()`。
+
+### §A.2.1 转置(`transpose()`/`t()`)
+
+张量的转置有以下几种方法：
+
+```python
+torch.Tensor(...).transpose(
+    dim0: int,
+    dim1: int
+)
+
+torch.transpose(
+	input: torch.Tensor,
+    dim0: int,
+    dim1: int
+)
+```
+
+| 参数                  | 作用                               |
+| --------------------- | ---------------------------------- |
+| `input: torch.Tensor` | 待转置的张量                       |
+| `dim0: int`           | 需要转置的两个维度之一，对应的序号 |
+| `dim1: int`           | 需要转置的两个维度之一，对应的序号 |
+
+当`input: torch.Tensor`恰好为二维张量时，`transpose()`可以退化为`t()`：
+
+```python
+torch.Tensor((...,...)).t()
+
+torch.t(input: torch.Tensor)
+```
+
+对于高维张量的转置，其本质上是交换对应维度序号的[步长和形状](##§1.6 张量元数据)数值。例如一个形状为$(20,5,2)$的张量，其步长为$(10,2,1)$。当我们对其第一维和第三维进行转置时，得到的张量形状为$(2,5,20)$，步长为$(1,2,10)$。
+
+### §A.2.2 全零填充(`zero_()`)
+
+使用`zero_()`函数来给张量中的每个元素置零。
+
+```python
+torch.Tensor(...).zero_()
+```
+
+### §A.2.3 重排(`permute()`)
+
+`torch.permute()`用于返回一个原张量的、各维度形状按照指定顺序重排后的视图。要求`len(dims) == len(tensor.shape)`且`dims`中的数字必须在`[0, len(dims)]`内，且每个数字只能出现一次：
+
+```python
+torch.permute(
+	input: torch.Tensor,
+    dims: tuple[int]
+) -> torch.Tensor
+
+torch.Tensor(...).permute(
+	dims: tuple[int]
+) -> torch.Tensor
+```
+
+`torch.permute()`是`torch.transpose()`的升级版，它可以一次性交换多个维度，而不是局限于两个维度。
+
+```python
+>>> import torch
+
+>>> a = torch.randn((720, 1080, 3));
+>>> b = a.permute(2, 0, 1) # 从0, 1, 2交换到2, 0, 1
+
+>>> b.shape
+torch.Size([3, 720, 1080])
+
+>>> b.is_contiguous()
+False
+```
+
+### §A.2.4 变形(`reshape()`)
+
+`torch.reshape()`用于将张量变形为指定形状的张量，可能返回视图或拷贝。
+
+```python
+torch.Tensor().reshape(
+	shape: tuple[int]
+) -> Torch.Tensor
+
+torch.reshape(
+	input: torch.Tensor,
+    shape: tuple[int]
+) -> torch.Tensor
+```
+
+当`input.is_contiguous() == True`时，返回的是视图，反之则返回拷贝：
+
+```python
+>>> a = torch.ones(2, 3, 5)
+>>> b = a.transpose(0, 2)
+>>> c = b.reshape((2, 3, 5))
+
+>>> print([i.is_contiguous() for i in [a, b, c]] )
+[True, False, True]
+
+>>> a.zero_()
+
+>>> print([i[0][0][0] for i in [a, b, c]])
+[tensor(0.), tensor(0.), tensor(1.)]
+```
+
+### §A.2.5 视图(`view()`)
+
+`torch.Tensor().view()`返回原张量经过重新排列后的视图。要求`shape`各数值相乘必须等于原张量的元素总数：
+
+```python
+torch.Tensor().view(
+	shape: tuple[int]
+)
+```
+
+`torch.Tensor().view()`和`torch.Tensor().transpose()`有各大的差别，但这种差别用数学语言描述显得很抽象：
+
+- `view()`生成的视图保证：
+  $$
+  \begin{align}
+  	&\text{stride}'[i]=\text{stride}[i+1]\times\text{size}[i+1] & ,\forall i \in[0,D) \\
+  	&\text{stride}'[D]=\text{stride}[D]
+  \end{align}
+  $$
+
+- `transpose()`生成的视图保证：$\text{stride}'[i]$的值互换。
+
+```python
+>>> a = torch.arange(24).reshape((2, 3, 4))
+>>> b = a.transpose(0, 2)
+>>> c = a.view(4, 3, 2)
+>>> b, c
+(tensor([[[ 0, 12],  	|	tensor([[[ 0,  1],
+          [ 4, 16],  	|	         [ 2,  3],
+          [ 8, 20]], 	|  	         [ 4,  5]],
+ 					 	|
+         [[ 1, 13],	 	|        	[[ 6,  7],
+          [ 5, 17],  	|            [ 8,  9],
+          [ 9, 21]], 	|            [10, 11]],
+ 						|
+         [[ 2, 14],  	|           [[12, 13],
+          [ 6, 18],  	|		     [14, 15],
+          [10, 22]], 	|            [16, 17]],
+ 					  	|
+         [[ 3, 15],   	|           [[18, 19],
+          [ 7, 19],   	|            [20, 21],
+          [11, 23]]]),	|            [22, 23]]]))
+```
+
+## §A.3 逐点操作
+
+逐点操作指的是对每个元素分别应用一个函数来得到一个新的张量。例如`abs()`和`cos()`。
+
+## §A.4 规约操作
+
+规约操作指的是通过迭代张量来计算聚合值的函数。例如`mean()`、`std()`、`norm()`。
+
+## §A.5 比较操作
+
+比较操作指的是在张量上计算数字谓词的函数。例如`equal()`和`max()`。
+
+## §A.6 频谱操作
+
+频谱操作指的是在频域中进行变换和操作的函数。
+
+## §A.7 BLAS/LAPACK操作
+
+BLAS/LAPACK操作值的是符合基本线性代数子程序（BLAS）规范的函数，用于标量、向量与向量、向量与矩阵、矩阵与矩阵之间的操作。
+
+## §A.8 随机采样操作
+
+随机采样操作指的是从概率分布中随机生成数值的函数。例如`randn()`、`normal()`。
+
+## §A.9 序列化操作
+
+序列化操作指的是保存和加载张量的函数。例如`load()`和`save()`。
+
+## §A.10 并行化操作
+
+并行化操作指的是用于控制并行CPU执行线程总数的函数。例如`set_num_threads()`。
+
+## §A.11 其它操作
+
