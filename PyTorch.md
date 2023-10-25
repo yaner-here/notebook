@@ -525,11 +525,84 @@ torch.load(
 (numpy.ndarray, (720, 1280, 3))
 ```
 
+目前我们得到的矩阵是$W\times H\times C$，然而PyTorch要求的是$T\times C \times H \times W$，因此我们还要对其变形：
 
+```python
+>>> images_tensor = torch.from_numpy(image_array).permute(2, 0, 1).unsqueeze(dim=0)
+>>> images_tensor.shape, images_tensor.dtype
+(torch.Size([1, 3, 720, 1280]), torch.uint8)
+```
 
+最后对像素值归一化：
 
+```python
+>>> images_tensor = images_tensor.float() / 255
+```
 
+## §2.2 表格数据
 
+表格数据包括CSV、Excel等格式。这里我们使用Github上的开源数据集[awesome-public-datasets](https://github.com/awesomedata/awesome-public-datasets.git)中的葡萄酒数据集`tabular_wine`。
+
+```bash
+$ git clone https://github.com/awesomedata/awesome-public-datasets.git
+$ cd ./awesome-public-datasets/Datasets
+```
+
+Python生态提供了众多解析CSV的库，常见的有以下几种：
+
+- Python自带的`csv`模块
+- NumPy
+- pandas（内存和时间最少）
+
+这里我们以NumPy为例：
+
+```python
+>>> import numpy, torch
+
+>>> wine_dataset = torch.from_numpy(numpy.loadtxt(
+    	'./dlwpt-code-master/data/p1ch4/tabular-wine/winequality-white.csv',
+    	dtype=numpy.float32,
+    	delimiter=";",
+    	skiprows=1
+	))
+>>> wine_dataset.shape
+torch.Size([4898, 12])
+
+>>> wine_data = wine_dataset[:,:-1]
+>>> wine_label = wine_dataset[:,-1]
+>>> wine_data.shape, wine_label.shape
+(torch.Size([4898, 11]), torch.Size([4898]))
+```
+
+然后创建独热编码：
+
+```python
+>>> wine_label_onehot = torch.zeros(wine_label.shape[0], 11).scatter_(1, wine_label.unsqueeze(1), 1)
+
+>>> wine_label_onehot[0]
+tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.])
+```
+
+> 扩展知识：数据集中的数据可以分为三大类型：
+>
+> - 连续值：严格有序，不同值之间的差异非常严格，可以进行数学运算。例如时间、重量等。
+> - 序数值：严格有序，不同值之间不再有固定关系，数学运算没有意义。例如大杯/中杯/小杯。
+> - 分类值：无序，没有固定关系，数学运算没有意义。例如牛/羊/鸡。
+>
+> 基于此，当我们拿到一组数据时，可以按照以下流程图决定直接使用数据，还是使用独热编码：
+>
+> ```mermaid
+> flowchart LR
+> 	a[/"原始数据集"/]-->b{"连续/离散?"}
+> 	b--"连续"-->c[["直接使用数据"]]
+> 	b--"离散"-->d{"有序/无序?"}
+> 	d--"有序"-->e{"顺序优先?"}
+> 	e--"顺序优先"-->c
+> 	e--"顺序不优先"-->g[["独热编码"]]
+> 	d--"无序"-->f{"是否分类?"}--"是"-->g
+> ```
+>
+> 
 
 # §A PyTorch API
 
@@ -694,9 +767,201 @@ torch.Tensor().view(
           [11, 23]]]),	|            [22, 23]]]))
 ```
 
+### §A.2.6 添加维度(`unsqueeze()`)
+
+`torch.Tensor(...).squeeze()`和`torch.unsqueeze()`用于在指定的维度位置上，增加张量的维度。
+
+```python
+torch.unsqueeze(
+	input: torch.Tensor,
+    dim: int
+)
+
+torch.Tensor(...).unsqueeze(
+	dim: int
+)
+```
+
+例如给第$0$维（最外围）增加维度时，原先的第$0$维会向后退成第$1$维，原先的第$1$维会向后退成第$2$维......后面维度同理，这相当于打包原先的张量成`1`份；给第$1$维增加维度时，第$1$维会向后退成第$2$维......后面维度同理，相当于打包了第$1$维起的张量，一共打包了`.shape[0]`份。
+
+```python
+>>> import torch
+>>> label = torch.arange(5)
+
+>>> label.unsqueeze(0)
+tensor([[0, 1, 2, 3, 4]])
+
+>>> label.unsqueeze(1)
+tensor([[0],
+        [1],
+        [2],
+        [3],
+        [4]])
+```
+
+### §A.2.7 散射(`scatter()`/`scatter_()`)
+
+`torch.scatter()`/`torch.Tesnor(...).scatter_()`均涉及到三个维度相同的张量——`self`、`src`和`index`，可以将`src`中的值按照`index`与`dim`确定的索引顺序全部其一填入到`self`中。
+
+```python
+torch.scatter(
+	input: torch.Tensor,
+    dim: int,
+    index: torch.Tensor,
+    src: Union[torch.Tensor, float],
+    reduce: Literal["add", "multiply"] | None = "multiply"
+) -> torch.Tensor
+
+torch.Tensor(...).scatter_(
+    dim: int,
+    index: torch.Tensor,
+    src: Union[torch.Tensor, float],
+    reduce: Literal["add", "multiply"] | None = "multiply"
+) -> torch.Tensor
+```
+
+以三维张量为例，下面展示了`dim`参数对函数效果的影响：
+$$
+\forall \text{i,j,k} \in D, \begin{cases}
+	\text{self}[\textcolor{red}{\text{index}[i][j][k]}][j][k]:=\text{src}[i][j][k] & ,\text{dim}=1 \\
+	\text{self}[i][\textcolor{red}{\text{index}[i][j][k]}][k]:=\text{src}[i][j][k] & ,\text{dim}=2 \\
+	\text{self}[i][j][\textcolor{red}{\text{index}[i][j][k]}]:=\text{src}[i][j][k] & ,\text{dim}=3 \\
+\end{cases}
+$$
+例如，我们有一个取值为$[0,4]$之间的一维标签张量，我们可以用`scatter_()`方法创建对应的独热编码：
+
+```python
+>>> label = torch.arange(5)
+
+>>> label_onehot = torch.zeros(label.shape[0], 5,).scatter_(
+... 	1,
+... 	label.unsqueeze(1),
+... 	1
+...	)
+>>> label_onehot
+tensor([[1., 0., 0., 0., 0.],
+        [0., 1., 0., 0., 0.],
+        [0., 0., 1., 0., 0.],
+        [0., 0., 0., 1., 0.],
+        [0., 0., 0., 0., 1.]])
+```
+
 ## §A.3 逐点操作
 
 逐点操作指的是对每个元素分别应用一个函数来得到一个新的张量。例如`abs()`和`cos()`。
+
+### §A.3.1 小于等于(`le()`)
+
+`torch.le()`和`torch.Tensor(...).ge()`用于逐元素比较两个张量对应的元素是否是小于等于的关系。
+
+```python
+torch.ge(
+	input: torch.Tensor,
+    other: Union[torch.Tensor, float], *
+    out=None: Optional[Union[torch.Tensor, None]]
+)
+
+torch.Tensor(...).ge(
+	other: Union[torch.Tensor, float], *
+    out=None: Optional[Union[torch.Tesnor, None]]
+)
+```
+
+其中`out`为输出的张量。
+
+当`other`为张量时，采取自动广播机制进行比较：
+
+```python
+>>> a = torch.arange(30).reshape(2,3,5)
+
+>>> a.le(15)
+tensor([[[ True,  True,  True,  True,  True],
+         [ True,  True,  True,  True,  True],
+         [ True,  True,  True,  True,  True]],
+
+        [[ True, False, False, False, False],
+         [False, False, False, False, False],
+         [False, False, False, False, False]]])
+
+>>> a.le(torch.Tensor([8, 9, 10, 11, 12]))
+tensor([[[ True,  True,  True,  True,  True],
+         [ True,  True,  True,  True,  True],
+         [False, False, False, False, False]],
+
+        [[False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, False, False, False, False]]])
+```
+
+### §A.3.2 大于等于(`ge()`)
+
+`torch.ge()`和`torch.Tensor(...).ge()`用于逐元素比较两个张量对应的元素是否是大于等于的关系。
+
+```python
+torch.ge(
+	input: torch.Tensor,
+    other: Union[torch.Tensor, float], *
+    out=None: Optional[Union[torch.Tensor, None]]
+)
+
+torch.Tensor(...).ge(
+	other: Union[torch.Tensor, float], *
+    out=None: Optional[Union[torch.Tesnor, None]]
+)
+```
+
+其中`out`为输出的张量。
+
+> 注意：经实测，`out`参数处于不可用的状态😅。网上关于`out`变量的资料几乎没有。
+>
+> ```python
+> >>> torch.__version__
+> '2.1.0+cu118'
+> 
+> >>> a = torch.arange(30).reshape(2,3,5)
+> >>> a.ge()
+> ---------------------------------------------------------------------------
+> NameError                                 Traceback (most recent call last)
+> c:\Users\Yaner\Desktop\Thoughts\demo.ipynb 单元格 5 line 4
+> ----> 4 a.ge(15, out=b)
+> NameError: name 'b' is not defined
+> 
+> >>> b = torch.ones((2,3,5))
+> >>> a.ge(15, out=b)
+> ---------------------------------------------------------------------------
+> TypeError                                 Traceback (most recent call last)
+> c:\Users\DETACTED\Desktop\Thoughts\demo.ipynb 单元格 5 line 3
+> ----> 3 a.ge(15, out=b)
+> TypeError: ge() received an invalid combination of arguments - got (int, out=Tensor), but expected one of:
+>  * (Tensor other)
+>  * (Number other)
+> ```
+
+当`other`为张量时，采取自动广播机制进行比较：
+
+```python
+>>> a = torch.arange(30).reshape(2,3,5)
+
+>>> a.ge(15)
+tensor([[[False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, False, False, False, False]],
+
+        [[ True,  True,  True,  True,  True],
+         [ True,  True,  True,  True,  True],
+         [ True,  True,  True,  True,  True]]])
+
+>>> a.ge(torch.Tensor([8, 9, 10, 11, 12]))
+tensor([[[False, False, False, False, False],
+         [False, False, False, False, False],
+         [ True,  True,  True,  True,  True]],
+
+        [[ True,  True,  True,  True,  True],
+         [ True,  True,  True,  True,  True],
+         [ True,  True,  True,  True,  True]]])
+```
+
+
 
 ## §A.4 规约操作
 
