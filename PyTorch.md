@@ -177,6 +177,19 @@ tensor([[ 8,  9, 10, 11]])
 tensor([[ 8,  9, 10, 11]])
 ```
 
+除了NumPy式的索引以外，我们还可以使用PyTorch提供的高级索引。**高级索引的本质是掩码**。例如现在有一个二维张量，我们要提取其中一些不连续的行，要提取的行序号有一个布尔型一维张量掩码给出，我们就可以这样做：
+
+```python
+>>> data = torch.arange(50).reshape((10,5))
+>>> mask = (torch.randn(10) > 0.5)
+
+>>> data[mask]
+tensor([[ 5,  6,  7,  8,  9],
+        [10, 11, 12, 13, 14],
+        [25, 26, 27, 28, 29],
+        [45, 46, 47, 48, 49]])
+```
+
 ## §1.3 张量命名
 
 在实际工程中，我们往往要处理高维张量。有时我们很容易混淆不同维度的含义。
@@ -601,8 +614,153 @@ tensor([0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.])
 > 	e--"顺序不优先"-->g[["独热编码"]]
 > 	d--"无序"-->f{"是否分类?"}--"是"-->g
 > ```
->
-> 
+
+接下来我们对每条数据的各项变量进行归一化，使用的公式是$\displaystyle\frac{x_i-\overline{x}}{\sigma_x}$：
+
+```python
+>>> wine_data_normalized = (wine_data - wine_data.mean(dim=0)) / wine_data.var(dim=0).sqrt()
+>>> wine_data_normalized
+tensor([[ 1.7208e-01, -8.1761e-02,  2.1326e-01,  ..., -1.2468e+00,
+         -3.4915e-01, -1.3930e+00],
+        ...,
+        [-1.0129e+00, -6.7703e-01,  3.7852e-01,  ...,  4.7505e-01,
+         -1.4882e+00,  1.0448e+00]])
+```
+
+让我们看一下一共有多少条数据的葡萄酒得分小于`3`：
+
+```python
+>>> wine_data_bad = wine_label_bad = (wine_label <= 3)
+>>> wine_label_bad.shape, wine_label_bad
+(torch.Size([4898]), tensor([False, False, False,  ..., False, False, False]))
+
+>>> wine_data_bad = wine_data[wine_label_bad]
+>>> wine_data_bad.shape
+torch.Size([20, 11]) # 一共有20条数据的葡萄酒得分小于3
+```
+
+以此类推，我们把葡萄酒按照分数分为三类：3分及以下、4分到6分、7分及以上。
+
+```python
+>>> wine_data_bad = wine_data[wine_label <= 3]
+>>> wine_data_medium = wine_data[(wine_label >= 3) & (wine_label <= 6)]
+>>> wine_data_good = wine_data[wine_label >= 7]
+
+>>> wine_data_good.shape[0], wine_data_medium.shape[0], wine_data_bad.shape[0]
+(1060, 3838, 20)
+```
+
+接下来，我们看一下各档次葡萄酒的11个属性值之间的差异：
+
+```python
+>>> wine_data_mean_bad = wine_data_bad.mean(dim=0)
+>>> wine_data_mean_medium = wine_data_medium.mean(dim=0)
+>>> wine_data_mean_good = wine_data_good.mean(dim=0)
+
+>>> import csv
+>>> with open('./dlwpt-code-master/data/p1ch4/tabular-wine/winequality-white.csv', 'r') as file:
+... 	column_names = next(csv.reader(file, delimiter=";"))
+>>> print(column_names)
+['fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar', 'chlorides', 'free sulfur dioxide', 'total sulfur dioxide', 'density', 'pH', 'sulphates', 'alcohol', 'quality']
+
+>>> for index, args in enumerate(zip(column_names, wine_data_mean_good, wine_data_mean_medium, wine_data_mean_bad)):
+...		print("{:2} {:20} {:7.2f} {:7.2f} {:7.2f}".format(index, *args))
+ 0 fixed acidity           6.73    6.89    7.60
+ 1 volatile acidity        0.27    0.28    0.33
+ 2 citric acid             0.33    0.34    0.34
+ 3 residual sugar          5.26    6.70    6.39
+ 4 chlorides               0.04    0.05    0.05
+ 5 free sulfur dioxide    34.55   35.52   53.33
+ 6 total sulfur dioxide  125.25  141.98  170.60
+ 7 density                 0.99    0.99    0.99
+ 8 pH                      3.22    3.18    3.19
+ 9 sulphates               0.50    0.49    0.47
+10 alcohol                11.42   10.27   10.34
+```
+
+## §2.3 时间序列数据
+
+[Bike Sharing Dataset](https://www.kaggle.com/datasets/lakshmi25npathi/bike-sharing-dataset)是由波尔图大学整理并发布的开源时序数据集，包含了2011~2012年华盛顿地区自行车共享系统的每小时租车数量，以及对应的天气和季节信息。原始CSV文件包含的属性如下表所示：
+
+| 列序号 | 属性名称     | 含义                                                     | 数据类型             |
+| ------ | ------------ | -------------------------------------------------------- | -------------------- |
+| 0      | `instant`    | 索引                                                     | `int`                |
+| 1      | `day`        | 日期，格式为`YYYY-mm-dd`                                 | `str`                |
+| 2      | `season`     | 季节，`1`/`2`/`3`/`4`分别表示春/夏/秋/冬                 | `enum[1,2,3,4]`      |
+| 3      | `yr`         | 年份                                                     | `int`                |
+| 4      | `mnth`       | 月份                                                     | `int`                |
+| 5      | `hr`         | 小时                                                     | `enum[0,1,2,...,23]` |
+| 6      | `holiday`    | 是否为节假日                                             | `enum[0,1]`          |
+| 7      | `weekday`    | 星期                                                     | `enum[0,1,2,...,6]`  |
+| 8      | `workingday` | 是否为工作日                                             | `enum[0,1]`          |
+| 9      | `weathersit` | 天气状况，`1`/`2`/`3`/`4`分别表示晴/雾/小雨小雪/大雨大雪 | `enum[1,2,3,4]`      |
+| 10     | `temp`       | 温度（摄氏）                                             | `float`              |
+| 11     | `atemp`      | 感知温度（摄氏）                                         | `float`              |
+| 12     | `hum`        | 湿度                                                     | `float`              |
+| 13     | `windspeed`  | 风速                                                     | `int`                |
+| 14     | `casual`     | 临时用户租赁自行车的总数                                 | `int`                |
+| 15     | `registered` | 注册用户租赁自行车的总数                                 | `int`                |
+| 16     | `cnt`        | 租赁自行车的总数                                         | `int`                |
+
+首先，我们读取数据，并且清除日期一列中的`YYYY`和`mm`的部分：
+
+```python
+>>> import numpy, torch
+
+>>> bike_dataset = torch.from_numpy(numpy.loadtxt(
+... 	fname="./dlwpt-code-master/data/p1ch4/tabular-wine/hour_fixed.csv",
+...     dtype=numpy.float32,
+...     comments="#",
+...     delimiter=",",
+...     converters={
+...     	1: lambda x: float(x[8:10])
+...     },
+... 	skiprows=1
+... ))
+>>> bike_dataset.shape, bike_dataset
+(torch.Size([17520, 17]),
+ tensor([[1.0000e+00, 1.0000e+00, 1.0000e+00,  ..., 3.0000e+00, 1.3000e+01,
+          1.6000e+01],
+         ...,
+         [1.7379e+04, 3.1000e+01, 1.0000e+00,  ..., 1.2000e+01, 3.7000e+01,
+          4.9000e+01]]))
+```
+
+现在我们有了一个简陋的二维矩阵，它的形状为$N\times C$。在实际数据处理中，我们更希望使用按时间顺序排列的、形状为$N'\times C\times L$的三维张量，其中$N$代表样本数量，$N'$代表日期总数，L代表$24$个小时，$C$代表属性总数。注意到原数据集从头开始的每一组24个连续数据，都是同一日期内不同小时的各项变量的集合，可以连续反映一天的数据，因此我们可以直接使用`view()`函数，得到$N'\times L\times C$，然后再用`transpose()`函数，得到$N'\times C\times L$：
+
+```python
+>>> bike_daily_dataset = bike_dataset.view(-1, 24, bike_dataset.shape[1])
+>>> bike_daily_dataset
+(torch.Size([730, 24, 17]),
+ tensor([[[1.0000e+00, 1.0000e+00, 1.0000e+00,  ..., 3.0000e+00, 1.3000e+01, 1.6000e+01],
+          ...,
+          [1.7379e+04, 3.1000e+01, 1.0000e+00,  ..., 1.2000e+01, 3.7000e+01, 4.9000e+01]]]))
+
+>>> bike_daily_dataset = bike_daily_dataset.transpose(1, 2)
+>>> bike_daily_dataset.shape, bike_daily_dataset
+(torch.Size([730, 17, 24]),
+ tensor([[[1.0000e+00, 2.0000e+00, 3.0000e+00,  ..., 2.2000e+01, 2.3000e+01, 2.4000e+01],
+          ...,
+          [3.4000e+01, 1.9000e+01, 1.1000e+01,  ..., 9.0000e+01, 6.1000e+01, 4.9000e+01]]]))
+```
+
+天气的标签有四种情况，这里我们创建天气的独热编码：
+
+```python
+>>> weather_onehot = torch.zeros(
+    	bike_daily_dataset.shape[0], 
+    	bike_daily_dataset.shape[1],
+    	4
+	).scatter_(
+		2, 
+    	bike_daily_dataset[:, :, 9],
+    	1
+	)
+
+>>>
+```
+
+
 
 # §A PyTorch API
 
@@ -767,6 +925,14 @@ torch.Tensor().view(
           [11, 23]]]),	|            [22, 23]]]))
 ```
 
+如果`shape`中出现`-1`，则表示对应维度的长度未知，需要PyTorch根据其它已知长度的维度推测出来：
+
+```python
+>>> a = torch.arange(24)
+>>> a.view(-1, 3, 4).shape
+torch.Size([2, 3, 4])
+```
+
 ### §A.2.6 添加维度(`unsqueeze()`)
 
 `torch.Tensor(...).squeeze()`和`torch.unsqueeze()`用于在指定的维度位置上，增加张量的维度。
@@ -852,6 +1018,8 @@ tensor([[1., 0., 0., 0., 0.],
 
 ### §A.3.1 小于等于(`le()`)
 
+> 注意：该函数等价于`<=`运算符。
+
 `torch.le()`和`torch.Tensor(...).ge()`用于逐元素比较两个张量对应的元素是否是小于等于的关系。
 
 ```python
@@ -894,6 +1062,8 @@ tensor([[[ True,  True,  True,  True,  True],
 ```
 
 ### §A.3.2 大于等于(`ge()`)
+
+> 注意：该函数等价于`>=`运算符。
 
 `torch.ge()`和`torch.Tensor(...).ge()`用于逐元素比较两个张量对应的元素是否是大于等于的关系。
 
@@ -961,11 +1131,137 @@ tensor([[[False, False, False, False, False],
          [ True,  True,  True,  True,  True]]])
 ```
 
-
-
 ## §A.4 规约操作
 
 规约操作指的是通过迭代张量来计算聚合值的函数。例如`mean()`、`std()`、`norm()`。
+
+### §A.4.1 平均值(`mean`)
+
+`torch.mean()`和`torch.Tensor(...).mean()`用于返回整个张量的各个元素或沿某一轴元素的平均值。
+
+```python
+torch.mean(
+	input: torch.Tensor,
+    dim: int | tuple[int],
+    keepdim=False: bool, *,
+    dtype=None: Optional[torch.dtype],
+    out=None: Optional[torch,Tensor]
+)
+
+torch.Tensor(...).mean(
+    dim=None: Optional[int, tuple[int]],
+    keepdim=False: bool, *,
+    dtype=None: Optional[torch.dtype],
+    out=None: Optional[torch,Tensor]
+)
+```
+
+这里我们详细介绍一下`dim`和`keepdim`参数。
+
+当`dim=None`时，`mean()`对全体元素取平均值。当`dim=a`时，第$a$维的长度会被缩短为$1$，这个维度唯一的值就是平均值，随后再删除这个维度，即脱去平均值外面的`[]`，使其降维。
+
+```python
+>>> a = torch.arange(24).float().reshape(2, 3, 4)
+>>> a
+tensor([[[ 0.,  1.,  2.,  3.],
+         [ 4.,  5.,  6.,  7.],
+         [ 8.,  9., 10., 11.]],
+        [[12., 13., 14., 15.],
+         [16., 17., 18., 19.],
+         [20., 21., 22., 23.]]])
+
+>>> a.mean()
+tensor(11.5000)
+
+>>> a.mean(0) # a[0]和a[1]重叠在一起，求平均值
+tensor([[ 6.,  7.,  8.,  9.],
+        [10., 11., 12., 13.],
+        [14., 15., 16., 17.]])
+
+>>> a.mean(1) # a[*][0], a[*][1], a[*][2]重叠在一起，求平均值
+tensor([[ 4.,  5.,  6.,  7.],
+        [16., 17., 18., 19.]])
+
+>>> a.mean(2) # a[*][*][0], a[*][*][1], a[*][*][2], a[*][*][3]重叠在一起，求平均值
+tensor([[ 1.5000,  5.5000,  9.5000],
+        [13.5000, 17.5000, 21.5000]])
+```
+
+当`keepdim=True`时，上面的规则有所变动——第$a$维的不会被删除。
+
+```python
+>>> a = torch.arange(24).float().reshape(2,3,4)
+>>> a
+tensor([[[ 0.,  1.,  2.,  3.],
+         [ 4.,  5.,  6.,  7.],
+         [ 8.,  9., 10., 11.]],
+        [[12., 13., 14., 15.],
+         [16., 17., 18., 19.],
+         [20., 21., 22., 23.]]])
+
+>>> a.mean(0, True)
+tensor([[[ 6.,  7.,  8.,  9.],
+         [10., 11., 12., 13.],
+         [14., 15., 16., 17.]]])
+
+>>> a.mean(1, True)
+tensor([[[ 4.,  5.,  6.,  7.]],
+        [[16., 17., 18., 19.]]])
+
+>>> a.mean(2, True)
+tensor([[[ 1.5000],
+         [ 5.5000],
+         [ 9.5000]],
+        [[13.5000],
+         [17.5000],
+         [21.5000]]])
+```
+
+### §A.4.2 方差(`var()`)
+
+`torch.var()`和`torch.Tensor(...).var()`用于计算张量的方差，计算公式为：
+$$
+\sigma^2=\frac{1}{\max(0, N-\text{correction})}\sum_{i=0}^{n-1}(x_i-\overline{x})^2
+$$
+
+```python
+torch.var(
+	input: torch.Tensor,
+	dim=None: Optional[int | tuple[int]], *,
+    correction=1: int,
+    keepdim=False: bool,
+    out=None: Optional[torch.Tensor]
+)
+
+torch.Tensor(...).var(
+	dim=None: Optional[int | tuple[int]], *,
+    correction=1: int,
+    keepdim=False: bool,
+    out=None: Optional[torch.Tensor]
+)
+```
+
+`dim`和`keepdim`参数的作用与[§A.4.1 平均值(`mean`)](###§A.4.1 平均值(`mean`))类似，这里不再赘述。
+
+```python
+>>> a = torch.arange(24).float().reshape(2,3,4)
+
+>>> a.var()
+tensor(50.)
+
+>>> a.var(0) # a[0]和a[1]重叠在一起，求两个数之间的方差
+tensor([[72., 72., 72., 72.],
+        [72., 72., 72., 72.],
+        [72., 72., 72., 72.]])
+
+>>> a.var(1) # a[*][0], a[*][1], a[*][2]重叠在一起，求三个数之间的方差
+tensor([[16., 16., 16., 16.],
+        [16., 16., 16., 16.]])
+
+>>> a.var(2) # a[*][*][0], a[*][*][1], a[*][*][2], a[*][*][3]重叠在一起，求四个数之间的方差
+tensor([[1.6667, 1.6667, 1.6667],
+        [1.6667, 1.6667, 1.6667]])
+```
 
 ## §A.5 比较操作
 
