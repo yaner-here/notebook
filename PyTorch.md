@@ -744,21 +744,812 @@ torch.Size([20, 11]) # 一共有20条数据的葡萄酒得分小于3
           [3.4000e+01, 1.9000e+01, 1.1000e+01,  ..., 9.0000e+01, 6.1000e+01, 4.9000e+01]]]))
 ```
 
-天气的标签有四种情况，这里我们创建天气的独热编码：
+## §2.4 文本数据
+
+文本数据常被用于NLP领域中。NLP对文本的操作分为字符级别和单词级别，都使用独热编码。
+
+古登堡计划是一项致力于将文学作品数字化和归档的志愿者活动，这里我们以《傲慢与偏见》为例，下载其`txt`文件并加载到内存中，取其中的一行进行分析：
 
 ```python
->>> weather_onehot = torch.zeros(
-    	bike_daily_dataset.shape[0], 
-    	bike_daily_dataset.shape[1],
-    	4
-	).scatter_(
-		2, 
-    	bike_daily_dataset[:, :, 9],
-    	1
-	)
+>>> import torch
 
->>>
+>>> with open(./dlwpt-code-master/data/p1ch4/jane-austen/1342-0.txt) as file:
+... 	text = file.read()
+
+>>> line = text.split('\n')[123]
+>>> len(line), line
+(72,
+ 'all silly and ignorant like other girls; but Lizzy has something more of')
 ```
+
+接下来我们依据ASCII编码方式，对这句话中的72个字符进行128位的独热编码：
+
+```python
+>>> line_onehot = torch.zeros(len(line), 128)
+
+>>> for index, character in enumerate(line):
+... 	line_onehot[index][ord(character)] = 1
+```
+
+容易发现，如果待处理文本的字符数过多，那么独热编码非常吃内存。为了解决这一问题，NLP领域常用一种名为**嵌入(Embedding)**的方法。它的核心思想是将多种类的分类值，映射成指定长度的一维浮点数张量。比较流行的模型有`word2Vec`等等。接下来我们将实现一个最简单、最符合直觉的嵌入算法：将数千种单词映射成一个整数型标量，也就是将单词整理成单词本，把独热编码换成单词本中的索引。我们首先要从字符串中提取干净的词语，然后将它们编纂成单词本：
+
+```python
+>>> def get_word_list(input: str):
+... 	return [word.strip('.,;:"!?“”_-\'()[]{}') for word in input.replace('\n', ' ').split()]
+
+>>> words_list = get_word_list(text)
+>>> words_dict = sorted(set(words_list))
+>>> word_index_map = {word: index for word, index in enumerate(words_list)}
+
+>>> word_index_map
+{0: 'The',
+ 1: 'Project',
+ ...
+ 998: 'she',
+ 999: 'had',
+ ...}
+```
+
+然后再对句子中的单词进行嵌入编码：
+
+```python
+>>> line_words_list = get_word_list(line)
+
+>>> line_embedding = torch.Tensor([word_index_map[word] for word in line_words_list])
+>>> line_embedding
+tensor([1120., 6396., 1190., 3905., 4458., 5079., 3521., 1690.,  531., 3709.,
+        6497., 4774., 5004.])
+```
+
+# §3 PyTorch训练框架
+
+本章我们将介绍神经网络的Python原生实现方法和PyTorch框架实现方法。
+
+## §3.1 实战线性回归
+
+### §3.1.1 自动求导
+
+考虑以下线性回归问题给出的初始值，我们可以手动用链式法则求出梯度：
+
+```python
+>>> x = torch.arange(10)
+>>> y_truth = torch.arange(10) * 3 - 1
+
+>>> k = torch.tensor([1])
+>>> b = torch.tensor([0])
+>>> y_predict = x * k + b 
+>>> loss = ((y_predict - y_truth) ** 2).sum() / x.shape[0] / 2
+```
+
+$$
+\begin{cases}
+	\displaystyle\frac{\partial L}{\partial w}=\frac{\partial(\frac{1}{2n}\sum((wx_i+b)-y_i)^2}{\partial w}=\frac{2}{n}\sum(wx_i+b-y_i)\cdot x_i=\frac{1}{n}\sum{(\hat{y_i}-y_i)}x_i \\
+	\displaystyle\frac{\partial L}{\partial b}=\frac{\partial(\frac{1}{2n}\sum((wx_i+b)-y_i)^2}{\partial b}=\frac{2}{n}\sum(wx_i+b-y_i)\cdot 1  =\frac{1}{n}\sum{(\hat{y_i}-y_i)} \\
+\end{cases}
+$$
+
+```python
+>>> dL_dw = ((y_predict - y_truth) * x).sum() / x.shape[0]
+tensor(-52.5000, grad_fn=<DivBackward0>)
+
+>>> dL_db = ((y_predict - y_truth)).sum() / x.shape[0]
+tensor(-8., grad_fn=<DivBackward0>)
+```
+
+以上手动的方法需要耗费较多的时间用于数学推导。如果网络复杂起来，那么这种方法就不再具有可行性。为此，PyTorch提供了自动求导机制，只要自变量有`requires_grad=True`，并且函数最终值调用了`.backward()`，PyTorch就能自动计算出函数值对自动量的梯度：
+
+```python
+>>> x = torch.arange(10)
+>>> k = torch.tensor([1], dtype=torch.float, requires_grad=True)
+>>> b = torch.tensor([0], dtype=torch.float, requires_grad=True)
+>>> y_predict = x * k + b
+>>> y_truth = torch.arange(10, dtype=torch.float, requires_grad=True) * 3 - 1
+>>> loss = ((y_predict - y_truth) ** 2).sum() / x.shape[0] / 2
+
+>>> loss.backward()
+>>> k.grad, b.grad
+(tensor([-52.5000]), tensor([-8.]))
+```
+
+每个张量都有一个`.grad: torch.Tensor|None`属性，用于保存最终损失函数对本张量在此处属性值处的偏导数。默认情况下，该属性值为`None`。
+
+> 注意：`torch.Tensor(...).grad`属性保存的张量不是最新值，而是**累加值**。PyTorch之所以这样做，是为了保证更高的灵活性。我们现在的线性回归模型用不到，因此每次`.backward()`并提取`.grad`后，都要及时使用`.grad.zero_()`清空梯度。
+
+于是，我们不再手写梯度计算，而是使用PyTorch的自动求导机制，就能写出这样的代码：
+
+```python
+def training_loop(epochs, learning_rate, k, b, y_truth, x):
+    for epoch in range(epochs):
+
+        if k.grad is not None:
+            k.grad.zero_()
+        if b.grad is not None:
+            b.grad.zero_()
+        
+        y_predict = k * x + b
+
+        loss = ((y_predict - y_truth) ** 2).sum() / x.shape[0] / 2
+        loss.backward()
+        with torch.no_grad():
+            k -= learning_rate * k.grad
+            b -= learning_rate * b.grad
+            
+    return k, b
+
+k = torch.tensor([1.0], requires_grad=True)
+b = torch.tensor([0.0], requires_grad=True)
+x = torch.arange(10, dtype=torch.float)
+y_truth = torch.arange(10, dtype=torch.float) * 3 - 1
+
+training_loop(10000, 0.001, k, b, y_truth, x)
+```
+
+### §3.1.2 优化器
+
+在上一节中，我们使用了批量梯度下降，通过手动计算`leanring_rate * grad`的方式计算参数的变化量。实际上，PyTorch的`torch.optim`模块提供了大量的优化器，用于自动更新每个参数：
+
+```python
+>>> import torch
+>>> print(dir(torch.optim))
+['ASGD', 'Adadelta', 'Adagrad', 'Adam', 'AdamW', 'Adamax', 'LBFGS', 'NAdam', 'Optimizer', 'RAdam', 'RMSprop', 'Rprop', 'SGD', 'SparseAdam', '__builtins__', '__cached__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__path__', '__spec__', '_functional', '_multi_tensor', 'lr_scheduler', 'swa_utils']
+```
+
+我们常用其中的`SGD`优化器。SGD（Stochastic Gradient Desecent，随机梯度下降）是一种常用的优化方法，该算法的伪代码如下所示：
+
+```python
+def SGD(learning_rate: float,
+        params: torch.Tensor,
+        weight_decay: float = 0, # 在[0, 1]之内
+        momentum: float = 0, # 在[0, 1]之内
+        dampening: float = 0, # 在[0, 1]之内
+        nesterow: typing.Optional[bool] = None,
+        maximize: typing.Optional[bool] = False
+) -> torch.Tensor :
+    for epoch in range(epochs):
+        grad[t] = grad(f(params[t-1]), params[t-1])
+        grad[t] += weight_dacay * params[t-1]
+        b[t] = momentum * b[t-1] + (1 - dampening) * b[t] # 规定 b[0] = 0
+        if nesterow:
+            grad[t] = grad[t] + momentum * b[t]
+        else:
+            grad[t] = b[t]
+        if maximize:
+            params[t] = params[t-1] + weight_decay * grad[t]
+        else:
+            params[t] = params[t-1] - weight_decay * grad[t]
+    return params[epochs]
+```
+
+在优化器的构造函数中，以列表形式传入要调整的参数张量。在反向传播前，可以直接调用优化器的`.zero_grad()`方法清零参数张量的梯度；在反向传播后，也能直接调用优化器`.step()`方法进行更新：
+
+```python
+>>> def model(x, w, b):
+... 	return w * x + b
+
+>>> x = torch.arange(10, dtype=torch.float)
+>>> y_truth = 3 * x - 1
+
+>>> params = torch.tensor([1.0, 0.0], requires_grad=True)
+tensor([1., 0.], requires_grad=True)
+
+>>> optimizer = torch.optim.SGD([params], 0.001)
+>>> y_predict = model(x, *params)
+>>> loss = ((y_predict - y_truth) ** 2).mean()
+>>> loss.backward()
+
+# 不再手动 params -= learning_rate * params.grad
+>>> optimizer.step()
+>>> params
+tensor([1.1050, 0.0160], requires_grad=True)
+```
+
+基于此，我们可以修改[§3.1.1 自动求导](###§3.1.1 自动求导)的线性回归代码：
+
+```python
+def training_loop(epochs, optimizer: torch.optim.Optimizer, y_truth, x):
+	for epoch in range(epochs):
+
+		optimizer.zero_grad()
+		
+		y_predict = k * x + b
+
+		loss = ((y_predict - y_truth) ** 2).sum() / x.shape[0] / 2
+		loss.backward()
+		optimizer.step()
+            
+	return k, b
+
+k = torch.tensor([1.0], requires_grad=True)
+b = torch.tensor([0.0], requires_grad=True)
+x = torch.arange(10, dtype=torch.float)
+y_truth = torch.arange(10, dtype=torch.float) * 3 - 1
+optimizer: torch.optim.Optimizer = torch.optim.SGD([k, b], 0.001)
+
+training_loop(10000, optimizer, y_truth, x)
+# (tensor([2.9878], requires_grad=True), tensor([-0.9236], requires_grad=True))
+```
+
+除了SGD，我们也可以试试Adam：
+
+```python
+......
+optimizer: torch.optim.Optimizer = torch.optim.Adam([k, b], 0.001)
+
+training_loop(10000, optimizer, y_truth, x)
+# (tensor([2.9993], requires_grad=True), tensor([-0.9960], requires_grad=True))
+```
+
+### §3.1.3 数据集划分
+
+本节我们将学习如何把数据集划分为两部分——训练集和测试集。要手动实现这个功能，我们需要先了解PyTorch的两个特性：
+
+- 高级索引：
+
+  ```python
+  >>> data = torch.arange(9, -1, -1)
+  >>> index = torch.tensor([2, 8])
+  >>> data[index]
+  tensor([7, 1])
+  ```
+
+- `torch.randperm()`：
+
+  详见[§A.8.1 随机排列(`randperm()`)](###§A.8.1 随机排列(`randperm()`))一节。
+
+基于此，我们就能手动划分数据集：
+
+```python
+>>> count = 10
+>>> x = torch.arange(count, dtype=torch.float)
+>>> y_truth = 3 * x - 1
+
+>>> shuffled_index = torch.randperm(count)
+>>> validate_count = int(0.2 * count)
+
+>>> x_train = x[shuffled_index[:-validate_count]]
+>>> x_validate = x[shuffled_index[-validate_count:]]
+>>> y_truth_train = y_truth[shuffled_index[:-validate_count]]
+>>> y_truth_validate = y_truth[shuffled_index[-validate_count:]]
+```
+
+接着我们再改写训练主函数，使其同时显示模型在训练集和测试集上的损失：
+
+```python
+>>> def model(t_u, w, b):
+... 	return w * t_u + b
+
+>>> def get_loss(t_p, t_c):
+    	squared_diffs = (t_p - t_c)**2
+    	return squared_diffs.mean()
+
+>>> def training_loop(epochs, optimizer, params, x_train, x_validate, y_truth_train, y_truth_validate):
+...     for epoch in range(epochs):
+...         
+...         y_predict_train = model(x_train, *params)
+...         train_loss = get_loss(y_predict_train, y_truth_train)
+...                              
+...         optimizer.zero_grad()
+...         train_loss.backward()
+...         optimizer.step()
+... 
+...         if epoch % 500 == 0:
+...             y_predict_validate = model(x_validate, *params)
+...             validate_loss = get_loss(y_predict_validate, y_truth_validate)
+...             print(f"Epoch {epoch}, Training loss {train_loss.item():.4f},", f" Validation loss {validate_loss.item():.4f}")
+...             
+...     return params
+
+>>> params = torch.tensor([1.0, 0.0], requires_grad=True)
+>>> optimizer = optim.SGD([params], lr=0.003)
+
+>>> training_loop(
+...     epochs = 3000, 
+...     optimizer = optimizer,
+...     params = params,
+...     x_train = x_train,
+...     x_validate = x_validate,
+...     y_truth_train = y_truth_train,
+...     y_truth_validate = y_truth_validate
+... )
+# tensor([3.3313, 0.3368], requires_grad=True)
+```
+
+### §3.1.4 关闭自动求导
+
+[§3.1.3 训练集与测试集](###§3.1.3 训练集与测试集)最后的代码只剩下了一个问题：训练集产生的`train_loss`计算时会创建一个计算图，用于后续的梯度下降。然而测试集产生的`validate_loss`也会创建一个计算图，但是我们用不到这个计算图，因为我们并没有在测试集上训练模型。有没有什么办法，能让PyTorch避免这一算力开销呢？这就引出了`torch.no_grad()`和`torch.set_grad_enabled()`。
+
+```python
+torch.no_grad(
+    orig_func: None
+) -> torch.autograd.grad_mode.no_grad
+
+torch.set_grad_enabled(
+	mode: bool
+) -> torch.autograd.grad_mode.set_grad_enabled
+```
+
+这两个函数通过控制当前上下文中表达式计算涉及到的张量，是否需要`require_grad=True/False`，从而控制是否启用反向传播。以下是改进后的代码：
+
+```python
+>>> def training_loop(epochs, optimizer, params, x_train, x_validate, y_truth_train, y_truth_validate):
+...     for epoch in range(epochs):
+...         
+...         y_predict_train = model(x_train, *params)
+...         train_loss = get_loss(y_predict_train, y_truth_train)
+...                              
+...         optimizer.zero_grad()
+...         train_loss.backward()
+...         optimizer.step()
+... 
+...         if epoch % 500 == 0:
+... 			with torch.no_grad():
+...             	y_predict_validate = model(x_validate, *params)
+...             	validate_loss = get_loss(y_predict_validate, y_truth_validate)
+...             	print(f"Epoch {epoch}, Training loss {train_loss.item():.4f},", f" Validation loss {validate_loss.item():.4f}")
+...             
+...     return params
+```
+
+## §3.2 实战神经网络
+
+上世纪50至60年代，通用近似定理的证明，意味着神经网络可以用来近似任意的复杂函数，并且可以达到任意近似精度。
+
+PyTorch为神经网络提供了`torch.nn`子模块，包含了各类神经网络所需的层（模块）。PyTorch的所有模块都是`torch.nn.Module`的子类，都实现了`__call__()`魔术方法。`torch.nn.Module.Linear`就是其中的一种。在[§3.1.4 关闭自动求导](###§3.1.4 关闭自动求导)中，我们使用`y_predict = model(x, *params)`的`model`是一个手动定义的函数。从现在起，我们使用的`model`将被换为`torch.nn.Module`。
+
+```python
+# 伪代码
+model = torch.nn.Linear(1, 1)
+y_predict = model(x)
+```
+
+`torch.nn.Module`的`__call__()`方法定义如下所示。可以看到，把模块当作函数调用会涉及到很多上下文，因此直接调用模块的`.forward()`方法不合适：
+
+```python
+class torch.nn.Module:
+    # ......
+    def __call__(self, *input, **kwargs):
+        for hook in self._forward_pre_hooks.values():
+            hook(self, input)
+        result = self.forward(*input, **kwargs)
+
+        for hook in self._forward_hooks.valus():
+            hook_result = hook(self, input, result)
+
+        for hook in self._backward_hooks.values():
+            #......
+            
+        return result
+    # ......
+```
+
+### §3.2.1 层(模块)
+
+`torch.nn.Linear`的构造函数如下所示：
+
+```python
+torch.nn.Linear.__init__(
+	in_features: int, # 输入特征的数量
+    out_features: int, # 输出特征的数量
+    bias: bool = True, # 是否设置偏置项
+    device: torch.device = None,
+    dtype: torch.dtype = None
+) -> None
+```
+
+一个线性层实例有`.weight`和`.bias`两个属性，分别表示权重和偏置，初始化时随机设置。当然也可以通过`.parameters()`方法获得以上两个张量构成的`typing.Generator`，传递给优化器：
+
+```python
+>>> model = torch.nn.Linear(1, 1)
+
+>>> model.weight
+tensor([[-0.9276]], requires_grad=True)
+
+>>> model.bias
+tensor([-0.4858], requires_grad=True)
+
+>>> print([tensor for tensor in model.parameters()])
+[Parameter containing: tensor([[-0.9276]], requires_grad=True), 
+ Parameter containing: tensor([-0.4858], requires_grad=True)]
+```
+
+线性层实例期望收到一个二维张量，就能计算该特征经线性变换后的输出。其中第零维是样本的批次大小，第一未才是样本特征本身，它本身是被设计成一次性处理多条输入的：
+
+```python
+>>> x = torch.arange(10, dtype=torch.float).reshape(-1, 1)
+>>> model(x)
+tensor([[-0.4858],
+        [-1.4134],
+        [-2.3410],
+        [-3.2686],
+        [-4.1963],
+        [-5.1239],
+        [-6.0515],
+        [-6.9791],
+        [-7.9068],
+        [-8.8344]], grad_fn=<AddmmBackward0>)
+```
+
+如果一开始就传入一个一维张量，那么线性层实例就会将其自动转换为二维张量，然后进行计算：
+
+```python
+>>> x = torch.Tensor([1.0])
+>>> model(x)
+tensor([-1.4134], grad_fn=<ViewBackward0>)
+```
+
+于是在此基础上，我们就可以进一步优化[§3.1.4 关闭自动求导](###§3.1.4 关闭自动求导)中的代码：
+
+```python
+import torch
+
+count = 10
+x = torch.arange(count, dtype=torch.float)
+y_truth = 3 * x - 1
+
+shuffled_index = torch.randperm(count)
+validate_count = int(0.2 * count)
+
+x_train = x[shuffled_index[:-validate_count]]
+x_validate = x[shuffled_index[-validate_count:]]
+y_truth_train = y_truth[shuffled_index[:-validate_count]]
+y_truth_validate = y_truth[shuffled_index[-validate_count:]]
+
+def get_loss(t_p, t_c):
+	squared_diffs = (t_p - t_c)**2
+	return squared_diffs.mean()
+
+def training_loop(epochs, optimizer, model, x_train, x_validate, y_truth_train, y_truth_validate):
+	for epoch in range(epochs):
+		
+		y_predict_train = model(x_train)
+		train_loss = get_loss(y_predict_train, y_truth_train)
+
+		optimizer.zero_grad()
+		train_loss.backward()
+		optimizer.step()
+
+		if epoch % 500 == 0:
+			with torch.no_grad():
+				y_predict_validate = model(x_validate)
+				validate_loss = get_loss(y_predict_validate, y_truth_validate)
+				print(f"Epoch {epoch}, Training loss {train_loss.item():.4f},", f" Validation loss {validate_loss.item():.4f}")
+			
+	return model.weight, model.bias
+
+model = torch.nn.Linear(1, 1)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.003)
+
+training_loop(
+    epochs = 3000, 
+    optimizer = optimizer,
+    model = model,
+    x_train = x_train.unsqueeze(1),
+    x_validate = x_validate.unsqueeze(1),
+    y_truth_train = y_truth_train.unsqueeze(1),
+    y_truth_validate = y_truth_validate.unsqueeze(1)
+)
+# Epoch 0, Training loss 237.3346,  Validation loss 169.9207
+# Epoch 500, Training loss 0.1782,  Validation loss 0.0149
+# Epoch 1000, Training loss 0.0222,  Validation loss 0.0019
+# Epoch 1500, Training loss 0.0028,  Validation loss 0.0002
+# Epoch 2000, Training loss 0.0003,  Validation loss 0.0000
+# Epoch 2500, Training loss 0.0000,  Validation loss 0.0000
+# (Parameter containing:
+#  tensor([[2.9994]], requires_grad=True),
+#  Parameter containing:
+#  tensor([-0.9961], requires_grad=True))
+```
+
+### §3.2.2 损失函数
+
+除了层以外，`torch.nn`也包含了一些常用的损失函数。其中`torch.nn.MSELoss()`表示均方误差。它接受两个一维张量，返回两者之差的平方和。
+
+```python
+import torch, collections
+
+count = 10
+x = torch.arange(count, dtype=torch.float)
+y_truth = 3 * x - 1
+
+shuffled_index = torch.randperm(count)
+validate_count = int(0.2 * count)
+
+x_train = x[shuffled_index[:-validate_count]]
+x_validate = x[shuffled_index[-validate_count:]]
+y_truth_train = y_truth[shuffled_index[:-validate_count]]
+y_truth_validate = y_truth[shuffled_index[-validate_count:]]
+
+def training_loop(epochs, optimizer, model, loss_fn, x_train, x_validate, y_truth_train, y_truth_validate):
+	for epoch in range(epochs):
+		
+		y_predict_train = model(x_train)
+		train_loss = loss_fn(y_predict_train, y_truth_train)
+
+		optimizer.zero_grad()
+		train_loss.backward()
+		optimizer.step()
+
+		if epoch % 500 == 0:
+			with torch.no_grad():
+				y_predict_validate = model(x_validate)
+				validate_loss = loss_fn(y_predict_validate, y_truth_validate)
+				print(f"Epoch {epoch}, Training loss {train_loss.item():.4f},", f" Validation loss {validate_loss.item():.4f}")
+			
+	return model.weight, model.bias
+
+loss_fn = torch.nn.MSELoss()
+model = torch.nn.Linear(1, 1)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.003)
+
+training_loop(
+    epochs = 3000, 
+    optimizer = optimizer,
+    model = model,
+	loss_fn= loss_fn,
+    x_train = x_train.unsqueeze(1),
+    x_validate = x_validate.unsqueeze(1),
+    y_truth_train = y_truth_train.unsqueeze(1),
+    y_truth_validate = y_truth_validate.unsqueeze(1)
+)
+# Epoch 0, Training loss 185.6520,  Validation loss 230.1455
+# Epoch 500, Training loss 0.0483,  Validation loss 0.0633
+# Epoch 1000, Training loss 0.0096,  Validation loss 0.0125
+# Epoch 1500, Training loss 0.0019,  Validation loss 0.0025
+# Epoch 2000, Training loss 0.0004,  Validation loss 0.0005
+# Epoch 2500, Training loss 0.0001,  Validation loss 0.0001
+# (Parameter containing:
+#  tensor([[2.9987]], requires_grad=True),
+#  Parameter containing:
+#  tensor([-0.9927], requires_grad=True))
+```
+
+### §3.2.3 连接模块
+
+从习惯来讲，线性模型加激活层称为隐藏层。随着隐藏层越来越多，维护这样一个`training_loop()`函数将越来越难。为此，PyTorch提供了`torch.nn.Sequential`容器来定义一个完整的神经网络：
+
+```python
+>>> seq_model = torch.nn.Sequential(
+... 	torch.nn.Linear(1, 13),
+...     torch.nn.Tanh(),
+...     torch.nn.Linear(13, 1)
+... )
+
+>>> seq_model
+Sequential(
+  (0): Linear(in_features=1, out_features=13, bias=True)
+  (1): Tanh()
+  (2): Linear(in_features=13, out_features=1, bias=True)
+)
+```
+
+我们看到，`torch.mm.Sequential`实例按照顺序给每个层都进行了标号。实际上，我们也可以将这些标号换成字符串，只需调用其构造方法时不直接传递`*args`，而是传递`OrderedDict(*args)`：
+
+```python
+>>> import collections
+
+>>> seq_named_model = torch.nn.Sequential(
+...     collections.OrderedDict([
+... 	    ('hidden_linear',torch.nn.Linear(1, 13)),
+...     	('hidden_activation',torch.nn.Tanh()),
+...     	('output_linear',torch.nn.Linear(13, 1))
+... 	]
+... ))
+>>> seq_named_model
+Sequential(
+  (hidden_linear): Linear(in_features=1, out_features=13, bias=True)
+  (hidden_activation): Tanh()
+  (output_linear): Linear(in_features=13, out_features=1, bias=True)
+)
+```
+
+我们之前提到过，任意一层的实例都有一个`.parameters()`方法，返回一个层实例中各项参数的迭代器实例。例如一个线性层有着两个参数张量，分别代表着权重和偏置。其实`torch.nn.Sequential`也有`.parameters()`方法，返回各个层使用的参数：
+
+```python
+>>> [item.shape for item in seq_model.parameters()]
+[torch.Size([13, 1]), torch.Size([13]), torch.Size([1, 13]), torch.Size([1])]
+```
+
+其实，PyTorch提供了`.named_parameters()`方法，返回一个迭代器，迭代器每次返回一组可调参数及其所在的位置：
+
+```python
+>>> [name for name, param in seq_model.named_parameters()]
+['0.weight', '0.bias', '2.weight', '2.bias']
+```
+
+`OrderedDict`传递的名称也会影响到`.named_parameters()`的返回值：
+
+```python
+>>> [name for name, param in seq_named_model.named_parameters()]
+['hidden_linear.weight',
+ 'hidden_linear.bias',
+ 'output_linear.weight',
+ 'output_linear.bias']
+```
+
+`torch.nn.Sequential`本质上是一个容器，那么我们也能从中通过整型下标提取出对应位置的层实例。值得注意的是，如果这个容器在创建时接受的是`OrderedDict`，那么我们不仅可以通过整型下标获得层实例，也可以通过`.__attr__()`魔术方法直接访问：
+
+```python
+>>> seq_model.0 # 无法直接通过名称访问
+Cell In[DETACTED], line DETACTED
+->  seq_model.0
+SyntaxError: invalid syntax
+
+>>> seq_model[0] # 可以通过整型下标访问
+Linear(in_features=1, out_features=13, bias=True)
+
+>>> getattr(seq_model, "0") # 可以通过__attr__()访问
+Linear(in_features=1, out_features=13, bias=True)
+```
+
+```python
+>>> seq_named_model.hidden_linear # 可以直接通过名称访问
+Linear(in_features=1, out_features=13, bias=True)
+
+>>> getattr(seq_named_model, "0") # 不能通过原来的名称访问
+---------------------------------------------------------------------------
+AttributeError                            Traceback (most recent call last)
+File c:\Users\DETACTED\.conda\lib\site-packages\torch\nn\modules\module.py:1695, in Module.__getattr__(self, name)
+-> 1695 raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+AttributeError: 'Sequential' object has no attribute '0'
+
+>>> getattr(seq_named_model, "hidden_linear") # 只能通过现在的名称访问
+Linear(in_features=1, out_features=13, bias=True)
+```
+
+于是，我们就能改写[§3.2.2 损失函数](###§3.2.2 损失函数)中的单层线性层，变成具有10个神经元的隐藏层、一层`tanh()`激活层、一层10个神经元的线性层组合的神经网络：
+
+```python
+import torch, collections
+
+count = 10
+x = torch.arange(count, dtype=torch.float)
+y_truth = 3 * x - 1
+
+shuffled_index = torch.randperm(count)
+validate_count = int(0.2 * count)
+
+x_train = x[shuffled_index[:-validate_count]]
+x_validate = x[shuffled_index[-validate_count:]]
+y_truth_train = y_truth[shuffled_index[:-validate_count]]
+y_truth_validate = y_truth[shuffled_index[-validate_count:]]
+
+def training_loop(epochs, optimizer, model, loss_fn, x_train, x_validate, y_truth_train, y_truth_validate):
+	for epoch in range(epochs):
+		
+		y_predict_train = model(x_train)
+		train_loss = loss_fn(y_predict_train, y_truth_train)
+
+		optimizer.zero_grad()
+		train_loss.backward()
+		optimizer.step()
+
+		if epoch % 500 == 0:
+			with torch.no_grad():
+				y_predict_validate = model(x_validate)
+				validate_loss = loss_fn(y_predict_validate, y_truth_validate)
+				print(f"Epoch {epoch}, Training loss {train_loss.item():.4f},", f" Validation loss {validate_loss.item():.4f}")
+
+loss_fn = torch.nn.MSELoss()
+model = nn.Sequential(OrderedDict([
+    ('hidden_linear', nn.Linear(1, 10)),
+    ('hidden_activation', nn.Tanh()),
+    ('output_linear', nn.Linear(10, 1))
+]))
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+
+training_loop(
+    epochs = 3000, 
+    optimizer = optimizer,
+    model = model,
+	loss_fn= loss_fn,
+    x_train = x_train.unsqueeze(1),
+    x_validate = x_validate.unsqueeze(1),
+    y_truth_train = y_truth_train.unsqueeze(1),
+    y_truth_validate = y_truth_validate.unsqueeze(1)
+)
+
+for name, parameter in model.named_parameters():
+	print(f"{name}: {parameter}")
+# Epoch 0, Training loss 241.9196,  Validation loss 73.0770
+# Epoch 500, Training loss 1.2290,  Validation loss 0.3979
+# Epoch 1000, Training loss 2.6887,  Validation loss 0.9148
+# Epoch 1500, Training loss 1.6562,  Validation loss 0.6057
+# Epoch 2000, Training loss 1.0335,  Validation loss 0.3461
+# Epoch 2500, Training loss 0.6566,  Validation loss 0.2053
+# hidden_linear.weight: Parameter containing:
+# tensor([[-0.4703],
+#         [-0.7558],
+#         [-0.1886],
+#         [-0.1900],
+#         [-0.3648],
+#         [ 0.7319],
+#         [-0.3118],
+#         [ 0.9323],
+#         [ 0.2202],
+#         [ 0.3002]], requires_grad=True)
+# hidden_linear.bias: Parameter containing:
+# tensor([ 1.6251,  5.1934, -0.9684, -0.9625,  0.8155, -3.9516,  0.1589,
+#         -7.1332,  0.6795, -0.0591], requires_grad=True)
+# output_linear.weight: Parameter containing:
+# tensor([[-2.3631, -1.6100, -2.7419, -2.7787, -2.0121,  2.1128, -2.5346,
+#           2.0478,  2.7706,  2.5343]], requires_grad=True)
+# output_linear.bias: Parameter containing:
+# tensor([3.1331], requires_grad=True)
+```
+
+## §3.3 实战图片分类
+
+### §3.3.1 下载数据集
+
+TorchVision的`datasets`子模块提供了大量的数据集可供下载：
+
+```python
+>>> import torchvision
+
+>>> dir(torchvision.datasets)
+['CIFAR10',
+ 'CIFAR100',
+...
+ 'MNIST',
+ 'Middlebury2014Stereo',
+ 'MovingMNIST',
+...
+]
+```
+
+CIFAR-10是由加拿大高级研究所（Canadian Institude For Advanced Research，CIFAR）收集和标记的微小图像数据集。该数据集由60000张$32\times32$分辨率的图像构成，包含飞机(`0`)、汽车(`1`)、鸟(`2`)、猫(`3`)、鹿(`4`)、狗(`5`)、青蛙(`6`)、马(`7`)、船(`8`)、卡车(`9`)共十大类图像。
+
+```python
+>>> cifar10_train = torchvision.datasets.CIFAR10(
+... 	'../data-unversioned/p1ch7/',
+... 	train=True,
+... 	download=True
+... )
+>>> cifar10_train
+Dataset CIFAR10
+    Number of datapoints: 50000
+    Root location: ../data-unversioned/p1ch7/
+    Split: Train
+
+>>> cifar10_validate = torchvision.datasets.CIFAR10(
+... 	'../data-unversioned/p1ch7/',
+... 	train=False,
+... 	download=True
+... )
+>>> cifar10_validate
+Dataset CIFAR10
+    Number of datapoints: 10000
+    Root location: ../data-unversioned/p1ch7/
+    Split: Test
+
+>>> type(cifar10_train), type(cifar10_validate)
+(torchvision.datasets.cifar.CIFAR10, torchvision.datasets.cifar.CIFAR10)
+
+>>> type(cifar10_train).__mro__
+(torchvision.datasets.cifar.CIFAR10,
+ torchvision.datasets.vision.VisionDataset,
+ torch.utils.data.dataset.Dataset,
+ typing.Generic,
+ object)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -774,6 +1565,29 @@ torch.Size([20, 11]) # 一共有20条数据的葡萄酒得分小于3
 ## §A.1 创建操作
 
 创建操作指的是用于构造张量的函数。例如`ones()`和`from_numpy()`。
+
+### §A.1.x 分离(`detach()`)
+
+`torch.Tensor(...).detach()`用于创建一个与原张量相同的张量，两者共用存储空间，但是分离后的张量`require_grad`为`False`，其`.grad`也被置为`None`：
+
+```python
+>>> import torch
+>>> a = torch.ones(2,2, requires_grad=True)
+>>> loss = a.mean()
+>>> loss.backward()
+>>> b = a.detach()
+
+>>> a, b
+(tensor([[1., 1.],
+         [1., 1.]], requires_grad=True),
+ tensor([[1., 1.],
+         [1., 1.]]))
+
+>>> a.grad, b.grad
+(tensor([[0.2500, 0.2500],
+         [0.2500, 0.2500]]),
+ None)
+```
 
 ## §A.2 索引/切片/连接/转换操作
 
@@ -1135,7 +1949,7 @@ tensor([[[False, False, False, False, False],
 
 规约操作指的是通过迭代张量来计算聚合值的函数。例如`mean()`、`std()`、`norm()`。
 
-### §A.4.1 平均值(`mean`)
+### §A.4.1 平均值(`mean()`)
 
 `torch.mean()`和`torch.Tensor(...).mean()`用于返回整个张量的各个元素或沿某一轴元素的平均值。
 
@@ -1221,7 +2035,7 @@ tensor([[[ 1.5000],
 
 `torch.var()`和`torch.Tensor(...).var()`用于计算张量的方差，计算公式为：
 $$
-\sigma^2=\frac{1}{\max(0, N-\text{correction})}\sum_{i=0}^{n-1}(x_i-\overline{x})^2
+\sigma^2=\frac{1}{\max(0, N-\text{correction})}\sum_{i=0}^{N-1}(x_i-\overline{x})^2
 $$
 
 ```python
@@ -1241,7 +2055,7 @@ torch.Tensor(...).var(
 )
 ```
 
-`dim`和`keepdim`参数的作用与[§A.4.1 平均值(`mean`)](###§A.4.1 平均值(`mean`))类似，这里不再赘述。
+`dim`和`keepdim`参数的作用与[§A.4.1 平均值(`mean()`)](###§A.4.1 平均值(`mean()`))类似，这里不再赘述。
 
 ```python
 >>> a = torch.arange(24).float().reshape(2,3,4)
@@ -1263,6 +2077,16 @@ tensor([[1.6667, 1.6667, 1.6667],
         [1.6667, 1.6667, 1.6667]])
 ```
 
+### §A.4.3 标准差(`std()`)
+
+`torch.var()`和`torch.Tensor(...).var()`用于计算张量的标准差，计算公式为：
+$$
+\sigma=\sqrt{\frac{1}{\max(0, N-\text{correction})}\sum_{i=0}^{N-1}(x_i-\overline{x})^2}
+$$
+该函数从效果上等价于`torch.var().sqrt()`。
+
+`dim`和`keepdim`参数的作用与[§A.4.2 方差(`var()`)](###§A.4.2 方差(`var()`))类似，这里不再赘述。
+
 ## §A.5 比较操作
 
 比较操作指的是在张量上计算数字谓词的函数。例如`equal()`和`max()`。
@@ -1278,6 +2102,38 @@ BLAS/LAPACK操作值的是符合基本线性代数子程序（BLAS）规范的�
 ## §A.8 随机采样操作
 
 随机采样操作指的是从概率分布中随机生成数值的函数。例如`randn()`、`normal()`。
+
+### §A.8.1 随机排列(`randperm()`)
+
+`torch.randperm()`接受一个整数`n`，返回一个`0, 1, 2, ..., n-1`随机打乱后的一维张量。
+
+```python
+torch.randperm(
+	n: int, *,
+    generator: Optional[torch.Generator] = None,
+    out: Optional[torch.Tensor] = None,
+    dtype: Optional[torch.dtype] = torch.int64,
+    layout: Optional[torch.layout] = torch.strided,
+    device: Optional[torch.device] = None,
+    requires_grad: Optional[bool] = False,
+    pin_memory: Optional[bool] = False
+)
+```
+
+如果给形参`n`传递一个一维张量的实参，则PyTorch会报错：
+
+```python
+>>> import torch
+
+>>> torch.randperm(5)
+tensor([3, 0, 2, 1, 4])
+
+>>> torch.randperm(torch.Tensor(5))
+---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+	----> 1 torch.randperm(torch.Tensor(5))
+TypeError: randperm(): argument 'n' (position 1) must be int, not Tensor
+```
 
 ## §A.9 序列化操作
 
