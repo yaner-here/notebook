@@ -1322,7 +1322,7 @@ Sequential(
 )
 ```
 
-我们看到，`torch.mm.Sequential`实例按照顺序给每个层都进行了标号。实际上，我们也可以将这些标号换成字符串，只需调用其构造方法时不直接传递`*args`，而是传递`OrderedDict(*args)`：
+我们看到，`torch.nn.Sequential`实例按照顺序给每个层都进行了标号。实际上，我们也可以将这些标号换成字符串，只需调用其构造方法时不直接传递`*args`，而是传递`OrderedDict(*args)`：
 
 ```python
 >>> import collections
@@ -1477,7 +1477,7 @@ for name, parameter in model.named_parameters():
 # tensor([3.1331], requires_grad=True)
 ```
 
-## §3.3 实战图片分类
+## §3.3 实战全连接神经网络
 
 ### §3.3.1 下载数据集
 
@@ -1533,6 +1533,261 @@ Dataset CIFAR10
  object)
 ```
 
+### §3.3.2 数据集
+
+PyTorch提供了`torch.utils.data.dataset.Dataset`类，表示对数据集的抽象。数据集实例必须要实现两个方法：
+
+- `__len__()`：数据集中样本的数量
+- `__item__()`：通过整形下标可以访问特定位置的样本
+
+```python
+>>> len(cifar10_train), len(cifar10_validate)
+(50000, 10000)
+
+>>> cifar10_train[0]
+(<PIL.Image.Image image mode=RGB size=32x32>, 6)
+
+>>> plt.imshow(cifar10_train[0])
+```
+
+### §3.3.3 数据集变换
+
+我们需要把PIL图像转换成PyTorch能处理的张量。`torchvision.transforms`子模块定义了一套可组合的变换器：
+
+```python
+>>> dir(torchvision.transforms)
+['AugMix',
+ 'AutoAugment',
+ 'AutoAugmentPolicy',
+...
+ 'autoaugment',
+ 'functional',
+ 'transforms']
+```
+
+其中`torchvision.transforms.ToTensor`示例用于将PIL图像转换成张量：
+
+```python
+>>> transform_to_tensor = torchvision.transforms.ToTensor()
+
+>>> transfozrm_to_tensor(cifar10_train[0][0]).shape
+torch.Size([3, 32, 32])
+```
+
+其实，我们不用非得拿到数据集后再将其转换成张量，而是通过数据集构造方法中的`transform`形参，在新建数据集时就一次性拿到张量：
+
+```python
+>>> cifar10_train_tensor = torchvision.datasets.CIFAR10(
+... 	'../data-unversioned/p1ch7/', 
+... 	train=True, 
+... 	download=False,
+... 	transform=torchvision.transforms.ToTensor()
+... )
+
+>>> cifar10_train_tensor[0][0]
+(tensor([[[0.2314, 0.1686,  ..., 0.5961, 0.5804],
+          [0.0627, 0.0000,  ..., 0.4667, 0.4784],
+          ...,
+          [0.3765, 0.1647,  ..., 0.1333, 0.1333],
+          [0.4549, 0.3686,  ..., 0.3294, 0.2824]]]),
+ 6)
+```
+
+> 注意：PIL实例中的像素数据是以`uint8`的形式储存的。经`torchvision.transforms.ToTensor()`处理后，像素数据在$C\times H\times W$张量总以`torch.float32`的形式储存，每个值都位于区间$[0,1]$之内。
+>
+> 但是，`matplotlib.pyplot.imshow()`接受的张量必须是$H\times W\times C$。这需要我们给原先的张量调用`.permute(1, 2, 0)`翻转一下维度。
+>
+> ```python
+> >>> matplotlib.pyplot.imshow(cifar10_train_tensor[0][0].permute(1, 2, 0))
+> ```
+
+拿到张量以后，我们还要对其归一化，使得每个通道的均值为0，标准差为1。这里我们使用`torchvision.transforms.Normalize()`。归一化$\displaystyle\frac{x_i-\overline{x}}{\sigma_x}$需要得到各个颜色通道由于CIFAR10数据集规模很小，我们完全可以将其全部加载到内存中：
+
+```python
+>>> cifar10_train_tensor[0][0].shape
+torch.Size([3, 32, 32])
+
+>>> images = torch.stack([image for image, label in cifar10_train_tensor], dim=3)
+>>> images.shape
+torch.Size([3, 32, 32, 50000])
+
+>>> images.view(3, -1).shape # 提取所有图片像素的三个颜色通道
+torch.Size([3, 51200000])
+
+>>> images.view(3, -1).mean(dim=1) # 求平均值
+tensor([0.4914, 0.4822, 0.4465])
+
+>>> images.view(3, -1).std(dim=1) # 求标准差
+tensor([0.2470, 0.2435, 0.2616])
+
+>>> cifar10_transformed_train = torchvision.datasets.CIFAR10(
+... 	'../data-unversioned/p1ch7/', 
+... 	train=True, 
+... 	download=True,
+... 	transform=torchvision.transforms.Compose([
+...     	torchvision.transforms.ToTensor(),
+...     	torchvision.transforms.Normalize(mean=(0.4915, 0.4823, 0.4468), std=(0.2470, 0.2435, 0.2616))
+... 	])
+... )
+>>> cifar10_transformed_validate = torchvision.datasets.CIFAR10(
+... 	'../data-unversioned/p1ch7',
+... 	train=False,
+... 	download=True,
+... 	transform=torchvision.transforms.Compose([
+...     	torchvision.transforms.ToTensor(),
+...         torchvision.transforms.Normalize(mean=(0.4915, 0.4823, 0.4468), std=(0.2470, 0.2435, 0.2616))
+...     ])
+... )
+```
+
+本节我们只考虑二分类的问题，这里我们就随机选取其中的两类图片——飞机(`0`)和鸟(`2`)，并将其序号转换为`0`与`1`：
+
+```python
+>>> label_map = {0: 0, 2: 1}
+>>> cifar2_transformed_train = [(image_tensor, label_map[label]) for image_tensor, label in cifar10_transformed_train if label in [0, 2]]
+>>> cifar2_transformed_validate = [(image_tensor, label_map[label]) for image_tensor, label in cifar10_transformed_validate if label in [0, 2]]
+```
+
+### §3.3.4 数据集加载器
+
+既然我们已经有了`torch.utils.data.dataset.Dataset`类了，为什么还要使用数据集加载器`torch.utils.data.DataLoader`呢？这是因为`Dataset`中的样本数据是固定的。将`list[(data, label)]`传给`DataLoader`，可以改变样本的顺序。
+
+```python
+import random, pprint, torch
+
+data = [random.random() for i in range(100)]
+label = list(range(100))
+data_list = list(zip(data, label))
+
+loader = torch.utils.data.DataLoader(data_list, 10, True)
+pprint.pprint([label for data, label in loader])
+# [tensor([25, 62, 46, 15,  9, 48, 66, 26, 23, 27]),
+#  tensor([52, 14, 68, 58, 44, 87, 20, 65, 86, 31]),
+#  tensor([84, 73, 57, 88, 85,  2, 69, 13,  1, 79]),
+#  tensor([19, 42, 78, 91, 32, 21, 49, 34, 11, 53]),
+#  tensor([90, 38, 83,  5, 37, 97, 47, 55, 29, 70]),
+#  tensor([17, 39, 10, 80, 16, 33, 22, 74,  4, 60]),
+#  tensor([63, 51,  0, 61, 71, 81,  8, 35, 43, 12]),
+#  tensor([96, 59, 56, 82, 76, 89, 54, 75, 45, 24]),
+#  tensor([28, 92, 64, 93, 18, 72, 40,  6,  7, 36]),
+#  tensor([77, 50, 30,  3, 95, 99, 94, 41, 67, 98])]
+```
+
+### §3.3.5 完整的神经网络
+
+我们之前将MSE作为损失函数。但是在这个例子中，我们最终的目的不是让输出向量趋近于独热编码，而是让`_, index = output.max(dim=1)`能返回正确的`index`。至于是否趋于独热编码，其实没那么重要了。对此，我们使用更合适的NLL（负对数似然）损失函数：
+$$
+\text{NLLloss}=-\sum_{i=1}^{n}{\log(x_i)}, \text{where}\ x_i\in\left[0,1\right]
+$$
+
+
+每个样本有$32\times32\times3=3072$个特征。我们定义如下的神经网络。你可能会想问，为什么网络最后一层使用的是`torch.nn.LogSoftmax()`而不是`torch.nn.Softmax()`，这里我们先按下不表，本节最后会解释：
+
+```python
+>>> model = torch.nn.Sequential(
+... 	torch.nn.Linear(3072, 512),
+... 	torch.nn.Tanh(),
+... 	torch.nn.Linear(512, 2),
+... 	torch.nn.LogSoftmax(dim=1)
+... )
+```
+
+最终代码如下：
+
+```python
+import torch, torchvision
+
+cifar10_transformed_train = torchvision.datasets.CIFAR10(
+	'../data-unversioned/p1ch7/', 
+	train=True, 
+	download=True,
+	transform=torchvision.transforms.Compose([
+    	torchvision.transforms.ToTensor(),
+    	torchvision.transforms.Normalize(mean=(0.4915, 0.4823, 0.4468), std=(0.2470, 0.2435, 0.2616))
+	])
+)
+cifar10_transformed_validate = torchvision.datasets.CIFAR10(
+	'../data-unversioned/p1ch7',
+	train=False,
+	download=True,
+	transform=torchvision.transforms.Compose([
+    	torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=(0.4915, 0.4823, 0.4468), std=(0.2470, 0.2435, 0.2616))
+    ])
+)
+
+label_map = {0: 0, 2: 1}
+cifar2_transformed_train = [(image, label_map[label]) for image, label in cifar10_transformed_train if label in [0, 2]]
+cifar2_transformed_validate = [(image, label_map[label]) for image, label in cifar10_transformed_validate if label in [0, 2]]
+
+def training_loop(
+        epochs: int, 
+        optimizer: torch.optim.Optimizer, 
+        model: torch.nn.Module,
+        loss_function: torch.nn.modules.loss,
+        train_dataloader: torch.utils.data.DataLoader,
+        validate_dataloader: torch.utils.data.DataLoader,
+    ):
+    for epoch in range(epochs):
+        for images, labels in train_dataloader:
+            y_predict_train = model(images.view(images.shape[0], -1))
+            loss = loss_function(y_predict_train, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        print(f"epoch: {epoch}, train_loss:{float(loss)}, ", end='')
+
+        with torch.no_grad():
+            for images, labels in validate_dataloader:
+                y_predict_validate = model(images.view(images.shape[0], -1))
+                loss = loss_function(y_predict_validate, labels)
+                print(f"validate_loss: {loss}")
+
+model = torch.nn.Sequential(
+    torch.nn.Linear(3072, 512),
+    torch.nn.Tanh(),
+    torch.nn.Linear(512, 2),
+    torch.nn.LogSoftmax(dim=1)
+)
+
+training_loop(
+    epochs = 100,
+    optimizer = torch.optim.SGD(model.parameters(), 0.005),
+    model = model,
+    loss_function = torch.nn.NLLLoss(),
+    train_dataloader = torch.utils.data.DataLoader(cifar2_transformed_train, batch_size=64, shuffle=True),
+    validate_dataloader = torch.utils.data.DataLoader(cifar2_transformed_validate, batch_size=2000, shuffle=True)
+)
+# epoch: 0, train_loss: 0.323549, validate_loss: 0.469412
+# epoch: 1, train_loss: 0.493782, validate_loss: 0.465300
+# epoch: 2, train_loss: 0.712485, validate_loss: 0.462837
+# epoch: 3, train_loss: 0.510695, validate_loss: 0.482677
+# epoch: 4, train_loss: 0.271365, validate_loss: 0.438540
+# epoch: 5, train_loss: 0.332817, validate_loss: 0.428254
+# ...
+# epoch: 96, train_loss: 0.009780, validate_loss: 0.576314
+# epoch: 97, train_loss: 0.024985, validate_loss: 0.586031
+# epoch: 98, train_loss: 0.016191, validate_loss: 0.587952
+# epoch: 99, train_loss: 0.020891, validate_loss: 0.581102
+```
+
+观察训练集和测试集的损失函数值，我们很容器发现这个神经网络产生了过拟合。在下一节我们将学习使用卷积来增强神经网络的泛化能力。
+
+从数学上来说，`torch.nn.LogSoftmax()`加`torch.nn.NLLLoss()`结合起来，实质上等价于只用`torch.nn.CrossEnropyLoss()`。
+
+## §3.4 实战卷积神经网络
+
+`torch.nn`模块提供了各类卷积层：
+
+- `torch.nn.Conv1d`：一维卷积，用于时间序列
+- `torch.nn.Conv2d`：二维卷积，用于图像
+- `torch.nn.Conv3d`：三维卷积，用于视频和体数据
+
+我们可以通过这些卷积类的构造函数中的`kernel_size`形参，来指定卷积核的大小。
+
+```python
+
+```
 
 
 
@@ -1544,10 +1799,7 @@ Dataset CIFAR10
 
 
 
-
-
-
-
+# §4 实战肿瘤识别
 
 
 
@@ -1825,6 +2077,87 @@ tensor([[1., 0., 0., 0., 0.],
         [0., 0., 0., 1., 0.],
         [0., 0., 0., 0., 1.]])
 ```
+
+### §A.2.8 聚集(`gather`)
+
+[TODO:](https://pytorch.org/docs/stable/generated/torch.gather.html#torch-gather)
+
+
+
+
+
+
+
+
+
+
+
+### §A.2.9 堆叠(`stack()`)
+
+`torch.stack()`用于沿新维度连接一系列张量：
+
+```python
+torch.stack(
+	tensors: collections.abc.Sequence[torch.Tensor],
+    dim: int = 0, *,
+    out: Optional[torch.Tensor] = None
+)
+```
+
+这个函数的作用比较抽象，下面是该函数实现的伪代码：
+
+```typescript
+// 伪代码
+function get_tuple_atomic(tensor_pointer_1, tensor_pointer_2){
+	// tensor_pointer_1和tensor_pointer_2的形状相同，但不一定是一维，可能是高维，取决于len(tensor.shape) - dim
+    return[tensor_pointer_1, tensor_pointer_2];
+}
+
+function stack_iterate(tensor_pointer_1, tensor_pointer_2, dim){
+    if(dim == 0){
+    	return get_tuple_atomic(tensor_pointer_1, tensor_pointer_2);
+    } else if (dim > 0){
+    	let tensor_sub = []
+        for(let i = 0 ; i < tensor_pointer_1.shape[0] ; ++i){
+    		tensor_sub.append(get_tuple_iterate(
+                tensor_pointer_1[i],
+                tensor_pointer_2[i],
+                dim - 1
+            ));
+    	}
+        return tensor_sub;
+    }
+}
+```
+
+下面是一个具体的例子：
+
+```python
+>>> a = torch.tensor([[1, 2, 3],[4, 5, 6]]) # 形状为2×3
+>>> b = torch.tensor([[7, 8, 9],[10, 11, 12]]) # 形状为2×3
+
+>>> torch.stack([a, b], dim=0) # [a, b]
+tensor([[[ 1,  2,  3],	# 形状为(2)×2×3
+         [ 4,  5,  6]],
+        [[ 7,  8,  9],
+         [10, 11, 12]]])
+
+>>> torch.stack([a, b], dim=1) # [[a[0], b[0]], [a[1], b[1]]]
+tensor([[[ 1,  2,  3], # 形状为2×(2)×3
+         [ 7,  8,  9]],
+        [[ 4,  5,  6],
+         [10, 11, 12]]])
+
+>>> torch.stack([a, b], dim=2) # [[a[0][0], b[0][0]], [a[0][1], b[0][1]], [a[0][2], b[0][2]]], ......
+tensor([[[ 1,  7],	# 形状为2×3×(2)
+         [ 2,  8],
+         [ 3,  9]],
+        [[ 4, 10],
+         [ 5, 11],
+         [ 6, 12]]])
+```
+
+
 
 ## §A.3 逐点操作
 
@@ -2134,6 +2467,75 @@ TypeError                                 Traceback (most recent call last)
 	----> 1 torch.randperm(torch.Tensor(5))
 TypeError: randperm(): argument 'n' (position 1) must be int, not Tensor
 ```
+
+### §A.8.2 Softax(`softmax()`)
+
+`torch.nn.functional.softmax()`、`torch.softmax()`、`torch.Tensor(...).softmax()`用于沿某个维度计算张量的各分量Softmax值：
+
+```python
+torch.softmax(
+	input: torch.Tensor,
+    dim: int = None, *,
+    dtype=None
+) -> torch.Tensor
+
+torch.nn.functional.softmax(
+	input: torch.Tensor,
+    dim: int = None,
+    _stacklevel = 3,
+    dtype: Optional[torch.dtype] = None
+) -> torch.Tensor
+
+torch.Tensor(...).softmax(
+	dim: int = None
+) -> torch.Tensor
+```
+
+
+$$
+\text{Softmax}(x_i)=\frac{e^{x_i}}{\displaystyle\sum_{j=1}^{n}e^{x_j}}
+$$
+该函数中的维度`dim`作用可以理解为：在形状向量中，按住除`dim`之外的所有`len(tensor.shape) - 1`个维度，随便赋一组值，然后让第`dim`维改变，将改变过程中涉及到的数值集合在一起，参与Softmax运算。
+
+```python
+>>> x = torch.arange(2*3*4, dtype=torch.float).reshape(2,3,4)
+>>> x
+tensor([[[ 0.,  1.,  2.,  3.],
+         [ 4.,  5.,  6.,  7.],
+         [ 8.,  9., 10., 11.]],
+        [[12., 13., 14., 15.],
+         [16., 17., 18., 19.],
+         [20., 21., 22., 23.]]])
+
+>>> x.softmax(dim=0)
+# x[i][j][k]，对于任意j,k，给每个i∈{0,1}放在一起做softmax
+tensor([[[6.1442e-06, 6.1442e-06, 6.1442e-06, 6.1442e-06],
+         [6.1442e-06, 6.1442e-06, 6.1442e-06, 6.1442e-06],
+         [6.1442e-06, 6.1442e-06, 6.1442e-06, 6.1442e-06]],
+        [[9.9999e-01, 9.9999e-01, 9.9999e-01, 9.9999e-01],
+         [9.9999e-01, 9.9999e-01, 9.9999e-01, 9.9999e-01],
+         [9.9999e-01, 9.9999e-01, 9.9999e-01, 9.9999e-01]]])
+
+>>> x.softmax(dim=1)
+# x[i][j][k], 对于任意i,k，给每个j∈{0,1,2}放在一起做softmax
+tensor([[[3.2932e-04, 3.2932e-04, 3.2932e-04, 3.2932e-04],
+         [1.7980e-02, 1.7980e-02, 1.7980e-02, 1.7980e-02],
+         [9.8169e-01, 9.8169e-01, 9.8169e-01, 9.8169e-01]],
+        [[3.2932e-04, 3.2932e-04, 3.2932e-04, 3.2932e-04],
+         [1.7980e-02, 1.7980e-02, 1.7980e-02, 1.7980e-02],
+         [9.8169e-01, 9.8169e-01, 9.8169e-01, 9.8169e-01]]])
+
+>>> x.softmax(dim=2)
+# x[i][j][k], 对于任意i,j，给每个k∈{0,1,2,3}放在一起做softmax
+tensor([[[0.0321, 0.0871, 0.2369, 0.6439],
+         [0.0321, 0.0871, 0.2369, 0.6439],
+         [0.0321, 0.0871, 0.2369, 0.6439]],
+        [[0.0321, 0.0871, 0.2369, 0.6439],
+         [0.0321, 0.0871, 0.2369, 0.6439],
+         [0.0321, 0.0871, 0.2369, 0.6439]]])
+```
+
+
 
 ## §A.9 序列化操作
 
