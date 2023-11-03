@@ -1786,7 +1786,728 @@ training_loop(
 我们可以通过这些卷积类的构造函数中的`kernel_size`形参，来指定卷积核的大小。
 
 ```python
+torch.nn.Conv1d.__init__(
+    in_channels: int, 
+    out_channels: int, 
+    kernel_size: int | tuple[int], 
+    stride: Optional[int, tuple[int]] = 1, 
+    padding: Optional[int, tuple, str] = 0, 
+    dilation: Optional[int, tuple[int]] = 1, 
+    groups: Optional[int]= 1, 
+    bias: Optional[bool] = True, 
+    padding_mode: Optional[str] = 'zeros', 
+    device: torch.device = None, 
+    dtype: torch.dtype = None
+)
 
+torch.nn.Conv2d.__init__(
+    in_channels: int, 
+    out_channels: int, 
+    kernel_size: int | tuple[int], 
+    stride: Optional[int, tuple[int]] = 1, 
+    padding: Optional[int, tuple, str] = 0, 
+    dilation: Optional[int, tuple[int]] = 1, 
+    groups: Optional[int]= 1, 
+    bias: Optional[bool] = True, 
+    padding_mode: Optional[str] = 'zeros', 
+    device: torch.device = None, 
+    dtype: torch.dtype = None
+)
+
+torch.nn.Conv3d(
+    in_channels: int, 
+    out_channels: int, 
+    kernel_size: int | tuple[int], 
+    stride: Optional[int, tuple[int]] = 1, 
+    padding: Optional[int, tuple, str] = 0, 
+    dilation: Optional[int, tuple[int]] = 1, 
+    groups: Optional[int]= 1, 
+    bias: Optional[bool] = True, 
+    padding_mode: Optional[str] = 'zeros', 
+    device: torch.device = None, 
+    dtype: torch.dtype = None
+)
+```
+
+我们知道，卷积的本质就是线性变换，所以一个卷积层也有自己的权重和偏置。它们在创建之初就被随机初始化过，这里我们以二维卷积为例：
+
+```python
+>>> import torch
+
+>>> conv = torch.nn.Conv2d(3, 16, kernel_size=3)
+>>> conv.weight.shape, conv.bias.shape
+(torch.Size([16, 3, 3, 3]), torch.Size([16]))
+```
+
+一个二维卷积层实例期望收到一个形状为$\text{\textcolor{red}Batch}\times\text{\textcolor{red}Channel}\times\text{\textcolor{red}Height}\times\text{\textcolor{red}Width}$的四维张量。接下来我们手动调整卷积层的权重和偏置，尝试将一幅图片经过该卷积层的处理，最终显示处理前和处理后的效果：
+
+> 注意：卷积层的权重和偏置都默认开启了`requires_grad=True`，所以在修改的权重和偏置的时候需要在`torch.no_grad()`的上下文中进行。
+
+```python
+conv = torch.nn.Conv2d(3, 16, kernel_size=3)
+with torch.no_grad():
+    conv.bias.zero_()
+    conv.weight.fill_(1.0 / 9.0)
+    
+image, _ = cifar2_train[0] # image: 3×32×32
+image_conved = conv(image.unsqueeze(0)) # image_conved: 1×16×30×30
+
+
+plt.figure(figsize=(10, 4.8))
+
+ax1 = plt.subplot(1, 3, 1)
+plt.title('input_ChannelMean')
+plt.imshow(image.mean(0), cmap='gray')
+
+plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
+plt.title('output_Channel1') 
+plt.imshow(image_conved[0, 0].detach(), cmap='gray')
+
+plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
+plt.title('output_Channel9') 
+plt.imshow(image_conved[0, 8].detach(), cmap='gray')
+
+plt.show() # 图片经过处理后更模糊
+print(
+    image.mean(0).shape,
+    image_conved[0, 0].detach().shape,
+    image_conved[0, 9].detach().shape
+) # torch.Size([32, 32]) torch.Size([30, 30]) torch.Size([30, 30])
+```
+
+可以看到，全一卷积核的作用是模糊图片。在卷积的过程中，我们得到的图片尺寸也缩小了。卷积层的构造函数提供了`padding`形参，给图片外部镶一圈半径为`padding`的纯`0`（黑）边。
+
+```python
+conv = torch.nn.Conv2d(3, 16, kernel_size=3, padding=1)
+```
+
+池化与卷积的区别是：卷积可以被看作是一个连续的滑动窗口，窗口之间是可以重叠的；而池化是一个离散的窗口，窗口之间不能重叠。PyTorch提供的池化层之一是最大池化`torch.nn.MaxPool2d`，即取窗口内的最大值。
+
+```python
+pool = torch.nn.MaxPool2d(2)
+image, _ = cifar2_train[0]
+image_pooled = pool(image.unsqueeze(0))
+
+plt.figure(figsize=(10, 4.8))
+
+plt.subplot(1, 2, 1) 
+plt.title('output') 
+plt.imshow(image_pooled[0, 0].detach(), cmap='gray')
+
+plt.subplot(1, 2, 2)
+plt.imshow(image.mean(0), cmap='gray')
+plt.title('input')
+
+plt.show()
+
+print(image.unsqueeze(0).shape, image_pooled.shape)
+# (torch.Size([1, 3, 32, 32]), torch.Size([1, 3, 16, 16]))
+```
+
+### §3.4.1 自定义层(模块)
+
+了解卷积和池化的作用后，你可能反手写出一个下面的卷积神经网络，但是执行的时候会报错：
+
+```python
+model = torch.nn.Sequential(
+    torch.nn.Conv2d(3, 16, kernel_size=3, padding=1), # 1×3×32×32 -> 1×16×32×32
+    torch.nn.Tanh(),
+    torch.nn.MaxPool2d(2), # 1×16×32×32 -> 1×16×16×16
+    torch.nn.Conv2d(16, 8, kernel_size=3, padding=1), # 1×16×16×16 -> 1×8×16×16
+    torch.nn.Tanh(),
+    torch.nn.MaxPool2d(2), # 1×8×16×16 -> 1×8×8×8
+    torch.nn.Linear(8 * 8 * 8, 32), # 报错的位置
+    torch.nn.Tanh(),
+    torch.nn.Linear(32, 2)
+)
+
+model(image.unsqueeze(0))
+# RuntimeError: mat1 and mat2 shapes cannot be multiplied (64x8 and 512x32)
+```
+
+看到报错信息，我们立刻反应过来是$64\times8$没有转化为$1\times512$，导致矩阵不能相乘。问题是，在PyTorch 1.3之前，我们还没有`torch.nn.Flatten()`。既然已有的工具无法满足我们的需求，那我们就自己写一个`torch.nn.Module`的子类。
+
+一个`torch.nn.Module`的子类，至少要实现两个方法：`__init__()`负责初始化`torch.nn`中的基本层，`forward()`将各个基本层组合在一起，手动实现前向传播的路径，由各个基本层自动实现反向传播。
+
+```python
+class CustomizedNet(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+        self.act1 = torch.nn.Tanh()
+        self.pool1 = torch.nn.MaxPool2d(2)
+        
+        self.conv2 = torch.nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, padding=1)
+        self.act2 = torch.nn.Tanh()
+        self.pool2 = torch.nn.MaxPool2d(2)
+
+        self.fc1 = torch.nn.Linear(512, 32)
+        self.act3 = torch.nn.Tanh()
+        self.fc2 = torch.nn.Linear(32,2)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.pool1(self.act1(self.conv1(x)))
+        out = self.pool2(self.act2(self.conv2(out)))
+        out = out.view(-1, 8, 8) # 这是我们自定义的
+        out = self.fc2(self.act3(self.fc1(x)))
+        return out
+
+model = CustomizedNet()
+model(image.unsqueeze(0)) # 升维，添加N维度(样本数量)
+```
+
+如果一个`torch.nn.Module`实例中，以组合方式包含其它的`torch.nn.Module`，那么这些实例属性也会被自动注册为子模块。例如我们可以用`.parameters()`方法获取到各个子模块的参数张量。即使我们并没有显式地声明这些`torch.nn.Module`是子模块，PyTorch依然能自动识别：
+
+```python
+>>> model = CustomizedNet()
+>>> [i.shape for i in model.parameters()]
+[torch.Size([16, 3, 3, 3]),
+ torch.Size([16]),
+ torch.Size([8, 16, 3, 3]),
+ torch.Size([8]),
+ torch.Size([32, 512]),
+ torch.Size([32]),
+ torch.Size([2, 32]),
+ torch.Size([2])]
+```
+
+### §3.4.2 模块与函数式API
+
+PyTorch的每个`torch.nn`模块都有一个对应的函数式API`torch.nn.functional`。这里的函数式API指的是没有中间状态的API，其本次输出完全取决于本次输入。例如`torch.nn.Conv2d`是一个模块，它在初始化时就被指定了输入维度和输出维度，因此存在中间状态。而`torch.nn.functional.Conv2d`是一个函数，所有参数都是直到调用的时候才传入，不保存中间状态。
+
+将模块换成函数式API，这一方式的优势在于：减少中间状态，从而减少内存占用。例如一个`torch.nn.MaxPool2d(2)`，它的`.parameters()`所占用的空间随上下文而改变。在本例中，这一尺寸可能是`torch.Size([8, 16, 3, 3])`，也可能是`torch.Size([32, 512])`。如果面临更大的数据集，那么它占用的内存会进一步增加。为了避免这些参数常驻内存，我们可以使用对应的函数式API`torch.nn.functional.max_pool2d()`。
+
+```python
+class CustomizedNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = torch.nn.Conv2d(3, 16, kernel_size=3, padding=1)
+        self.conv2 = torch.nn.Conv2d(16, 8, kernel_size=3, padding=1)
+        self.fc1 = torch.nn.Linear(8 * 8 * 8, 32)
+        self.fc2 = torch.nn.Linear(32, 2)
+        
+    def forward(self, x):
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv1(x)), 2)
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv2(out)), 2)
+        out = out.view(-1, 8 * 8 * 8)
+        out = self.fc2(torch.tanh(self.fc1(out)))
+        return out
+    
+model = CustomizedNet()
+model(image.unsqueeze(0))
+# tensor([[-0.0273,  0.1006]], grad_fn=<AddmmBackward0>)
+```
+
+### §3.4.3 保存与加载模型
+
+接下来，我们使用[§3.4.2 模块与函数式API](###§3.4.2 模块与函数式API)设计的卷积神经网络，看一下它在训练集与测试集上的准确率，是否优于[§3.3.5 完整的神经网络](###§3.3.5 完整的神经网络)的全连接神经网络：
+
+```python
+import torch, torchvision
+
+# 1.加载数据集
+data_path = '../data-unversioned/p1ch6/'
+cifar10_train = torchvision.datasets.CIFAR10(
+    data_path, 
+    train = True, 
+    download = True,
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize((0.4915, 0.4823, 0.4468), (0.2470, 0.2435, 0.2616))
+    ])
+)
+cifar10_validate = torchvision.datasets.CIFAR10(
+    data_path, 
+    train = False, 
+    download = True,
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize((0.4915, 0.4823, 0.4468), (0.2470, 0.2435, 0.2616))
+    ])
+)
+label_map = {0: 0, 2: 1}
+category_names = ['airplane', 'bird']
+cifar2_train = [(image, label_map[label]) for image, label in cifar10_train if label in [0, 2]]
+cifar2_validate = [(image, label_map[label]) for image, label in cifar10_validate if label in [0, 2]]
+
+# 2.创建卷积神经网络
+class CustomizedNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = torch.nn.Conv2d(3, 16, kernel_size=3, padding=1)
+        self.conv2 = torch.nn.Conv2d(16, 8, kernel_size=3, padding=1)
+        self.fc1 = torch.nn.Linear(8 * 8 * 8, 32)
+        self.fc2 = torch.nn.Linear(32, 2)
+        
+    def forward(self, x):
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv1(x)), 2)
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv2(out)), 2)
+        out = out.view(-1, 8 * 8 * 8)
+        out = self.fc2(torch.tanh(self.fc1(out)))
+        return out
+    
+# 3. 编写训练函数
+def training_loop(
+        epochs: int, 
+        optimizer: torch.optim.Optimizer, 
+        model: torch.nn.Module,
+        loss_function: torch.nn.modules.loss,
+        train_dataloader: torch.utils.data.DataLoader,
+        validate_dataloader: torch.utils.data.DataLoader
+    ):
+    for epoch in range(epochs):
+        # 训练集
+        train_loss = 0
+        for images, labels_truth in train_dataloader:
+            labels_predict = model(images)
+            loss = loss_function(labels_predict, labels_truth)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += float(loss)
+        train_loss /= len(train_dataloader)
+
+        # 测试集
+        validate_loss = 0
+        with torch.no_grad():
+            for images, labels_truth in validate_dataloader:
+                labels_predict = model(images)
+                validate_loss = loss_function(labels_predict, labels_truth)
+        validate_loss /= len(validate_dataloader)
+        
+        # 输出
+        print(f'epoch: {epoch}, train_loss: {train_loss}, validate_loss: {validate_loss}')
+
+# 4.开始训练
+model = CustomizedNet()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.005)
+cifar2_train_dataloader = torch.utils.data.DataLoader(
+    cifar2_train, 
+    batch_size = 64,
+    shuffle = True
+)
+cifar2_validate_dataloader = torch.utils.data.DataLoader(
+    cifar2_validate,
+    batch_size = 2000,
+    shuffle = False
+)
+training_loop(
+    epochs = 100,
+    optimizer = optimizer,
+    model = model,
+    loss_function = torch.nn.CrossEntropyLoss(),
+    train_dataloader = cifar2_train_dataloader,
+    validate_dataloader = cifar2_validate_dataloader
+)
+# epoch: 0, train_loss: 0.5933953159174342, validate_loss: 0.5173754096031189
+# epoch: 1, train_loss: 0.5089306787700411, validate_loss: 0.48000314831733704
+# epoch: 2, train_loss: 0.48738924997627353, validate_loss: 0.46513861417770386
+# epoch: 3, train_loss: 0.4730880321211116, validate_loss: 0.4527730941772461
+# epoch: 4, train_loss: 0.46109508443030583, validate_loss: 0.4394274950027466
+# ...
+# epoch: 96, train_loss: 0.22837189167358313, validate_loss: 0.28784435987472534
+# epoch: 97, train_loss: 0.22985974851117771, validate_loss: 0.32625812292099
+# epoch: 98, train_loss: 0.22635355520590095, validate_loss: 0.276863694190979
+# epoch: 99, train_loss: 0.22662421595898402, validate_loss: 0.2704527974128723
+
+# 5. 测试分类准确率
+def print_accuracy(name: str, model: torch.nn.Module, dataloader: torch.utils.data.DataLoader):
+    correct_counter = 0
+    total_counter = 0
+    with torch.no_grad():
+        for images, labels_truth in dataloader:
+            _, labels_predicted = model(images).max(dim=1)
+            total_counter += images.shape[0]
+            correct_counter += (labels_predicted == labels_truth).sum()
+    print(f"{name} Accuracy: {correct_counter}/{total_counter} = {correct_counter / total_counter}")
+
+print_accuracy("Train", model, cifar2_train_dataloader)
+print_accuracy("Validate", model, cifar2_validate_dataloader)
+# Train Accuracy: 9372/10000 = 0.9372000098228455
+# Validate Accuracy: 1796/2000 = 0.8980000019073486
+```
+
+我们的模型在测试集上得到了89.8%的准确率。接下来我们使用`torch.save()`保存这个模型：
+
+```python
+torch.save(model.state.dict(), '../data-unversioned/p1ch6/bird_airplane_classification.pt')
+
+```
+
+或者从硬盘中加载模型：
+
+```python
+model = CustomizedNet()
+model.load_state_dict(
+    torch.load('../data-unversioned/p1ch6/bird_airplane_classification.pt')
+)
+```
+
+### §3.4.4 GPU训练
+
+`torch.device()`函数接受一个字符串形参，返回该字符串对应的设备实例`torch.device`。这个返回的值可以用于`.to()`的实参。
+
+为了让我们的运算在GPU上进行，我们需要让张量和网络同时迁移到GPU上：
+
+```python
+>>> import torch
+>>> device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+>>> a = torch.Tensor([1, 2, 3])
+>>> a = a.to(device=device)
+>>> a.device
+device(type='cuda', index=0)
+
+>>> model = torch.nn.Linear(10, 2)
+>>> model.to(device=device)
+>>> model.weight.device
+device(type='cuda', index=0)
+```
+
+下面是修改后的代码：
+
+```python
+import torch, torchvision
+
+# 0.做好CUDA准备
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+# 1.加载数据集
+data_path = '../data-unversioned/p1ch6/'
+cifar10_train = torchvision.datasets.CIFAR10(
+    data_path, 
+    train = True, 
+    download = True,
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize((0.4915, 0.4823, 0.4468), (0.2470, 0.2435, 0.2616))
+    ])
+)
+cifar10_validate = torchvision.datasets.CIFAR10(
+    data_path, 
+    train = False, 
+    download = True,
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize((0.4915, 0.4823, 0.4468), (0.2470, 0.2435, 0.2616))
+    ])
+)
+label_map = {0: 0, 2: 1}
+category_names = ['airplane', 'bird']
+cifar2_train = [(image, label_map[label]) for image, label in cifar10_train if label in [0, 2]]
+cifar2_validate = [(image, label_map[label]) for image, label in cifar10_validate if label in [0, 2]]
+
+# 2.创建卷积神经网络
+class CustomizedNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = torch.nn.Conv2d(3, 16, kernel_size=3, padding=1)
+        self.conv2 = torch.nn.Conv2d(16, 8, kernel_size=3, padding=1)
+        self.fc1 = torch.nn.Linear(8 * 8 * 8, 32)
+        self.fc2 = torch.nn.Linear(32, 2)
+        
+    def forward(self, x):
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv1(x)), 2)
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv2(out)), 2)
+        out = out.view(-1, 8 * 8 * 8)
+        out = self.fc2(torch.tanh(self.fc1(out)))
+        return out
+    
+# 3. 编写训练函数
+def training_loop(
+        epochs: int, 
+        optimizer: torch.optim.Optimizer, 
+        model: torch.nn.Module,
+        loss_function: torch.nn.modules.loss,
+        train_dataloader: torch.utils.data.DataLoader,
+        validate_dataloader: torch.utils.data.DataLoader
+    ):
+    for epoch in range(epochs):
+        # 训练集
+        train_loss = 0
+        for images, labels_truth in train_dataloader:
+            images = images.cuda()
+            labels_truth = labels_truth.cuda()
+            labels_predict = model(images)
+            loss = loss_function(labels_predict, labels_truth)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += float(loss)
+        train_loss /= len(train_dataloader)
+
+        # 测试集
+        validate_loss = 0
+        with torch.no_grad():
+            for images, labels_truth in validate_dataloader:
+                images = images.cuda()
+                labels_truth = labels_truth.cuda()
+                labels_predict = model(images)
+                validate_loss = loss_function(labels_predict, labels_truth)
+        validate_loss /= len(validate_dataloader)
+        
+        # 输出
+        print(f'epoch: {epoch}, train_loss: {train_loss}, validate_loss: {validate_loss}')
+
+# 4.开始训练
+model = CustomizedNet().to(device=device) # 加载到GPU
+optimizer = torch.optim.SGD(model.parameters(), lr=0.005)
+cifar2_train_dataloader = torch.utils.data.DataLoader(
+    cifar2_train, 
+    batch_size = 64,
+    shuffle = True
+)
+cifar2_validate_dataloader = torch.utils.data.DataLoader(
+    cifar2_validate,
+    batch_size = 2000,
+    shuffle = False
+)
+training_loop(
+    epochs = 100,
+    optimizer = optimizer,
+    model = model,
+    loss_function = torch.nn.CrossEntropyLoss(),
+    train_dataloader = cifar2_train_dataloader,
+    validate_dataloader = cifar2_validate_dataloader
+)
+
+# 5. 测试分类准确率
+def print_accuracy(name: str, model: torch.nn.Module, dataloader: torch.utils.data.DataLoader):
+    correct_counter = 0
+    total_counter = 0
+    with torch.no_grad():
+        for images, labels_truth in dataloader:
+            images = images.cuda()
+            labels_truth = labels_truth.cuda()
+            _, labels_predicted = model(images).max(dim=1)
+            total_counter += images.shape[0]
+            correct_counter += (labels_predicted == labels_truth).sum()
+    print(f"{name} Accuracy: {correct_counter}/{total_counter} = {correct_counter / total_counter}")
+
+print_accuracy("Train", model, cifar2_train_dataloader)
+print_accuracy("Validate", model, cifar2_validate_dataloader)
+```
+
+### §3.4.5 防止过拟合
+
+本节将介绍一些学术上用于抑制过拟合的措施，以及PyTorch的实现方法。
+
+#### §3.4.5.1 L2正则化/权重衰减
+
+为防止权重矩阵的部分元素过大，我们可以给损失函数增加一个由比例项控制的惩罚项：权重矩阵各参数平方之和。
+
+```python
+loss = loss_function(labels_predicted, labels_truth)
+loss += l2_lambda * sum(
+	[p.pow(2).sum() for p in model.parameters()]
+)
+```
+
+然而数学上已经证明了：这种方式完全等价于设置`weight_decay`参数，详见[`torch.optim.SGD`PyTorch官方文档](https://pytorch.org/docs/stable/generated/torch.optim.SGD.html#torch.optim.SGD)。
+
+```python
+# ......
+optimizer = torch.optim.SGD(model.parameters(), lr=0.002, weight_decay=0.1)
+# ......
+
+
+```
+
+在反向传播时，让每个权重值按照预先指定比例缩小。
+
+#### §3.4.5.2 Dropout
+
+Dropout于2014年由加拿大学着Geoff Hinton小组提出，其核心思想是将每轮第二代训练中的部分神经元随机清零。我们可以用`torch.nn.conv1_dropout`/`torch.nn.conv2_dropout`方便地实现：
+
+```python
+class NetDropout(torch.nn.Module):
+    def __init__(self, n_chans1=32):
+        super().__init__()
+        self.n_chans1 = n_chans1
+        self.conv1 = torch.nn.Conv2d(3, n_chans1, kernel_size=3, padding=1)
+        self.conv1_dropout = torch.nn.Dropout2d(p=0.4)
+        self.conv2 = torch.nn.Conv2d(n_chans1, n_chans1 // 2, kernel_size=3, padding=1)
+        self.conv2_dropout = torch.nn.Dropout2d(p=0.4)
+        self.fc1 = torch.nn.Linear(8 * 8 * n_chans1 // 2, 32)
+        self.fc2 = torch.nn.Linear(32, 2)
+        
+    def forward(self, x):
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv1(x)), 2)
+        out = self.conv1_dropout(out)
+        out = torch.nn.functional.max_pool2d(torch.tanh(self.conv2(out)), 2)
+        out = self.conv2_dropout(out)
+        out = out.view(-1, 8 * 8 * self.n_chans1 // 2)
+        out = torch.tanh(self.fc1(out))
+        out = self.fc2(out)
+        return out
+```
+
+#### §3.4.5.3 批量归一化
+
+2015年，谷歌的研究人员公布了一篇关于Batch Normalization的论文。它的核心思想是：让权重矩阵经过反向传播后，重新批量进行归一化，使得该层产生的输出进一步压缩，以免落入后续激活函数的饱和区。
+
+PyTorch为此提供了`torch.nn.BatchNorm1d`、`torch.nn.BatchNorm2d`、`torch.nn.BatchNorm3d`：
+
+```python
+class NetBatchNorm(torch.nn.Module):
+    def __init__(self, n_chans1=32):
+        super().__init__()
+        self.n_chans1 = n_chans1
+        self.conv1 = torch.nn.Conv2d(3, n_chans1, kernel_size=3, padding=1)
+        self.conv1_batchnorm = torch.nn.BatchNorm2d(num_features=n_chans1)
+        self.conv2 = torch.nn.Conv2d(n_chans1, n_chans1 // 2, kernel_size=3, 
+                               padding=1)
+        self.conv2_batchnorm = torch.nn.BatchNorm2d(num_features=n_chans1 // 2)
+        self.fc1 = torch.nn.Linear(8 * 8 * n_chans1 // 2, 32)
+        self.fc2 = torch.nn.Linear(32, 2)
+        
+    def forward(self, x):
+        out = self.conv1_batchnorm(self.conv1(x))
+        out = torch.nn.functional.max_pool2d(torch.tanh(out), 2)
+        out = self.conv2_batchnorm(self.conv2(out))
+        out = torch.nn.functional.max_pool2d(torch.tanh(out), 2)
+        out = out.view(-1, 8 * 8 * self.n_chans1 // 2)
+        out = torch.tanh(self.fc1(out))
+        out = self.fc2(out)
+        return out
+```
+
+### §3.4.6 创建深层网络
+
+对于层数非常深的神经网络而言，开始几层的参数传播到后面的影响会越来越小，导致反向传播时的梯度消失现象，使得开始几层的参数无法收敛。为了解决这一问题，Kaiming He等人于2015年提出了ResNet。其核心思想是不再让各层串联，而是偶尔设置几个跳跃连接，使得起始层的输出能直接叠加到到后面层，而不用经过中间几层。
+
+```python
+class CustomizedNet(torch.nn.Module):
+    # ......
+    def forward(self, x):
+        # ......
+        out = self.xxx(out)
+        out1 = out
+        out = self.xxx(out)
+        out = self.xxx(out)
+        out = self.xxx(out + out1) # 低层输出直接叠加到高层输入
+        # ......
+```
+
+现在我们已经学会手动搭建十几层的神经网络了。但是现在的网络动辄三十多层，如果手动在`__init__()`中创建三十几个`torch.nn.Module`变量，那么就会既麻烦又不容易维护。
+
+PyTorch对此的解决方案是：允许用户拼接自定义的层，构成一个新层。这个拼接过程可以使用程序批量实现。
+
+```python
+class 自定义网络的基本块(torch.nn.module):
+    # ......
+
+class 自定义网络(torch.nn.Module):
+    def __init__(self):
+        self.blocks = torch.nn.Sequential(
+        	*(重复次数 * [自定义网络的基本块])
+        )
+```
+
+## §3.5 实战肿瘤识别
+
+CT扫描的到的数据，本质上是X射线单通道的三维数组，就像是一组沿Z轴堆叠的灰度图像。我们知道，二维图像上的基本数据单元称为像素。同理，三维数组的基本数据单元称为体素。在CT扫描中，数值的大小反映了放射性密度的大小，它表示被测物体的质量密度与原子序数。
+
+本次我们使用的数据集源于LUNA 2016挑战赛，数据集可在官网或[Kaggle](https://www.kaggle.com/datasets/avc0706/luna16)下载。
+
+### §3.5.1 处理CT原始数据集
+
+LUNA 2016数据集包含两类文件：`.mhd`保存元数据，`.raw`保存三维数组原始数据。根据医学领域的DICOM命名法，CT扫描得到的每一个UID都形如正则表达式`uid(\d+.)*(\d+)`。例如UID`uid1.2.3`对应着数据集的`1.2.3.mhd`和`1.2.3.raw`文件。
+
+`candidate.csv`记录了所有疑似是结节的肿块信息。其中共有551000行数据，有1351个样本是真的结节：
+
+| 列名        | 数据类型            | 作用           |
+| ----------- | ------------------- | -------------- |
+| `seriesuid` | `/uid(\d+.)*(\d+)/` | UID            |
+| `coordX`    | `float`             | X轴坐标        |
+| `coordY`    | `float`             | Y轴坐标        |
+| `coordZ`    | `float`             | Z轴坐标        |
+| `class`     | `bool`              | 是否真的为结节 |
+
+`annotations.csv`记录了一些已经标记为实际结节的候选者信息。其中共有1187个样本：
+
+| 列名          | 数据类型            | 作用             |
+| ------------- | ------------------- | ---------------- |
+| `seriesuid`   | `/uid(\d+.)*(\d+)/` | UID              |
+| `coordX`      | `float`             | X轴坐标          |
+| `coordY`      | `float`             | Y轴坐标          |
+| `coordZ`      | `float`             | Z轴坐标          |
+| `diameter_mm` | `float`             | 结节的直径(毫米) |
+
+以上这两个数据集并不都是完美的：
+
+- `candidate.csv`中标记为真的结节（共有1351个），并没有全部在`annotations.csv`体现（共有1187个）。
+
+- `candidate.csv`和`annotations.csv`的X/Y/Z坐标并不完全重合。下面是一个具体的例子：
+
+  ```sh
+  $ cat candidates.csv | grep "1.3.6.1.4.1.14519.5.2.1.6279.6001.100225287222365663678666836860"
+  ......,-128.94,-175.04,-297.87,1
+  
+  $ cat annoations.csv | grep "1.3.6.1.4.1.14519.5.2.1.6279.6001.100225287222365663678666836860"
+  ......,-128.6994211,-175.3192718,-298.3875064,5.651470635
+  ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# §4 部署
+
+## §4.1 部署到网络
+
+本节我们将尝试将PyTorch训练的模型部署到Flask上，由Flask提供对外统一访问的网络接口。我们默认读者有一定的Flask基础。
+
+## §4.2 导出到ONNX
+
+ONNX是一种描述操作及其参数的标准格式，为神经网络和机器学习模型提供了一种通用的、互操作性的接口。ONNX文件可以在ONNX运行时中执行。现在很多专门为人工智能设计的加速器硬件都支持ONNX，一些云计算平台也支持用户上传ONNX文件。
+
+Python的第三方库`onnxruntime`/`onnxruntime-gpu`就是ONNX的运行时之一。`torch.onnx`子模块提供了模型的导出功能：
+
+```python
+model = #...
+torch.onnx.export(
+	model, # 模型实例
+    torch.ones(恰当的形状), # 虚拟输入。输入的值不重要，重要的是形状
+    './model.onnx' # 保存路径
+)
+```
+
+然后用`onnxruntime`/`onnxruntime-gpu`加载并运行模型：
+
+```python
+import onnxruntime
+
+sess = onnxruntime.InferenceSession('./model.onnx')
+predict_onnx = sess.run(
+	None,
+    {sess.get_inputs()[0].name: batch}
+)
 ```
 
 
@@ -1795,11 +2516,123 @@ training_loop(
 
 
 
+# §5 高性能训练
+
+## §5.1 `functools`缓存
+
+[Python官方库`functools`](https://docs.python.org/zh-cn/3/library/functools.html)提供了一些用于缓存的装饰器。
+
+### §5.1.1 无限制缓存(`@functools.cache()`)
+
+`@functools.cache()`用于给函数提供缓存，使其面对相同的传入实参时，不必再计算一次，而是直接从缓存拿出结果：
+
+```python
+@functools.cache
+```
+
+在学习算法的斐波那契数列时，我们了解过动态规划的概念。其涉及到的核心思想是给递归加上缓存，保存斐波纳挈数列各项的值，便于后面的计算由重复使用。
+
+```python
+import datetime, functools
+
+
+def fibonacci_original(n: int) -> int:
+    if n == 1 or n == 2:
+        return 1
+    return fibonacci_original(n - 1) + fibonacci_original(n - 2)
+start_time = datetime.datetime.now()
+fibonacci_original(30)
+end_time = datetime.datetime.now()
+print(f"fibonacci_original(30): {(end_time - start_time).microseconds}μs")
+
+
+def fibonacci_dp(n: int, cached_dict: dict[int, int] = {}) -> int:
+    if n == 1 or n == 2:
+        return 1
+    if n in cached_dict.keys():
+        return cached_dict[n]
+    result = fibonacci_dp(n - 1, cached_dict) + fibonacci_dp(n - 2, cached_dict)
+    cached_dict[n] = result
+    return result
+start_time = datetime.datetime.now()
+fibonacci_dp(30)
+end_time = datetime.datetime.now()
+print(f"fibonacci_dp(30): {(end_time - start_time).microseconds}μs")
+```
+
+现在，我们可以使用Python官方库`functools`中的`@functional.cache()`装饰器，来保存以往计算过的所有函数值。当传入实参重复的时候，就直接返回缓存值：
+
+```python
+import datetime, functools
+
+
+@functools.cache
+def fibonacci_cached(n: int) -> int:
+    if n == 1 or n == 2:
+        return 1
+    return fibonacci_cached(n - 1) + fibonacci_cached(n - 2)
+
+start_time = datetime.datetime.now()
+fibonacci_cached(30)
+end_time = datetime.datetime.now()
+print(f"fibonacci_cached(30): {(end_time - start_time).microseconds}μs")
+```
+
+### §5.1.2 实例方法缓存(`@functools.cached_property`)
+
+在[§5.1.1 无限制缓存(`@functools.cache()`)](###§5.1.1 无限制缓存(`@functools.cache()`))一节中，我们学会了如何给普通函数添加缓存。其实`funtools`的`@functools.cached_property`也支持修饰类的实例方法，将其从实质上变为一个固定值的属性。
+
+```python
+class Dataset:
+    def __init__(self):
+        # ......
+        
+    @functools.cached_property    
+    def mean(self):
+        return torch.mean(...)
+```
+
+### §5.1.3 LRU缓存(`@functools.lru_cache()`)
+
+在《计算机组成原理》中，我们学过Cache的置换策略，其中一种就是LRU（Least Recently Used，最近最少使用）算法。如果缓存空间是有限的，我们就需要考虑缓存的换出规则了。Python提供了LRU的换出规则。
+
+```python
+@functools.lru_cache(
+    maxsize = 128: int | None,
+    typed = False: bool
+)
+```
+
+其中各参数含义如下：
+
+- `maxsize`：LRU缓存空间。设置为`None`时表示无限空间，等价于`@functools.cache`
+- `typed`：是否为不同数据类型的返回值使用单独的LRU缓存空间。
+
+## §5.2 `diskcache`缓存
+
+[`diskcache-python`](https://github.com/grantjenks/python-diskcache)是Python的一款第三方硬盘缓存库，其实现依赖于SQLite数据库。
+
+### §5.2.1 `diskcache.Cache`
 
 
 
 
-# §4 实战肿瘤识别
+
+### §5.2.2 `diskcache.FanoutCache`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2420,9 +3253,101 @@ $$
 
 `dim`和`keepdim`参数的作用与[§A.4.2 方差(`var()`)](###§A.4.2 方差(`var()`))类似，这里不再赘述。
 
+### §A.4.4 元素数量(`numel()`)
+
+`torch.numel()`和`torch.Tensor(...).numel()`用于统计某个张量包含的元素个数：
+
+```python
+torch.numel(
+	input: torch.Tensor
+) -> int
+
+torch.Tensor(...).numel() -> int
+```
+
+张量的元素个数等价于其形状`torch.Size`中的各个元素相乘：
+
+```python
+>>> a = torch.ones(1,2,3,4,5)
+
+>>> a.numel()
+120 # 1×2×3×4×5
+
+>>> import operator, functools
+>>> functools.reduce(operator.mul, a.shape, 1)
+120 # a.shape中的每个元素相乘
+```
+
 ## §A.5 比较操作
 
 比较操作指的是在张量上计算数字谓词的函数。例如`equal()`和`max()`。
+
+### §A.5.1 最大值(`max()`)
+
+`torch.max()`和`torch.Tensor(...).max()`用于返回张量沿某个维度的最大值，以及最大值对应的索引
+
+```python
+torch.max(
+	input: torch.Tensor,
+    dim: Optional[int],
+    keepdim: Optional[bool] = False
+) -> torch.return_types.max[torch.Tensor, torch.Tensor]
+
+torch.Tensor(...).max(
+    dim: Optional[int],
+    keepdim: Optional[bool] = False
+) -> torch.return_types.max[torch.Tensor, torch.Tensor]
+```
+
+以下是一个使用示例：
+
+```python
+>>> a = torch.arange(24)[torch.randperm(24)].reshape(2, 3, 4)
+# tensor([[[13, 11,  9, 15],
+#          [23,  0, 12, 19],
+#          [22, 21, 17,  7]],
+#         [[ 3,  4,  5, 14],
+#          [ 2, 18, 16,  6],
+#          [10, 20,  1,  8]]])
+
+>>> a.max(dim=0) # 遍历任意j,k，在i∈{0,1}的两个数内比较最大值
+# torch.return_types.max(
+#     values=tensor(
+#         [[13, 11,  9, 15],
+#          [23, 18, 16, 19],
+#          [22, 21, 17,  8]]
+#     ),
+#     indices=tensor(
+#         [[0, 0, 0, 0],
+#          [0, 1, 1, 0],
+#          [0, 0, 0, 1]]
+#     )
+# )
+
+>>> a.max(dim=1) # 遍历任意i,k，在j∈{0,1,2}的三个数内比较最大值
+# torch.return_types.max(
+#     values=tensor(
+#         [[23, 21, 17, 19],
+#          [10, 20, 16, 14]]
+#     ),
+#     indices=tensor(
+#         [[1, 2, 2, 1],
+#          [2, 2, 1, 0]]
+#     )
+# )
+
+>>> a.max(dim=2) # 遍历任意i,j，在k∈{0,1,2,3}的四个数内比较最大值
+# torch.return_types.max(
+#     values=tensor(
+#         [[15, 23, 22],
+#          [14, 18, 20]]
+#     ),
+#     indices=tensor(
+#         [[3, 0, 0],
+#          [3, 1, 1]]
+#     )
+# )
+```
 
 ## §A.6 频谱操作
 
@@ -2535,11 +3460,35 @@ tensor([[[0.0321, 0.0871, 0.2369, 0.6439],
          [0.0321, 0.0871, 0.2369, 0.6439]]])
 ```
 
-
-
 ## §A.9 序列化操作
 
 序列化操作指的是保存和加载张量的函数。例如`load()`和`save()`。
+
+### §A.9.1 保存(`save()`)
+
+`torch.save()`用于保存模型。`obj: object`代表它能保存很多种对象，例如`model.state_dict() -> OrderedList`和`torch.Tensor`。
+
+```python
+torch.save(
+    obj: object,
+    f: FILE_LIKE,
+    pickle_module: Any = pickle,
+    pickle_protocol: int = DEFAULT_PROTOCOL,
+    _use_new_zipfile_serialization: bool = True,
+    _disable_byteorder_record: bool = False
+) -> None:
+```
+
+### §A.9.2 加载(`load()`)
+
+`torch.load()`用于保存模型。
+
+```python
+model = CustomizedNet()
+model.load_state_dict(
+    torch.load('../data-unversioned/p1ch6/bird_airplane_classification.pt')
+)
+```
 
 ## §A.10 并行化操作
 
