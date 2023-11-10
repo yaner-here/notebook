@@ -2614,15 +2614,70 @@ class Dataset:
 
 ### §5.2.1 `diskcache.Cache`
 
+`diskcache.Cache`类提供了最基础的磁盘缓存。
 
+```python
+import diskcache
+import random
 
+# 指定Cache(SQLite数据库)的存放文件夹路径
+cache = diskcache.Cache('./cache')
 
+# 写入缓存
+for i in range(100):
+    cache[i] = random.random()
+    
+# 读取缓存
+print(cache[50])
+
+# 关闭缓存
+cache.close()
+
+# 开启缓存(速度慢)并读取缓存
+print(cache[50])
+
+# 删除缓存
+del cache[50]
+```
+
+其实现的`memoize()`方法被广泛用于修饰器：
+
+```python
+import diskcache
+import datetime
+
+cache = diskcache.Cache('./cache')
+
+@cache.memoize()
+def fibonacci(n: int):
+    if n == 1 or n == 2:
+        return 1
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+start_time = datetime.datetime.now()
+print(fibonacci(100))
+end_time = datetime.datetime.now()
+print((start_time - end_time).microseconds) # 969049
+
+start_time = datetime.datetime.now()
+print(fibonacci(100))
+end_time = datetime.datetime.now()
+print((start_time - end_time).microseconds) # 0
+```
 
 ### §5.2.2 `diskcache.FanoutCache`
 
+在[§5.2.1 `diskcache.Cache`](###§5.2.1 `diskcache.Cache`)的基础上，我们提出了缓存分页`diskcache.FanoutCache`的概念，从而防止单文件过大，影响多线程并发读写。
 
-
-
+```python
+diskcache.FanoutCache.__init__(
+	directory = None,
+    shards: int = 8
+    timeout: float = 0.010
+    disk: class = diskcache.core.Disk.__class__
+    **settings
+)
+```
 
 
 
