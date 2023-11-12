@@ -319,29 +319,339 @@ li + li { margin-right: 1rem; }
 </html>
 ```
 
+负外边距有以下用途：
 
+- 对齐文本与图片
 
+  在默认情况下，图片和文本的中心线不一定是同一条水平线。例如当图片大于文字时，我们可以给图片设置负底边距：
 
+  ```python
+  <html>
+      <head>
+          <style>
+              *:not(body) {
+                  border: 1px solid black;
+                  margin: 0;
+                  padding: 0;
+              }
+              body > div {
+                  background-color: lightblue;
+              }
+              body > div:nth-of-type(2) > img {
+                  margin: 0 0px -10px 0;
+              }
+          </style>
+      </head>
+      <body>
+          <div>
+              <img src="https://www.google.com/favicon.ico">
+              <a>Hello, World!</a>
+          </div>
+          <br>
+          <div>
+              <img src="https://www.google.com/favicon.ico">
+              <a>Hello, World!</a>
+          </div>
+      </body>
+  </html>
+  ```
 
+  这种方式的缺点在于减少了“碰撞箱体积”，从而容易与周围元素发生重叠。为解决这一问题，我们可以使用`vertical-align: text-bottom`。
 
+- 双栏自适应布局
 
+  下面的代码定义了一个双栏布局的页面，左侧为主体部分，宽度自适应；右侧为侧边栏部分，宽度固定。
 
+  ```html
+  <html>
+      <head>
+          <style>
+              .main, .sidebar {
+                  float: left;
+                  background: linear-gradient(90deg, rgb(17, 156, 255), rgb(30, 200, 255));
+                  border: 1px solid black;
+                  box-sizing: border-box; /* 将边框宽度考虑在内,防止float被挤到下一行 */
+              }
+              .main {
+                  width: 100%; 
+                  margin-right: -200px;
+              }
+              .sidebar {
+                  width: 200px; 
+              }
+              .main p {
+                  margin-right: calc(200px + 10px); /* 允许主体部分内容区动态调整宽度,防止内容区被遮盖,还可以设置10px间距 */
+              }
+          </style>
+      </head>
+      <body>
+          <div class="main"><p>这是主体部分，自适应宽度</p></div> 
+          <div class="sidebar"><p>这是侧边栏部分，固定宽度</p></div>	
+      </body>
+  </html>
+  
+  ```
 
+  让我们来分析这段代码的原理：首先，既然主体和侧边栏都是浮动布局，且主体部分的宽度为100%，说明主题部分的宽度就是整个`<body>`内容区的宽度，会把侧边栏挤到下一行。然后，主体部分通过`margin-right: -200px`缩小了右侧的“碰撞箱体积”，于是这`200px`的空间恰好能被侧边栏填满，于是侧边栏合并到了同一行。最后，主体部分中的`<p>`向右有着`210px`的外边距，因此可以保证主体部分的内容区不会被侧边栏覆盖。
 
+  这种技巧在WordPress中被广泛使用。
 
+- 元素垂直居中
 
+  ```html
+  <html>
+      <head>
+          <style>
+              .wrapper {
+                  position: relative;
+                  width: 200px;
+                  height: 160px;
+                  border: 1px solid black;
+              }
+              .wrapper > .item {
+                  position: absolute;
+                  top: 50%; /* 移动子项左上角 */
+                  left: 50%; /* 移动子项左上角 */
+                  width: 100px;
+                  height: 60px;
+                  margin-top: calc(-60px / 2); /* 微调,让中心点位于左上角的位置 */
+                  margin-left: calc(-100px / 2); /* 微调,让中心点位于左上角的位置 */
+                  background-color: lightblue;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="wrapper">
+              <div class="item"></div>
+          </div>
+      </body>
+  </html>
+  ```
 
+### §19.2.4 清除浮动
 
+我们知道，设置了`float`CSS属性的浮动元素是脱离文档流的。这会导致父元素在计算自身尺寸时会忽略浮动元素的尺寸，这一现象称为“高度坍塌”。开发者可以给父元素设置`overflow: hidden`来清除浮动：
 
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                width: 500px;
+                border: 3px solid red;
+                padding: 0.2rem;
+            }
+            .item {
+                width: 200px;
+                height: 100px;
+                border: 1px solid black;
+                float: left;
+            }
+            .item:nth-of-type(1) { float: left; }
+            .item:nth-of-type(2) { float: right; }
 
+            .container:nth-of-type(2) { overflow: hidden; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="item"></div>
+            <div class="item"></div>
+        </div>
+        <div class="container">
+            <div class="item"></div>
+            <div class="item"></div>
+        </div>
+    </body>
+</html>
+```
 
+## §19.3 `display`属性
 
+`display`属性常有以下取值：
 
+| `display`属性值 | 含义           | 尺寸支持 | 外边距支持                                                   | 举例               |
+| --------------- | -------------- | -------- | ------------------------------------------------------------ | ------------------ |
+| `block`         | 块级元素       | 全支持   | 全支持                                                       | `<div>`            |
+| `inline`        | 行内元素       | 不支持   | 只支持`margin-left`/`margin-right`，不支持`margin-top`/`margin-bottom` | `<em>`             |
+| `inline-block`  | 行内块级元素   | 全支持   | 全支持                                                       | `<img>`、`<input>` |
+| `none`          | 隐藏           |          |                                                              |                    |
+| `table-cell`    | 表格单元格元素 |          |                                                              | `<td>`             |
 
+### §19.3.1 表格单元格元素
 
+`display: table-cell`可以让元素以表格单元格的形式显示，具备`<td>`元素的所有特点。其用途有以下三点：
 
+- 图片垂直居中
 
+  ```html
+  <html>
+      <head>
+          <style>
+              body { background-color: lightblue; }
+              .container {
+                  /* display和vertical-align配合使用,实现图片居中 */
+                  display: table-cell;
+                  vertical-align: middle; 
+                  
+                  width: 200px;
+                  height: 150px;
+                  border: 1px solid black;
+                  text-align: center; /* 图片水平居中 */
+              }
+              .container > img {
+                  height: 20%;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="container"><img src="https://www.baidu.com/img/flexible/logo/pc/result.png" alt=""></div>
+          <div class="container"><img src="https://www.baidu.com/img/flexible/logo/pc/result@2.png" alt=""></div>
+          <div class="container"><img src="https://www.baidu.com/img/flexible/logo/pc/peak-result.png" alt=""></div>
+      </body>
+  </html>
+  ```
 
+- 等高布局
+
+  我们知道，同一行的单元格元素`<td>`的高度相等。同理，`display: table-cell`的元素天生就有等高布局的作用。这种方式的优势在于：我们不用手动指定两列的高度相等。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              body { background-color: lightblue; }
+              .container {
+                  display: table-cell;
+                  
+                  width: 200px;
+                  height: 150px;
+                  border: 1px solid black;
+                  text-align: center;
+              }
+              .container > img {
+                  height: 20%;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="container"><img src="https://www.baidu.com/img/flexible/logo/pc/result.png" alt=""></div>
+          <div class="container"></div>
+          <script>
+              document.querySelectorAll('.container:nth-of-type(2)').forEach((element)=>{
+                  element.innerHTML = "这是一段多行文本<br>".repeat(15)
+              })
+          </script>
+      </body>
+  </html>
+  ```
+
+- 自动平均划分元素
+
+  回想一行中的多个单元格挤在同一行的情景，不难发现这些单元格能自动调整宽度，最终占满一行。其行为类似于`display: flex`，会按照原先宽度作为占据宽度时所用的权重。是`display: flex`作用的元素是父元素，而`display: table-cell`作用的元素是子元素。
+
+  ```html
+  <html>
+      <head>
+          <style>
+              .container {
+                  width: 400px;
+                  background-color: lightblue;
+              }
+              .container > * {
+                  display: table-cell;
+                  width: 100px;
+                  border: 1px solid black;
+              }
+              .container > *:nth-child(1) { width: 100px; }
+              .container > *:nth-child(2) { width: 200px; }
+              .container > *:nth-child(3) { width: 300px; }
+          </style>
+      </head>
+      <body>
+          <div class="container">
+              <div>123</div>
+              <div>123</div>
+              <div>123</div>
+          </div>
+      </body>
+  </html>
+  ```
+
+### §19.3.2 行内块级元素间距
+
+`display: inline-block`是自带“外间距”的。这个“外间距”即使在审查元素上也看不到。要消除这一间距，我们一方面可以给父元素设置`font-size: 0`，然后给子元素单独设置正常的`font-size`；另一方面可以让源代码中的子元素在同一行。
+
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                width: 400px;
+                background-color: lightblue;
+            }
+            .container > * {
+                display: inline-block;
+                width: 100px;
+                border: 1px solid black;
+                font-size: 20px;
+            }
+            .container:nth-of-type(3) { font-size: 0; }
+        </style>
+    </head>
+    <body>
+        <p>display: inline-block</p>
+        <div class="container">
+            <div>123</div>
+            <div>123</div>
+            <div>123</div>
+        </div>
+        <p>display: inline-block, But elements' source codes are in a single line.</p>
+        <div class="container">
+            <div>123</div><div>123</div><div>123</div>
+        </div>
+        <p>display: inline-block, But the superelement's font-size is set to 0.</p>
+        <div class="container">
+            <div>123</div>
+            <div>123</div>
+            <div>123</div>
+        </div>
+    </body>
+</html>
+```
+
+## §19.4 文本效果
+
+### §19.4.1 `text-indent`负值
+
+我们已经知道`text-indent`常用于定义段落的首行多节。例如`text-indent: 2em`能让段落实现首行缩进。其实`text-indent`也能取复制。
+
+考虑下列情景：现要求对网站进行SEO优化。已知SEO特别关注`<h1>`标签，一种常见的思路是将LOGO也放入到`<h1>`标签中。然而搜索引擎只能识别文字，无法识别其中的图片。为解决这一问题，一种思路是让`<h1>`的宽度等于图片的宽度，然后定义`<h1>`的背景图片`background-image`恰为该LOGO图片，最后使用`text-indent: -9999px`来隐藏`<h1>`的文本内容。
+
+```html
+<html>
+    <head>
+        <style>
+            h1 {
+                background-image: url(https://www.baidu.com/favicon.ico);
+                background-repeat: no-repeat;
+                text-indent: -9999px;
+
+                border: 1px solid black;
+                width: 64px;
+                height: 64px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>百度一下，你就知道</h1>
+    </body>
+</html>
+```
+
+对于搜索引擎而言，`display: none`的元素会被视为垃圾信息而忽略掉，从而丢失`<h1>`的权重。因此在本例中不推荐使用`display: none`。
+
+## §19.4.2 `line-height`
 
 
 
