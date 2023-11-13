@@ -657,3 +657,269 @@ li + li { margin-right: 1rem; }
 
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="915px" height="386px" viewBox="-0.5 -0.5 915 386" content="&lt;mxfile host=&quot;app.diagrams.net&quot; modified=&quot;2023-11-12T17:41:47.848Z&quot; agent=&quot;Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36&quot; etag=&quot;hdgW06tmyefBB6nMuF7n&quot; version=&quot;22.1.0&quot; type=&quot;device&quot;&gt;&#10;  &lt;diagram name=&quot;第 1 页&quot; id=&quot;1swZFBiTSMPvMh5uhhbn&quot;&gt;&#10;    &lt;mxGraphModel dx=&quot;1436&quot; dy=&quot;788&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;500&quot; pageHeight=&quot;200&quot; math=&quot;0&quot; shadow=&quot;0&quot;&gt;&#10;      &lt;root&gt;&#10;        &lt;mxCell id=&quot;0&quot; /&gt;&#10;        &lt;mxCell id=&quot;1&quot; parent=&quot;0&quot; /&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-2&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;15&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;15&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-3&quot; value=&quot;&amp;lt;font style=&amp;quot;font-size: 60px;&amp;quot; face=&amp;quot;Comic Sans MS&amp;quot;&amp;gt;Hello, my Friend!&amp;lt;/font&amp;gt;&quot; style=&quot;text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;275&quot; y=&quot;5&quot; width=&quot;490&quot; height=&quot;90&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-5&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;45&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;45&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-6&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;75&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;75&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-7&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;105&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;105&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-8&quot; value=&quot;顶线(top)&quot; style=&quot;text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;135&quot; width=&quot;70&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-9&quot; value=&quot;中线(middle)&quot; style=&quot;text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;135&quot; y=&quot;30&quot; width=&quot;90&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-10&quot; value=&quot;基线(baseline)&quot; style=&quot;text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;135&quot; y=&quot;60&quot; width=&quot;100&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-11&quot; value=&quot;底线(bottom)&quot; style=&quot;text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;135&quot; y=&quot;90&quot; width=&quot;90&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-13&quot; value=&quot;字符中心线&quot; style=&quot;text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;825&quot; y=&quot;45&quot; width=&quot;80&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-38&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;225&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;225&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-39&quot; value=&quot;&amp;lt;font style=&amp;quot;font-size: 60px;&amp;quot; face=&amp;quot;Comic Sans MS&amp;quot;&amp;gt;Hello, my Friend!&amp;lt;/font&amp;gt;&quot; style=&quot;text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;275&quot; y=&quot;215&quot; width=&quot;490&quot; height=&quot;90&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-40&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;255&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;255&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-41&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;285&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;285&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-42&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;315&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;315&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-43&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;225&quot; y=&quot;270&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;270&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-44&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;270&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;225&quot; y=&quot;270&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-45&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;215&quot; y=&quot;165&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;805&quot; y=&quot;165&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-47&quot; value=&quot;&amp;lt;font style=&amp;quot;font-size: 12px;&amp;quot;&amp;gt;半行距分割线&amp;lt;/font&amp;gt;&quot; style=&quot;edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];&quot; vertex=&quot;1&quot; connectable=&quot;0&quot; parent=&quot;3-VXkYujrOfkpzglf_jQ-45&quot;&gt;&#10;          &lt;mxGeometry x=&quot;-0.034&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;20&quot; as=&quot;offset&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-48&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;&quot; edge=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;212&quot; y=&quot;375&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;802&quot; y=&quot;375&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-49&quot; value=&quot;&amp;lt;font style=&amp;quot;font-size: 12px;&amp;quot;&amp;gt;半行距分割线&amp;lt;/font&amp;gt;&quot; style=&quot;edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];&quot; vertex=&quot;1&quot; connectable=&quot;0&quot; parent=&quot;3-VXkYujrOfkpzglf_jQ-48&quot;&gt;&#10;          &lt;mxGeometry x=&quot;-0.034&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;20&quot; as=&quot;offset&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-50&quot; value=&quot;&quot; style=&quot;strokeWidth=1;html=1;shape=mxgraph.flowchart.annotation_2;align=left;labelPosition=right;pointerEvents=1;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;95&quot; y=&quot;165&quot; width=&quot;20&quot; height=&quot;220&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-51&quot; value=&quot;&quot; style=&quot;strokeWidth=1;html=1;shape=mxgraph.flowchart.annotation_2;align=left;labelPosition=right;pointerEvents=1;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;175&quot; y=&quot;165&quot; width=&quot;20&quot; height=&quot;59&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-52&quot; value=&quot;&quot; style=&quot;strokeWidth=1;html=1;shape=mxgraph.flowchart.annotation_2;align=left;labelPosition=right;pointerEvents=1;spacingTop=0;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;175&quot; y=&quot;227&quot; width=&quot;20&quot; height=&quot;89&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-54&quot; value=&quot;内容区&quot; style=&quot;text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;125&quot; y=&quot;256.5&quot; width=&quot;60&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-55&quot; value=&quot;半行距&quot; style=&quot;text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;125&quot; y=&quot;179.5&quot; width=&quot;60&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-56&quot; value=&quot;行框&quot; style=&quot;text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;50&quot; y=&quot;260&quot; width=&quot;50&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-57&quot; value=&quot;&quot; style=&quot;strokeWidth=1;html=1;shape=mxgraph.flowchart.annotation_2;align=left;labelPosition=right;pointerEvents=1;spacingTop=0;rotation=-180;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;835&quot; y=&quot;105&quot; width=&quot;20&quot; height=&quot;120&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-58&quot; value=&quot;&quot; style=&quot;endArrow=none;html=1;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;exitX=0.811;exitY=-0.035;exitDx=0;exitDy=0;exitPerimeter=0;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;3-VXkYujrOfkpzglf_jQ-10&quot;&gt;&#10;          &lt;mxGeometry width=&quot;50&quot; height=&quot;50&quot; relative=&quot;1&quot; as=&quot;geometry&quot;&gt;&#10;            &lt;mxPoint x=&quot;225&quot; y=&quot;60&quot; as=&quot;sourcePoint&quot; /&gt;&#10;            &lt;mxPoint x=&quot;815&quot; y=&quot;60&quot; as=&quot;targetPoint&quot; /&gt;&#10;          &lt;/mxGeometry&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-59&quot; value=&quot;&quot; style=&quot;strokeWidth=1;html=1;shape=mxgraph.flowchart.annotation_2;align=left;labelPosition=right;pointerEvents=1;spacingTop=0;rotation=-180;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;905&quot; y=&quot;106&quot; width=&quot;20&quot; height=&quot;210&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-60&quot; value=&quot;行距&quot; style=&quot;text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;850&quot; y=&quot;149.5&quot; width=&quot;50&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;        &lt;mxCell id=&quot;3-VXkYujrOfkpzglf_jQ-61&quot; value=&quot;行高&quot; style=&quot;text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&#10;          &lt;mxGeometry x=&quot;915&quot; y=&quot;196&quot; width=&quot;50&quot; height=&quot;30&quot; as=&quot;geometry&quot; /&gt;&#10;        &lt;/mxCell&gt;&#10;      &lt;/root&gt;&#10;    &lt;/mxGraphModel&gt;&#10;  &lt;/diagram&gt;&#10;&lt;/mxfile&gt;&#10;"><defs/><g><path d="M 165 15 L 765 15" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><rect x="225" y="5" width="490" height="90" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 50px; margin-left: 470px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;"><font face="Comic Sans MS" style="font-size: 60px;">Hello, my Friend!</font></div></div></div></foreignObject><text x="470" y="54" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">Hello, my Friend!</text></switch></g><path d="M 165 45 L 765 45" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><path d="M 165 75 L 765 75" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><path d="M 165 105 L 765 105" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><rect x="85" y="0" width="70" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 1px; height: 1px; padding-top: 15px; margin-left: 87px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: left;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">顶线(top)</div></div></div></foreignObject><text x="87" y="19" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px">顶线(top)</text></switch></g><rect x="85" y="30" width="90" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 1px; height: 1px; padding-top: 45px; margin-left: 87px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: left;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">中线(middle)</div></div></div></foreignObject><text x="87" y="49" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px">中线(middle)</text></switch></g><rect x="85" y="60" width="100" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 1px; height: 1px; padding-top: 75px; margin-left: 87px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: left;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">基线(baseline)</div></div></div></foreignObject><text x="87" y="79" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px">基线(baseline)</text></switch></g><rect x="85" y="90" width="90" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 1px; height: 1px; padding-top: 105px; margin-left: 87px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: left;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">底线(bottom)</div></div></div></foreignObject><text x="87" y="109" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px">底线(bottom)</text></switch></g><rect x="775" y="45" width="80" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe flex-start; width: 1px; height: 1px; padding-top: 60px; margin-left: 777px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: left;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">字符中心线</div></div></div></foreignObject><text x="777" y="64" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px">字符中心线</text></switch></g><path d="M 165 225 L 765 225" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><rect x="225" y="215" width="490" height="90" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 260px; margin-left: 470px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;"><font face="Comic Sans MS" style="font-size: 60px;">Hello, my Friend!</font></div></div></div></foreignObject><text x="470" y="264" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">Hello, my Friend!</text></switch></g><path d="M 165 255 L 765 255" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><path d="M 165 285 L 765 285" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><path d="M 165 315 L 765 315" fill="none" stroke="#666666" stroke-miterlimit="10" pointer-events="stroke"/><path d="M 175 270 L 765 270" fill="none" stroke="#666666" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/><path d="M 165 270 L 175 270" fill="none" stroke="#666666" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/><path d="M 165 165 L 755 165" fill="none" stroke="#666666" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 166px; margin-left: 470px;"><div data-drawio-colors="color: rgb(0, 0, 0); background-color: rgb(255, 255, 255); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; background-color: rgb(255, 255, 255); white-space: nowrap;"><font style="font-size: 12px;">半行距分割线</font></div></div></div></foreignObject><text x="470" y="169" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">半行距分割线</text></switch></g><path d="M 162 375 L 752 375" fill="none" stroke="#666666" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 376px; margin-left: 467px;"><div data-drawio-colors="color: rgb(0, 0, 0); background-color: rgb(255, 255, 255); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; background-color: rgb(255, 255, 255); white-space: nowrap;"><font style="font-size: 12px;">半行距分割线</font></div></div></div></foreignObject><text x="467" y="379" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">半行距分割线</text></switch></g><rect x="45" y="165" width="20" height="220" fill="none" stroke="none" pointer-events="all"/><path d="M 65 165 L 55 165 L 55 385 L 65 385" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/><path d="M 45 275 L 55 275" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/><rect x="125" y="165" width="20" height="59" fill="none" stroke="none" pointer-events="all"/><path d="M 145 165 L 135 165 L 135 224 L 145 224" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/><path d="M 125 194.5 L 135 194.5" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/><rect x="125" y="227" width="20" height="89" fill="none" stroke="none" pointer-events="all"/><path d="M 145 227 L 135 227 L 135 316 L 145 316" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/><path d="M 125 271.5 L 135 271.5" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/><rect x="75" y="256.5" width="60" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 272px; margin-left: 105px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">内容区</div></div></div></foreignObject><text x="105" y="275" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">内容区</text></switch></g><rect x="75" y="179.5" width="60" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 195px; margin-left: 105px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">半行距</div></div></div></foreignObject><text x="105" y="198" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">半行距</text></switch></g><rect x="0" y="260" width="50" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 275px; margin-left: 25px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">行框</div></div></div></foreignObject><text x="25" y="279" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">行框</text></switch></g><rect x="785" y="105" width="20" height="120" fill="none" stroke="none" transform="rotate(-180,795,165)" pointer-events="all"/><path d="M 805 105 L 795 105 L 795 225 L 805 225" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" transform="rotate(-180,795,165)" pointer-events="all"/><path d="M 785 165 L 795 165" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" transform="rotate(-180,795,165)" pointer-events="all"/><path d="M 166.1 58.95 L 765 60" fill="none" stroke="#666666" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/><rect x="855" y="106" width="20" height="210" fill="none" stroke="none" transform="rotate(-180,865,211)" pointer-events="all"/><path d="M 875 106 L 865 106 L 865 316 L 875 316" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" transform="rotate(-180,865,211)" pointer-events="all"/><path d="M 855 211 L 865 211" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" transform="rotate(-180,865,211)" pointer-events="all"/><rect x="800" y="149.5" width="50" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 165px; margin-left: 825px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">行距</div></div></div></foreignObject><text x="825" y="168" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">行距</text></switch></g><rect x="865" y="196" width="50" height="30" fill="none" stroke="none" pointer-events="all"/><g transform="translate(-0.5 -0.5)"><switch><foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 211px; margin-left: 890px;"><div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: nowrap;">行高</div></div></div></foreignObject><text x="890" y="215" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">行高</text></switch></g></g><switch><g requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility"/><a transform="translate(0,-5)" xlink:href="https://www.drawio.com/doc/faq/svg-export-text-problems" target="_blank"><text text-anchor="middle" font-size="10px" x="50%" y="100%">Text is not SVG - cannot display</text></a></switch></svg>
 
+实际开发中，我们常把`height`和`line-height`设为相同的值，同而实现文字的垂直居中。这种做法的原理是：由于`line-height`与`height`相同，所以容器内只能有一行。而我们知道字符中心线就是一行文本内垂直居中的地方。
+
+当`line-height`的单位为`em`或`%`时，`1em`和`100%`表示一倍的`font-size`。当`line-height`为无单位常数时，表示`font-size`的倍数。
+
+### §19.4.3 深入`vertical-align`
+
+`vertical-align`属性作用于容器元素（且为行内元素、行内块级元素、表格单元格元素），用于定义子元素的垂直对齐方式。
+
+在上图中，我们介绍了顶线、中线、基线、底线。恰好`vertical-align`的取值范围中提供了对应的四种关键词，用于实现垂直对齐：
+
+| `vertical-align`属性值 | 作用       |
+| ---------------------- | ---------- |
+| `top`                  | 沿顶线对齐 |
+| `middle`               | 沿中线对齐 |
+| `baseline`             | 沿基线对齐 |
+| `bottom`               | 沿底线对齐 |
+
+当`vertical-align`取负值时，表示沿原本的基线向上偏移对齐。
+
+## §19.5 表单
+
+### §19.5.1 单选框/复线框文本对齐
+
+受制于`vertical-align: baseline`的影响，单选框/多选框的按钮与文本并不对齐。我们可以为不同`font-size`的文本手动调整`vertical-align`的数值，从而实现文字居中对齐。
+
+```html
+<html>
+    <head>
+        <style>
+            label {
+                font-size: 40px;
+            }
+            input:nth-of-type(2) {
+                vertical-align: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <form action="post">
+            <input type="radio" id="male" value="male" name="gender"><label for="male">Male</label>
+            <input type="radio" id="female" value="female" name="gender"><label for="female">Female</label>
+        </form>
+    </body>
+</html>
+```
+
+### §19.5.2 禁止拖动`<textarea>`
+
+`<textarea>`的右下角有一个小三角，用户可以拖动这个小三角，以改变`<textarea>`的尺寸。我们常用以下两种方法禁止拖动`<textarea>`：
+
+```html
+<html>
+    <head>
+        <style>
+            textarea:nth-of-type(1) {
+                min-width: 200px;
+                max-width: 200px;
+                min-height: 100px;
+                max-height: 100px;
+            }
+            textarea:nth-of-type(2) {
+                resize: none;
+            }
+        </style>
+    </head>
+    <body>
+        <textarea cols="30" rows="10"></textarea>
+        <textarea cols="30" rows="10"></textarea>
+    </body>
+</html>
+```
+
+### §19.5.3 表单对齐
+
+设想一个登录表单：用户需要输入用户名、密码和验证码。其中验证码的输入框右边需要有一个发送验证码的按钮。你可能会手动给其中的元素指定左右两侧外间距，但是这种方法难以维护。现在常用的方法是：将表单分为左侧一栏和右侧多栏，右侧多栏的长度之和相等。左栏由一堆`<label>`组成且右对齐，右栏由输入框和按钮组成。所有栏都是向左浮动。
+
+```html
+<!DOCTYPE html> <!-- 一定要带,确保使用标准模式,而不是怪异模式 -->
+<html>
+    <head>
+        <style>
+            form {
+                width: 320px;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid black;
+            }
+            form > p { overflow: hidden; } /* 清除浮动 */
+            form label {
+                float: left;
+                width: 60px;
+                height: 40px;
+                line-height: 40px;
+                text-align: right;
+                margin-right: 10px;
+            }
+            form input:not(#submit){
+                float: left;
+                height: 16px;
+                padding: 10px;
+            }
+            form #username, form #password { width: 210px; }
+            form #verifyCode { width: 118px; margin-right: 10px; }
+            form #submit { width: 82px; height: 40px; }
+        </style>
+    </head>
+    <body>
+        <form action="post">
+            <p>
+                <label for="username">用户名</label>
+                <input type="text" id="username">
+            </p>
+            <p>
+                <label for="password">密码</label>
+                <input type="text" id="password">
+            </p>
+            <p>
+                <label for="verifyCode">验证码</label>
+                <input type="text" id="verifyCode">
+                <input type="submit" id="submit">
+            </p>
+        </form>
+    </body>
+</html>
+```
+
+## §19.6 浮动布局
+
+要让文档脱离文档流有两种方法，一种是设置`display: float`，另一种是设置`display: absolute`：
+
+```python
+<html>
+    <head>
+        <style>
+            .container {
+                width: 200px;
+                border: 1px solid black;
+            }
+            .container > .item {
+                width: 160px;
+                margin: 10px;
+                height: 40px;
+                border: 1px solid black;
+                background-color: lightblue;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .container:nth-of-type(2) > .item:nth-of-type(n+2) {
+                float: left;
+            }
+            .container:nth-of-type(3) > .item:nth-child(3) {
+                position: absolute;
+                top: 150px;
+            }
+        </style>
+    </head>
+    <body>
+        <div style="display: flex; gap: 1rem;">
+            <div class="container">
+                <span>全文档流</span>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+            </div>
+            <div class="container">
+                <span>脱离文档流(float: left)</span>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+            </div>
+            <div class="container">
+                <span>脱离文档流(position: absolute)</span>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §19.6.1 浮动的影响
+
+如果一个元素设置了浮动，那么它会脱离文档流，从而产生以下影响：
+
+- 对自身而言，元素会被转化成块级元素，从而可以设置`width`、`height`、`margin`、`padding`等属性。
+- 对父元素而言，父元素不能包裹子元素，因此可能出现“父元素高度坍塌”的现象。
+- 对子元素而言，如果子元素也是浮动元素，那么本元素就不会出现“高度坍塌”的现象。
+
+### §19.6.2 清除浮动
+
+“清除浮动”指的是清除浮动元素脱离文档流之后的影响。例如我们不想让浮动后面的非浮动元素环绕在浮动元素的周围，而是希望它们回归到文档流中，就可以通过清除浮动来实现。
+
+常用的清除浮动方法有以下三种：
+
+- `clear: both`
+
+  `clear`是一个专门用于清除浮动的CSS属性，有三种取值：`left`、`right`、`both`，分别表示清除哪一侧的浮动。**该元素应用于浮动元素后面的非浮动元素。**
+
+  这种方法的缺点是会增加多余的标签，同时破坏了HTML文档的语义。
+
+- `overflow: hidden`
+
+  `overflow: hidden`也可用于清除浮动，但是**作用的对象是浮动元素的父元素**。
+
+  这种方法的缺点是额外承担了`overflow: hidden`的初衷——内容不能外溢。这会导致“清除浮动”与“允许溢出/滚动条”不可兼得。
+
+- `::after`
+
+  给**浮动元素的父元素**的`::after`伪元素同时设置三个CSS属性：`clear: both`、`content: ""`和`display: block`。
+
+  这是实际开发中最好的解决方法。
+
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                width: 400px;
+                text-align: center;
+                border: 3px solid black;
+                margin-bottom: 5rem;
+                background-color: lightcoral;
+            }
+            .container > .item {
+                height: 50px;
+                width: 80px;
+                background-color: lightblue;
+            }
+            .container > .item:nth-of-type(1) { float: left; }
+            .container > .item:nth-of-type(2) { float: right; }
+
+            .container:nth-of-type(4)::after {
+                clear: both;
+                content: "";
+                display: block;
+            } 
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            父元素高度坍塌
+            <div class="item"></div>
+            <div class="item"></div>
+        </div>
+        <div class="container">
+            clear: both;
+            <div class="item"></div>
+            <div class="item"></div>
+            <div style="clear: both;"></div> <!-- 一个尺寸为0的元素 -->
+        </div>
+        <div class="container" style="overflow: hidden;">
+            overflow: hidden;
+            <div class="item"></div>
+            <div class="item"></div>
+        </div>
+        <div class="container">
+            ::after{clear&content&display}
+            <div class="item"></div>
+            <div class="item"></div>
+        </div>
+    </body>
+</html>
+```
+
