@@ -122,9 +122,9 @@ table {
 }
 ```
 
-# §19 开发技巧
+# §19 深入CSS概念
 
-本章将给出实际开发中常见的需求，并给出相应的CSS最优解。
+本章将深入介绍CSS中的各种概念及其细节。
 
 ## §19.1 选择器
 
@@ -923,3 +923,379 @@ li + li { margin-right: 1rem; }
 </html>
 ```
 
+## §19.7 定位布局
+
+浮动和定位是CSS的两大布局方式。浮动布局比较灵活，但不容易控制，有时我们更愿意选择定位布局，牺牲灵活性换取精确定位。CSS支持的定位布局有四种，分别是固定定位(`fixed`)、相对定位(`relative`)、绝对定位(`absolute`)、静态定位(`static`)。
+
+定位布局有以下通用规则：
+
+- 默认情况下，固定定位和绝对定位都是相对于`<body>`，而相对定位是相对于原始位置。
+- 除静态定位以外，只有在定义`position`属性后，`top`/`bottom`/`left`/`right`属性才能生效。
+- 绝对定位会将元素强制转换为块级元素，这一行为与浮动布局是一致的。
+
+要实现子元素相对父元素定位，我们首先需要给父元素定义`position: relative`(相对定位)，然后给子元素定义`position: absolute`(绝对定位)。
+
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                position: relative;
+                width: 300px;
+                height: 150px;
+                background-color: lightblue;
+            }
+            .container > .item {
+                position: absolute;
+                width: 150px;
+                height: 80px;
+                background-color: lightcoral;
+
+                left: calc(300px / 2 - 150px / 2);
+                bottom: -80px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="item"></div>
+        </div>
+    </body>
+</html>
+```
+
+## §19.8 CSS图形
+
+在SVG/Canvas还没流行的年代，矢量图形一直是CSS的一大难题。由于位图占用大量空间，所以开发者尝试给元素添加各种CSS属性，把元素捏成目标形状。本章将介绍这一“传统手艺”，虽然在SVG/Canvas流行的今天，这一手艺已经失去了使用价值，但是我们不妨再见证一下前辈开发者的智慧。
+
+### §19.8.1 三角形
+
+当一个盒模型的两条相邻边走某个角落相交时，CSS会在交界处沿某个角度绘制一条接合线：
+
+```html
+<html>
+    <head>
+        <style>
+            div {
+                width: 200px;
+                height: 100px;
+                border: 20px solid;
+                border-top-color: darkgoldenrod;
+                border-right-color: lightpink;
+                border-bottom-color: chartreuse;
+                border-left-color: darkblue;
+            }
+        </style>
+    </head>
+    <body>
+        <div></div>
+    </body>
+</html>
+```
+
+接着，我们让这个`<div>`的尺寸缩小到0，于是四条边框挤在一起，形成一个正方形，最后把左、右、下三条边框的颜色设置成透明，一个三角形就做好了。或者把两个小三角形拼成一个大三角形：
+
+```html
+<html>
+    <head>
+        <style>
+            div {
+                width: 0;
+                height: 0;
+                border: 20px solid;
+            }
+            div:nth-of-type(1) { border-color: lightcoral transparent transparent transparent; }
+            div:nth-of-type(2) { border-color: lightcoral lightcoral transparent transparent; }
+        </style>
+    </head>
+    <body>
+        <div></div>
+        <div></div>
+    </body>
+</html>
+```
+
+开发成通常将这些三角形通过相对定位固定到元素的某个位置，通过拼接创造出更复杂的形状：
+
+```html
+<html>
+    <head>
+        <style>
+            body { padding: 1rem; }
+            div.sign {
+                position: relative;
+                width: 400px;
+                height: 100px;
+                background-color: lightblue;
+                padding: 1rem;
+                box-sizing: border-box;
+                border: 1px solid;
+            }
+            div.sign::before { /* 创建蓝色三角形的外层黑边框 */
+                width: 0;
+                height: 0;
+                display: block;
+                content: "";
+                border: 20px solid;
+                border-color: transparent transparent black transparent;
+                position: absolute;
+                top: -41px;
+                left: calc((400px - 20px * 2) / 2);
+                z-index: -1;
+            }
+            div.sign::after { /* 创建蓝色三角形 */
+                width: 0;
+                height: 0;
+                display: block;
+                content: "";
+                border: 20px solid;
+                border-color: transparent transparent lightblue transparent;
+                position: absolute;
+                top: -40px;
+                left: calc((400px - 20px * 2) / 2);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sign">
+            这是告示牌。
+        </div>
+    </body>
+</html>
+```
+
+### §19.8.2 圆与椭圆
+
+`border-radius`及其四个角的子属性可以控制圆角半径。配合边框使用可以弯曲边框。
+
+```html
+<html>
+    <head>
+        <style>
+            body { padding: 1rem; }
+            .box {
+                height: 100px;
+                width: 100px;
+                background-color: rgba(173, 216, 230, 0.3);
+                text-align: center;
+                font-weight: bolder;
+                font-size: 80;
+                line-height: 100px;
+                
+                border-radius: 40px;
+                border: 10px solid;
+                border-color: transparent black transparent black;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">1</div>
+    </body>
+</html>
+```
+
+### §19.8.3 梯形
+
+在[§19.8.1 三角形](###§19.8.1 三角形)的基础上，我们给元素添加高度或宽度，就能调整上底的长度，从而让三角形变成梯形。
+
+```html
+<html>
+    <head>
+        <style>
+            body { padding: 1rem; }
+            .box {
+                box-sizing: border-box;
+                border: 50px solid black;
+                border-color: transparent transparent black transparent;
+                
+                width: 150px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box"></div>
+    </body>
+</html>
+```
+
+### §19.8.4 书签图标
+
+书签的形状相等于一个竖条长方形在底部砍去了一个三角形。使用边框能轻松作出该效果。
+
+```html
+<html>
+    <head>
+        <style>
+            body { padding: 1rem; }
+            .box {
+                border: 10px solid black;
+                border-color: black black transparent black;
+                width: 0;
+                height: 15px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box"></div>
+    </body>
+</html>
+```
+
+### §19.8.5 下载图标
+
+下载图标就是一个向下的箭头。我们使用边框制作三角形，再用`border-shadow`缩小阴影尺寸来制作箭头的正方形箭柄：
+
+```html
+<html>
+    <head>
+        <style>
+            body { padding: 1rem; }
+            .box {
+                border: 16px solid black;
+                border-color: black transparent transparent transparent;
+                width: 0;
+                box-shadow: 0 -24px 0 -8px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box"></div>
+    </body>
+</html>
+```
+
+### §19.8.6 单选图标
+
+`box-shadow`属性能根据边框形状创建对应的阴影。
+
+```html
+<html>
+    <head>
+        <style>
+            body {
+                padding: 1rem;
+            }
+            .box {
+                width: 50px;
+                height: 50px;
+                background-color: black;
+                border: 1px solid black;
+                border-radius: 50px;
+                
+                box-shadow: 0 0 0 5px white, 0 0 0 10px black;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box"></div>
+    </body>
+</html>
+```
+
+### §19.8.7 应用列表图标
+
+“田字型”图表由九个排布均匀的点组成。这里我们使用`outline`创建周围8个点，用`border`创建中间的点：
+
+```html
+<html>
+    <head>
+        <style>
+            body {
+                padding: 1rem;
+            }
+            .box {
+                width: 0px;
+                border: 3px solid black;
+                outline: 6px dotted;
+                outline-offset: 6px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box"></div>
+    </body>
+</html>
+```
+
+# §20 性能调优
+
+## §20.1 属性简写
+
+属性简写指的是，在实现相同效果的前提下，使用字符更少的CSS属性或属性值。
+
+- 子属性合并为总属性
+
+  子属性不仅字符数量多，占用存储空间，而且条目数量也多，拖慢解析效率。所以能使用总属性，就不要使用子属性。
+
+  | 总属性(部分) | 对应子属性                                                   |
+  | ------------ | ------------------------------------------------------------ |
+  | `border`     | `border-top-color`、`border-top-width`、`border-top-style`、<br/>`border-right-color`、`border-right-width`、`border-right-style`、<br>`border-bottom-color`、`border-bottom-width`、`border-bottom-style`、<br/>`border-left-color`、`border-left-width`、`border-left-style` |
+  | `padding`    | `padding-top`、`padding-right`、`padding-bottom`、`padding-left` |
+  | `margin`     | `margin-top`、`margin-right`、`margin-bottom`、`margin-left` |
+  | `background` | `background-color`、`background-image`、`background-repeat`、`background-attachment`、`background-position` |
+  | `font`       | `font-family`、`font-size`、`font-weight`、`line-height`     |
+
+- 属性值缩写
+
+  例如颜色，`#ffffff`可以简写成`#fff`。
+
+## §20.2 语法压缩
+
+### §20.2.1 空白符
+
+在CSS中，只有属性值之间才必须使用分隔符（例如空格、正斜杠），其余地方的空白符完全可以忽略，从而节省CSS文件空间。
+
+```css
+/* 原始版本，例如阅读 */
+.box {
+	padding: 0px;
+    border: 0.5px solid black;
+    background: url("https://www.baidu.com/favicon.ico")
+}
+
+/* 压缩版本，利于储存和传输 */
+.box{padding:0px;border:0.5px solid black;background:url("https://www.baidu.com/favicon.ico");}
+```
+
+### §20.2.2 结尾分号
+
+CSS的每一个选择器的样式都是用大括号括起来的。实际上，最后一个属性后面可以不用以分号结尾，从而剩下一个分号的空间。
+
+```css
+/* 进一步压缩结尾分号 */
+.box{padding:0px;border:0.5px solid black;background:url("https://www.baidu.com/favicon.ico")}
+```
+
+### §20.2.3 `url()`引号
+
+我们知道，`url()`作为属性值用于索引目标资源文件。然而索引的路径可以不用添加引号。
+
+```css
+/* 删除url()内的引号 */
+.box{padding:0px;border:0.5px solid black;background:url(https://www.baidu.com/favicon.ico)}
+```
+
+### §20.2.4 `0`/`0.x`属性值
+
+一方面，对于`0`而言，我们不必写出它的单位。另一方面，对于`0.x`的小数，我们可以忽略前导`0`，直接以小数点开头。
+
+```css
+/* 优化0/0.x的属性值 */
+.box{padding:0;border:.5px solid black;background:url(https://www.baidu.com/favicon.ico)}
+```
+
+### §20.2.5 提取相同定义
+
+回想各类压缩算法，如果一段子串重复多次出现，我们可以将其提取出来，用一段编号代替它。这其实就是众多CSS第三方库的思路——将常用的一组CSS属性提取出来，从而节省空间。
+
+为了展示原理，这里我们来手动提取相同的定义。
+
+## §20.3 压缩工具
+
+
+
+## §20.4 图片压缩
+
+
+
+## §20.5 高性能选择器
