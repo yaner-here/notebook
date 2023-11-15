@@ -1217,7 +1217,19 @@ li + li { margin-right: 1rem; }
 </html>
 ```
 
-## §19.9 BFC
+## §19.9 层叠上下文
+
+层叠上下文（Stacking Context）与CSS中的Z轴概念相关。根元素或`z-index`不为`auto`的元素都会创建一个自己的层叠上下文。
+
+在一个层叠上下文中，层叠级别（Stacking Level）决定了图层的显示顺序，如下所示：
+$$
+\begin{align}
+	& 边框和背景 < 负\text{z-index} < 块盒子 < 浮动盒子 < \\
+	& 行内盒子 < 零\text{z-index} < 正\text{z-index} \\
+\end{align}
+$$
+
+## §19.10 BFC
 
 块级格式上下文（BFC，Block Formatting Context）是一个独立的渲染区域，规定了内部的块级元素如何布局，且不受外部影响。
 
@@ -1232,7 +1244,7 @@ li + li { margin-right: 1rem; }
 
 在一个BFC中，盒子从顶端开始一个个的垂直排列，盒子之间的外边距会叠加。
 
-### §19.9.1 避免外边距叠加
+### §19.10.1 避免外边距叠加
 
 既然同在一个BFC内的两个元素才会产生外边距叠加，我们自然想到可以把两个元素放在两个BFC中，就能避免这一问题。
 
@@ -1271,7 +1283,86 @@ li + li { margin-right: 1rem; }
 </html>
 ```
 
-### §19.9.2 清除浮动
+### §19.10.2 清除浮动
+
+计算一个BFC的高度时，内部的浮动元素也要考虑计算。因此，为防止父元素高度坍塌的现象，我们可以让父元素成为BFC。
+
+### §19.10.3 避免文字环绕
+
+一个元素浮动之后，其层叠级别比普通文档流的层流级别高。在BFC内部，如果存在新的新的BFC子元素和新的浮动元素，则新BFC与浮动元素不会重叠。
+
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                width: 20rem;
+                height: 5rem;
+                background-color: lightblue;
+                border: 1px solid black;
+            }
+            .item {
+                width: 5rem;
+                height: 1rem;
+                background-color: lightcoral;
+                border: 1px solid black;
+
+                float: left;
+            }
+            .bfc {
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="item" style="display: inline-block;"></div>
+            
+            <div>
+                这是一段文本。这是一段文本。这是一段文本。这是一段文本。
+            </div>
+        </div>
+        <div class="container">
+            <div class="item" style="display: inline-block;"></div>
+            
+            <div class="bfc">
+                这是一段文本。这是一段文本。这是一段文本。这是一段文本。
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §19.10.4 自适应列布局
+
+之前我们在[§19.2.3 负外边距](###§19.2.3 负外边距)一节中讲过使用负外边距实现自适应列布局。本节将介绍使用BFC实现。核心原理是将固定宽度的一列设置成浮动元素，然后另一列宽度可变的栏设置成BFC。
+
+```html
+<html>
+    <head>
+        <style>
+            .sidebar {
+                width: 15rem;
+                height: 100%;
+                background-color: lightblue;
+
+                float: left;
+            }
+            .main {
+                width: auto;
+                height: 100%;
+                background-color: lightcoral;
+
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sidebar"> 长度不变</div>
+        <div class="main">长度可变,自适应</div>
+    </body>
+</html>
+```
 
 # §20 性能调优
 
@@ -1640,6 +1731,3 @@ $$
        </body>
    </html>
    ```
-
-## §21.5 语义化
-
