@@ -1217,6 +1217,62 @@ li + li { margin-right: 1rem; }
 </html>
 ```
 
+## §19.9 BFC
+
+块级格式上下文（BFC，Block Formatting Context）是一个独立的渲染区域，规定了内部的块级元素如何布局，且不受外部影响。
+
+如果一个元素具备以下任意一个条件，则CSS会为该元素创建一个新的BFC：
+
+- 根元素
+- `float: left`/`float: right`
+- `position: absolute`/`position: fixed`
+- `overflow: auto`/`overflow: hidden`/`overflow: scroll`
+- `display: inline-block`/`display: table-caption`/`display: table-cell`
+- `display: flex`/`display: inline-flex`（CSS3特供）
+
+在一个BFC中，盒子从顶端开始一个个的垂直排列，盒子之间的外边距会叠加。
+
+### §19.9.1 避免外边距叠加
+
+既然同在一个BFC内的两个元素才会产生外边距叠加，我们自然想到可以把两个元素放在两个BFC中，就能避免这一问题。
+
+```html
+<html>
+    <head>
+        <style>
+            .container {
+                width: 20rem;
+                height: 10rem;
+                background-color: lightblue;
+            }
+            .bfc {
+                overflow: hidden; /* 创建BFC */
+            }
+            .item {
+                width: 5rem;
+                height: 3rem;
+                background-color: lightcoral;
+                border: 1px solid black;
+            }
+            .bfc:nth-of-type(1) > .item { margin-bottom: 1rem; }
+            .bfc:nth-of-type(2) > .item { margin-top: 1rem; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="bfc">
+                <div class="item"></div>
+            </div>
+            <div class="bfc">
+                <div class="item"></div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §19.9.2 清除浮动
+
 # §20 性能调优
 
 ## §20.1 属性简写
@@ -1288,14 +1344,302 @@ CSS的每一个选择器的样式都是用大括号括起来的。实际上，�
 
 回想各类压缩算法，如果一段子串重复多次出现，我们可以将其提取出来，用一段编号代替它。这其实就是众多CSS第三方库的思路——将常用的一组CSS属性提取出来，从而节省空间。
 
-为了展示原理，这里我们来手动提取相同的定义。
+为了展示原理，这里我们来手动提取相同的义。
 
-## §20.3 压缩工具
+```CSS
+/* 原始CSS */
+h1 { text-indent: 0rem; color: red; border-left: 3px solid black; }
+h2 { text-indent: 1rem; color: red; border-left: 3px solid black; }
 
+/* 提取后的CSS */
+h1 { text-indent: 0rem; }
+h2 { text-indent: 1rem; }
+h1, h2 { color: red; border-left: 3px solid black; }
+```
 
+实际上，我们还可以利用CSS的继承特点，将可以继承的CSS属性直接定义到父元素上，这样就不用给子元素单独定义了。
 
-## §20.4 图片压缩
+## §20.3 高性能选择器
 
+选择器的匹配过程可能与直觉相悖——CSS会从最右侧的选择器开始，依次向左匹配筛选。
 
+CSS有各类选择器，当它们单独使用时，效率从高到低的排序分别为：
+$$
+\begin{align}
+	& \text{id选择器 > class选择器 > 元素选择器 > 相邻选择器 >} \\
+	& 子选择器 > 后代选择器 > 通配符选择器 > 属性选择器 > 伪类选择器
+\end{align}
+$$
+基于此，我们可以总结出以下四个选择器性能调优建议：
 
-## §20.5 高性能选择器
+1. 不要使用通配符：通配符的工作量非常大。
+2. id选择器和class选择器不需要元素名：id能保证唯一，所以不需要元素名；class设计的初衷就是通配，限定元素名会破坏这一初衷。
+3. 选择器不要超过三层：选择器的耗时会串联叠加，因此选择器不适宜嵌套多层。
+4. 右侧选择器的选择条件应尽可能严苛：CSS会从最右侧的选择器开始，因此从一开始就筛去大部分元素，有利于左侧选择器减少运行时间。
+5. 禁用后代选择器，少用子代选择器，多用id选择器和class选择器。
+
+# §21 开发技巧
+
+在CSS的开发流程中，开发人员针对频繁出现的设计需求，总结出了若干优秀的工程实践方法。本节将介绍这些开发技巧。
+
+## §21.1 水平居中
+
+### §21.1.1 文字水平居中
+
+使用`text-align: center`，即可控制文字对齐的行为。
+
+```html
+<html>
+    <head>
+        <style>
+            .box {
+                border: 1px solid black;
+                width: 20rem;
+                text-align: center;
+            }
+            .box > div {
+                width: min-content;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <span>Hello</span>
+        </div>
+    </body>
+</html>
+```
+
+### §21.1.2 块级元素水平居中
+
+如果在一行之内，只有需要居中的元素，没有其它对齐方向元素的干扰，那么我们就可以考虑使用`margin-left: 0; margin-right: 0`。
+
+```html
+<html>
+    <head>
+        <style>
+            .box {
+                border: 1px solid black;
+                width: 20rem;
+            }
+            .box > .item {
+                border: 1px solid black;
+                width: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <div class="item">Hello</div>
+        </div>
+    </body>
+</html>
+```
+
+### §21.1.3 行内元素/复合行内元素水平居中
+
+行内元素（`inline`）、复合行内元素（`inline-block`、`inline-table`、`inline-flex`）对齐的方式依然是`text-align: center`。
+
+## §21.2 垂直居中
+
+### §21.2.1 单行文本垂直居中
+
+要让单行文本垂直居中，只需让`line-height`和`height`的属性值相等即可。
+
+### §21.2.2 多行文本垂直居中
+
+要让多行文本垂直居中，这种方法并不好想。然而程序员的智慧是无穷的——实现方法的关键是把多行文本包含在一个`<span>`标签内，然后定义`<span>`为`display: inline-block`，最后定义父元素为`display: table-cell`、`vertical-align: middle`。
+
+```html
+<html>
+    <head>
+        <style>
+            .box {
+                border: 1px solid black;
+                width: 20rem;
+                height: 8rem;
+
+                display: table-cell;
+                vertical-align: middle;
+            }
+            .box > .item {
+                display: inline-block;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <span class="item">
+                这是两行<br>
+                多行文本
+            </span>
+        </div>
+    </body>
+</html>
+```
+
+### §21.2.3 任意元素垂直居中
+
+无论元素是块级元素还是行内元素，如果父元素和子元素的尺寸均已知，我们就可以使用`position: absolute`、`top: 50%`、`left: 50%`来精确调整子元素左上角相对父元素的位置，然后使用`margin-left`和`margin-right`来让子元素中心点移动到原先左上角所在的位置。
+
+```html
+<html>
+    <head>
+        <style>
+            .box {
+                border: 1px solid black;
+                width: 20rem;
+                height: 8rem;
+
+                position: relative;
+            }
+            .box > .item {
+                border: 1px solid black;
+                width: 7rem;
+                height: 3rem;
+                
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                margin-left: calc(-7rem / 2);
+                margin-top: calc(-3rem / 2);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <div class="item"></div>
+        </div>
+    </body>
+</html>
+```
+
+### §21.2.4 行内元素垂直居中
+
+如果元素是行内元素，除了[§21.2.3 任意元素垂直居中](###§21.2.3 任意元素垂直居中)介绍的方法，我们还可以使用[§21.2.2 多行文本垂直居中](###§21.2.2 多行文本垂直居中)介绍的方法——给父元素声明为`display: table-cell`和`vertical-align: middle`，给子元素声明为`display: inline-block`。
+
+```html
+<html>
+    <head>
+        <style>
+            .box {
+                border: 1px solid black;
+                width: 20rem;
+                height: 8rem;
+
+                display: table-cell;
+                vertical-align: middle;
+            }
+            .box > .item {
+                border: 1px solid black;
+                /* display: inline-block; */ /* <img>就是inline-block，不必重复声明 */
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <img class="item" src="https://www.baidu.com/favicon.ico">
+        </div>
+    </body>
+</html>
+```
+
+## §21.3 CSS Sprite
+
+我们直到，每个图片都对应一次HTTP请求。如果页面中有很多图标图像，那么会对服务器产生可观的请求数量。一个好的解决方法是让后端一次性返回一张包含所有贴图的大图片，然后由前端裁剪得到所需的小图标。这种技术称为CSS Sprite（CSS精灵/CSS雪碧图）。
+
+开发着可以使用`background-iamge`加载精灵图，然后用`background-position`截取需要的部分。
+
+```html
+<html>
+    <head>
+        <style>
+            .box {
+                border: 1px solid black;
+                width: fit-content;
+
+            }
+            .box > img.item { 
+                border: 1px solid black; 
+                background-image: url("http://www.spritecow.com/assets/9/tutorial-sprite.png");
+                background-repeat: no-repeat;
+                width: 33px;
+                height: 33px;
+            }
+
+            .box > img.item:nth-of-type(1) { background-position: -433px -51px; }
+            .box > img.item:nth-of-type(2) { background-position: -476px -51px; }
+            .box > img.item:nth-of-type(3) { background-position: -516px -51px; }
+            .box > img.item:nth-of-type(4) { background-position: -560px -49px; }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <img class="item">
+            <img class="item">
+            <img class="item">
+            <img class="item">
+        </div>
+    </body>
+</html>
+```
+
+关于CSS Sprite，以下有两款工具：
+
+- CSS Sprite Generator
+- [Sprite Cow](http://www.spritecow.com/)
+
+## §21.4 字体图标
+
+字体图标是指将图标做成字体的样式。这种方式的优点在于：一是字体本身就是矢量图，可以通过更改字号的方式随意调整大小；二是字体与CSS精灵图一样都是单文件，只需单次HTTP请求即可获取所有图标；三是可有选择性地获取字体图标的子集，从而节省存储空间。
+
+著名的字体图标提供商有[IcoMoon](https://icomoon.io/app/#/select)和[IconFont](https://www.iconfont.cn/)。这里我们以IconFont为例，介绍字体图标的使用方法：
+
+1. 在IconFont官网选择一组需要的图标，添加到购物车，点击“下载代码”按钮，得到一个`download.zip`压缩文件。
+
+2. 将该压缩文件解压，得到以下文件：
+
+   ```shell
+   $ tree
+   .
+   ├── demo.css
+   ├── demo_index.html
+   ├── iconfont.css
+   ├── iconfont.js
+   ├── iconfont.json
+   └── iconfont.ttf
+   ```
+
+3. 按照`demo_index.html`的指示，创建以下HTML文档，即可查看效果：
+
+   ```html
+   <html>
+       <head>
+           <style>
+               @font-face {
+                   font-family: 'iconfont';
+                   src: url('../font_qu9du1jhqwf/iconfont.ttf') format('truetype');
+               }
+               .iconfont {
+                   font-family: "iconfont" !important;
+                   font-size: 16px;
+                   font-style: normal;
+                   -webkit-font-smoothing: antialiased;
+                   -moz-osx-font-smoothing: grayscale;
+   
+                   font-size: 48px;
+               }
+           </style>
+       </head>
+       <body>
+           <div class="iconfont">&#xe651;</div>
+           <div class="iconfont">&#xe882;</div>
+           <div class="iconfont">&#xe66c;</div>
+       </body>
+   </html>
+   ```
+
+## §21.5 语义化
+
