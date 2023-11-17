@@ -206,77 +206,158 @@ $(document).ready(() => {
 
 #### §1.1.2.9 `:first`
 
-在筛选结果中选择第`0`个元素（从`0`开始）。该自定义选择符从`3.4`版本起被抛弃。
+`:first`选择符用于在筛选结果中选择第`0`个元素（从`0`开始）。该自定义选择符从`3.4`版本起被抛弃。
 
 #### §1.1.2.10 `:gt()`
 
-该自定义选择符从`3.4`版本起被抛弃。
+`gt()`选择符龝选择大于等于指定序号的所有元素（从`0`开始）。该自定义选择符从`3.4`版本起被抛弃，推荐使用`.slice(n+1)`。
 
 #### §1.1.2.11 `:has()`
 
+`:has()`选择符用于选择其子元素和孙辈元素中包含指定标签的元素。
 
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .border {
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <div><p>Hello</p></div>
+        <div><span>World</span></div>
+        <script>
+            $("div:has(p)").addClass("border");
+        </script>
+    </body>
+</html>
+```
 
 #### §1.1.2.12 `:header`
 
-
+`:header`选择符用于选择所有的`<h1>`、`<h2>`、`<h3>`、`<h4>`、`<h5>`、`<h6>`。
 
 #### §1.1.2.13 `:hidden`
 
+`:hidden`选择符用于选择所有的隐藏元素，隐藏元素需满足下列条件之一：
 
+- CSS属性中有`display: none;`
+- CSS属性中有`height: 0; width: 0;`
+- `<form>`中的`<input type="hidden">`
+- 父辈元素是隐藏元素，因此本元素也是隐藏元素
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            * { overflow: hidden; }
+            .hidden-display { display: none; }
+            .hidden-size { width: 0; height: 0; }
+            .visible-force {
+                display: block;
+                width: 8rem;
+                height: 1rem;
+                
+                padding: 0.5rem;
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="hidden-display">Hidden</div>
+        <div class="hidden-size">Hidden</div>
+        <form>
+            <input type="hidden">
+            <span type="hidden"></span>
+        </form>
+        <div class="hidden-display">
+            <div>Hidden</div>
+        </div>
+        <script>
+            $("*:hidden").addClass("visible-force");
+        </script>
+    </body>
+</html>
+```
 
 #### §1.1.2.14 `:image`
 
-
+`:image`选择符用于选择`type`属性为`image`的元素，等价于`[type="image"]`。
 
 #### §1.1.2.15 `:input`
 
-
+`:input`选择符用于选择所有允许用户输入的元素，包括所有的`<input>`、`<textarea>`、`<select>`、`<button>`。（不包括`<option>`）
 
 #### §1.1.2.16 `:last`
 
-该自定义选择符从`3.4`版本起被抛弃。
+`:last`选择符用于选择最后一个元素。该自定义选择符从`3.4`版本起被抛弃，推荐使用`.last()`。
 
 #### §1.1.2.17 `:lt`
 
-该自定义选择符从`3.4`版本起被抛弃。
+`:lt`选择符用于选择小于等于指定序号的元素（从`0`开始）。该自定义选择符从`3.4`版本起被抛弃，推荐使用`.slice(0, n)`。
 
 #### §1.1.2.18 `:odd`
 
-该自定义选择符从`3.4`版本起被抛弃。
+`:odd`选择符用于选择序号为奇数的元素（从`0`开始）。该自定义选择符从`3.4`版本起被抛弃，推荐使用`.odd()`。
 
 #### §1.1.2.19 `:parent`
 
+`:parent`选择符用于选择至少有一个子元素/文本的元素。
 
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            div {
+                height: 2rem;
+                width: 5rem;
+                border: 1px solid black;
+            }
+            .background-lightblue { background-color: lightblue; }
+        </style>
+    </head>
+    <body>
+        <div><div></div></div>
+        <div></div>
+        <script>
+            $("div:parent").addClass("background-lightblue");
+        </script>
+    </body>
+</html>
+```
 
 #### §1.1.2.20 `:password`
 
-
+`:password`选择符用于选择`type`属性为`password`的元素，等价于`[type="password"]`。
 
 #### §1.1.2.21 `:radio`
 
-
+`:radio`选择符用于选择`type`属性为`radio`的元素，等价于`[type="radio"]`。
 
 #### §1.1.2.22 `:reset`
 
-
+`:reset`选择符用于选择`type`属性为`reset`的元素，等价于`[type="reset"]`。
 
 #### §1.1.2.23 `:selected`
 
-
+`:selected`选择符用于选择`<option>`元素。
 
 #### §1.1.2.24 `:submit`
 
-
+`:submit`选择符用于选择`type`属性为`submit`的`<input>`或`<button>`元素，等价于`input[type="submit"], button[type="submit"]`。
 
 #### §1.1.2.25 `:text`
 
-
+`:text`选择符用于选择`type`属性为`text`的`<input>`元素，等价于`input[type="text"]`。
 
 #### §1.1.2.26 `:visible`
 
-
-
-
+`:visible`选择符用于选择实际长度或宽度大于`0`的元素。
 
 ### §1.1.3 DOM遍历
 
@@ -292,7 +373,198 @@ $('a:contains(Notice)')
 	.addClass('border') // 给<p>表气啊添加border类
 ```
 
+#### §1.1.3.1 `.add()`
+`.add()`用于在jQuery对象中添加元素。
+
+```javascript
+.add(selector: Selector);
+.add(elements: Element);
+.add(html: htmlString);
+.add(selection: jQuery);
+.add(selector: Selector, context: Element);
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .background-lightblue { background-color: lightblue; }
+        </style>
+    </head>
+    <body>
+        <p>abc</p>
+        <div>def</div>
+        <main>ghi</main>
+        <caption>jkl</caption>
+        <script>
+            $("div")
+                .add("p") // selector: Selector
+                .add(document.getElementsByTagName('main')) // elements: Element
+                .add("<caption>sdf</caption>") // html: HTMLString 注意该元素仍未插入DOM
+                .addClass("background-lightblue");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.2 `.addBack()`
+
+`.addBack()`用于将栈上缓存的元素加入到当前jQuery对象中，可以指定选择器进行过滤。
+
+```javascript
+.addback([selector: Selector])
+```
+
+例如在下面的例子中，`$("ul > li:nth-of-type(2)")`返回一个jQuery对象，并且初始化栈，将第二个`<li>`放入其中。后面的`.nextAll()`返回一个只包含第三个`<li>`的jQuery对象，并将第三个`<li>`压入栈中。最后`.addBack()`返回将栈中的元素全部打包成一个新的jQuery对象并作为函数的返回值。
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .background-lightblue { background-color: lightblue; }
+        </style>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("ul > li:nth-of-type(2)")
+                .nextAll()
+                .addBack()
+                .addClass("background-lightblue");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.3 `.andSelf()`
+
+`.andSelf()`用于将栈上缓存的元素加入到当前jQuery对象中，不接受任何参数。
+
+> 注意：该方法从jQuery 1.8起被抛弃，jQuery 3.0起被移除，推荐使用功能更强大的`.andBack()`方法。
+
+#### §1.1.3.4 `.children()`
+`.children()`用于获取所有的子元素，可以通过选择器进一步筛选。
+
+```javascript
+.children([selector: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .background-lightblue { background-color: lightblue; }
+        </style>
+    </head>
+    <body>
+        <ul>
+            <li><div>1</div></li>
+            <span>2</span>
+            <li>3</li>
+        </ul>
+        <script>
+            $("ul").children("li").addClass("background-lightblue");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.5 `.closest()`
+
+`.closest()`用于从jQuery内对象开始，向上查找最近的符合选择符的父辈元素。
+
+```javascript
+.closest(selector: Selector, [context: Element])
+.closest(selection: jQuery)
+.closest(element: Element)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .background-lightblue { background-color: lightblue; }
+        </style>
+    </head>
+    <body>
+        <ul id="layer1">
+            Layer1:
+            <ul id="layer2">
+                Layer2:
+                <li></li>
+            </ul>
+        </ul>
+        <script>
+            $("li").closest("ul").addClass("background-lightblue");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.6 `.contents()`
+`.contents()`用于获取元素的所有子元素、文本和注释。
+
 TODO:
+
+#### §1.1.3.7 `.each()`
+
+`.each()`用于。
+#### §1.1.3.8 `.end()`
+`.end()`用于。
+#### §1.1.3.9 `.eq()`
+`.eq()`用于。
+#### §1.1.3.10 `.even()`
+`.even()`用于。
+#### §1.1.3.11 `.filter()`
+`.filter()`用于。
+#### §1.1.3.12 `.find()`
+`.find()`用于。
+#### §1.1.3.13 `.first()`
+`.first()`用于。
+#### §1.1.3.14 `.has()`
+`.has()`用于。
+#### §1.1.3.15 `.is()`
+`.is()`用于。
+#### §1.1.3.16 `.last()`
+`.last()`用于。
+#### §1.1.3.17 `.map()`
+`.map()`用于。
+#### §1.1.3.18 `.next()`
+`.next()`用于。
+#### §1.1.3.19 `.nextAll()`
+`.nextAll()`用于。
+#### §1.1.3.20 `.nextUntil()`
+`.nextUntil()`用于。
+#### §1.1.3.21 `.not()`
+`.not()`用于。
+#### §1.1.3.22 `.odd()`
+`.odd()`用于。
+#### §1.1.3.23 `.offsetParent()`
+`.offsetParent()`用于。
+#### §1.1.3.24 `.parent()`
+`.parent()`用于。
+#### §1.1.3.25 `.parents()`
+`.parents()`用于。
+#### §1.1.3.26 `.parentsUntil()`
+`.parentsUntil()`用于。
+#### §1.1.3.27 `.prev()`
+`.prev()`用于。
+#### §1.1.3.28 `.prevAll()`
+`.prevAll()`用于。
+#### §1.1.3.29 `.prevUntil()`
+`.prevUntil()`用于。
+#### §1.1.3.30 `.siblings()`
+`.siblings()`用于。
+#### §1.1.3.31 `.slice()`
+`.slice()`用于。
 
 ### §1.1.4 `next()`/`nextAll()`
 
@@ -453,5 +725,125 @@ jQuery在此基础上提供了封装，通过`.ready()`方法添加到启动队�
         </script>
     </body>
 </html>
+```
+
+### §1.2.3 事件简写
+
+jQuery针对常用的事件提供了相应的简写函数。
+
+TODO:
+
+
+
+### §1.2.4 事件传播
+
+设想以下情景：`<div>`、`<span>`、`<a>`都已注册了自己的`click`事件与回调函数。当用户点击的超链接时，鼠标肯定同时悬浮在这三个元素之上，那么这三个元素的`click`回调函数会如何执行呢？
+
+```mermaid
+graph LR
+	subgraph div
+		subgraph span
+			subgraph a
+				www.google.com
+			end
+		end
+	end
+	
+```
+
+对于“多个元素响应同一个事件”的情形，JavaScript曾经采取过两种策略——事件捕获和事件冒泡。最终的JavaScript标准的规定是——同时使用这种两种策略，在捕获时从外向内，在执行时从内向外。这类似于函数的迭代：
+
+```javascript
+div_click(){
+	span_click(){
+		a_click(){
+			// ......
+		}
+		// ......
+	}
+	// ......
+}
+```
+
+这种做法看似十分合理，但是却藏着一个坑——只要内层触发了事件，那么无论外层是否触发，根据事件冒泡原则，外层都会被触发。为了解决这个问题，我们可以使用以下方法：
+
+- 判断事件目标
+
+  当事件传播到上层时，判断事件触发的对象`event.target`是否为当前元素。
+
+  ```javascript
+  $(document.ready(function(){
+  	$('子元素').click(function(event){
+      	if(event.target !== this){
+          	return; // 直接退出
+          }
+          // 子元素代码
+      });
+  }));
+  ```
+
+- 停止事件传播
+
+  停止事件执行时采取的事件冒泡策略。
+
+  ```javascript
+  $(document.ready(function(){
+  	$('子元素').click(function(event){
+          // 子元素代码
+          event.stopPropagation();
+      });
+  }));
+  ```
+
+- 阻止默认操作
+
+  在停止事件传播中，我们停止的是开发者自己注册的事件，不包括浏览器自定义的事件（例如单击`<a>`会进行跳转）。这里我们可以阻止默认操作，从而阻止一切事件。
+
+  ```javascript
+  $(document.ready(function(){
+  	$('子元素').click(function(event){
+          // 子元素代码
+          event.preventDefault();
+      });
+  }));
+  ```
+
+  > 注意：事件传播和默认操作是两套相互独立的机制，任何一方发生时都可以终止另一方。如果要同时终止事件传播和默认操作，可以让事件注册的函数返回`false`。
+
+- 事件委托
+
+  在之前的三种处理方式中，我们把子元素应该执行的函数注册到了子元素的事件中，父元素同理。其实也有另一种思路，也就是将两个代码都放到父元素的事件中，让事件传播到父元素，然后进行判断，选择其中的一个函数执行。这种技术称为事件委托。
+
+  ```javascript
+  $(document.ready(function(){
+  	$('父元素').click(function(event){
+          if($(event.target).is('子元素')){
+          	// 子元素代码
+              event.stopPropagation();
+          }else if($(event.taget).is('父元素')){
+  			// 父元素代码
+          }
+      });
+  }));
+  ```
+
+  jQuery已经提供了内置的事件委托。比如`.on(事件名, 选择器名, 回调函数)`，当回调函数发现自己并不与选择器匹配时，就会停止执行。
+
+### §1.2.5 事件命名空间
+
+
+
+
+
+
+
+
+
+
+
+jQuery使用`.off()`方法解绑事件：
+
+```javascript
+$(...).off(事件名)
 ```
 
