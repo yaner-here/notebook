@@ -831,19 +831,312 @@ div_click(){
 
 ### §1.2.5 事件命名空间
 
+我们已经知道，`.on()`的第一个参数接受形如`"click"`之类的事件名。jQuery在此基础上引入了命名空间的概念，以`/`作为路径分隔符，形成`click.form.submit`之类的命名。
 
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <button id="alert">Click me</button>
+        <button id="alert_disable">Disable all "click.alert" event</button>
+        <script>
+            $("#alert").on("click.alert.info", function(event){
+                alert("You clicked me! :)");
+            });
+            $("#alert_disable").on("click", function(event){
+                $("#alert").off("click.alert");
+            });
+        </script>
+    </body>
+</html>
+```
 
+### §1.2.6 解绑事件
 
-
-
-
-
-
-
-
-jQuery使用`.off()`方法解绑事件：
+jQuery使用`.off()`方法解绑事件，其中事件名支持命名空间：
 
 ```javascript
 $(...).off(事件名)
+```
+
+### §1.2.7 模拟触发事件
+
+在原生JavaScript中，我们可以手动调用DOM元素的`.click()`等方法，模拟触发事件。在jQuery中，我们既可以向原生JavaScript调用jQuery的`.click()`API，也可以使用jQuery对象的`.trigger()`方法：
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <button id="alert">Click me</button>
+        <button id="trigger">Pretend to click the left button</button>
+        <script>
+            $("#alert").on("click.alert.info", function(event){
+                alert("You clicked the left button! :)");
+            });
+            $("#trigger").on("click", function(event){
+                $("#alert").trigger("click");
+            });
+        </script>
+    </body>
+</html>
+```
+
+## §1.3 样式与动画
+
+### §1.3.1 `.css()`
+
+`.css()`用于获取与修改元素的内联CSS，是`getter()`与`setter()`的结合体。当它接受两个字符串参数或一个字典时，表示要修改的CSS属性；当它接受一个字符串参数时，表示返回该CSS的属性值。
+
+```typescript
+// 获取CSS属性值
+.css(propertyName: String)
+.css(propertyNames: Array)
+
+// 设置CSS属性值
+.css(propertyName: String, value: String | Number)
+.css(propertyName: String, function: Function(index: Integer, value: String | Number))
+.css(properties: PlainObject)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <button id="button-increase-fontsize">增大字体</button>
+        <button id="button-decrease-fontsize">减小字体</button>
+        <div>Hello World</div>
+        <script>
+            $('div').css("background-color", "lightblue");
+            $('div').css({
+                "width": "15rem",
+                "height": "1rem",
+                "text-align": "center",
+                "line-height": "1rem"
+            });
+            $('#button-increase-fontsize').click(function(event){
+                $("div").css({
+                    "height": (parseFloat(($("div").css("height"))) + 16).toString() + "px",
+                    "line-height": (parseFloat(($("div").css("line-height"))) + 16).toString() + "px",
+                    "font-size": (parseFloat(($("div").css("font-size"))) + 2).toString() + "px"
+                });
+            });
+            $('#button-decrease-fontsize').click(function(event){
+                $("div").css({
+                    "height": (parseFloat(($("div").css("height"))) - 16).toString() + "px",
+                    "line-height": (parseFloat(($("div").css("line-height"))) - 16).toString() + "px",
+                    "font-size": (parseFloat(($("div").css("font-size"))) - 2).toString() + "px"
+                });
+            });
+        </script>
+    </body>
+</html>
+```
+
+> 注意：对于浏览器厂商引入的实验性CSS属性，原生JavaScript需要判断浏览器的类别，或者检测DOM中是否存在带前缀的指定CSS属性，然后才能按需添加`-webkit-`、`-o-`、`-mox-`、`-ms-`等前缀。jQuery考虑到了这个问题，在`.css()`中会自动识别尚未完全支持CSS属性，并自动添加合适的前缀。
+
+### §1.3.2 `.addClass()`
+
+`.addClass()`接受一个CSS类名，将类名赋给jQuery
+
+```typescript
+.addClass(className: String)
+.addClass(classNames: Array<string>)
+.addClass(function: Function(index: Integer, currentClassName: String) => String)
+.addClass(function: Function(index: Integer, currentClassName: String) => String | Array)
+```
+
+### §1.3.3 隐藏和显示（`.hide()`/`.show()`）
+
+`.hide()`与`.show()`控制元素是否可见。
+
+- 当时长为`0`时，它们都会操纵元素的`display`属性。执行`.hide()`时，jQuery会先记住原本的`display`属性值，然后设为`display: none`。执行`.show()`时，负责还原。
+- 当时长大于`0`时，它们通过操纵元素的`width`、`height`、`opacity`属性，让这三个属性同时达到`0`或原始值。
+
+``
+
+```typescript
+// .show()语法
+.show()
+.show([duration: Number | String = 400] [, complete: Function])
+.show(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSSs属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number),
+	complete: Function,
+	start: Function(animation: Promise),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.show(duration: Number | String = 400 [,easing: String = "swing"] [,complete: Function])
+
+// .hide()语法
+.hide()
+.hide([duration: Number | String = 400] [, complete: Function])
+.hide(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSSs属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number),
+	complete: Function,
+	start: Function(animation: Promise),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.hide(duration: Number | String = 400 [,easing: String = "swing"] [,complete: Function])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <button id="button-switch-page-1">Page 1</button>
+        <button id="button-switch-page-2">Page 2</button>
+        <button id="button-switch-page-3">Page 3</button>
+        <div id="div-page-1" class="page">I'm page 1! :)</div>
+        <div id="div-page-2" class="page">I'm page 2! :)</div>
+        <div id="div-page-3" class="page">I'm page 3! :)</div>
+        <script>
+            $("button[id^='button-switch-page-']").click(function(event){
+                switch (event.target.id) {
+                    case "button-switch-page-1":
+                        $("div#div-page-1").show(100);
+                        $("div#div-page-2").hide();
+                        $("div#div-page-3").hide();
+                        break;
+                    case "button-switch-page-2":
+                        $("div#div-page-1").hide();
+                        $("div#div-page-2").show(100);
+                        $("div#div-page-3").hide();
+                        break;
+                    case "button-switch-page-3":
+                        $("div#div-page-1").hide();
+                        $("div#div-page-2").hide();
+                        $("div#div-page-3").show(100);
+                        break;
+                    default:
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.3.4 淡入和淡出（`.fadeIn()`/`.fadeOut()`）
+
+`.fadeIn()`与`.fadeOut()`控制元素的`opacity`CSS属性。一旦`opacity`到达目标值，其`display`属性也会设为`none`或复原。
+
+```typescript
+// .fadeIn()语法
+.fadeIn([duration: Number | String = 400] [,complete: Function])
+.fadeIn(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSS属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number),
+	complete: Function(),
+	start: Function(animation: Promise),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.fadeIn([duration: Number | String = 400] [,easing: String = "swing"] [,complete: Function])
+
+// .fadeOut()语法
+.fadeOut([duration: Number | String = 400] [,complete: Function])
+.fadeOut(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSS属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number),
+	complete: Function(),
+	start: Function(animation: Promise),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.fadeOut([duration: Number | String = 400] [,easing: String = "swing"] [,complete: Function])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <button id="button-switch-page-1">Page 1</button>
+        <button id="button-switch-page-2">Page 2</button>
+        <button id="button-switch-page-3">Page 3</button>
+        <div id="div-page-1" class="page">I'm page 1! :)</div>
+        <div id="div-page-2" class="page">I'm page 2! :)</div>
+        <div id="div-page-3" class="page">I'm page 3! :)</div>
+        <script>
+            $("button[id^='button-switch-page-']").click(function(event){
+                switch (event.target.id) {
+                    case "button-switch-page-1":
+                        $("div#div-page-1").fadeIn(200);
+                        $("div#div-page-2").fadeOut(0);
+                        $("div#div-page-3").fadeOut(0);
+                        break;
+                    case "button-switch-page-2":
+                        $("div#div-page-1").fadeOut(0);
+                        $("div#div-page-2").fadeIn(200);
+                        $("div#div-page-3").fadeOut(0);
+                        break;
+                    case "button-switch-page-3":
+                        $("div#div-page-1").fadeOut(0);
+                        $("div#div-page-2").fadeOut(0);
+                        $("div#div-page-3").fadeIn(200);
+                        break;
+                    default:
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
 ```
 
