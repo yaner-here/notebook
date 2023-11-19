@@ -951,14 +951,12 @@ $(...).off(事件名)
 .addClass(function: Function(index: Integer, currentClassName: String) => String | Array)
 ```
 
-### §1.3.3 隐藏和显示（`.hide()`/`.show()`）
+### §1.3.3 隐藏和显示（`.hide()`/`.show()`/`.toggle()`）
 
-`.hide()`与`.show()`控制元素是否可见。
+`.hide()`、`.show()`、`.toggle()`控制元素是否可见。
 
 - 当时长为`0`时，它们都会操纵元素的`display`属性。执行`.hide()`时，jQuery会先记住原本的`display`属性值，然后设为`display: none`。执行`.show()`时，负责还原。
 - 当时长大于`0`时，它们通过操纵元素的`width`、`height`、`opacity`属性，让这三个属性同时达到`0`或原始值。
-
-``
 
 ```typescript
 // .show()语法
@@ -996,6 +994,24 @@ $(...).off(事件名)
 	always: Function(animation: Promise, jumpedToEnd: Boolean)
 ])
 .hide(duration: Number | String = 400 [,easing: String = "swing"] [,complete: Function])
+
+// .toggle()语法
+.toggle([duration: Number | String = 400] [, complete: Function])
+.toggle(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSSs属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number),
+	complete: Function,
+	start: Function(animation: Promise),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.toggle(duration: Number | String = 400 [,easing: String = "swing"] [,complete: Function])
+.toggle(display: Boolean)
 ```
 
 ```html
@@ -1140,3 +1156,254 @@ $(...).off(事件名)
 </html>
 ```
 
+### §1.3.5 划上和划下（`.slideUp()`/`.slideDown()`/`.slideToggle()`）
+
+`.slideUp()`、`.slideDown()`、`.slideToggle()`用于控制元素的高度，从而实现垂直方向的展开与折叠。
+
+```typescript
+// .slideUp()语法
+.slideUp([duration: Number | String = 400] [,complete: Function])
+.slideUp(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSS属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number)
+	complete: Function,
+	start: Function(animation: Function),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.slideUp([duration: Number | String = 400] [,easing: String = "swing"] [,complete: Function])
+
+// .slideDown()语法
+.slideDown([duration: Number | String = 400] [,complete: Function])
+.slideDown(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSS属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number)
+	complete: Function,
+	start: Function(animation: Function),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.slideDown([duration: Number | String = 400] [,easing: String = "swing"] [,complete: Function])
+
+// .slideToggle()语法
+.slideToggle([duration: Number | String = 400] [,complete: Function])
+.slideToggle(options: PlainObject[
+	duration: Number | String = 400,
+	easing: String = "swing",
+	queue: Boolean | String = true,
+	specialEasing: PlainObject[<CSS属性>],
+	step: Function(now: Number, tween: Tween),
+	progress: Function(animation: Promise, progess: Number, remainingMs: Number)
+	complete: Function,
+	start: Function(animation: Function),
+	done: Function(animation: Promise, jumpedToEnd: Boolean),
+	fail: Function(animation: Promise, jumpedToEnd: Boolean),
+	always: Function(animation: Promise, jumpedToEnd: Boolean)
+])
+.slideToggle([duration: Number | String = 400] [,easing: String = "swing"] [,complete: Function])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <button id="button-switch-page-1">Page 1</button>
+        <button id="button-switch-page-2">Page 2</button>
+        <button id="button-switch-page-3">Page 3</button>
+        <div id="div-page-1" class="page">I'm page 1! :)</div>
+        <div id="div-page-2" class="page">I'm page 2! :)</div>
+        <div id="div-page-3" class="page">I'm page 3! :)</div>
+        <script>
+            $("button[id^='button-switch-page-']").click(function(event){
+                switch (event.target.id) {
+                    case "button-switch-page-1":
+                        $("div#div-page-1").slideDown(200);
+                        $("div#div-page-2").slideUp(0);
+                        $("div#div-page-3").slideUp(0);
+                        break;
+                    case "button-switch-page-2":
+                        $("div#div-page-1").slideUp(0);
+                        $("div#div-page-2").slideDown(200);
+                        $("div#div-page-3").slideUp(0);
+                        break;
+                    case "button-switch-page-3":
+                        $("div#div-page-1").slideUp(0);
+                        $("div#div-page-2").slideUp(0);
+                        $("div#div-page-3").slideDown(200);
+                        break;
+                    default:
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.3.6 `.animate()`
+
+除了以上的预制动画外，jQuery还支持使用`.animate()`自定义动画：
+
+```typescript
+.animate(
+	properties: PlainObject[<CSS属性>],
+    duration: Number | String = 400,
+	easing: String = "swing",
+	complete: Function
+)
+.animate(
+	properties: PlainObject[<CSS属性>],
+	options: PlainObject[
+		duration: Number | String = 400,
+		easing: String = "swing",
+		queue: Boolean | String = true,
+		specialEasing: PlainObject[<CSS属性>],
+		step: Function(now: Number, tween: Tween),
+		progress: Function(animation: Promise, progess: Number, remainingMs: Number),
+		complete: Function,
+		start: Function(animation: Promise),
+		done: Function(animation: Promise, jumpedToEnd: Boolean),
+		fail: Function(animation: Promise, jumpedToEnd: Boolean),
+		always: Function(animation: Promise, jumpedToEnd: Boolean)
+	]
+)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <button id="button-toggle-page-1">Toggle with page 1</button>
+            <button id="button-toggle-page-2">Toggle with page 2</button>
+            <button id="button-toggle-page-3">Toggle with page 3</button>
+        </div>
+        <div id="div-page-1" class="page">I'm page 1! :)</div>
+        <div id="div-page-2" class="page">I'm page 2! :)</div>
+        <div id="div-page-3" class="page">I'm page 3! :)</div>
+        <script>
+            $("button[id^='button-toggle-page-']").click(function(event){
+                switch (event.target.id) {
+                    case "button-toggle-page-1":
+                        $("div#div-page-1").animate(
+                            {
+                                "height": "toggle",
+                                "opacity": "toggle",
+                                "margin-top": "toggle",
+                                "margin-bottom": "toggle",
+                                "padding-top": "toggle",
+                                "padding-bottom": "toggle"
+                            },
+                            400
+                        );
+                        break;
+                    case "button-toggle-page-2":
+                        $("div#div-page-2").slideToggle(400);
+                        break;
+                    case "button-toggle-page-3":
+                        $("div#div-page-3").slideToggle(400);
+                        break;
+                }
+            })
+        </script>
+    </body>
+</html>
+```
+
+`.animate()`与其他预置的动画函数都可以用级联调用的形式，实现动画队列，从而让动画按照级联顺序一个个的执行。也可以给`.animate()`传一个`{queue: false}`，表示当前动画与上一个级联动画同时启动。
+
+> 注意：级联调用形式的动画队列，只支持动画函数。对于其它函数（例如`.css()`）不会加入到队列，而是立即执行。
+
+### §1.3.7 `.queue()`
+
+在[§1.3.6 `.animate()`](###§1.3.6 `.animate()`)一节中，我们知道级联调用形式的动画队列，只支持动画函数。为了让非动画函数也能进入动画队列，这里我们不再直接使用级联调用，而是将非动画函数包装在`.queue()`中，再让`.queue()`参与级联调用。
+
+```typescript
+// 部分用法
+.queue([queueName: String = "fx"], callback: Function(next: Function))
+```
+
+```javascript
+$(...)
+	.amimate(...)
+	.queue(function(next){
+		$(...).css(...);
+    	next();
+	})
+	.animate(...);
+```
+
+## §1.4 操作DOM
+
+### §1.4.1 `.addClass()`/`.removeClass()`/`.toggleClass()`
+
+```typescript
+// .addClass()语法
+.addClass(className: String)
+.addClass(classNames: Array)
+.addClass(function: Function(index: Interger, currentClassName: String) => String)
+.addClass(function: Function(index: Interger, currentClassName: String) => String | Array)
+
+// .removeClass()语法
+.removeClass(className: String)
+.removeClass(classNames: Array)
+.removeClass(function: Function(index: Interger, currentClassName: String) => String)
+.removeClass(function: Function(index: Interger, currentClassName: String) => String | Array)
+
+// .toggleClass()语法
+
+```
+
+
+
+### §1.4.2 `.attr()`/`.removeAttr()`
+
+
+
+
+
+### §1.4.3 `.prop()`
+
+
+
+
+
+### §1.4.4 `.val()`
