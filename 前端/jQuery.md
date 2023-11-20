@@ -1679,7 +1679,7 @@ jQuery在此基础上提供了`.val()`用于统一接口：
 
 ### §1.4.5 `.insertAfter()`/`.insertBefore()`
 
-`.insertAfter()`、`insertBefore()`用于在指定元素**外部**之前/之后插入新元素。
+`.insertAfter()`、`insertBefore()`用于在指定元素**外部**之前/之后插入或移动新元素。当该方法所属主体是DOM中已存在的元素，则为移动；反之则为插入。
 
 ```typescript
 // .insertAfter()语法
@@ -1749,16 +1749,6 @@ jQuery在此基础上提供了`.val()`用于统一接口：
     <head>
         <script src="./node_modules/jquery/dist/jquery.js"></script>
         <style>
-            .page {
-                width: 70%;
-                height: 5rem;
-                margin-left: auto;
-                margin-right: auto;
-                text-align: center;
-                padding: 1rem;
-                margin-top: 1rem;
-                border: 1px solid black;
-            }
             .red { color: red; }
             .blue { color: blue; }
         </style>
@@ -1788,4 +1778,531 @@ jQuery在此基础上提供了`.val()`用于统一接口：
 ```
 
 ### §1.4.7 `.prepend()`/`.append()`
+
+`.prepend()`、`.append()`用于在指定元素**内部**之前/之后插入新元素。它们与`prependTo()`、`.appendTo()`的区别是参数顺序不同。
+
+```typescript
+// .prepend()语法
+.prepend(content...: htmlString | Element | Text | Array | jQuery)
+.prepend(function(elementOfArray: Integer, html: String) => htmlSring | Element | Text | jQuery)
+
+// .append()语法
+.append(content...: htmlString | Element | Text | Array | jQuery)
+.append(function(elementOfArray: Integer, html: String) => htmlSring | Element | Text | jQuery)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .red { color: red; }
+            .blue { color: blue; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <button id="button-insertAfter-blue">insertAfter()</button>
+            <button id="button-insertBefore-blue">insertBefore()</button>
+        </div>
+        <div>
+            <span class="red">红色</span>
+        </div>
+        <script>
+            $("button").click(function(event){
+                switch (event.target.id) {
+                    case "button-insertAfter-blue":
+                        $("span.red").prepend("<em>斜体</em>");
+                        break;
+                    case "button-insertBefore-blue":
+                        $("span.red").append("<em>斜体</em>");
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.8 `.wrap()`/`.wrapAll()`/`.wrapInner()`
+
+`.wrap()`、`.wrapAll()`、`.wrapInner()`用于将元素包裹起来。
+
+- `.wrap()`等价于对每个jQuery中的元素，都在外包裹一层实参表示的元素。
+- `.wrapAll()`的作用对象不再是所有多个元素，而是从头开始，找出所有与上一个元素同级且相邻的元素集合，将它们视为一个整体，统一包裹起来。
+- `.wrapInner()`的作用正好反过来：用jQuery对象包裹实参，而非用实参包裹jQuery对象。
+
+```typescript
+// .wrap()语法
+.wrap(wrappingElement: Selector | htmlString | Element | jQuery)
+.wrap(function: Function(index: Integer) => String | jQeury)
+
+// .warpAll()语法
+.wrapAll(wrappingElement: Selector | htmlString | Element | jQuery)
+.wrapAll(function: Function(index: Integer) => String | jQeury)
+
+// .warpInner()语法
+.wrapInner(wrappingElement: htmlString | Selector | jQuery | Element)
+.wrapInner(funciton: Function(index: Integer) => String)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <script src="./node_modules/js-beautify/js/lib/beautify-html.js"></script>
+        <style>
+            li {
+                border: 1px solid black;
+                margin-bottom: 1rem;
+                background-color: lightblue;
+            }
+            .red { color: red; }
+            .blue { color: blue; }
+        </style>
+    </head>
+    <body>
+        <div id="page">
+            <p id="para-1">Para. 1</p>
+            <p id="para-2">Para. 2</p>
+        </div>
+        <textarea id="result" style="width: 20rem; height: 10rem;"></textarea>
+        <script>
+            $("p")
+                .wrapAll("<ul></ul>")
+                .wrap("<li></li>")
+            $("#result").text(
+                html_beautify($("#page")[0].innerHTML)
+            );
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.9 `.before()`/`.after()`
+
+`.before()`、`after()`用于在指定元素**外部**之前/之后插入或移动新元素。它们与`.insertBefore()`、`.insertAfter()`的区别在于参数位置倒置。
+
+```typescript
+// .before()语法
+.before(content...: htmlString | Element | Text | Array | jQuery)
+.before(function: Function(index: Integer) => htmlString | Element | Text | jQuery)
+.before(function: Function(index: Integer, html: String) => htmlString | Element | Text | jQuery)
+
+// .after()语法
+.after(content...: htmlString | Element | Text | Array | jQuery)
+.after(function: Function(index: Integer) => htmlString | Element | Text | jQuery)
+.after(function: Function(index: Integer, html: String) => htmlString | Element | Text | jQuery)
+```
+
+### §1.4.10 `.clone()`
+
+`.clone()`用于复制元素。
+
+```typescript
+.clone(
+    withDataAndEvents: Boolean = false, 
+    [deepWithDataAndEvents: Boolean = <withDataAndEvents>]
+)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            li {
+                border: 1px solid black;
+                margin-bottom: 1rem;
+                background-color: lightblue;
+            }
+            .red { color: red; }
+            .blue { color: blue; }
+        </style>
+    </head>
+    <body>
+        <button>Copy</button>
+        <p>Paragraph</p>
+        <script>
+            $("button").click(function(event){
+                $("p:nth-of-type(1)").clone().insertAfter("button");
+            })
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.11 `.html()`/`.text()`
+
+`.html()`、`.text()`用于获取或设置DOM元素的`innerHTML`和`innerText`。
+
+```typescript
+// .html()语法
+.html()
+.html(htmlString: htmlString)
+.html(function: Function(index: Integer, oldhtml: htmlString) => htmlString)
+
+// .text()语法
+.text()
+.text(text: String | Number | Boolean)
+.text(function: Function(index: Integer, text: String) => String)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <div class="page"></div>
+        <div class="page"></div>
+        <script>
+            $(".page:nth-child(1)").html("<code>Hello, World!</code>")
+            $(".page:nth-child(2)").text("<code>Hello, World!</code>")
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.12 `.replaceAll()`/`.replaceWith()`
+
+`.replaceAll()`、`replaceWith()`用于替换元素，它们的本质都是移动。两者的区别是参数位置倒置。
+
+```typescript
+// .replaceAll()语法
+.replaceAll(target: Selector | jQuery | Array | Element)
+
+// .replaceWith()语法
+.replaceWith(newContent: htmlString | Element | Array | jQuery)
+.replaceWith(function: Function)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .red { color: red; }
+        </style>
+    </head>
+    <body>
+        <button id="button-1">replaceAll()</button>
+        <button id="button-2">replaceWith()</button>
+        <div style="display: flex;">
+            <ul>
+                <li><h1>Hello</h1></li>
+                <li><h2>World</h2></li>
+                <li><h3>:)</h3></li>
+            </ul>
+            <ul>
+                <li><h4>Hello</h4></li>
+                <li><h5>World</h5></li>
+                <li><h6>:)</h6></li>
+            </ul>
+        </div>
+        <script>
+            $("button").click(function(event){
+                switch (event.target.id) {
+                    case "button-1":
+                        $("<h2 class='red'>I'm replaced</h2>").replaceAll("h2");
+                        break;
+                    case "button-2":
+                        $("h5").replaceWith("<h5 class='red'>I'm replaced</h5>");
+                        break;
+                    default:
+                        break;
+                }
+            })
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.13 `.empty()`/`.remove()`/`.detach()`
+
+`.empty()`、`.remove()`、`.detach()`都用于清空元素中的内容。
+
+- `.empty()`用于清空子元素和所有内容。
+- `.remove()`用于删除选定的父元素及其所有子元素和内容。
+- `.detach()`用于删除清空子元素和所有内容，同时保留一份副本以供恢复。
+
+```typescript
+// .empty()语法
+.empty()
+
+// .remove()语法
+.remove(selector: String)
+
+// .detach()语法
+.detach(selector: Selector)
+```
+
+### §1.4.14 `.find()`/`.filter()`
+
+`.find()`、`.filter()`可以根据选择符筛选元素。
+
+- `.find()`用于找出jQuery对象中符合条件的子孙元素。
+- `.filter()`用于找出jQuery对象中符合条件的元素。
+
+```typescript
+// .find()语法
+.find(selector: Selector)
+.find(element: Element | jQuery)
+
+// .filter()语法
+.filter(selector: Selector)
+.filter(function: Function(index: Integer, element: Element) => Boolean)
+.filter(elements: Element)
+.filter(selection: jQuery)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div class="page">
+            <b>This</b> is a <b>bold</b> word.
+        </div>
+        <script>
+            $(".page").find("b").css("color", "red");
+        </script>
+    </body>
+</html>
+```
+
+## §1.5 Ajax
+
+本节介绍jQuery对Ajax的封装。这里我们使用`soul-cli`这个第三方SQLite->API工具：
+
+```shell
+$ npm install -g soul-cli
+$ touch ./sqlite.db
+# CREATE TABLE User (
+#    uid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+#    username TEXT NOT NULL UNIQUE,
+#    passwordHash BLOB NOT NULL,
+#    passwordSalt BLOB NOT NULL
+# );
+$ npx soul -d sqlite.db -p 8000 -S
+```
+
+### §1.5.1 `.load()`
+
+`.load()`用于将Ajax请求的内容作为HTML填充到jQuery对象的内容中。
+
+```typescript
+.load(
+    url: String, 
+    [data: PlainObject | String,]
+    [complete: Functino(responseText: String, textStatus: String, jqXHR: jqXHR)]
+)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div class="page"></div>
+        <script>
+            $(".page").load("./a.html");
+            // a.html => "<div>This is a html snippet</div>"
+        </script>
+    </body>
+</html>
+```
+
+### §1.5.2 `$.getJSON()`
+
+`jQuery.getJSON()`是一个静态方法，用于获取URL指定的JSON文档，并通过回调函数完成赋值。
+
+```typescript
+jQuery.getJSON(
+	url: String,
+    data: PlainObject | String,
+    success: Function(data: PlainObject, textStatus: String, jqXHR: jqXHR)
+)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div class="page"></div>
+        <script>
+            $.getJSON("./a.json", (data)=>{
+                // a.json -> {"username": "yaner", "password": "123456"}
+                $(".page").text(data["username"] + data["password"]);
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.5.3 `$.getScript()`
+
+`jQuery.getScript()`用于动态地从外界加载JavaScript脚本。
+
+```typescript
+jQuery.getScript(
+	url: String,
+    success: Function(script: String, textStatus: String, jqXHR: jrXHR)
+)
+```
+
+> 注意：该静态方法没有提供`fail`等回调参数，需要手动级联调用`.fail()`方法。
+>
+> ```typescript
+> $.getScript(url, () => {
+> 	// ...... success
+> }).done(() => {
+> 	// ...... done
+> }).fail(() => {
+> 	// ...... fail
+> });
+> ```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div class="page"></div>
+        <script>
+            $.getScript("./a.js", function(script, textStatus, jqXHR){
+                // a.js -> alert("External script has loaded!")
+                console.log(script); // JavaScript代码
+                console.log(textStatus); // HTTP状态字符串
+                console.log(jqXHR.status); // HTTP状态码
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.5.4 `$.get()`/`$.post()`
+
+`jQuery.get()`、`jQuery.post()`可以通过GET/POST请求获取XML文档。
+
+```typescript
+// $.get()语法
+jQuery.get(
+	url: String,
+    [data: PlainObject | String,]
+    [success: Function(data: PlainObject, textStatus: String, jqXHR: jqXHR),]
+    [dataType: String]
+)
+jQuery.get(settings: PlainObject)
+
+// $.post()语法
+jQuery.post(
+	url: String,
+    [data: PlainObject | String,]
+    [success: Function(data: PlainObject, textStatus: String, jqXHR: jqXHR),]
+	[dataType: String]
+)
+jQuery.post(settings: PlainObject)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div class="page"></div>
+        <script>
+            $.get('./a.xml', function(data, textStatus, jqXHR){
+                /* a.xml ->
+                <?xml version="1.0" encoding="UTF-8"?>
+					<user>
+					    <username>yaner</username>
+					    <password>123456</password>
+					</user>
+                */
+                $(".page").text(data.getElementsByTagName('username')[0].innerHTML);
+            })
+        </script>
+    </body>
+</html>
+```
+
+### §1.5.5 `.ajaxStart()`/`.ajaxStop()`
+
+`.ajaxStart`和`.ajaxStop()`只能用于`$(document)`这个jQuery对象上，表示在全局注册两个钩子函数，分别在Ajax请求开始和成功的时候执行。常用于展示加载界面。
+
+```typescript
+// .ajaxStart()U语法
+.ajaxStart(handler: Function)
+
+// .ajaxStop()语法
+.ajaxSt(handler: Function)
+```
+
+> 注意：该写法已被jQuery 3.3+抛弃，建议使用`on("ajaxStart", handler)`等。
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            input { width: 20rem; }
+            textarea { width: 90%; height: 80%; }
+            .loading-box {
+                --width: 15rem;
+                --height: 8rem;
+                width: var(--width);
+                height: var(--height);
+                border: 1px solid black;
+                background-color: lightblue;
+
+                position: absolute;
+                top: calc(50% - 4rem);
+                left: calc(50% - 7.5rem);
+
+                text-align: center;
+                line-height: var(--height);
+            }
+            .hidden { display: none; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <input type="text" id="input-url">
+            <button id="button-ajax-send">发送Ajax请求</button>
+        </div>
+        <div id="div-loading" class="loading-box hidden">Loading...</div>
+        <textarea id="result"></textarea>
+        <script>
+            $(document).ready(function(){
+                $("#input-url").attr("value", window.location)
+                $(document)
+                    .ajaxStart(()=>{$("#div-loading").removeClass("hidden");})
+                    .ajaxStop(()=>{$("#div-loading").addClass("hidden");});
+            });
+            $("#button-ajax-send").click(function(event){
+                $.get($("#input-url").val(), function(data, textStatus, jqXHR){
+                    $("#result").text(data)
+                })
+            });
+        </script>
+    </body>
+</html>
+```
 
