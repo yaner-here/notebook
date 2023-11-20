@@ -1375,6 +1375,8 @@ $(...)
 
 ### §1.4.1 `.addClass()`/`.removeClass()`/`.toggleClass()`
 
+`.addClass()`、`.removeClass()`、`.toggleClass()`用于控制元素的`class`属性。
+
 ```typescript
 // .addClass()语法
 .addClass(className: String)
@@ -1389,21 +1391,401 @@ $(...)
 .removeClass(function: Function(index: Interger, currentClassName: String) => String | Array)
 
 // .toggleClass()语法
-
+.toggleClass(className: String)
+.toggleClass(className: String, state: Boolean)
+.toggleClass(classNames: Array)
+.toggleClass(classNames: Array, state: Boolean)
+.toggleClass(function: Function(index: Integer, className: String, state: Boolean) => String [,state: Boolean])
+.toggleClass(function: Function(index: Integer, className: String, state: Boolean) => String | Array [, state: Boolean])
 ```
 
-
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+            .background { background-color: lightblue; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <button id="button-addClass">addClass()</button>
+            <button id="button-removeClass">removeClass()</button>
+            <button id="button-toggleClass">toggleClass()</button>
+        </div>
+        <div class="page background background"></div>
+        <script>
+            $(document).ready(function(){
+                $(".page").text(
+                    $(".page").attr("class")
+                );
+            })
+            $("button[id^='button-']").click(function(event){
+                switch (event.target.id) {
+                    case "button-addClass":
+                        $(".page").addClass("background");
+                        break;
+                    case "button-removeClass":
+                        $(".page").removeClass("background");
+                        break;
+                    case "button-toggleClass":
+                        $(".page").toggleClass("background");
+                        break;
+                }
+                $(".page").text(
+                    $(".page").attr("class")
+                );
+            });
+        </script>
+    </body>
+</html>
+```
 
 ### §1.4.2 `.attr()`/`.removeAttr()`
 
+`.attr()`和`.removeAttr()`用于获取、添加、移除元素的属性。
 
+```typescript
+// .attr()语法
+.attr(attributeName: String)
+.attr(attributeName: String, value: String | Number | Null)
+.attr(attributes: PlainObject)
+.attr(attributeName: String, function: Function(index: Integer, attr: String))
 
+// .removeAttr()语法
+.removeAttr(attributeName: String)
+```
 
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+            input { margin: 1rem; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <button id="button-switch-to-text">text()</button>
+            <button id="button-switch-to-radio">radio()</button>
+            <button id="button-switch-to-checkbox">checkbox()</button>
+        </div>
+        <input id="input" type="button"/>
+        <div id="page"></div>
+        <script>
+            $(document).ready(function(){
+                $("#page").text(
+                    $("#input").attr("type")
+                );
+            })
+            $("button").click(function(event){
+                switch (event.target.id) {
+                    case "button-switch-to-text":
+                        $("#input").attr("type", "text");
+                        break;
+                    case "button-switch-to-radio":
+                        $("#input").attr("type", "radio");
+                        break;
+                    case "button-switch-to-checkbox":
+                        $("#input").attr("type", "checkbox");
+                        break;
+                }
+                $("#page").text(
+                    $("#input").attr("type")
+                );
+            });
+        </script>
+    </body>
+</html>
+```
 
 ### §1.4.3 `.prop()`
 
+`.prop()`用于获取或更改jQuery对象中的**第一个元素**的属性值。
 
+```typescript
+.prop(propertyName: String)
+.prop(propertyName: String, value: Any)
+.prop(properties: PlainObject)
+.prop(propertyName: String, function: Function(index: Integer, oldPropertyValue: Any) => Any)
+```
 
-
+> 注意：`.prop()`和`.attr()`分别对应Attribute和Property这两个概念。
+>
+> - Attribute指的是HTML标签中声明的属性值，例如`<input type="text">`中的`type`、`<img src="">`中的`src`。
+> - Property指的是在JavaScript运行时中，DOM元素的实例属性。例如`selectedIndex`、`tagName`、`nodeName`、`nodeType`、`ownerDocument`、`defaultChecked`、`defaultSelected`。
+>
+> 在jQuery 1.6之前，这两个概念经常被混淆。直到jQuery 1.7及以后，`.prop()`和`.attr()`才真正地各司其职。
+>
+> 下表以`<input type="checkbox" checked="checked">`元素为例：
+>
+> | jQuery代码                           | 返回值      | 是否改变属性值 |
+> | ------------------------------------ | ----------- | -------------- |
+> | `element.checked`                    | `true`      | 是             |
+> | `$(element).prop("checked")`         | `true`      | 是             |
+> | `$(element).getAttribute("checked")` | `"checked"` | 否             |
+> | `$(element).attr("checked")`(~1.6)   | `"checked"` | 否             |
+> | `$(element).attr("checked")`(1.7+)   | `true`      | 是             |
 
 ### §1.4.4 `.val()`
+
+`.val()`用于获取或修改表单元素的值。
+
+```typescript
+.val() => String | Number | Array
+.val(value: String | Number | Array)
+.val(setter: Function(index: Integer, value: String) => String)
+```
+
+我们知道，在原生JavaScript，各个表单元素获取值的方式并不一致，例如`.value`、`selectedIndex`等：
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+            input { margin: 1rem; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <input id="input-text" type="text"/>
+            <input id="input-checkbox" type="checkbox"/><label for="input-checkbox">Enable me</label>
+            <select id="select">
+                <option value="">Choose an option ......</option>
+                <option value="">America</option>
+                <option value="">British</option>
+                <option value="">China</option>
+            </select>
+        </div>
+        <div>
+            <div id="div-input-text-result"></div>
+            <div id="div-input-checkbox-result"></div>
+            <div id="div-select-result"></div>
+        </div>
+        <script>
+            $(document).ready(function(){
+                $("#page").text(
+                    $("#input").attr("type")
+                );
+            })
+            $("input, select").on("click keyup", function(event){
+                switch (event.target.id) {
+                    case "input-text":
+                        $("#div-input-text-result").text(this.value);
+                        break;
+                    case "input-checkbox":
+                        $("#div-input-checkbox-result").text(this.value);
+                        break;
+                    case "select":
+                        $("#div-select-result").text(this.selectedIndex);
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+jQuery在此基础上提供了`.val()`用于统一接口：
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+            input { margin: 1rem; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <input id="input-text" type="text"/>
+            <input id="input-checkbox" type="checkbox"/><label for="input-checkbox">Enable me</label>
+            <select id="select">
+                <option value="">Choose an option ......</option>
+                <option value="America">America</option>
+                <option value="British">British</option>
+                <option value="China">China</option>
+            </select>
+        </div>
+        <div>
+            <div id="div-input-text-result"></div>
+            <div id="div-input-checkbox-result"></div>
+            <div id="div-select-result"></div>
+        </div>
+        <script>
+            $(document).ready(function(){
+                $("#page").text(
+                    $("#input").attr("type")
+                );
+            })
+            $("input, select").on("click keyup", function(event){
+                switch (event.target.id) {
+                    case "input-text":
+                        $("#div-input-text-result").text($(this).val());
+                        break;
+                    case "input-checkbox":
+                        $("#div-input-checkbox-result").text($(this).val());
+                        break;
+                    case "select":
+                        $("#div-select-result").text($(this).val());
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.5 `.insertAfter()`/`.insertBefore()`
+
+`.insertAfter()`、`insertBefore()`用于在指定元素**外部**之前/之后插入新元素。
+
+```typescript
+// .insertAfter()语法
+.insertAfter(targer: Selector | htmlString | Element | Array | jQuery)
+
+// .insertBefore()语法
+.insertBefore(targer: Selector | htmlString | Element | Array | jQuery)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+            .red { color: red; }
+            .blue { color: blue; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <button id="button-insertAfter-blue">insertAfter()</button>
+            <button id="button-insertBefore-blue">insertBefore()</button>
+        </div>
+        <div>
+            <span class="red">红色</span>
+        </div>
+        <script>
+            $("button").click(function(event){
+                switch (event.target.id) {
+                    case "button-insertAfter-blue":
+                        $("<span class='blue'>蓝色</span>").insertAfter("span.red")
+                        break;
+                    case "button-insertBefore-blue":
+                        $("<span class='blue'>蓝色</span>").insertBefore("span.red")
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.6 `.prependTo()`/`.appendTo()`
+
+`.prependTo()`、`.appendTo()`用于在指定元素**内部**之前/之后插入新元素。
+
+```typescript
+// .prependTo()语法
+.prependTo(targer: Selector | htmlString | Element | Array | jQuery)
+
+// .appendTo()语法
+.appendTo(targer: Selector | htmlString | Element | Array | jQuery)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+            .page {
+                width: 70%;
+                height: 5rem;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid black;
+            }
+            .red { color: red; }
+            .blue { color: blue; }
+        </style>
+    </head>
+    <body>
+        <div>
+            <button id="button-insertAfter-blue">insertAfter()</button>
+            <button id="button-insertBefore-blue">insertBefore()</button>
+        </div>
+        <div>
+            <span class="red">红色</span>
+        </div>
+        <script>
+            $("button").click(function(event){
+                switch (event.target.id) {
+                    case "button-insertAfter-blue":
+                        $("<em>斜体</em>").prependTo("span.red")
+                        break;
+                    case "button-insertBefore-blue":
+                        $("<em>斜体</em>").appendTo("span.red")
+                        break;
+                }
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §1.4.7 `.prepend()`/`.append()`
+
