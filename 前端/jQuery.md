@@ -510,69 +510,494 @@ $('a:contains(Notice)')
 ```
 
 #### §1.1.3.6 `.contents()`
-`.contents()`用于获取元素的所有子元素、文本和注释。
+`.contents()`用于获取元素的所有子元素和文本节点。该方法与`.children()`的区别在于它能获取文本节点。
 
-TODO:
+```typescript
+.contents()
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            This is a title.<li>1</li><li>2</li><li>3</li>
+        </ul>
+        <ul>
+            This is a title.<li>1</li><li>2</li><li>3</li>
+        </ul>
+        <script>
+            console.log(
+                $("ul:nth-of-type(1)").contents().get().join(' '),
+                $("ul:nth-of-type(2)").children().get().join(' ')
+            );
+        </script>
+    </body>
+</html>
+```
 
 #### §1.1.3.7 `.each()`
 
-`.each()`用于。
-#### §1.1.3.8 `.end()`
-`.end()`用于。
-#### §1.1.3.9 `.eq()`
-`.eq()`用于。
-#### §1.1.3.10 `.even()`
-`.even()`用于。
-#### §1.1.3.11 `.filter()`
-`.filter()`用于。
-#### §1.1.3.12 `.find()`
-`.find()`用于。
-#### §1.1.3.13 `.first()`
-`.first()`用于。
-#### §1.1.3.14 `.has()`
-`.has()`用于。
-#### §1.1.3.15 `.is()`
-`.is()`用于。
-#### §1.1.3.16 `.last()`
-`.last()`用于。
-#### §1.1.3.17 `.map()`
-`.map()`用于。
-#### §1.1.3.18 `.next()`
-`.next()`用于。
-#### §1.1.3.19 `.nextAll()`
-`.nextAll()`用于。
-#### §1.1.3.20 `.nextUntil()`
-`.nextUntil()`用于。
-#### §1.1.3.21 `.not()`
-`.not()`用于。
-#### §1.1.3.22 `.odd()`
-`.odd()`用于。
-#### §1.1.3.23 `.offsetParent()`
-`.offsetParent()`用于。
-#### §1.1.3.24 `.parent()`
-`.parent()`用于。
-#### §1.1.3.25 `.parents()`
-`.parents()`用于。
-#### §1.1.3.26 `.parentsUntil()`
-`.parentsUntil()`用于。
-#### §1.1.3.27 `.prev()`
-`.prev()`用于。
-#### §1.1.3.28 `.prevAll()`
-`.prevAll()`用于。
-#### §1.1.3.29 `.prevUntil()`
-`.prevUntil()`用于。
-#### §1.1.3.30 `.siblings()`
-`.siblings()`用于。
-#### §1.1.3.31 `.slice()`
-`.slice()`用于。
+`.each()`用于让jQuery对象的所有元素都经过指定函数处理。
 
-### §1.1.4 `next()`/`nextAll()`
-
-```javascript
-
+```typescript
+.each(function: Function(index: Integer, element: Element))
 ```
 
-### §1.1.5 访问底层DOM
+#### §1.1.3.8 `.end()`
+`.end()`用于终止级联调用链，并返回到经过过滤操作前的上一次状态。
+
+```typescript
+.end()
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("ul")
+                .children("li:nth-child(1)").css("color", "red")
+                .end()
+                .children("li:nth-child(2)").css("color", "blue")
+                .end()
+                .children("li:nth-child(3)").css("color", "green")
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.9 `.eq()`
+
+`.eq()`用于将jQuery对象中指定位置的元素，包装成一个新的jQuery对象并返回，这也是`.eq`与`.get()`和`[]`的不同之处。
+
+```typescript
+.eq(index: Integer)
+.eq(indexFromEnd: Integer) // 负数表示从后往前索引
+```
+
+#### §1.1.3.10 `.even()`
+
+`.even()`用于选择jQuery对象中的偶数元素（从零开始计数）。
+
+```typescript
+.even()
+```
+
+#### §1.1.3.11 `.filter()`
+
+详见[§1.4.14 `.find()`/`.filter()](###§1.4.14 .find()/.filter())一节。
+
+#### §1.1.3.12 `.find()`
+
+详见[§1.4.14 `.find()`/`.filter()](###§1.4.14 .find()/.filter())一节。
+
+#### §1.1.3.13 `.first()`
+`.first()`用于选择jQuery对象中的第一个元素。
+
+```typescript
+.first()
+```
+
+#### §1.1.3.14 `.has()`
+`.has()`用于选择jQuery对象中含有指定条件的子孙元素的所有元素。
+
+```typescript
+.has(selector: String)
+.has(contained: Element)
+```
+
+#### §1.1.3.15 `.is()`
+
+`.is()`用于判断两个对元素的引用是否是同一个元素。
+
+```typescript
+.is(selector: Selector) => Boolean
+.is(function: Function(index: Integer, element: Element)) => Boolean
+.is(selection: jQuery) => Boolean
+.is(elements: Element) => Boolean
+```
+
+#### §1.1.3.16 `.last()`
+
+`.last()`用于返回jQuery对象中的最后一个元素。
+
+```typescript
+.last()
+```
+
+#### §1.1.3.17 `.map()`
+`.map()`接受一个函数，将jQuery对象中的所有元素放入函数中，将函数返回的结果包装成一个新的jQuery对象。可以通过`.get()`获得数组。
+
+```typescript
+.map(callback: Function(index: Integer, domElement: Element) => Object)
+```
+
+#### §1.1.3.18 `.next()`
+
+`.next()`用于获取后一个相邻同级元素。如果后一个相邻同级元素不存在，则返回空jQuery对象。
+
+```typescript
+.next([selector: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("li:nth-child(2)").next().css("color", "red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.19 `.nextAll()`
+`.nextAll()`用于获取所有后面的相邻同级元素。如果后一个相邻同级元素不存在，则返回空jQuery对象。
+
+```typescript
+.nextAll(selector: Selector)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+
+        </style>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("li:nth-child(1)").nextAll().css("color", "red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.20 `.nextUntil()`
+
+`.nextUntil()`用于获取后面的相邻同级元素，直到遇到符合条件的元素为止。
+
+```typescript
+.nextUntil([selector: Selector], [filter: Selector])
+.nextUntil([element: Element | jQuery], [filter: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("li:nth-child(1)").nextUntil("li:nth-child(3)").css("color", "red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.21 `.not()`
+
+`.not()`用于筛除符合条件的元素。
+
+```typescript
+.not(selector: Selector | Element | Array)
+.not(function: Function(index: Integer, element: Element) => Boolean)
+.not(selection: jQuery)
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("li").not("*:nth-child(3)").css("color", "red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.22 `.odd()`
+
+`.odd()`用于选择jQuery对象中的奇数元素（从零开始计数）。
+
+```typescript
+.odd()
+```
+
+#### §1.1.3.23 `.offsetParent()`
+`.offsetParent()`用于获取最近的已定位的祖先元素。这里的“已定位”指的是`position`为`relative`/`absolute`/`fixed`的元素。该元素常用于排版。
+
+```
+.offsetParent()
+```
+
+#### §1.1.3.24 `.parent()`
+
+`.parent()`用于获取父元素。
+
+```typescript
+.parent([selector: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("li:nth-child(2)").parent().css("border", "1px solid black");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.25 `.parents()`
+`.parents()`用于递归地获取所有父元素、父元素的父元素等。
+
+```typescript
+.parents([selector: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+
+        </style>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("li:nth-child(2)").parents().css("border", "1px solid black");
+        	// <ul>,<body>,<html>
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.26 `.parentsUntil()`
+`.parentsUntil()`用于用于递归地获取父元素、父元素的父元素等，直到遇到符合条件的元素为止。
+
+```typescript
+.parentsUntil([selector: Selector], [filter: Selector])
+.parentsUntil([element: Element | jQuery], [filter: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <script>
+            $("li:nth-child(2)").parentsUntil("html").css("border", "1px solid black");
+            // <ul>,<body>
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.27 `.prev()`
+
+`.prev()`用于获取前一个相邻同级元素。如果前一个相邻同级元素不存在，则返回空jQuery对象。
+
+```typescript
+.prev([selector: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+            <li>4</li>
+            <li>5</li>
+            <li>6</li>
+        </ul>
+        <script>
+            $("li:nth-child(2)").prev().css("color","red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.28 `.prevAll()`
+`.prevAll()`用于获取所有前面的相邻同级元素。如果前一个相邻同级元素不存在，则返回空jQuery对象。
+
+```typescript
+.prevAll([selector: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+            <li>4</li>
+            <li>5</li>
+            <li>6</li>
+        </ul>
+        <script>
+            $("li:nth-child(4)").prevAll().css("color","red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.29 `.prevUntil()`
+`.prevUntil()`用于获取前面的相邻同级元素，直到遇到符合条件的元素为止。
+
+```typescript
+.prevUntil([selector: Selector], [filter: Selector])
+.prevUntil([element: Element | jQuery], [filter: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul id="ul-1">
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
+        <ul id="ul-2">
+            <li>4</li>
+            <li>5</li>
+            <li>6</li>
+        </ul>
+        <ul id="ul-3">
+            <li>7</li>
+            <li>8</li>
+            <li>9</li>
+        </ul>
+        <script>
+            $("#ul-3 > li:nth-child(2)").prevUntil("#ul-1").css("color", "red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.30 `.siblings()`
+
+`.siblings()`用于获取所有的同级元素。
+
+```typescript
+.siblings([selector: Selector])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>Hello</li>
+            <li>World</li>
+            <li>:)</li>
+        </ul>
+        <script>
+            $("li:nth-child(2)").siblings().css("color", "red");
+        </script>
+    </body>
+</html>
+```
+
+#### §1.1.3.31 `.slice()`
+
+`.slice()`用于截取jQuery对象中的一段位置连续的DOM元素，区间为`[start, end)`，从零开始计数。当数值为负时，表示从后往前数。
+
+```typescript
+.slice(start: Integer, [end: Integer])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+            <li>4</li>
+            <li>5</li>
+            <li>6</li>
+        </ul>
+        <script>
+            $("li").slice(1, 5).css("color", "red");
+            $("li").slice(-3).css("font-weight", "bold");
+        </script>
+    </body>
+</html>
+```
+
+### §1.1.4 访问底层DOM
 
 在大部分jQuery的开发流程中，我们只需要与jQuery对象打交道。但是如果要访问其中的底层DOM元素，jQuery也有对应的方法。
 
@@ -2243,19 +2668,22 @@ jQuery.post(settings: PlainObject)
 </html>
 ```
 
-### §1.5.5 `.ajaxStart()`/`.ajaxStop()`
+### §1.5.5 `.ajaxStart()`/`.ajaxStop()`/`.ajaxError()`
 
-`.ajaxStart`和`.ajaxStop()`只能用于`$(document)`这个jQuery对象上，表示在全局注册两个钩子函数，分别在Ajax请求开始和成功的时候执行。常用于展示加载界面。
+`.ajaxStart`、`.ajaxStop()`、`.ajaxError()`只能用于`$(document)`这个jQuery对象上，表示在全局注册两个钩子函数，分别在Ajax请求开始、成功、失败的时候执行。常用于展示加载界面。
 
 ```typescript
 // .ajaxStart()U语法
 .ajaxStart(handler: Function)
 
 // .ajaxStop()语法
-.ajaxSt(handler: Function)
+.ajaxStop(handler: Function)
+
+// .ajaxError()语法
+.ajaxError(handler: Function)
 ```
 
-> 注意：该写法已被jQuery 3.3+抛弃，建议使用`on("ajaxStart", handler)`等。
+> 注意：关于Ajax的`.ajaxComplete()`、`.ajaxError()`、`.ajaxSend()`、`.ajaxStart()`、`.ajaxStop()`和`.ajaxSuccess()`已被jQuery 3.3+抛弃，建议使用`.on()`，通过`"ajaxComplete"`、`"ajaxError"`、`"ajaxSend"`、`"ajaxStart"`、`"ajaxStop"`、`"ajaxSuccess"`事件名注册事件。
 
 ```html
 <html>
@@ -2279,7 +2707,6 @@ jQuery.post(settings: PlainObject)
                 text-align: center;
                 line-height: var(--height);
             }
-            .hidden { display: none; }
         </style>
     </head>
     <body>
@@ -2287,14 +2714,14 @@ jQuery.post(settings: PlainObject)
             <input type="text" id="input-url">
             <button id="button-ajax-send">发送Ajax请求</button>
         </div>
-        <div id="div-loading" class="loading-box hidden">Loading...</div>
+        <div id="div-loading" class="loading-box" style="display: none;">Loading...</div>
         <textarea id="result"></textarea>
         <script>
             $(document).ready(function(){
-                $("#input-url").attr("value", window.location)
+                $("#input-url").attr("value", window.location);
                 $(document)
-                    .ajaxStart(()=>{$("#div-loading").removeClass("hidden");})
-                    .ajaxStop(()=>{$("#div-loading").addClass("hidden");});
+                    .ajaxStart(()=>{$("#div-loading").fadeIn();})
+                    .ajaxStop(()=>{$("#div-loading").fadeOut();});
             });
             $("#button-ajax-send").click(function(event){
                 $.get($("#input-url").val(), function(data, textStatus, jqXHR){
@@ -2305,4 +2732,54 @@ jQuery.post(settings: PlainObject)
     </body>
 </html>
 ```
+
+### §1.5.6 `.done()`/`.fali()`/`.always()`
+
+`.done()`、`.fail()`、`.always()`是jQuery延迟对象提供的一类级联调用方法，同样可以指定回调函数。
+
+```typescript
+// .done()语法
+.done(fallCallbacks...: Function) => Deferred
+
+// .fail()语法
+.fail(fallCallbacks...: Function) => Deferred
+
+// .always()语法
+.always(fallCallbacks...: Function) => Deferred
+```
+
+### §1.5.7 `$.ajax()`
+
+`jQuery.ajax()`提供了底层的Ajax方法。
+
+```typescript
+jQuery.ajax(url: String, [settings: PlainObject])
+jQuery.ajax([settings: PlainObject[
+	accepts: PlainObject = <dataType>,
+	async: Boolean = true,
+	async
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+]])
+```
+
+
+
+
+
+11.22 7w+
 
