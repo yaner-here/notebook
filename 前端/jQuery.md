@@ -2544,6 +2544,32 @@ $ npx soul -d sqlite.db -p 8000 -S
 </html>
 ```
 
+`load()`也支持加载请求内容中的部分内容，只需在`url`的后面加上`<空格><选择符>`即可。这样即使后端返回的是完整的HTML文档，前端也可以有选择性地加载。
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div class="page"></div>
+        <script>
+            $(".page").load("./a.html span");
+            /* a.html => 
+	            <html>
+				    <body>
+				        <div>This is a div</div>
+				        <span>This is a span</span>
+				    </body>
+				</html>
+			*/
+        </script>
+    </body>
+</html>
+```
+
 ### §1.5.2 `$.getJSON()`
 
 `jQuery.getJSON()`是一个静态方法，用于获取URL指定的JSON文档，并通过回调函数完成赋值。
@@ -2757,29 +2783,311 @@ jQuery.ajax(url: String, [settings: PlainObject])
 jQuery.ajax([settings: PlainObject[
 	accepts: PlainObject = <dataType>,
 	async: Boolean = true,
-	async
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+	beforeSend: Function(jqXHR: jqXHR, settings: PlainObject),
+    cache: Boolean = dataType !== ("script" || "jsonp"),
+	complete: Function(jqXHR: jqXHR, textStatus: String),
+	contents: PlainObject,
+	contentType: String | Boolean = "application/x-www-form-urlencoded;charset=UTF-8",
+	context: PlainObject,
+	converters: PlainObject = {"* text": window.String, "text html": true, "text json": jQuery.parseJSON, "text xml": jQuery.parseXML},
+	crossDomain: Boolean = <CROSS_DOMAIN> => true, <SAME_DOMAIN> => false,
+	data: PlainObject | String | Array,
+	dataFilter: Function(data: String, type: String) => Any,
+	dataType: String = <Intelligent Guess> => ("xml", "json", "script", "html", "jsonp", "text"),
+	error: Function(jqXHR: jqXHR, textStatus: String, errorThrown: String)m
+    global: Boolean = true,
+	headers: PlainObject = {},
+	ifModified: Boolean = false,
+	isLocal: Boolean = <CURRENT_LOCATION_PROTOCOL>,
+	jsonp: String | Boolean,
+	jsonpCallback: String | Function,
+	method: String = "GET",
+	mimeType: String,
+	password: String,
+	processData: Boolean = true,
+	scriptAttrs: PlainObject,
+	scriptCharset: String,
+	statusCode: PlainObject = {},
+	success: Function(data: Any, textStatus: String, jqXHR: jqXHR),
+	timeout: Number,
+	traditional: Boolean,
+	type: String = "GET",
+	url: String = <CURRENT_PAGE>,
+	username: String,
+	xhr: Function = <INTERNET_EXPLORER> ? ActiveXObject : XMLHttpRequest;
+	xhrFields: PlainObject
 ]])
+```
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+    </head>
+    <body>
+        <textarea cols="30" rows="10"></textarea>
+        <script>
+            jQuery.ajax({
+                "url": "./a.html",
+                "method": "POST",
+                "success": function(data){$("textarea").text(data);},
+                "error": function(){$("textarea").text("Not Found");}
+            })
+        </script>
+    </body>
+</html>
+```
+
+# §2 插件
+
+jQuery在设计之初，就为插件开发者提供了大量底层的API。时至今日，jQuery插件社区已经非常繁荣，小到选择器，大到UI组件。
+
+## §2.1 使用插件
+
+### §2.1.1 样式插件——以`Cycle2`为例
+
+jQuery官方提供了[第三方插件库索引站](https://plugins.jquery.com/)。
+
+这里我们以其中的[`Cycle2`](https://plugins.jquery.com/cycle2)库为例，这是一个幻灯片插件，常用于生成轮播图。
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <script src="https://malsup.github.io/jquery.cycle2.js"></script>
+        <style>
+            .panel {
+                height: 3rem;
+                border: 1px solid black;
+                padding: 0.5rem;
+                display: flex;
+            }
+            button {
+                width: fit-content;
+                height: 2rem;
+                margin-right: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="panel">
+            <div style="margin-right: 1rem;">
+                <div>
+                    <label for="cycle-speed">动画时长</label>
+                    <input type="text" id="input-cycle-speed">
+                </div>
+                <div>
+                    <label for="cycle-timeout">展示延时</label>
+                    <input type="text" id="input-cycle-timeout">
+                </div>
+            </div>
+            <div>
+                <button id="button-set">设置</button>
+                <button id="button-pause">暂停动画</button>
+                <button id="button-resume">恢复动画</button>
+            </div>
+        </div>
+        <ul id="slides" data-cycle-slides="li" data-cycle-speed="600" data-cycle-timeout="100">
+            <li>
+                <img src="https://jquery.com/favicon.ico" alt="jQuery">
+                <div>jQuery</div>
+            </li>
+            <li>
+                <img src="https://www.baidu.com/favicon.ico" alt="Baidu">
+                <div>Baidu</div>
+            </li>
+        </ul>
+        <script>
+            $(document).ready(function(){
+                $("#input-cycle-speed").val($("#slides").attr("data-cycle-speed"))
+                $("#input-cycle-timeout").val($("#slides").attr("data-cycle-timeout"))
+            })
+            $("#button-set").click(function(){
+                $("#slides").attr("data-cycle-speed", $("#input-cycle-speed").val());
+                $("#slides").attr("data-cycle-timeout", $("#input-cycle-timeout").val());
+                $("#slides").cycle();
+                $(this).attr("disabled", "true");
+            });
+            $("#button-pause").click(function(){
+                $("#slides").cycle("pause");
+            });
+            $("#button-resume").click(function(){
+                $("#slides").cycle("resume");
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.1.2 功能插件——以`jQuery-cookie`为例
+
+`jQuery-cookie`用于直接控制浏览器的Cookie。
+
+```javascript
+// 写入Cookie
+$.cookie('key', 'value')
+$.cookie('key', 'value', {expires: 365, path: "/"})
+
+// 读取Cookie
+$.cookie('key') => Any | Undefined
+$.cookie() => Object // 所有Cookie
+
+// 删除Cookie
+$.removeCookie('key')
+$.removeCookie('key', {path: '/'})
+```
+
+### §2.1.3 UI插件——以`jQueryUI`为例
+
+`jQueryUI`是jQuery官方开发的一款UI插件。其实我们之前已经接触过这款插件了，例如`.addClass()`、`.animate()`函数等。
+
+除此之外，`jQueryUI`也提供了预置的组件。
+
+```html
+<html>
+    <head>
+        <script src="./node_modules/jquery/dist/jquery.js"></script>
+        <link rel="stylesheet" href="./node_modules/jquery-ui/dist/themes/black-tie/theme.css">
+        <link rel="stylesheet" href="./node_modules/jquery-ui/dist/themes/black-tie/jquery-ui.css">
+        <script src="./node_modules/jquery-ui/dist/jquery-ui.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div class="panel"><button>Button</button></div>
+        <div class="panel"><button>Button</button></div>
+        <script>
+            $(".panel:nth-of-type(2) > button").button();
+        </script>
+    </body>
+</html>
+```
+
+## §2.2 开发插件
+
+### §2.3.1 添加静态方法
+
+受益于JavaScript的动态特性，我们可以随时更改一个对象的某个实例属性。这就允许我们对`$`进行拓展：
+
+```javascript
+(function($){
+    $.自定义函数 = ()=>{...};
+})(jQuery);
+```
+
+或者使用jQuery提供的`$.extend()`方法定义新函数：
+
+```javascript
+(function($){
+    $.extend(
+    	"自定义函数": ()=>{...},
+    	"自定义函数": ()=>{...},
+    	...
+    );
+})(jQuery);
+```
+
+或者在jQuery命名空间中自定义一个对象，将所有函数放在这个函数里：
+
+```javascript
+(function($){
+    $.自定义类 = {
+    	"自定义函数": ()=>{...},
+    	"自定义函数": ()=>{...},
+    	...
+    };
+})(jQuery);
+```
+
+例如我们做一个`$.average()`，用于计算平均数：
+
+```javascript
+(function($){
+	$.average = function(array){
+    	return array.length !== 0 ? array.reduce(
+        	(accumulator, currentValue) => { return accumulator + currentValue; },
+        	0
+        ) / array.length : 0;
+    }
+})();
+```
+
+### §2.3.2 添加实例方法
+
+jQuery对象的实例方法定义在`jQuery.fn`命名空间中，在函数内通过`this`引用调用该方法的jQuery对象。
+
+```javascript
+(function($){
+    $.fn.自定义函数名 = function(){this....};
+})(jQuery);
+```
+
+为处理零个和多个元素的情景，还要保证级联调用，我们在`this`外面包一层`.each()`，并返回:
+
+```javascript
+(function($){
+    $.fn.自定义函数名 = function(){
+    	return this.each(function(){ // this引用jQuery对象
+        	this.... // this已解构,引用DOM元素
+        });
+    };
+})(jQuery);
+```
+
+jQuery提供了`jQuery.extend()`方法，可以用传入参数替换默认参数：
+
+```typescript
+(function($){
+    $.fn.自定义函数名 = function(options: Object){
+    	defaultOptions: Object = {
+    		"key": "value",
+        	// ...
+    	};
+	    $.extend(defaultOptions, options);
+        // ...
+    };
+})(jQuery);
+```
+
+### §2.3.3 创建UI组件
+
+之前我们已经知道`jQueryUI`提供了大量的组件。其实`jQueryUI`也提供了一个底层的`$.widget()`方法用于自定义组件。
+
+```javascript
+(function($){
+	$.widget(
+        'yaner.tooltip',
+        {
+        	_create: function(){
+            	this._tooltipDiv = $("<div></div>")
+                    .addClass("yaner-tooltip-text ui-widget ui-state-highlight ui-corner-all")
+                	.hide()
+                	.appendTo("body");
+                this.element
+                	.addClass("yaner-tooltip-trigger")
+                	.on("mouseenter.yaner-tooltip", $.proxy(this._open, this))
+	                .on("mouseleave.yaner-tooltip", $.proxy(this._close, this));
+            },
+            _open: function(){
+            	var elementOffset = this.element.offset();
+                this._tooltipDiv.css({
+                	"position": "absolute",
+                    "left": elementOffset.left,
+                    "top": elementOffset.top + this.element.height
+                }).text(this.element.data('tooltip-text'));
+                this._tooltipDiv.show();
+            },
+            _close: function(){
+            	this._tooltipDiv.hide();
+            }
+        }
+    )
+})(jQuery);
 ```
 
 
 
+11.23 8w+
 
-
-11.22 7w+
+11.24 9w+
 
