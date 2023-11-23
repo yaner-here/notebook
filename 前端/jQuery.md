@@ -3053,11 +3053,24 @@ jQuery提供了`jQuery.extend()`方法，可以用传入参数替换默认参数
 
 之前我们已经知道`jQueryUI`提供了大量的组件。其实`jQueryUI`也提供了一个底层的`$.widget()`方法用于自定义组件。
 
+？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+
+？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+
+？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+
+
+
 ```javascript
 (function($){
 	$.widget(
         'yaner.tooltip',
         {
+            options: {
+            	offsetX: 10,
+                offsetY: 10,
+                content: function(){return $(this).data('tooltip-text');}
+            },
         	_create: function(){
             	this._tooltipDiv = $("<div></div>")
                     .addClass("yaner-tooltip-text ui-widget ui-state-highlight ui-corner-all")
@@ -3069,25 +3082,48 @@ jQuery提供了`jQuery.extend()`方法，可以用传入参数替换默认参数
 	                .on("mouseleave.yaner-tooltip", $.proxy(this._close, this));
             },
             _open: function(){
-            	var elementOffset = this.element.offset();
+				if(this.options.disabled){
+                	return;
+                }
+                var elementOffset = this.element.offset();
                 this._tooltipDiv.css({
                 	"position": "absolute",
-                    "left": elementOffset.left,
-                    "top": elementOffset.top + this.element.height
-                }).text(this.element.data('tooltip-text'));
+                    "left": elementOffset.left + this.options.offsetX,
+                    "top": elementOffset.top + this.element.height + this.options.offsetY
+                }).text(this.options.content.call(this.element[0]));
                 this._tooltipDiv.show();
             },
             _close: function(){
             	this._tooltipDiv.hide();
+            },
+            destroy: function(){
+            	this._tooltipDiv.remove();
+                this.element
+                	.removeClass('yaner-tooltip-trigger')
+                	.off('yaner-tooltip');
+                $.Widget.prototype.destroy.apply(this, arguments);
             }
         }
     )
 })(jQuery);
 ```
 
+其中`$.proxy()`用于改变函数中的`this`，效果等价于`Function.prototype.bind()`。该函数于jQuery 3.3+被抛弃，推荐使用原生JavaScript方法。：
+
+```javascript
+let person1 = {
+    "name": "person1",
+    "hello": function(){alert(this.name);}
+};
+let person2 = {
+    "name": "person2",
+    "hello": function(){alert(this.name);}
+};
+person1.hello()
+$.proxy(person1.hello, person2)();
+```
 
 
-11.23 8w+
 
 11.24 9w+
 
