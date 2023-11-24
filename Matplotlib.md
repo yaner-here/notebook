@@ -89,25 +89,22 @@ plt.show()
 
 ### §2.1.2 设置线条颜色
 
-#### §2.1.2.1 `color`
-
 给`plt.plot()`的`**kwargs`传入`color`/`c`参数，可以改变线条颜色。
 
 `color`支持很多种颜色格式：
 
-| 颜色格式 | 含义                                                     | 示例                    |
-| -------- | -------------------------------------------------------- | ----------------------- |
-| `[a-z]`  | 色彩字符，详见[§A.1 RGB颜色名称表](##§A.1 RGB颜色名称表) | `plt.plot(color="w")`   |
-| `[a-z]+` | 色彩全名，详见[§A.1 RGB颜色名称表](##§A.1 RGB颜色名称表) | `plt.plot(color="red")` |
-|          |                                                          |                         |
+| 颜色格式                         | 含义                                                     | 示例                                |
+| -------------------------------- | -------------------------------------------------------- | ----------------------------------- |
+| `[a-z]`                          | 色彩字符，详见[§A.1 RGB颜色名称表](##§A.1 RGB颜色名称表) | `plt.plot(color="w")`               |
+| `[a-z]+`                         | 色彩全名，详见[§A.1 RGB颜色名称表](##§A.1 RGB颜色名称表) | `plt.plot(color="red")`             |
+| `#[a-f0-9]`                      | RGB十六进制                                              | `plt.plot(color="#ff0000")`         |
+| `tuple[float,float,float]`       | RGB向量                                                  | `plt.plot(color=(0.2,0.3,0.4))`     |
+| `tuple[float,float,float,float]` | RGBA向量                                                 | `plt.plot(color=(0.2,0.3,0.4,0.5))` |
+| `tab:[a-z]+`                     | 色彩调色板(Tableau Palette)                              | `plt.plot(color="tab:blue")`        |
+| `[a-z]+`                         | CSS预置颜色                                              | `plt.plot(color="lightblue")`       |
+| `String(float)`                  | 黑白阶的灰度                                             | `plt.plot(color="0.5")`             |
 
-`plt.plot()`支持设置多个`color`，给多个线条设置不同的颜色：
-
-```python
-
-```
-
-我们甚至可以省略`color`/`c`，直接向`*args`传入颜色：
+在不引起歧义的情况下，我们可以省略`color`/`c`，直接向`*args`传入颜色：
 
 ```python
 import numpy as np
@@ -117,6 +114,212 @@ plt.plot(np.arange(10), 'r')
 plt.plot(np.arange(10), 'blue')
 plt.show()
 ```
+
+`plt.plot()`支持设置多个`color`，给多个线条设置不同的颜色（此时必须向`*args`传值）：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.plot(
+    np.arange(10), np.arange(10) ** 1.5, "0.9", 
+    np.arange(10) ,np.arange(10) ** 2, "0.9",
+)
+plt.show()
+```
+
+### §2.1.3 设置线条样式
+
+给`plt.plot()`的`**kwargs`传入`linestyle`/`ls`参数，可以改变线条样式。
+
+| 样式名称      | 样式名称字符 | 含义   |
+| ------------- | ------------ | ------ |
+| `solid`(缺省) | `-`          | 实线   |
+| `dashed`      | `--`         | 短划线 |
+| `dashdot`     | `-.`         | 点划线 |
+| `dotted`      | `:`          | 点线   |
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+plt.plot(np.arange(10), np.arange(10) ** 0.5, linestyle="-")
+plt.plot(np.arange(10), np.arange(10) ** 1.0, linestyle="--")
+plt.plot(np.arange(10), np.arange(10) ** 1.5, linestyle="-.")
+plt.plot(np.arange(10), np.arange(10) ** 2.0, linestyle=":")
+plt.show()
+```
+
+同样地，`linestyle`也可以省略，从而把所有线条的绘制压缩至一个`plt.plot()`函数内：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+plt.plot(
+    np.arange(10), np.arange(10) ** 0.5, "-",
+    np.arange(10), np.arange(10) ** 1.0, "--",
+    np.arange(10), np.arange(10) ** 1.5, "-.",
+    np.arange(10), np.arange(10) ** 2.0, ":"
+)
+plt.show()
+```
+
+### §2.1.4 设置节点样式
+
+给`plt.plot()`的`**kwargs`传入`marker`参数，可以改变线条样式。
+
+| 节点样式名称 | 含义   | 节点样式名称  | 含义      | 节点样式名称   | 含义      |
+| ------------ | ------ | ------------- | --------- | -------------- | --------- |
+| `-`/`solid`  | 实线   | `--`/`dashed` | 虚线      | `-.`/`dashdot` | 虚点线    |
+| `:`/`dotted` | 虚点   | `.`           | 点        | `,`            | 像素      |
+| `o`          | 圆     | `v`           | 下三角    | `^`            | 上三角    |
+| `<`          | 左三角 | `>`           | 右三角    | `1`            | 正Y型     |
+| `2`          | 倒Y型  | `3`           | 右斜Y型   | `4`            | 左斜Y型   |
+| `s`          | 正方形 | `p`           | 正五边形  | `*`            | 五角星    |
+| `+`          | 加号   | `D`           | 斜正方形  | `d`            | 窄菱形    |
+| `x`          | 叉号   | `H`           | 正六边形⬣ | `h`            | 正六边形⬢ |
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.plot(np.arange(10), np.arange(10) ** 0.5, marker="D")
+plt.plot(np.arange(10), np.arange(10) ** 1.0, marker="d")
+plt.plot(np.arange(10), np.arange(10) ** 1.5, marker="H")
+plt.plot(np.arange(10), np.arange(10) ** 2.0, marker="h")
+plt.show()
+```
+
+同样地，`marker`也可以省略，从而把所有线条的绘制压缩至一个`plt.plot()`函数内：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+plt.plot(
+    np.arange(10), np.arange(10) ** 0.5, "D",
+    np.arange(10), np.arange(10) ** 1.0, "d",
+    np.arange(10), np.arange(10) ** 1.5, "H",
+    np.arange(10), np.arange(10) ** 2.0, "h"
+)
+plt.show()
+```
+
+### §2.1.5 设置标题
+
+#### §2.1.5.1 设置图表标题
+
+`plt.title()`用于设置图表标题。
+
+```python
+plt.title(
+	label: str,
+    **kwargs: {
+    	fontsize: int | Literal["xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large"],
+        fontweight: int | Literal["extra bold" | "heavy" | "bold" | "normal" | "light" | "ultralight"],
+        fontstyle: Literal["normal" | "italic" | "oblique"],
+        loc: Literal["center" | "left" | "right"],
+        color: str | tuple[float]
+    }
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+plt.title(
+    "Graph 1", 
+    fontsize="x-large", 
+    fontweight="bold", 
+    fontstyle="italic", 
+    loc="left", 
+    color="#66ccff"
+)
+plt.plot(np.arange(10), np.arange(10) ** 0.5, "Dr-.")
+plt.show()
+```
+
+#### §2.1.5.2 设置轴标题
+
+```python
+plt.xlabel/ylabel(
+	label: str
+    **kwargs: {
+    	fontsize: int | Literal["xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large"],
+        labelpad: float = 4.0 # 标题与图表的间距(包括箭头和刻度标签)
+        loc: # 对齐方式
+        	Literal["center" | "left" | "right"] | # 对于xlabel()
+            Literal["center" | "top" | "bottom"] # 对于ylabel()
+        color: str | tuple[float]
+    }
+)
+```
+
+其中的部分`**kwargs`参数可以在`plt.rcParams`中全局更改：
+
+- `labelpad`：对应`plt.rcParams["axes.labelpad"]`
+- `loc`(对于`plt.xlabel()`)：对应`plt.rcParams["xaxis.labellocation"]`
+- `loc`(对于`plt.ylabel()`)：对应`plt.rcParams["yaxis.labellocation"]`
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+plt.xlabel("X", fontsize="20", labelpad=2, loc="right", color="red")
+plt.ylabel("Y", fontsize="10", labelpad=6, loc="top", color="blue")
+plt.plot(np.arange(10), np.arange(10) ** 0.5, "Dr-.")
+plt.show()
+```
+
+> 注意：Matplotlib的默认字体不支持中文。如果要显示中文，需要手动更改`plt.rcParams["font.family"]: list[str]`。例如使用微软雅黑：
+>
+> ```python
+> import numpy as np
+> import matplotlib.pyplot as plt
+> plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+> plt.xlabel("X轴", fontsize="20", labelpad=2, loc="right", color="red")
+> plt.ylabel("Y轴", fontsize="10", labelpad=6, loc="top", color="blue")
+> plt.plot(np.arange(10), np.arange(10) ** 0.5, "Dr-.")
+> plt.show()
+> ```
+
+> 注意：Matplotlib输出负号时，默认使用`U+2212`(`−`)字符。然而，更常用的负号字符是`U+002D`(`-`)。有些字体没有实现`U+2212`，我们可以设置`plt.rcParams["axes.unicode_minus"]`为`False`，从而使用ASCII提供的负号。
+>
+> ```
+> import numpy as np
+> import matplotlib.pyplot as plt
+> plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+> plt.rcParams["axes.unicode_minus"] = False
+> plt.xlabel("X轴", fontsize="20", labelpad=2, loc="right", color="red")
+> plt.ylabel("Y轴", fontsize="10", labelpad=6, loc="top", color="blue")
+> plt.plot(np.arange(-5, 5), np.arange(-5, 5), "Dr-.")
+> plt.show()
+> ```
+
+### §2.1.6 保存图表
+
+#### §2.1.6.1 图形界面
+
+在图形窗口中，选择最下方的最右侧按钮（`Save the figure`）即可。
+
+#### §2.1.6.2 `plt.savefig()`
+
+`plt.savefig()`用于保存图表为图片。
+
+```python
+matplotlib.savefig(
+	fname: str | PATH_LIKE | FILE_LIKE, *,
+    transparent: bool = None, # 背景是否透明
+    dpi: float | "figure" = "figure",
+    format: Literal["jpg", "png", "pdf", ...] = None, 
+    metadata: Optional[dict] = None,
+    bbox_inches: str | matplotlib.transforms.Bbox = None, # 边界框
+    pad_inches: float | Literal["layout"] = 0.1, # 周围填充量
+    facecolor: COLOR_LIKE | Literal["auto"] = "auto", # 图表表面颜色
+    edgecolor: COLOR_LIKE | Literal["auto"] = "auto", # 图表边缘颜色
+    backend: Optional[str[Literal["AGG" | "PDF" | "PS" | "SVG" | "PGF" | "Cairo" | "module://"+re.compile(".*")]]] = None, # 渲染器
+    **kwargs
+)
+```
+
+
 
 
 
@@ -183,3 +386,6 @@ plt.show()
 | `k`          | black | `m`          | magenta | `r`          | red   |
 | `w`          | white | `y`          | yellow  |              |       |
 
+
+
+11.25 2w+
