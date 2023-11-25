@@ -8,6 +8,523 @@ Matplotlib是一款Python开源绘图模块，用于生成静态或动态、可�
 
 # §1 基础语法
 
+## §1.1 `plt.rcParams`
+
+`plt.rcParams`是Matplotlib提供的全局性字典`collections.abc.KeysView`，加载了绘图的所有全局属性。
+
+```python
+import matplotlib.pyplot as plt
+print(plt.rcParams.keys())
+"""
+KeysView(RcParams({'_internal.classic_mode': False,
+          'agg.path.chunksize': 0,
+          'animation.bitrate': -1,
+          'animation.codec': 'h264',
+          'animation.convert_args': ['-layers', 'OptimizePlus'],
+          'animation.convert_path': 'convert',
+          'animation.embed_limit': 20.0,
+          'animation.ffmpeg_args': [],
+          'animation.ffmpeg_path': 'ffmpeg',
+          'animation.frame_format': 'png',
+          'animation.html': 'none',
+          'animation.writer': 'ffmpeg',
+          'axes.autolimit_mode': 'data',
+          'axes.axisbelow': 'line',
+          'axes.edgecolor': 'black',
+          'axes.facecolor': 'white',
+          'axes.formatter.limits': [-5, 6],
+          'axes.formatter.min_exponent': 0,
+          'axes.formatter.offset_threshold': 4,
+          'axes.formatter.use_locale': False,
+          'axes.formatter.use_mathtext': False,
+          'axes.formatter.useoffset': True,
+          'axes.grid': False,
+          'axes.grid.axis': 'both',
+          'axes.grid.which': 'major',
+          'axes.labelcolor': 'black',
+          'axes.labelpad': 4.0,
+          'axes.labelsize': 'medium',
+          'axes.labelweight': 'normal',
+          'axes.linewidth': 0.8,
+          'axes.prop_cycle': cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']),
+          'axes.spines.bottom': True,
+          'axes.spines.left': True,
+          'axes.spines.right': True,
+          'axes.spines.top': True,
+          'axes.titlecolor': 'auto',
+          'axes.titlelocation': 'center',
+          'axes.titlepad': 6.0,
+          'axes.titlesize': 'large',
+          'axes.titleweight': 'normal',
+          'axes.titley': None,
+          'axes.unicode_minus': True,
+          'axes.xmargin': 0.05,
+          'axes.ymargin': 0.05,
+          'axes.zmargin': 0.05,
+          'axes3d.grid': True,
+          'axes3d.xaxis.panecolor': (0.95, 0.95, 0.95, 0.5),          'axes3d.yaxis.panecolor': (0.9, 0.9, 0.9, 0.5),   
+          'axes3d.zaxis.panecolor': (0.925, 0.925, 0.925, 0.5),
+          'backend': 'TkAgg',
+          'backend_fallback': True,
+          'boxplot.bootstrap': None,
+          'boxplot.boxprops.color': 'black',
+          'boxplot.boxprops.linestyle': '-',
+          'boxplot.boxprops.linewidth': 1.0,
+          'boxplot.capprops.color': 'black',
+          'boxplot.capprops.linestyle': '-',
+          'boxplot.capprops.linewidth': 1.0,
+          'boxplot.flierprops.color': 'black',
+          'boxplot.flierprops.linestyle': 'none',
+          'boxplot.flierprops.linewidth': 1.0,
+          'boxplot.flierprops.marker': 'o',
+          'boxplot.flierprops.markeredgecolor': 'black',    
+          'boxplot.flierprops.markeredgewidth': 1.0,        
+          'boxplot.flierprops.markerfacecolor': 'none',     
+          'boxplot.flierprops.markersize': 6.0,
+          'boxplot.meanline': False,
+          'boxplot.meanprops.color': 'C2',
+          'boxplot.meanprops.linestyle': '--',
+          'boxplot.meanprops.linewidth': 1.0,
+          'boxplot.meanprops.marker': '^',
+          'boxplot.meanprops.markeredgecolor': 'C2',        
+          'boxplot.meanprops.markerfacecolor': 'C2',        
+          'boxplot.meanprops.markersize': 6.0,
+          'boxplot.medianprops.color': 'C1',
+          'boxplot.medianprops.linestyle': '-',
+          'boxplot.medianprops.linewidth': 1.0,
+          'boxplot.notch': False,
+          'boxplot.patchartist': False,
+          'boxplot.showbox': True,
+          'boxplot.showcaps': True,
+          'boxplot.showfliers': True,
+          'boxplot.showmeans': False,
+          'boxplot.vertical': True,
+          'boxplot.whiskerprops.color': 'black',
+          'boxplot.whiskerprops.linestyle': '-',
+          'boxplot.whiskerprops.linewidth': 1.0,
+          'boxplot.whiskers': 1.5,
+          'contour.algorithm': 'mpl2014',
+          'contour.corner_mask': True,
+          'contour.linewidth': None,
+          'contour.negative_linestyle': 'dashed',
+          'date.autoformatter.day': '%Y-%m-%d',
+          'date.autoformatter.hour': '%m-%d %H',
+          'date.autoformatter.microsecond': '%M:%S.%f',     
+          'date.autoformatter.minute': '%d %H:%M',
+          'date.autoformatter.month': '%Y-%m',
+          'date.autoformatter.second': '%H:%M:%S',
+          'date.autoformatter.year': '%Y',
+          'date.converter': 'auto',
+          'date.epoch': '1970-01-01T00:00:00',
+          'date.interval_multiples': True,
+          'docstring.hardcopy': False,
+          'errorbar.capsize': 0.0,
+          'figure.autolayout': False,
+          'figure.constrained_layout.h_pad': 0.04167,       
+          'figure.constrained_layout.hspace': 0.02,
+          'figure.constrained_layout.use': False,
+          'figure.constrained_layout.w_pad': 0.04167,       
+          'figure.constrained_layout.wspace': 0.02,
+          'figure.dpi': 100.0,
+          'figure.edgecolor': 'white',
+          'figure.facecolor': 'white',
+          'figure.figsize': [6.4, 4.8],
+          'figure.frameon': True,
+          'figure.hooks': [],
+          'figure.labelsize': 'large',
+          'figure.labelweight': 'normal',
+          'figure.max_open_warning': 20,
+          'figure.raise_window': True,
+          'figure.subplot.bottom': 0.11,
+          'figure.subplot.hspace': 0.2,
+          'figure.subplot.left': 0.125,
+          'figure.subplot.right': 0.9,
+          'figure.subplot.top': 0.88,
+          'figure.subplot.wspace': 0.2,
+          'figure.titlesize': 'large',
+          'figure.titleweight': 'normal',
+          'font.cursive': ['Apple Chancery',
+                           'Textile',
+                           'Zapf Chancery',
+                           'Sand',
+                           'Script MT',
+                           'Felipa',
+                           'Comic Neue',
+                           'Comic Sans MS',
+                           'cursive'],
+          'font.family': ['sans-serif'],
+          'font.fantasy': ['Chicago',
+                           'Charcoal',
+                           'Impact',
+                           'Western',
+                           'Humor Sans',
+                           'xkcd',
+                           'fantasy'],
+          'font.monospace': ['DejaVu Sans Mono',
+                             'Bitstream Vera Sans Mono',    
+                             'Computer Modern Typewriter',  
+                             'Andale Mono',
+                             'Nimbus Mono L',
+                             'Courier New',
+                             'Courier',
+                             'Fixed',
+                             'Terminal',
+                             'monospace'],
+          'font.sans-serif': ['DejaVu Sans',
+                              'Bitstream Vera Sans',        
+                              'Computer Modern Sans Serif', 
+                              'Lucida Grande',
+                              'Verdana',
+                              'Geneva',
+                              'Lucid',
+                              'Arial',
+                              'Helvetica',
+                              'Avant Garde',
+                              'sans-serif'],
+          'font.serif': ['DejaVu Serif',
+                         'Bitstream Vera Serif',
+                         'Computer Modern Roman',
+                         'New Century Schoolbook',
+                         'Century Schoolbook L',
+                         'Utopia',
+                         'ITC Bookman',
+                         'Bookman',
+                         'Nimbus Roman No9 L',
+                         'Times New Roman',
+                         'Times',
+                         'Palatino',
+                         'Charter',
+                         'serif'],
+          'font.size': 10.0,
+          'font.stretch': 'normal',
+          'font.style': 'normal',
+          'font.variant': 'normal',
+          'font.weight': 'normal',
+          'grid.alpha': 1.0,
+          'grid.color': '#b0b0b0',
+          'grid.linestyle': '-',
+          'grid.linewidth': 0.8,
+          'hatch.color': 'black',
+          'hatch.linewidth': 1.0,
+          'hist.bins': 10,
+          'image.aspect': 'equal',
+          'image.cmap': 'viridis',
+          'image.composite_image': True,
+          'image.interpolation': 'antialiased',
+          'image.lut': 256,
+          'image.origin': 'upper',
+          'image.resample': True,
+          'interactive': False,
+          'keymap.back': ['left', 'c', 'backspace', 'MouseButton.BACK'],
+          'keymap.copy': ['ctrl+c', 'cmd+c'],
+          'keymap.forward': ['right', 'v', 'MouseButton.FORWARD'],
+          'keymap.fullscreen': ['f', 'ctrl+f'],
+          'keymap.grid': ['g'],
+          'keymap.grid_minor': ['G'],
+          'keymap.help': ['f1'],
+          'keymap.home': ['h', 'r', 'home'],
+          'keymap.pan': ['p'],
+          'keymap.quit': ['ctrl+w', 'cmd+w', 'q'],
+          'keymap.quit_all': [],
+          'keymap.save': ['s', 'ctrl+s'],
+          'keymap.xscale': ['k', 'L'],
+          'keymap.yscale': ['l'],
+          'keymap.zoom': ['o'],
+          'legend.borderaxespad': 0.5,
+          'legend.borderpad': 0.4,
+          'legend.columnspacing': 2.0,
+          'legend.edgecolor': '0.8',
+          'legend.facecolor': 'inherit',
+          'legend.fancybox': True,
+          'legend.fontsize': 'medium',
+          'legend.framealpha': 0.8,
+          'legend.frameon': True,
+          'legend.handleheight': 0.7,
+          'legend.handlelength': 2.0,
+          'legend.handletextpad': 0.8,
+          'legend.labelcolor': 'None',
+          'legend.labelspacing': 0.5,
+          'legend.loc': 'best',
+          'legend.markerscale': 1.0,
+          'legend.numpoints': 1,
+          'legend.scatterpoints': 1,
+          'legend.shadow': False,
+          'legend.title_fontsize': None,
+          'lines.antialiased': True,
+          'lines.color': 'C0',
+          'lines.dash_capstyle': <CapStyle.butt: 'butt'>,   
+          'lines.dash_joinstyle': <JoinStyle.round: 'round'>,
+          'lines.dashdot_pattern': [6.4, 1.6, 1.0, 1.6],    
+          'lines.dashed_pattern': [3.7, 1.6],
+          'lines.dotted_pattern': [1.0, 1.65],
+          'lines.linestyle': '-',
+          'lines.linewidth': 1.5,
+          'lines.marker': 'None',
+          'lines.markeredgecolor': 'auto',
+          'lines.markeredgewidth': 1.0,
+          'lines.markerfacecolor': 'auto',
+          'lines.markersize': 6.0,
+          'lines.scale_dashes': True,
+          'lines.solid_capstyle': <CapStyle.projecting: 'projecting'>,
+          'lines.solid_joinstyle': <JoinStyle.round: 'round'>,
+          'macosx.window_mode': 'system',
+          'markers.fillstyle': 'full',
+          'mathtext.bf': 'sans:bold',
+          'mathtext.bfit': 'sans:italic:bold',
+          'mathtext.cal': 'cursive',
+          'mathtext.default': 'it',
+          'mathtext.fallback': 'cm',
+          'mathtext.fontset': 'dejavusans',
+          'mathtext.it': 'sans:italic',
+          'mathtext.rm': 'sans',
+          'mathtext.sf': 'sans',
+          'mathtext.tt': 'monospace',
+          'patch.antialiased': True,
+          'patch.edgecolor': 'black',
+          'patch.facecolor': 'C0',
+          'patch.force_edgecolor': False,
+          'patch.linewidth': 1.0,
+          'path.effects': [],
+          'path.simplify': True,
+          'path.simplify_threshold': 0.111111111111,        
+          'path.sketch': None,
+          'path.snap': True,
+          'pcolor.shading': 'auto',
+          'pcolormesh.snap': True,
+          'pdf.compression': 6,
+          'pdf.fonttype': 3,
+          'pdf.inheritcolor': False,
+          'pdf.use14corefonts': False,
+          'pgf.preamble': '',
+          'pgf.rcfonts': True,
+          'pgf.texsystem': 'xelatex',
+          'polaraxes.grid': True,
+          'ps.distiller.res': 6000,
+          'ps.fonttype': 3,
+          'ps.papersize': 'letter',
+          'ps.useafm': False,
+          'ps.usedistiller': None,
+          'savefig.bbox': None,
+          'savefig.directory': '~',
+          'savefig.dpi': 'figure',
+          'savefig.edgecolor': 'auto',
+          'savefig.facecolor': 'auto',
+          'savefig.format': 'png',
+          'savefig.orientation': 'portrait',
+          'savefig.pad_inches': 0.1,
+          'savefig.transparent': False,
+          'scatter.edgecolors': 'face',
+          'scatter.marker': 'o',
+          'svg.fonttype': 'path',
+          'svg.hashsalt': None,
+          'svg.image_inline': True,
+          'text.antialiased': True,
+          'text.color': 'black',
+          'text.hinting': 'force_autohint',
+          'text.hinting_factor': 8,
+          'text.kerning_factor': 0,
+          'text.latex.preamble': '',
+          'text.parse_math': True,
+          'text.usetex': False,
+          'timezone': 'UTC',
+          'tk.window_focus': False,
+          'toolbar': 'toolbar2',
+          'webagg.address': '127.0.0.1',
+          'webagg.open_in_browser': True,
+          'webagg.port': 8988,
+          'webagg.port_retries': 50,
+          'xaxis.labellocation': 'center',
+          'xtick.alignment': 'center',
+          'xtick.bottom': True,
+          'xtick.color': 'black',
+          'xtick.direction': 'out',
+          'xtick.labelbottom': True,
+          'xtick.labelcolor': 'inherit',
+          'xtick.labelsize': 'medium',
+          'xtick.labeltop': False,
+          'xtick.major.bottom': True,
+          'xtick.major.pad': 3.5,
+          'xtick.major.size': 3.5,
+          'xtick.major.top': True,
+          'xtick.major.width': 0.8,
+          'xtick.minor.bottom': True,
+          'xtick.minor.ndivs': 'auto',
+          'xtick.minor.pad': 3.4,
+          'xtick.minor.size': 2.0,
+          'xtick.minor.top': True,
+          'xtick.minor.visible': False,
+          'xtick.minor.width': 0.6,
+          'xtick.top': False,
+          'yaxis.labellocation': 'center',
+          'ytick.alignment': 'center_baseline',
+          'ytick.color': 'black',
+          'ytick.direction': 'out',
+          'ytick.labelcolor': 'inherit',
+          'ytick.labelleft': True,
+          'ytick.labelright': False,
+          'ytick.labelsize': 'medium',
+          'ytick.left': True,
+          'ytick.major.left': True,
+          'ytick.major.pad': 3.5,
+          'ytick.major.right': True,
+          'ytick.major.size': 3.5,
+          'ytick.major.width': 0.8,
+          'ytick.minor.left': True,
+          'ytick.minor.ndivs': 'auto',
+          'ytick.minor.pad': 3.4,
+          'ytick.minor.right': True,
+          'ytick.minor.size': 2.0,
+          'ytick.minor.visible': False,
+          'ytick.minor.width': 0.6,
+          'ytick.right': False}))
+"""
+```
+
+## §1.2 坐标轴设置
+
+### §1.2.1 `plt.plot()`
+
+Matplotlib使用`plt.plot()`来配置坐标轴。
+
+```python
+plt.plot(
+    arg: 
+    	list[xmin: float, xmax: float, ymin: float, ymax: float] |
+    	Literal["off", "on", "equal", "scaled", "tight", "auto", "image", "square"] | 
+    	bool
+) -> tuple[float, float, float, float]
+```
+
+向`plt.plot()`传入一个`list[float, float, float, float]`，用于限制坐标范围：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.axis([1, 9, -5, 100])
+plt.plot(np.arange(10) ** 2)
+plt.show()
+```
+
+`plt.plot()`返回一个四元组，表示图像的坐标范围：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.plot(np.arange(10) ** 2)
+print(plt.axis()) # (-0.45, 9.45, -4.05, 85.05)
+```
+
+### §1.2.2 `plt.xlim()`/`plt.ylim()`
+
+ `plt.xlim()`/`plt.ylim()`用于单独设置X轴和Y轴的范围，用法与`plt.axis()`类似。
+
+```python
+plt.xlim/ylim(tuple[min: float, max: float]) -> tuple[float, float]
+plt.xlim(left: float, right: float) -> tuple[float, float]
+plt.ylim(bottom: float, top: float) -> tuple[float, float]
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.xlim([1, 9])
+plt.ylim(-5, 100)
+plt.plot(np.arange(10) ** 2)
+plt.show()
+print(plt.axis()) # (-0.45, 9.45, -4.05, 85.05)
+```
+
+### §1.2.3 `plt.xticks()`/``plt.yticks()``
+
+`plt.xticks()`/`plt.yticks()`用于改变X轴/Y轴的刻度标签的**内容和一部分样式**。
+
+```python
+plt.xticks(
+	ticks: Optional[ARRAY_LIKE] = None,
+    labels: Optional[ARRAY_LIKE] = None,
+    minor: bool = False
+    **kwargs: {
+    	rotation: float | "vertical" | "horizontal",
+        color: COLOR_LIKE,
+        fontsize: float | Literal["xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large"],
+        # ......
+    }
+) -> (locs: numpy.ndarray, labels: list[matplotlib.text.Text])
+```
+
+`plt.xticks()`/`plt.yticks()`同时传入`ticks`和`labels`时，要求`len(ticks)==len(labels)`，从而将`ticks`中的刻度全替换为`labels`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x_data = [2021, 2022, 2023]
+x_label = ["二零二一年", "二零二二年", "二零二三年"]
+y_data = np.random.rand(3, 3)
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.xticks(x_data, x_label, rotation=15.5, color="red")
+plt.plot(x_data, y_data[0], x_data, y_data[1], x_data, y_data[2])
+plt.show()
+```
+
+从上面的描述中，我们也可以意识到，`len(labels)`用于控制刻度的数量，`labels[i+1]-labels[i]`用于控制刻度之间代表的实际间隔。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 2 * np.pi, 1000)
+y = np.sin(x)
+x_label = np.arange(0, 10, 1)
+y_label = np.linspace(-2, 2, 21)
+
+plt.plot(x, y)
+plt.xticks(x_label) # 10个刻度,间隔为1
+plt.yticks(y_label) # 20个刻度,间隔为0.2
+plt.show()
+```
+
+> 注意：`plt.xticks()`/`plt.yticks()`中的`fontsize`参数，对应着`plt.rcParams["xtick.labelsize"]`/`plt.rcParams["ytick.labelsize"]`。
+
+### §1.2.4 `plt.tick_params()`
+
+`plt.tick_params()`用于设定坐标轴的**所有样式**，包括刻度字体大小、颜色、方向等。
+
+```python
+plt.tick_params(
+	axis: Literal["both", "x", "y"] = "both",
+    **kwargs: {
+    	which: Literal["major", "minor", "both"] = "major", # 设置的刻度线类别
+        direction: Literal["in", "out", "inout"] = "out", # 刻度线位置
+		reset: bool = False, # 应用样式之后是否要重置刻度
+        length: float, # 刻度线长度(单位为点数)
+        width: float, # 刻度线宽度(单位为点数)
+        color: COLOR_LIKE, # 刻度线颜色
+        pad: float, # 刻度线与标签之间的距离(单位为点数)
+        labelsize: float | str, # 标签字体大小
+        labelcolor: COLOR_LIKE, # 标签文字颜色
+        labelfontfamily: str, # 标签文字字体
+        colors: COLOR_LIKE, # 刻度线颜色和标签文字颜色
+        zorder: float, # 刻度线颜色和标签文字的图层位置
+        bottom/top/left/right: bool, # 是否绘制指定位置的刻度线
+        labelbottom/labeltop/labelleft/labelright: bool, # 是否绘制指定位置的标签
+        labelrotation: float, # 标签旋转角度
+        grid_color: COLOR_LIKE, # 网格线颜色
+        grid_alpha: float, # 网格线透明度
+        grid_linewidth: float, # 网格线宽度(单位为点数)
+        grid_linestyle: str # 网格线样式
+    }
+)
+```
+
+
+
+
+
 
 
 # §2 常用图表绘制
@@ -319,7 +836,33 @@ matplotlib.savefig(
 )
 ```
 
+### §2.1.7 加载图表
 
+Matplotlib使用`matplotlib.image`子模块加载已保存的图表：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as img
+
+plt.plot(np.arange(-5, 5), np.arange(-5, 5), "Dr-.")
+plt.savefig("./demo.png")
+
+plt.imshow(img.imread('./demo.png'))
+plt.axis("off")
+plt.show()
+```
+
+`img.imshow()`支持多种加载多种文件：
+
+```python
+img.imshow(
+	X: List[int, int] | List[int, int, int, int, int] | List[int, int, int, int, int, int] |
+       List[int, int] | List[int, int, float, float, float] | List[int, int, float, float, float, float]
+    cmap: str | matplotlib.colors.Colormap, # 色彩映射图
+    aspect: Literal["auto" | "equal"]
+)
+```
 
 
 
@@ -388,4 +931,9 @@ matplotlib.savefig(
 
 
 
-11.25 2w+
+11.26 3w+
+
+11.27 4w+
+
+11.28 5w+
+
