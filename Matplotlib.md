@@ -380,7 +380,7 @@ KeysView(RcParams({'_internal.classic_mode': False,
 """
 ```
 
-## §1.2 坐标轴设置
+## §1.2 坐标轴
 
 ### §1.2.1 `plt.plot()`
 
@@ -521,9 +521,56 @@ plt.tick_params(
 )
 ```
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+x = np.linspace(0, 2 * np.pi, 100)
+y = np.sin(x)
 
+plt.plot(x, y)
+plt.tick_params(axis='x', direction="in", length=8, width=3, color="red")
+plt.tick_params(axis='y', direction="out", pad=3, labelsize="20", labelcolor="red")
+plt.show()
+```
 
+## §1.3 图例
+
+### §1.3.1 `plt.legend()`
+
+`plt.legend()`用于设定图例。
+
+```python
+plt.legend(
+	*args,
+    **kwargs
+)
+```
+
+| `plt.legend()`形参 | 作用                     | 数据类型                                                     | `plt.rcParams`对应属性                  |
+| ------------------ | ------------------------ | ------------------------------------------------------------ | --------------------------------------- |
+| `loc`              | 图例的位置               | `str | tuple[float, float]`<br />其中`"best" => 0`(缺省)<br />`"upper right" => 1`<br />`"upper left" => 2` <br />`"lower left" => 3`<br />`"lower right" => 4`<br />`"right"/"center right" => 5`<br />`"center left" => 6`<br />`"center right" => 7`<br />`"lower center" => 8`<br />`"upper center" => 9`<br />`"center" => 10`<br /> | `plt.rcParams["legend.loc"]`            |
+| `prop`             | 图例字体属性             |                                                              |                                         |
+| `title_fontsize`   | 图例字体大小             | `= None`                                                     | `plt.rcParams["legend.title_fontsize"]` |
+| `markerscale`      | 图例标记大小缩放比例     | `= 1`                                                        | `plt.rcParams["legend.markerscale"]`    |
+| `markerfirst`      | 图例标记是否位于文字左边 | `bool = True`                                                |                                         |
+| `numpoints`        | 线条图例标记点数         | `= 1`                                                        | `plt.rcParams["legend.numpoints"]`      |
+| `scatterpoints`    | 散点图图例标记点数       | `= 1`                                                        | `plt.rcParams["legend.scatterpoints"]`  |
+| `frameon`          | 图例是否含有边框         |                                                              | `plt.rcParams["legend.frameon"]`        |
+| `framealpha`       | 图例边框透明度           |                                                              | `plt.rcParams["legend.framealpha"]`     |
+| `edgecolor`        | 图例边框颜色             |                                                              | `plt.rcParams["legend.edgecolor"]`      |
+| `facecolor`        | 图例边框内的背景颜色     |                                                              | `plt.rcParams["legend.facecolor"]`      |
+| `shadow`           | 图例是否有阴影           |                                                              | `plt.rcParams["legend.shadow"]`         |
+| `borderpad`        | 图例边框内边距           |                                                              | `plt.rcParams["legend.borderpad"]`      |
+| `labelspacing`     | 图例项目之间的间距       |                                                              | `plt.rcParams["legend.labelspacing"]`   |
+| `handleheight`     | 图例句柄高度             |                                                              | `plt.rcParams["legend.handleheight"]`   |
+| `handlelength`     | 图例句柄长度             |                                                              | `plt.rcParams["legend.handlelength"]`   |
+| `handletextpad`    | 图例句柄和文本之间的间距 |                                                              | `plt.rcParams["legend.handletextpad"]`  |
+| `handleaxespad`    | 轴和图例边框之间的间距   |                                                              | `plt.rcParams["legend.handleaxespad"]`  |
+| `ncol`             | 图例的字段数             |                                                              |                                         |
+| `columnspacing`    | 字段之间的间距           |                                                              | `plt.rcParams["legend.columnspacing"]`  |
+| `bbox_to_anchor`   | 图例的位置               | `tuple[float, float] | tuple[float, float, float, float]`    |                                         |
+| `title`            | 图例标题                 | `font.`                                                      |                                         |
 
 
 
@@ -729,6 +776,13 @@ plt.show()
 ```python
 plt.title(
 	label: str,
+    fontdict: dict{
+    	"fontsize": plt.rcParams["axes.titlesize"],
+        "fontweight": plt.rcParams["axes.titleweight"],
+        "color": COLOR_LIKE,
+        "werticalalignment" = "baseline",
+        "horizontalalignment": Literal["center", "left", "right"] = "center",
+    }
     **kwargs: {
     	fontsize: int | Literal["xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large"],
         fontweight: int | Literal["extra bold" | "heavy" | "bold" | "normal" | "light" | "ultralight"],
