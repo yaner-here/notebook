@@ -406,7 +406,7 @@ plt.plot(np.arange(10) ** 2)
 plt.show()
 ```
 
-`plt.plot()`返回一个四元组，表示图像的坐标范围：
+`plt.axis()`返回一个四元组，表示图像的坐标范围：
 
 ```python
 import numpy as np
@@ -416,7 +416,17 @@ plt.plot(np.arange(10) ** 2)
 print(plt.axis()) # (-0.45, 9.45, -4.05, 85.05)
 ```
 
-### §1.2.2 `plt.xlim()`/`plt.ylim()`
+### §1.2.2 `plt.axis()`
+
+`plt.axis()`用于设置坐标轴的范围。
+
+```python
+plt.axis(
+	[xmin, xmax, ymin, ymax]
+) -> tuple[float, float, float, float]
+```
+
+### §1.2.3 `plt.xlim()`/`plt.ylim()`
 
  `plt.xlim()`/`plt.ylim()`用于单独设置X轴和Y轴的范围，用法与`plt.axis()`类似。
 
@@ -437,7 +447,7 @@ plt.show()
 print(plt.axis()) # (-0.45, 9.45, -4.05, 85.05)
 ```
 
-### §1.2.3 `plt.xticks()`/``plt.yticks()``
+### §1.2.4 `plt.xticks()`/``plt.yticks()``
 
 `plt.xticks()`/`plt.yticks()`用于改变X轴/Y轴的刻度标签的**内容和一部分样式**。
 
@@ -490,7 +500,7 @@ plt.show()
 
 > 注意：`plt.xticks()`/`plt.yticks()`中的`fontsize`参数，对应着`plt.rcParams["xtick.labelsize"]`/`plt.rcParams["ytick.labelsize"]`。
 
-### §1.2.4 `plt.tick_params()`
+### §1.2.5 `plt.tick_params()`
 
 `plt.tick_params()`用于设定坐标轴的**所有样式**，包括刻度字体大小、颜色、方向等。
 
@@ -534,43 +544,572 @@ plt.tick_params(axis='y', direction="out", pad=3, labelsize="20", labelcolor="re
 plt.show()
 ```
 
-## §1.3 图例
-
-### §1.3.1 `plt.legend()`
+## §1.3 图例(`plt.legend()`)
 
 `plt.legend()`用于设定图例。
 
 ```python
 plt.legend(
-	*args,
+	*args: {
+    	handles: Optional[typing.Iterable[matplotlib.lines.Line2D]],
+        labels: Optional[typing.Iterable[typing.Iterable[str]]]
+    },
     **kwargs
 )
 ```
 
-| `plt.legend()`形参 | 作用                     | 数据类型                                                     | `plt.rcParams`对应属性                  |
-| ------------------ | ------------------------ | ------------------------------------------------------------ | --------------------------------------- |
-| `loc`              | 图例的位置               | `str | tuple[float, float]`<br />其中`"best" => 0`(缺省)<br />`"upper right" => 1`<br />`"upper left" => 2` <br />`"lower left" => 3`<br />`"lower right" => 4`<br />`"right"/"center right" => 5`<br />`"center left" => 6`<br />`"center right" => 7`<br />`"lower center" => 8`<br />`"upper center" => 9`<br />`"center" => 10`<br /> | `plt.rcParams["legend.loc"]`            |
-| `prop`             | 图例字体属性             |                                                              |                                         |
-| `title_fontsize`   | 图例字体大小             | `= None`                                                     | `plt.rcParams["legend.title_fontsize"]` |
-| `markerscale`      | 图例标记大小缩放比例     | `= 1`                                                        | `plt.rcParams["legend.markerscale"]`    |
-| `markerfirst`      | 图例标记是否位于文字左边 | `bool = True`                                                |                                         |
-| `numpoints`        | 线条图例标记点数         | `= 1`                                                        | `plt.rcParams["legend.numpoints"]`      |
-| `scatterpoints`    | 散点图图例标记点数       | `= 1`                                                        | `plt.rcParams["legend.scatterpoints"]`  |
-| `frameon`          | 图例是否含有边框         |                                                              | `plt.rcParams["legend.frameon"]`        |
-| `framealpha`       | 图例边框透明度           |                                                              | `plt.rcParams["legend.framealpha"]`     |
-| `edgecolor`        | 图例边框颜色             |                                                              | `plt.rcParams["legend.edgecolor"]`      |
-| `facecolor`        | 图例边框内的背景颜色     |                                                              | `plt.rcParams["legend.facecolor"]`      |
-| `shadow`           | 图例是否有阴影           |                                                              | `plt.rcParams["legend.shadow"]`         |
-| `borderpad`        | 图例边框内边距           |                                                              | `plt.rcParams["legend.borderpad"]`      |
-| `labelspacing`     | 图例项目之间的间距       |                                                              | `plt.rcParams["legend.labelspacing"]`   |
-| `handleheight`     | 图例句柄高度             |                                                              | `plt.rcParams["legend.handleheight"]`   |
-| `handlelength`     | 图例句柄长度             |                                                              | `plt.rcParams["legend.handlelength"]`   |
-| `handletextpad`    | 图例句柄和文本之间的间距 |                                                              | `plt.rcParams["legend.handletextpad"]`  |
-| `handleaxespad`    | 轴和图例边框之间的间距   |                                                              | `plt.rcParams["legend.handleaxespad"]`  |
-| `ncol`             | 图例的字段数             |                                                              |                                         |
-| `columnspacing`    | 字段之间的间距           |                                                              | `plt.rcParams["legend.columnspacing"]`  |
-| `bbox_to_anchor`   | 图例的位置               | `tuple[float, float] | tuple[float, float, float, float]`    |                                         |
-| `title`            | 图例标题                 | `font.`                                                      |                                         |
+| `plt.legend()`形参 | 作用                                                         | 数据类型                                                     | `plt.rcParams`对应属性                  |
+| ------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------- |
+| `loc`              | 图例的位置                                                   | `str | int`<br />其中`"best" => 0`(缺省)<br />`"upper right" => 1`<br />`"upper left" => 2` <br />`"lower left" => 3`<br />`"lower right" => 4`<br />`"right"/"center right" => 5`<br />`"center left" => 6`<br />`"center right" => 7`<br />`"lower center" => 8`<br />`"upper center" => 9`<br />`"center" => 10`<br /> | `plt.rcParams["legend.loc"]`            |
+| `prop`             | 图例字体属性                                                 | `None | dict | matplotlib.font_manager.FontProperties = None` |                                         |
+| `title_fontsize`   | 图例字体大小                                                 | `= None`                                                     | `plt.rcParams["legend.title_fontsize"]` |
+| `markerscale`      | 图例标记大小缩放比例                                         | `float = 1.0`                                                | `plt.rcParams["legend.markerscale"]`    |
+| `markerfirst`      | 图例标记是否位于文字左边                                     | `bool = True`                                                |                                         |
+| `numpoints`        | 线条图例标记点数                                             | `int = 1`                                                    | `plt.rcParams["legend.numpoints"]`      |
+| `scatterpoints`    | 散点图图例标记点数                                           | `int = 1`                                                    | `plt.rcParams["legend.scatterpoints"]`  |
+| `frameon`          | 图例是否含有边框                                             | `bool: True`                                                 | `plt.rcParams["legend.frameon"]`        |
+| `framealpha`       | 图例边框透明度                                               | `float: 0.8`                                                 | `plt.rcParams["legend.framealpha"]`     |
+| `edgecolor`        | 图例边框颜色                                                 | `Literal["inherit"] | COLOR_LIKE = 0.8`                      |                                         |
+| `facecolor`        | 图例边框内的背景颜色                                         | `Literal["inherit"] | COLOR_LIKE = "interit"`                | `plt.rcParams["legend.facecolor"]`      |
+| `shadow`           | 图例是否有阴影                                               | `None | bool | dict = False`                                 | `plt.rcParams["legend.shadow"]`         |
+| `borderpad`        | 图例边框内边距                                               | `float = 0.4`                                                | `plt.rcParams["legend.borderpad"]`      |
+| `labelspacing`     | 图例项目之间的间距                                           | `float = 0.5`                                                | `plt.rcParams["legend.labelspacing"]`   |
+| `handleheight`     | 图例句柄高度                                                 | `float = 0.7`                                                | `plt.rcParams["legend.handleheight"]`   |
+| `handlelength`     | 图例句柄长度                                                 | `float = 2.0`                                                | `plt.rcParams["legend.handlelength"]`   |
+| `handletextpad`    | 图例句柄和文本之间的间距                                     | `float = 0.8`                                                | `plt.rcParams["legend.handletextpad"]`  |
+| `handleaxespad`    | 轴和图例边框之间的间距                                       | `float = 0.5`                                                | `plt.rcParams["legend.handleaxespad"]`  |
+| `ncol`             | 图例的字段数                                                 | `int = 1`                                                    |                                         |
+| `columnspacing`    | 字段之间的间距                                               | `float = 2.0`                                                | `plt.rcParams["legend.columnspacing"]`  |
+| `bbox_to_anchor`   | 以图例左下角为`(0,0)`，右上角为`(1,1)`,建立相对坐标系。`bbox_to_anchor`使用该相对坐标，决定图例矩形框左上角的位置。(与`loc`不能同时用) | `tuple[float, float] | tuple[float, float, float, float]`    |                                         |
+| `title`            | 图例标题                                                     | `str | None`                                                 |                                         |
+
+调用`plt.legend()`用于创建所有曲线的图例，`plt.plot(label="...")`用于指定图例的标签文字，里面传入的参数用于控制图例样式：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 2 * np.pi, 20)
+y = [np.sin(x), np.cos(x), np.square(x)]
+
+plt.plot(x, y[0], marker="o", label="sin(x)")
+plt.plot(x, y[1], marker="v", label="cos(x)")
+plt.plot(x, y[2], marker="x", label="x^2")
+
+plt.legend(
+    loc = 6, edgecolor = "black", facecolor = "#66ccff", numpoints = 2, frameon = True,
+    shadow = True, title = "Legend Title"
+)
+plt.show()
+```
+
+使用`plt.legend(*args)`中的`handles`和`labels`，可以指定需要图例的曲线，并为其指定标签文字：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.lines
+
+x = np.linspace(0, 2 * np.pi, 20)
+y = [np.sin(x), np.cos(x), np.square(x)]
+
+line: list[matplotlib.lines.Line2D] = [
+    plt.plot(x, y[0], marker="o", label="sin(x)")[0],
+    plt.plot(x, y[1], marker="v", label="cos(x)")[0],
+    plt.plot(x, y[2], marker="x", label="x^2")[0]
+]
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.legend([line[0], line[1]], ["正弦", "余弦"])
+plt.show()
+```
+
+一个图表默认只有一个图例。如果要显示两个图例，我们需要使用`plt.gca()`获取子图，然后对子图使用`.add_artist()`添加子图的图例，最后在主图中添加图例：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 2 * np.pi, 20)
+y = [np.sin(x), np.cos(x)]
+line = [
+    plt.plot(x, y[0], marker="o", label="sin(x)")[0],
+    plt.plot(x, y[1], marker="v", label="cos(x)")[0],
+]
+
+plt.gca().add_artist(plt.legend(handles=[line[0]], loc=1))
+plt.legend(handles=[line[1]], loc=4)
+
+plt.show()
+```
+
+## §1.4 网格（`plt.grid()`）
+
+`plt,plot()`用于绘制网格。网格可以是十字正交、十字斜交、维度曲线网格等。
+
+```python
+plt.plot(
+	visible: Optional[bool | None] = None,
+    which: Optional["major", "minor", "both"] = "both",
+    axis: Optional[Literal["both", "x", "y"]] = "both",
+    **kwargs: {
+        matplotlib.lines.Line2D
+    }
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 2 * np.pi, 20)
+plt.plot(x, np.sin(x), marker="o", label="sin(x)")[0],
+plt.plot(x, np.cos(x), marker="v", label="cos(x)")[0],
+
+plt.grid(True, "major", "both", color="#dddddd", linestyle="--", linewidth="1")
+
+plt.show()
+```
+
+## §1.5 参考线
+
+### §1.5.1 水平/垂直参考线(`plt.axhline()`/`plt.axvline()`)
+
+`plt.axhline()`/`plt.axvline()`用于绘制水平/垂直参考线。其实从本质来说，网格就是按照一定规则自动生成的参考线。这里我们用`plt.axhline()`/`plt.axvline()`创建的参考线需要手动指定。
+
+```python
+plt.axhline(
+	y: float = 0,
+    xmin: float = 0, # 绝对坐标
+    xmax: float = 1, # 绝对坐标
+    **kwargs: {
+    	matplotlib.lines.Line2D
+    }
+) -> matplotlib.lines.Line2D
+
+plt.avhline(
+	x: float = 0,
+    ymin: float = 0, # 绝对坐标
+    ymax: float = 1, # 绝对坐标
+    **kwargs: {
+    	matplotlib.lines.Line2D
+    }
+) -> matplotlib.lines.Line2D
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 2 * np.pi, 20)
+plt.plot(x, np.sin(x), marker="o", label="sin(x)")
+plt.plot(x, np.cos(x), marker="v", label="cos(x)")
+
+plt.axhline(0, 0, 1, color="#aaaaaa", linewidth=0.5, linestyle="--")
+plt.axhline(-1, 0.5, 1, color="#999999", linewidth=0.5, linestyle="--")
+plt.axhline(1, 0, 0.5, color="#888888", linewidth=0.5, linestyle="--")
+plt.axvline(np.pi * 0, 0, 1, color="#aaaaaa", linewidth=0.5, linestyle="--")
+plt.axvline(np.pi * 1, 0.5, 1, color="#999999", linewidth=0.5, linestyle="--")
+plt.axvline(np.pi * 2, 0, 0.5, color="#888888", linewidth=0.5, linestyle="--")
+
+plt.show()
+```
+
+### §1.5.2 无限长参考线(`plt.axline()`)
+
+`plt.axline()`用于绘制斜的参考线，在确定直线的方式中，支持两点式和点斜式。
+
+```python
+plt.axline(
+	xy1: tuple[float, float],
+    xy2: tuple[float, float] | None, *,
+    slope: float | None,
+    **kwargs
+)
+```
+
+```python
+import typing, typing_extensions
+import matplotlib.lines
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(-5, 5, 100)
+y = 1 / (1 + np.exp(-x))
+
+plt.plot(x, y)
+plt.axhline(0.5, ls="-.", lw=0.5, c="gray")
+plt.axvline(0, ls="-.", lw=0.5, c="gray")
+plt.axline((0, 0.5), slope=0.25, lw=1, ls="--", c="black")
+plt.show()
+```
+
+## §1.6 参考区域
+
+### §1.6.1 水平/垂直参考区域(`plt.axhspan()`/`plt.axvspan()`)
+
+`plt.axhspan()`/`plt.axvspan()`用于绘制水平/垂直参考区域。
+
+```python
+plt.axhspan(
+	ymin: float, # 绝对坐标
+    ymax: float, # 绝对坐标
+    xmin: float = 0, 
+    xmax: float = 1,
+    **kwargs: { <matplotlib.patches.Polygon>
+		alpha: float(0, 1) | None = None,
+		color: COLOR_LIKE, # 没有简写"c"!
+		edgecolor/ec: COLOR_LIKE,
+		facecolor/fc: COLOR_LIKE,
+		linestyle/ls: str = "-",
+		linewidth/lw: float | None = None,
+		zorder: float = 0
+    }
+) -> matplotlib.patches.Polygon
+
+plt.axvspan(
+	xmin: float,
+    xmax: float,
+    ymin: float = 0,
+    ymax: float = 1,
+    **kwargs: { <matplotlib.patches.Polygon>:
+		alpha: float(0, 1) | None = None,
+		color: COLOR_LIKE,
+		edgecolor/ec: COLOR_LIKE,
+		facecolor/fc: COLOR_LIKE,
+		linestyle: str = "-",
+		linewidth/lw: float | None = None,
+		zorder: float = 0
+    }
+) -> matplotlib.patches.Polygon
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(-5, 5, 100)
+y = np.sin(x)
+
+plt.plot(x, y)
+plt.axhspan(-0.5, 0.5, color="#66ccff", ls="--", alpha=0.8)
+plt.axvspan(-0.5, 0.5, color="#ff8899", ls="--", alpha=0.5)
+plt.show()
+```
+
+### §1.6.2 不规则填充区域(`plt.fill()`)
+
+在[§1.6.1 水平/垂直参考区域(`plt.axhspan()`/`plt.axvspan()`)](###§1.6.1 水平/垂直参考区域(`plt.axhspan()`/`plt.axvspan()`))一节中，我们接触到了`matplotlib.patches.Polygon`。本节我们将学习使用`plt.fill()`填充不规则多边形。
+
+```python
+plt.fill(
+    *args: [
+        x: typing.Sequence[float],
+	    y: typing.Sequence[float],
+    	color: Optional[str]
+    ]+ | [
+    	x: str,
+        y: str,
+        data: dict{[str: typing.Sequence[float]]+}
+    ],
+    **kwargs: { <matplotlib.patches.Polygon>:
+        color / c: COLOR_LIKE,
+        edgecolor/ ec: COLOR_LIKE,
+        fill: bool = True,
+        linestyle: str,
+        linewidth / lw: float | None = None,
+        zorder: float
+    }
+) -> list[matplotlib.patches.Polygon]
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = [[0, 1, 3, 3], [3, 4, 4]]
+y = [[0, 7, 6, 2], [0, 7, 1]]
+
+plt.fill(x[0], y[0], "g", x[1], y[1], "r")
+plt.show()
+```
+
+`plt.fill()`也可以从`data: dict`中取值：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = {
+    "x": [0, 1, 3, 3],
+    "y": [0, 7, 6, 2]
+}
+
+plt.fill("x", "y", data=data)
+plt.show()
+```
+
+### §1.6.3 填充积分区域(`plt.fill_between()`)
+
+`plt.fill_between()`用于绘制沿$x$轴的定积分$\displaystyle{\int_{x_{min}}^{x_{max}}y_2(i)-y_1(i)\ di}$围成的区域。
+
+```python
+plt.fill_between(
+	x: array[number], # 长度一律为N
+	y1: array[number] | float[0, 1], # 长度一律为N
+    y2: array[number] | float[0, 1] = 0, # 长度一律为N
+    where: Optional[array[bool]] = None,
+    **kwargs: { <matplotlib.collections.PolyCollection>:
+        color / c: COLOR_LIKE,
+        cmap: matplotlib.colors.ColorMap | str | None,
+        edgecolor / ec: COLOR_LIKE,
+        facecolor / fc: COLOR_LIKE,
+        fill: bool = True,
+        linestyle: str,
+        linewidth/lw: float,
+        zorder: float,
+    }
+) -> matplotlib.collections.PolyCollection
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, np.pi * 2, 100)
+y = np.sin(x)
+
+plt.plot(x, y)
+plt.fill_between(x, 0, y, color="#66ccff")
+plt.show()
+```
+
+`plt.fill_between()`中的`where`用于接受`bool`值，该值可以通过预设的布尔表达式计算而来，作为定积分区域的附加条件：
+$$
+\begin{align}
+	S & =\{(x,y)\ |\ \min\left({y_1(x),y_2(x)}\right)\le y\le \max\left({y_1(x),y_2(x)}\right)\and\text{where}(x,y)=\text{True}\} \\
+	  & \subset\R^2
+\end{align}
+$$
+基于此，我们可以用其求解线性规划区域：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(-5, 10, 500)
+y = [-5*x+17, -x+8]
+y_min = np.minimum(y[0], y[1])
+
+plt.plot(x, y[0], x, y[1])
+plt.fill_between(
+    x, -6*x-5, y_min,
+    where=((x>=0)&(x<=6)), 
+    color="#66ccff"
+)
+plt.show()
+```
+
+## §1.7 图表文字(`plt.text()`)
+
+```py
+plt.text(
+	x: float, # 文字左下角的横坐标
+	y: float, # 文字左下角的横坐标
+	s: str,
+	fontdict: Dict | None = None,
+	**kwargs: { <matplotlib.text.Text>:
+        alpha: float[0, 1] | None ,
+        backgroundcolor: COLOR_LIKE ,
+        bbox: dict{ <matplotlib.patches.FancyBboxPatch>:
+			boxstyle: str | matplotlib.patches.BoxStyle,
+			edgecolor / ec: COLOR_LIKE | None,
+			facecolor / fc: COLOR_LIKE | None,
+			# ......
+		},
+        color / c: COLOR_LIKE,
+        fontfamily: str,
+        fontsize / size: float | Literal["xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large"],
+        fontstretch / stretch: number[0, 1000] | Literal["ultra-condensed", "extra-condensed", "condensed", "semi-condensed", "normal", "semi-expanded", "expanded", "extra-expanded", "ultra-expanded"],
+		fontweight / weight: number[0, 1000] | Literal["ultralight", "light", "normal", "regular", "book", "medium", "roman", "semibold", "demibold", "demi", "bold", "heavy", "extra bold", "black"],
+        horizontalalignment / ha: Literal["left", "center", "right"],
+        rotation: float | Literal["vertical", "horizontal"], # 绕矩形左下角旋转
+        transform: matplotlib.transforms.Transform,
+        verticalalignment / va: Literal["bottom", "baseline", "center", "center_baseline", "top"],
+        wrap: bool, # 是否自动换行
+        zorder: float,
+    }
+) -> matplotlib.text.Text
+```
+
+`horizontalalignment`/`ha`决定了矩形中用于和`(x,y)`对齐的点位于边框的哪个角落的水平方向：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.axis([0, 10, 0, 10])
+plt.text(5, 2, "horizontalalignment=left", c="r", backgroundcolor="#66ccff", horizontalalignment="left")
+plt.text(5, 5, "horizontalalignment=right", c="g", backgroundcolor="#66ccff", horizontalalignment="right")
+plt.text(5, 8, "horizontalalignment=center", c="b", backgroundcolor="#66ccff", horizontalalignment="center")
+plt.plot([5, 5, 5], [2, 5, 8], '.', markersize=15, zorder=4)
+plt.show()
+```
+
+`rotation`会将文本框沿左下角旋转：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.axis([0, 10, 0, 10])
+plt.text(5, 2, "horizontalalignment=left", c="r", backgroundcolor="#66ccff", horizontalalignment="left", rotation=15)
+plt.text(5, 5, "horizontalalignment=right", c="g", backgroundcolor="#66ccff", horizontalalignment="right", rotation=15)
+plt.text(5, 8, "horizontalalignment=center", c="b", backgroundcolor="#66ccff", horizontalalignment="center", rotation=15)
+plt.plot([5, 5, 5], [2, 5, 8], '.', markersize=15, zorder=4)
+plt.show()
+
+```
+
+`verticalalignment`/`va`决定了矩形中用于和`(x,y)`对齐的点位于边框的哪个角落的垂直方向：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.axis([0, 10, 0, 10])
+plt.text(5, 2, "verticalalignment=top", c="r", backgroundcolor="#66ccff", verticalalignment="top")
+plt.text(5, 5, "verticalalignment=center", c="g", backgroundcolor="#66ccff", verticalalignment="center")
+plt.text(5, 8, "verticalalignment=bottom", c="b", backgroundcolor="#66ccff", verticalalignment="bottom")
+plt.plot([5, 5, 5], [2, 5, 8], '.', markersize=15, zorder=4)
+plt.show()
+
+```
+
+`bbox: dict{<matplotlib.patches.FancyBboxPatch>}`用于规定本文框的样式。其中的`boxstyle`键用于指定文本框的外形：
+
+| `boxstyle`属性值(`str`) | `boxstyle`属性值(`matplotlib.patches.BoxStyle`) | 形状     | 默认值                        |
+| ----------------------- | ----------------------------------------------- | -------- | ----------------------------- |
+| `square`                | `matplotlib.patches.BoxStyle.Square`            | 矩形     | `pad=0.3`                     |
+| `circle`                | `matplotlib.patches.BoxStyle.Circle`            | 圆形     | `pad=0.3`                     |
+| `ellipse`               | `matplotlib.patches.BoxStyle.Ellipse`           | 椭圆     | `pad=0.3`                     |
+| `larrow`                | `matplotlib.patches.BoxStyle.LArrow`            | 左箭头   | `pad=0.3`                     |
+| `rarrow`                | `matplotlib.patches.BoxStyle.RArrow`            | 右箭头   | `pad=0.3`                     |
+| `darrow`                | `matplotlib.patches.BoxStyle.DArrow`            | 双向箭头 | `pad=0.3`                     |
+| `round`                 | `matplotlib.patches.BoxStyle.Round`             | 圆角矩形 | `pad=0.3, rounding_size=None` |
+| `round4`                | `matplotlib.patches.BoxStyle.Round4`            | 圆角矩形 | `pad=0.3, rounding_size=None` |
+| `sawtooth`              | `matplotlib.patches.BoxStyle.Sawtooth`          | 锯齿形   | `pad=0.3, toothsize=None`     |
+| `roundtooth`            | `matplotlib.patches.BoxStyle.Roundtooth`        | 波浪线形 | `pad=0.3, toothsize=None`     |
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+boxstyles = ["square", "circle", "ellipse", "larrow", "rarrow", "darrow", "round", "round4", "sawtooth", "roundtooth"]
+
+plt.axis([0, 10, 0, 10])
+for index, boxstyle in enumerate(boxstyles):
+    plt.text(2, index, f"boxstyle:{boxstyle}", bbox={
+        "boxstyle": boxstyle,
+        "facecolor": "#66ccff"
+    })
+plt.show()
+```
+
+## §1.8 子图
+
+### §1.8.1 多窗口(`plt.figure()`)
+
+`plt.figure()`用于管理窗口及其样式。
+
+```python
+plt.figure(
+	num: Optional[int | str | matplotlib.figure.Figure | matplotlib.figure.SubFigure] = None, # int表示图表编号，str表示图表名称
+	figsize: tuple[float, float] = (6.4, 4.8), # 图表的宽高(英寸)
+	dpi: float = 100,
+	facecolor: COLOR_LIKE = "white", # 窗口背景颜色
+	edgecolor: COLOR_LIKE = "white", # 窗口边框颜色
+	frameon: bool = True, # 是否显示边框
+	FigureClass: matplotlib.figure.Figure,
+	clear: bool = False,
+    layout: Literal["constrained", "compressed", "tight", "none"] | matplotlib.layout_engine.LayoutEngine | None = None,
+	**kwargs: {
+        <matplotlib.figure.Figure>
+    }
+)
+```
+
+回想CSS中的盒子模型，我们可以调整父标签的尺寸和内边距，但是不会影响内容区的实质内容。这里`plt.figure()`控制的窗口就相当于父元素，里面包含的图表就相当于内容区。因此`plt.figure()`控制的是窗口，而不是图表。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, np.pi * 2, 100)
+y = np.sin(x)
+
+plt.figure(figsize=(7, 3), facecolor="#66ccff", edgecolor="r")
+plt.plot(x, y)
+
+plt.show()
+```
+
+`plt.figure()`中的`num`表示从这行代码开始处理哪个窗口，表示设置对象的切换。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, np.pi * 2, 100)
+y = np.sin(x)
+
+plt.figure(1, figsize=(7, 3), facecolor="#66ccff")
+plt.plot(x, y)
+plt.figure(2, figsize=(5, 5), facecolor="#bbbbbb")
+plt.plot(x, y)
+plt.figure(1) # 切换回来
+plt.plot(x, y + 1)
+
+plt.show()
+```
+
+### §1.8.2 `plt.subplot()`
+
+`plt.subplot()`用于在窗口（Figure）中创建子图表/轴对象（Axes）。
+
+```python
+plt.subplot(
+	*args: int | tuple[int, int, int] | matplotlib.gridspec.SubplotSpec = (1, 1, 1),
+    projection: Optional[Literal["aitoff", "hammer", "lambert", "mollweide", "polor", "rectilinear"]] = None,
+    polor: bool = False, # 等价于projection = "polor" if polor else None
+    sharex: Optional[matplotlib.axes.Axes], # 共享X轴的大小和标记
+    sharey: Optional[matplotlib.axes.Axes], # 共享Y轴的大小和标记
+    **kwargs
+) -> matplotlib.axes.Axes
+```
+
+`*args`有以下几种写法：
+
+- `tuple[int, int, int]`：`(nrows, ncols, index)`分别表示子图行数、子图列数、子图序号（从左往右，从上到下递增，从`1`开始）。
+- `nrows=..., ncols=..., index=...`：等价于`tuple[int, int, int]`。
+- `int[111, 999]`：给定一个三位数，会自动拆成三个一位数，对应着`nrows`、`ncols`、`index`。
+
+与`plt.figure()`相似，`plt.subplot()`中的`nrows`、`ncols`、`index`表示从这行代码开始处理哪个子图，表示设置对象的切换。
+
+```python
+
+```
+
+
+
+### §1.8. `plt.subplots()`
+
+
+
+
+
+
 
 
 
@@ -581,7 +1120,7 @@ plt.legend(
 ```python
 plt.plot(
     [x: Optional, y, **kwargs]+
-)
+) -> list[matplotlib.lines.Line2D]
 ```
 
 | `**kwargs`参数   | 含义                     | 取值范围 |
@@ -853,7 +1392,7 @@ plt.show()
 
 > 注意：Matplotlib输出负号时，默认使用`U+2212`(`−`)字符。然而，更常用的负号字符是`U+002D`(`-`)。有些字体没有实现`U+2212`，我们可以设置`plt.rcParams["axes.unicode_minus"]`为`False`，从而使用ASCII提供的负号。
 >
-> ```
+> ```python
 > import numpy as np
 > import matplotlib.pyplot as plt
 > plt.rcParams["font.family"] = ["Microsoft JhengHei"]
@@ -917,8 +1456,6 @@ img.imshow(
     aspect: Literal["auto" | "equal"]
 )
 ```
-
-
 
 # §A 附录
 
@@ -985,9 +1522,12 @@ img.imshow(
 
 
 
-11.26 3w+
+
 
 11.27 4w+
 
 11.28 5w+
 
+11.29 6w+
+
+11.30 7w+
