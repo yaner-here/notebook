@@ -1074,14 +1074,14 @@ plt.plot(x, y + 1)
 plt.show()
 ```
 
-### §1.8.2 `plt.subplot()`
+### §1.8.2 多子图`plt.subplot()`
 
 `plt.subplot()`用于在窗口（Figure）中创建子图表/轴对象（Axes）。
 
 ```python
 plt.subplot(
 	*args: int | tuple[int, int, int] | matplotlib.gridspec.SubplotSpec = (1, 1, 1),
-    projection: Optional[Literal["aitoff", "hammer", "lambert", "mollweide", "polor", "rectilinear"]] = None,
+    projection: Optional[Literal["aitoff", "hammer", "lambert", "mollweide", "polar", "rectilinear"]] = None,
     polor: bool = False, # 等价于projection = "polor" if polor else None
     sharex: Optional[matplotlib.axes.Axes], # 共享X轴的大小和标记
     sharey: Optional[matplotlib.axes.Axes], # 共享Y轴的大小和标记
@@ -1092,20 +1092,455 @@ plt.subplot(
 `*args`有以下几种写法：
 
 - `tuple[int, int, int]`：`(nrows, ncols, index)`分别表示子图行数、子图列数、子图序号（从左往右，从上到下递增，从`1`开始）。
-- `nrows=..., ncols=..., index=...`：等价于`tuple[int, int, int]`。
+- `*args: float, float, float`：等价于`tuple[int, int, int]`，也就是对其使用`*`解构赋值。
 - `int[111, 999]`：给定一个三位数，会自动拆成三个一位数，对应着`nrows`、`ncols`、`index`。
 
 与`plt.figure()`相似，`plt.subplot()`中的`nrows`、`ncols`、`index`表示从这行代码开始处理哪个子图，表示设置对象的切换。
 
 ```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+x = np.linspace(0, np.pi * 10, 100)
+y = np.sin(x)
+
+plt.subplot(2, 1, 1)
+plt.title("oscillation")
+plt.plot(x, y)
+plt.ylabel("position")
+
+plt.subplot(2, 1, 2)
+plt.plot(x, y * np.exp(-0.1 * x))
+plt.xlabel("time")
+plt.ylabel("position")
+
+plt.show()
+```
+
+`plt.subplot()`还能实现网格布局中的`colspan`/`rowspan`合并单元格效果，但是实现逻辑有点绕。考虑下列情形：在$2\times2$的网格中，包含左上角$(1,1)$、右上角$(1,2)$和最底一行$(2,1)+(2,2)$三幅子图。要实现最低一行子图横跨所有列，我们需要给`plt.subplot()`传递`(2,1,2)`三组参数，让Matplotlib绘制第三幅子图时，认为整个网格只有一列，所以就会占据整个横向空间：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, np.pi * 10, 100)
+y = np.sin(x)
+
+plt.subplot(2, 2, 1)
+plt.plot(x, y)
+
+plt.subplot(2, 2, 2)
+plt.plot(x, y * np.exp(-0.1 * x))
+
+plt.subplot(2, 1, 2) # 虚晃一枪，骗过Matplotlib
+plt.plot(x, y * np.exp(0.1 * x))
+
+plt.show()
+```
+
+`projection`形参支持绘制多种投影：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(15, 8),layout="tight")
+plt.suptitle("Projection")
+
+for i, projection in enumerate(["aitoff", "hammer", "lambert", "mollweide", "polar", "rectilinear"]):
+    plt.subplot(2, 3, i+1, projection=projection)
+    plt.plot(np.linspace(-1, 1, 100), np.linspace(-2, 2, 100))
+    plt.title(f"projection={projection}")
+    plt.grid(True)
+    
+plt.show()
+```
+
+`sharex/sharey`形参接受一个`matplotlib.axes.Axes`实例，表示当前子图使用的X轴/Y轴与传入的子图的X轴/Y轴共享。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = (np.linspace(-5, 5, 200), np.linspace(-2, 2, 100))
+y = np.sin(5*x[0]) * np.exp(-np.abs(x[0])), np.sin(5*x[1]) * np.exp(-np.abs(x[1]))
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+
+plt.figure(1)
+plt.suptitle("未同步X轴")
+ax1 = plt.subplot(211)
+ax1.plot(x[0], y[0])
+ax2 = plt.subplot(212)
+ax2.plot(x[1], y[1])
+
+plt.figure(2)
+plt.suptitle("已同步X轴")
+ax1 = plt.subplot(211)
+ax1.plot(x[0], y[0])
+ax2 = plt.subplot(212, sharex=ax1)
+ax2.plot(x[1], y[1])
+
+plt.show()
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(-5, 5, 200)
+y = np.sin(x), np.sin(x) + 5
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+
+plt.figure(1)
+plt.suptitle("未同步Y轴")
+ax1 = plt.subplot(121)
+ax1.plot(x, y[0])
+ax2 = plt.subplot(122)
+ax2.plot(x, y[1])
+
+plt.figure(2)
+plt.suptitle("已同步Y轴")
+ax1 = plt.subplot(121)
+ax1.plot(x, y[0])
+ax2 = plt.subplot(122, sharey=ax1)
+ax2.plot(x, y[1])
+
+plt.show()
+```
+
+### §1.8.3 子图总标题(`plt.suptitle()`)
+
+在介绍子图之前，我们一直使用`plt.title()`设置整个图表的总标题。然而引入子图之后，`plt.title()`表示的是子图的标题。如果要设置整个图表的总标题，我们需要用到`plt.suptitle()`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, np.pi * 10, 100)
+y = np.sin(x)
+
+plt.figure(layout="tight")
+plt.suptitle("Total subplots")
+
+plt.subplot(2, 2, 1)
+plt.title("subplot 1")
+plt.plot(x, y)
+
+plt.subplot(2, 2, 2)
+plt.title("subplot 2")
+plt.plot(x, y * np.exp(-0.1 * x))
+
+plt.subplot(2, 1, 2)
+plt.title("subplot 3")
+plt.plot(x, y * np.exp(0.1 * x))
+
+plt.show()
+```
+
+### §1.8.4 多子图布局(`plt.tight_layout()`)
+
+`plt.tight_layout()`用于指定多子图的布局。
+
+```python
+plt.tight_layout(
+    pad: float = 1.08 # fontsize的倍数
+    h_pad: float = <pad>,
+    w_pad: float = <pad>,
+    rect: tuple[left, bottom, right, top] = (0, 0, 1, 1)
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+
+def subplot(nrows: int, ncols: int, index: int):
+    ax = plt.subplot(nrows, ncols, index)
+    ax.plot([0, 1], [0, 3])
+    ax.set_xlabel("X坐标", fontsize=20)
+    ax.set_ylabel("Y坐标", fontsize=20)
+    ax.set_ylabel("子图标题", fontsize=20)
+
+for i in range(4):
+    subplot(2, 2, i+1)
+
+plt.tight_layout() # 开启紧凑布局，防止重叠
+plt.show()
+```
+
+> 注意：开启紧凑布局，除了使用`plt.tight_layout()`手动开启外，也可以让全局变量`plt.rcParams["figure.autolayout"]`为`True`。
+>
+> ```python
+> import numpy as np
+> import matplotlib.pyplot as plt
+> 
+> plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+> plt.rcParams["axes.unicode_minus"] = False
+> plt.rcParams["figure.autolayout"] = True # 开启紧凑布局，防止重叠
+> 
+> def subplot(nrows: int, ncols: int, index: int):
+>     ax = plt.subplot(nrows, ncols, index)
+>     ax.plot([0, 1], [0, 3])
+>     ax.set_xlabel("X坐标", fontsize=20)
+>     ax.set_ylabel("Y坐标", fontsize=20)
+>     ax.set_ylabel("子图标题", fontsize=20)
+> 
+> for i in range(4):
+>     subplot(2, 2, i+1)
+> 
+> plt.show()
+> ```
+
+### §1.8.5 多子图(`plt.subplots()`)
+
+`plt.subplots()`同样用于设置子图，但是功能比`plt.subplot()`更多。
+
+```python
+plt.subplots(
+	nrows: int = 1,
+    ncols: int = 1, *,
+    sharex: bool | Literal["none", "all", "row", "col"] = False,
+    sharey: bool | Literal["none", "all", "row", "col"] = False,
+    squeeze: bool = True,
+    width_ratios: Optional[typing.Iterable[float]] = None,
+    height_ratios: Optional[typing.Iterable[float]] = None,
+    subplot_kw: Optional[<matplotlib.figure.Figure.add_subplot(...)>:] = None,
+    grid_spec_kw: Optional[<matplotlib.gridspec.GridSpec(...)>:]= None,
+    **fig_kw: **plt.figure(...)
+) -> tuple[
+    matplotlib.figure.Figure, 
+    typing.Union[
+        matplotlib.axes.Axes,
+        numpy.ndarray[matplotlib.axes.Axes]
+    ]
+]
+```
+
+`nrows`和`ncols`用于指定子图的行列数量：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
+ax[0].plot([0, 3])
+ax[1].plot([0, 2])
+
+plt.show()
+```
+
+由于`axes`也可能是`numpy.ndarray`，所以我们可以使用Numpy数组提供的高级索引功能：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
+ax[0, 0].plot([0, 1]) # 高级索引
+ax[0, 1].plot([0, 2])
+ax[1, 0].plot([0, 3])
+ax[1, 1].plot([0, 4])
+
+plt.show()
+```
+
+> 注意：由于`axes`也可能是`numpy.ndarray`，这使得我们可以使用Numpy中的方法遍历每个`matplotlib.axes.Axes`：
+>
+> - `numpy.ndarray.flat: typing.Iterable`
+>
+>   ```python
+>   import numpy as np
+>   import matplotlib.pyplot as plt
+>   
+>   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+>   plt.rcParams["axes.unicode_minus"] = False
+>   plt.rcParams["figure.autolayout"] = True
+>   
+>   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
+>   for ax in axes.flat:
+>       ax.set_title("子图")
+>       ax.set_xlabel("时间")
+>       ax.set_ylabel("位置")
+>       ax.label_outer()
+>   plt.show()
+>   ```
+>
+> - `numpy.nditer(numpy.ndarray, flags=["refs_ok"]) -> typing.Iterable`
+>
+>   因为该Numpy数组存储的数据类型是`Object`，所以会触发`TypeError: Iterator operand or requested dtype holds references, but the NPY_ITER_REFS_OK flag was not enabled`。这使得我们必须添加`"refs_ok"`的`FLAG`。
+>
+>   ```python
+>   import numpy as np
+>   import matplotlib.pyplot as plt
+>   
+>   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+>   plt.rcParams["axes.unicode_minus"] = False
+>   plt.rcParams["figure.autolayout"] = True
+>   
+>   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
+>   for ax in np.nditer(axes, flags=["refs_ok"]):
+>       ax = ax.item()
+>       ax.set_title("子图")
+>       ax.set_xlabel("时间")
+>       ax.set_ylabel("位置")
+>       ax.label_outer()
+>   plt.show()
+>   ```
+
+`shareX`和`shareY`用于设置是否共享X轴和Y轴。如果共享，则会自动给每个`plt`执行`plt.label_out()`，从而删除里面的X轴和Y轴标签：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
+fig.suptitle("关闭shareX和shareY")
+for ax in axes.flat:
+    x = np.arange(np.random.randint(2, 30))
+    y = np.random.randint(0, 30, len(x))
+    ax.plot(x, y)
+
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3), sharex=True, sharey=True)
+fig.suptitle("启用shareX和shareY")
+for ax in axes.flat:
+    x = np.arange(np.random.randint(2, 30))
+    y = np.random.randint(0, 30, len(x))
+    ax.plot(x, y)
+
+plt.show()
+```
+
+### §1.8.6 多子图(`fig.add_subplot()`)
+
+之前我们介绍了一系列`plt.xxx()`开头的函数，它们都是Matplotlib提供的函数式API。本节我们将使用Matplotlib的OOAPI。关于OO API的更多细节，参考[§1.9 OO API](##§1.9 OO API)。
+
+这里我们调用`plt.figure()`返回的`fig`实例的`.adds_subplot()`方法：
+
+```python
+fig.add_subplot(
+	*args: int[111, 999] | tuple[int, int, int] | matplotlib.SubplotSpec = (1, 1, 1),
+    projection: Optional[None | Literal["aitoff", "hammer", "lambert", "mollweide", "polar", "rectilinear"]],
+    polar: bool = False,
+    axes_class: Optional[matplotlib.axes.Axes],
+    sharex: Optional[matplotlib.axes.Axes],
+    sharey: Optional[matplotlib.axes.Axes],
+    label: str,
+    **kwargs: {<matplotlib.axes.Axes>:}
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig = plt.figure(1)
+fig.add_subplot(1, 2, 1).plot(np.random.rand(20))
+fig.add_subplot(2, 2, 2).plot(np.random.rand(20))
+fig.add_subplot(2, 2, 4).plot(np.random.rand(20))
+
+plt.show()
+```
+
+### §1.8.7 多子图布局(`fig.add_gridspec()`)
+
+
+
+```python
+fig.add_gridspec(
+	nrows: int = 1,
+    ncols: int = 1,
+    **kwargs: { <matplotlib.gridspec.GridSpec>:
+    	left / right / top / bottom: Optional[float[0, 1]], # 决定了图表四个方向的边界
+    	hspace / wspace: Optional[float], # 各图表间的间隔长度
+        # ......
+    }
+) -> matplotlib.gridspec.GridSpec
+```
+
+`matplotlib.gridspec.GridSpec(GridSpecBase).__getitem__`沿用了NumPy数组的高级索引
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig = plt.figure(1)
+gs = fig.add_gridspec(2, 2)
+axes = [
+    fig.add_subplot(gs[0, 0]),
+    fig.add_subplot(gs[0, 1]),
+    fig.add_subplot(gs[1, :])
+]
+for index, ax in enumerate(axes):
+    ax.set_title(f"subplot: {index}")
+    ax.plot(np.random.random(10))
+
+plt.show()
 ```
 
 
 
-### §1.8. `plt.subplots()`
+## §1.9 OO API
 
+我们使用的形如`plt.xxx()`的API，都是Matplotlib提供的函数式API。在通过`ax=plt.subplot()`拿到`matplotlib.axes.Axes`实例后，我们可以使用Matlotlib提供的面向对象的API（Object Oriented API, OOAPI）。
 
+OO API的方法名与函数式API略有不同：
+
+| `pyplot` API        | OO API                   | 作用                       |
+| ------------------- | ------------------------ | -------------------------- |
+| `plt.text()`        | `ax.text()`              | 添加文字(以绝对坐标为单位) |
+| `plt.annotate()`    | `ax.annotate()`          | 添加文字和箭头             |
+| `plt.xlabel()`      | `ax.set_xlabel()`        | 设置X轴标签                |
+| `plt.ylabel()`      | `ax.set_ylabel()`        | 设置Y轴标签                |
+| `plt.xlim()`        | `ax.set_xlim()`          | 设置X轴范围                |
+| `plt.ylim()`        | `ax.set_ylim()`          | 设置Y轴范围                |
+| `plt.title()`       | `ax.set_title()`         | 设置图表/子图标题          |
+| `plt.figtext()`     | `ax.text()`              | 添加文字(以相对坐标为单位) |
+| `plt.suptitle()`    | `ax.suptitle()`          | 设置子图总标题             |
+| `plt.axis()`        | `ax.set_axis_off()`      | 关闭图表标记               |
+| `plt.axis("equal")` | `ax.set_aspect("equal")` | 让X轴和Y轴单位长度相同     |
+| `plt.xticks()`      | `xaxis.set_ticks()`      | 设置X轴刻度                |
+| `plt.yticks()`      | `xaxis.set_ticks()`      | 设置Y轴刻度                |
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+ax = plt.subplot()
+ax.set_xlabel("time")
+ax.set_ylabel("position")
+ax.grid(True)
+ax.plot(np.arange(5, -10, -1))
+ax.plot(np.arange(-5, 5))
+
+plt.show()
+```
 
 
 
@@ -1456,6 +1891,30 @@ img.imshow(
     aspect: Literal["auto" | "equal"]
 )
 ```
+
+## §2.2 极坐标图
+
+在[§1.8.2 多子图`plt.subplot()`](###§1.8.2 多子图`plt.subplot()`)一节中，我们提到过`projection`形参为`"polar"`时，可以绘制极坐标图$(\theta,r)$。当然，`plt.sublots(**subplot_kw)`已经包含了`plt.subplot()`中的形参列表，所以用这个函数也能创建极坐标图。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+# 绘制极坐标方程 r = θ/3 + sin(2θ)
+theta = np.linspace(0, 10 * np.pi, 500)
+r = theta / 3 + np.sin(2 * theta)
+
+ax = plt.subplot(projection="polar")
+ax.plot(theta, r, color="purple", linewidth=2)
+ax.set_title("极坐标方程 r = θ/3 + sin(2θ)")
+plt.show()
+```
+
+
 
 # §A 附录
 
