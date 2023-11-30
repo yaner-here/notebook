@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->   
+>     
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->   
+>     
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -1466,7 +1466,7 @@ plt.show()
 
 ### §1.8.7 多子图布局(`fig.add_gridspec()`)
 
-
+`fig.add_gridspec()`用于创建网格布局，可以通过网格布局创建子图。
 
 ```python
 fig.add_gridspec(
@@ -1475,12 +1475,13 @@ fig.add_gridspec(
     **kwargs: { <matplotlib.gridspec.GridSpec>:
     	left / right / top / bottom: Optional[float[0, 1]], # 决定了图表四个方向的边界
     	hspace / wspace: Optional[float], # 各图表间的间隔长度
+		width_ratios / height_ratios: Optional[typing.Sequence[number]], # 各行/各列的高度/宽度之比
         # ......
     }
 ) -> matplotlib.gridspec.GridSpec
 ```
 
-`matplotlib.gridspec.GridSpec(GridSpecBase).__getitem__`沿用了NumPy数组的高级索引
+`matplotlib.gridspec.GridSpec(GridSpecBase).__getitem__`沿用了NumPy数组的高级索引，既可以将多级索引合并到一个元组中，也可以使用`:`选中完整的一行或一列：
 
 ```python
 import numpy as np
@@ -1492,7 +1493,7 @@ plt.rcParams["figure.autolayout"] = True
 
 fig = plt.figure(1)
 gs = fig.add_gridspec(2, 2)
-axes = [
+axes = [ # 如果无colspan/rowspan需求，可以直接axes = gs.subplots().flat
     fig.add_subplot(gs[0, 0]),
     fig.add_subplot(gs[0, 1]),
     fig.add_subplot(gs[1, :])
@@ -1504,7 +1505,108 @@ for index, ax in enumerate(axes):
 plt.show()
 ```
 
+`hspace`/`wspace`用于设置图表之间的间距：
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig = plt.figure(1)
+gs = fig.add_gridspec(2, 2, hspace=0.1, wspace=0.1)
+axes = gs.subplots(sharex=True, sharey=True).flat
+
+for index, ax in enumerate(axes):
+    ax.plot(np.random.random(10))
+
+plt.show()
+```
+
+`width_ratios`/`height_ratios`用于指定网格布局的各行/各列的高度/宽度之比：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig = plt.figure(1)
+gs = fig.add_gridspec(2, 2, width_ratios=[1.5, 1], height_ratios=[1, 2])
+axes = gs.subplots().flat
+
+for index, ax in enumerate(axes):
+    ax.plot(np.random.random(10))
+
+plt.show()
+```
+
+### §1.8.8 多子图(`plt.axes()`/`fig.add_axes()`)
+
+`plt.axes()`/`fig.add_axes`用于创建更灵活的子图，可以摆脱网格布局的限制，自由地安排子图的位置。
+
+```python
+plt.axes / fig.add_axes(
+	arg: None | tuple[float, float, float, float], # 相对坐标，分别表示left, bottom, width, height
+    projection: Optional[None | Literal["aitoff", "hammer", "lambert", "mollweide", "polar", "rectilinear"]],
+    polar: bool = False,
+    sharex: optional[matplotlib.axes.Axes],
+    sharey: optional[matplotlib.axes.Axes],
+    xlim: tuple[float, float], # 指定left和right
+    ylim: tuple[float, float], # 指定bottom和top
+    xlabel / ylabel: str,
+    # ......
+) -> matplotlib.axes.Axes
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig = plt.figure(1)
+ax = plt.axes([0.2, 0.4, 0.4, 0.4]) 
+# left, bottom, width, height = 0.2, 0.4, 0.4, 0.4
+
+ax.plot(np.random.random(10))
+
+plt.show()
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(-np.pi, np.pi, 100)
+y_sin = np.sin(x)
+y_line = x
+
+fig = plt.figure(1)
+ax1 = plt.axes()
+ax1.plot(x, y_sin)
+ax1.plot(x, y_line)
+ax1.set_title("y=sin(x)")
+
+ax2 = fig.add_axes([0.2, 0.6, 0.2, 0.2])
+ax2.set_xlim(-1, 1)
+ax2.set_ylim(-1, 1)
+ax2.set_title("切线")
+ax2.plot(x, y_sin)
+ax2.plot(x, y_line)
+
+plt.show()
+```
 
 ## §1.9 OO API
 
@@ -1541,6 +1643,110 @@ ax.plot(np.arange(-5, 5))
 
 plt.show()
 ```
+
+## §1.10 多Y轴(`ax.twinx()`)
+
+`ax.twinx()`用于返回一个共享X轴、不共享Y轴的子图对象。
+
+```python
+ax.twin() -> matplotlib.axes.Axes
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, ax_1 = plt.subplots(1, 1)
+ax_2 = ax_1.twinx()
+
+ax_1.plot(np.random.randint(0, 100, 10), "ro-")
+ax_2.plot(np.random.randint(0, 10, 10), "bo-")
+fig.legend(labels=["randint(0, 100)", "randint(0, 10)"])
+
+plt.show()
+```
+
+## §1.11 注释(`plt.annotate()`)
+
+注释由注释文字和带箭头的线条构成，用于指向某个点/某条线并配上文字说明。
+
+```python
+plt.annotate(
+	text: sr,
+    xy: tuple[float, float],
+    xytext: tuple[float, float] = <xy>,
+    xycoords: str |
+    		  tuple[str, str] | 
+    		  matplotlib.artist.Artist | 
+    		  matplotlib.transforms.Transform | 
+    		  callable[matplotlib.backend_bases.RendererBase 
+                       -> matplotlib.artist.Artist | matplotlib.transforms.Transform
+              ] = "data",
+    textcoords: str |
+    		  	tuple[str, str] | 
+    		  	matplotlib.artist.Artist | 
+    		  	matplotlib.transforms.Transform | 
+    		  	callable[matplotlib.backend_bases.RendererBase 
+                         -> matplotlib.artist.Artist | matplotlib.transforms.Transform
+              	] = <xycoords>,
+    arrowprops: Optional[dict{
+    	"width": float, # 箭头宽度(以点为单位)
+        "headwidth": float, # 箭头宽度(以点为单位)
+        "headlength": float, # 箭头宽度(以点为单位)
+        "shrink": float, # 箭头宽度(以点为单位)
+        "?": matplotlib.patches.FancyArrowPatch
+    }],
+    annotation_clip: bool | None = None, # 注释超出Axes范围时，是否不显示溢出范围
+    **kwargs: {<matplotlib.text.Text>:}
+) -> matplotlib.text.Annotation
+```
+
+
+
+| `xycoords: str`属性值 | 作用                                      |
+| --------------------- | ----------------------------------------- |
+| `figure points`       | 以`Figure`左下角为原点，以点为单位        |
+| `figure pixels`       | 以`Figure`左下角为原点，以像素为单位      |
+| `figure fraction`     | 以`Figure`左下角为原点，以百分比为单位    |
+| `subfigure points`    | 以`SubFigure`左下角为原点，以点为单位     |
+| `subfigure pixels`    | 以`SubFigure`左下角为原点，以像素为单位   |
+| `subfigure fraction`  | 以`SubFigure`左下角为原点，以百分比为单位 |
+| `axes points`         | 以`Axes`左下角为原点，以点为单位          |
+| `axes pixels`         | 以`Axes`左下角为原点，以像素为单位        |
+| `axes fraction`       | 以`Axes`左下角为原点，以百分比为单位      |
+| `data`(缺省)          | 以正交坐标$(0,0)$为原点                   |
+| `polar`               | 以极坐标$(0,0)$为原点                     |
+
+| `textcoords: str`属性值 | 作用                                       |
+| ----------------------- | ------------------------------------------ |
+| `offset points`         | 相对于`xycoords`的偏移量，以点为单位       |
+| `offset pixels`         | 相对于`xycoords`的偏移量，以像素为单位     |
+| `offset fontsize`       | 相对于`xycoords`的偏移量，以字体大小为单位 |
+
+
+
+| ？？？？？？？？？？？？ | 箭头样式 |      |
+| ------------------------ | -------- | ---- |
+| `Curve`                  |          |      |
+| `CurveA`                 |          |      |
+| `CurveB`                 |          |      |
+| `CurveAB`                |          |      |
+| `CurveFilledA`           |          |      |
+| `CurveFilledB`           |          |      |
+| `CurveFilledAB`          |          |      |
+| `BrackedA`               |          |      |
+| `BrackedB`               |          |      |
+| `BrackedAB`              |          |      |
+| `BarAB`                  |          |      |
+| `BrackedCurve`           |          |      |
+| `CurveBracked`           |          |      |
+| `Simple`                 |          |      |
+| `Fancy`                  |          |      |
+| `Wedge`                  |          |      |
 
 
 
