@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->     
+>                           
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->     
+>                           
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -1694,18 +1694,42 @@ plt.annotate(
                          -> matplotlib.artist.Artist | matplotlib.transforms.Transform
               	] = <xycoords>,
     arrowprops: Optional[dict{
+        "edgecolor" / "ec": COLOR_LIKE,
+        "facecolor" / "fc": COLOR_LIKE,
     	"width": float, # 箭头宽度(以点为单位)
         "headwidth": float, # 箭头宽度(以点为单位)
         "headlength": float, # 箭头宽度(以点为单位)
         "shrink": float, # 箭头宽度(以点为单位)
-        "?": matplotlib.patches.FancyArrowPatch
+        "?": dict[<matplotlib.patches.FancyArrowPatch>:]
     }],
     annotation_clip: bool | None = None, # 注释超出Axes范围时，是否不显示溢出范围
     **kwargs: {<matplotlib.text.Text>:}
 ) -> matplotlib.text.Annotation
 ```
 
+`text`参数表示注释文本，`xy`和`xytext`分别表示箭头指向的坐标和注释文本的坐标：
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(-np.pi, np.pi, 100)
+y = np.sin(x)
+
+plt.plot(x, y)
+plt.annotate("极大值", (np.pi/2, 1), (2, 1.5), arrowprops={
+    "facecolor": "#66ccff",
+    "shrink": 0
+})
+plt.ylim(-2, 2)
+plt.show()
+```
+
+`xycoords`用于指定`xy`所使用的坐标系统。`textcoords`用于指定`xytext`所使用的坐标系统，并且在`xycoords`的基础上，增加了三个新的坐标系统以供选择，缺省值与`xycoords`相同。
 
 | `xycoords: str`属性值 | 作用                                      |
 | --------------------- | ----------------------------------------- |
@@ -1721,34 +1745,505 @@ plt.annotate(
 | `data`(缺省)          | 以正交坐标$(0,0)$为原点                   |
 | `polar`               | 以极坐标$(0,0)$为原点                     |
 
-| `textcoords: str`属性值 | 作用                                       |
-| ----------------------- | ------------------------------------------ |
-| `offset points`         | 相对于`xycoords`的偏移量，以点为单位       |
-| `offset pixels`         | 相对于`xycoords`的偏移量，以像素为单位     |
-| `offset fontsize`       | 相对于`xycoords`的偏移量，以字体大小为单位 |
+| `textcoords: str`多的属性值 | 作用                                       |
+| --------------------------- | ------------------------------------------ |
+| `offset points`             | 相对于`xycoords`的偏移量，以点为单位       |
+| `offset pixels`             | 相对于`xycoords`的偏移量，以像素为单位     |
+| `offset fontsize`           | 相对于`xycoords`的偏移量，以字体大小为单位 |
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
-| ？？？？？？？？？？？？ | 箭头样式 |      |
-| ------------------------ | -------- | ---- |
-| `Curve`                  |          |      |
-| `CurveA`                 |          |      |
-| `CurveB`                 |          |      |
-| `CurveAB`                |          |      |
-| `CurveFilledA`           |          |      |
-| `CurveFilledB`           |          |      |
-| `CurveFilledAB`          |          |      |
-| `BrackedA`               |          |      |
-| `BrackedB`               |          |      |
-| `BrackedAB`              |          |      |
-| `BarAB`                  |          |      |
-| `BrackedCurve`           |          |      |
-| `CurveBracked`           |          |      |
-| `Simple`                 |          |      |
-| `Fancy`                  |          |      |
-| `Wedge`                  |          |      |
+x = np.linspace(-np.pi, np.pi, 100)
+y = np.sin(x)
 
+plt.plot(x, y)
+plt.annotate("极大值", (np.pi/2, 1), (0.5, 0.5), "data", "axes fraction",
+    arrowprops={
+        "facecolor": "#66ccff",
+        "shrink": 0
+    }
+)
+plt.ylim(-2, 2)
+plt.show() # 在GUI中拖动视图，查看axes fraction效果
+```
 
+`arrowprops`指定了箭头的样式。
+
+```python
+arrowprops: Optional[
+    dict{ # 不包含"arrowstyle"键
+    	"width": float, # 箭头宽度(以点为单位)
+        "headwidth": float, # 箭头宽度(以点为单位)
+        "headlength": float, # 箭头宽度(以点为单位)
+        "shrink": float, # 箭头宽度(以点为单位)
+        "?": dict[<matplotlib.patches.FancyArrowPatch>:]
+	} | 
+    dict{ # 包含"arrowstyle"键
+    	"arrowstyle": Literal["-", "<-", "->", "<->", "<|-", "-|>", "<|-|>", "]-", "-[", "]-[", "|-|", "]->", "<-[", "simple", "fancy", "wedge"] | matplotlib.patches.ArrowStyle = "simple", # 箭头样式
+    	"connectionstyle": Optional[Literal["arc3", "angle3", "angle", "arc", "bar"] | matplotlib.patches.ConnectionStyle] = "arc3", # 连接样式
+    	"relpos": , # 箭头起点相对于注释文字的位置
+        "patchA": matplotlib.patches.Patch = None, # 箭头头部形状
+        "patchB": matplotlib.patches.Patch = None, # 箭头尾部形状
+        "shrinkA": float = 2, # 箭头头部尺寸缩放系数
+        "shrinkB": float = 2, # 箭头尾部尺寸缩放系数
+        "mutation_scale": float = 1, # 缩放arrowstyle相关属性(文字大小,headlength等等)
+        "mutation_aspect": None | float = None,
+        "?": dict[<matplotlib.patches.FancyArrowPatch>:]
+    }
+]
+```
+
+| `arrowstyle: str`参数值 | 对应的`matplotlib.patches.ArrowStyle`子类 | 默认属性                                                     |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------------------ |
+| `"-"`                   | `Curve`                                   | `None`                                                       |
+| `"<-"`                  | `CurveA`                                  | `head_length=0.4, head_width=0/2`                            |
+| `"->"`                  | `CurveB`                                  | `head_length=0.4, head_width=0/2`                            |
+| `"<->"`                 | `CurveAB`                                 | `head_length=0.4, head_width=0/2`                            |
+| `"<|-"`                 | `CurveFilledA`                            | `head_length=0.4, head_width=0/2`                            |
+| `"-|>"`                 | `CurveFilledB`                            | `head_length=0.4, head_width=0/2`                            |
+| `"<|-|>"`               | `CurveFilledAB`                           | `head_length=0.4, head_width=0/2`                            |
+| `"]-"`                  | `BrackedA`                                | `widthA=1.0, lengthA=0.2, angleA=0`                          |
+| `"-["`                  | `BrackedB`                                | `widthB=1.0, lengthB=0.2, angleB=0`                          |
+| `]-[`                   | `BrackedAB`                               | `widthA=1.0, lengthA=0.2, angleA=0, widthB=1.0, lengthB=0.2, angleB=0` |
+| `"|-|"`                 | `BarAB`                                   | `widthA=1.0, lengthA=0.2, widthB=0, angleB=0`                |
+| `"]->"`                 | `BrackedCurve`                            | `widthA=1.0, lengthA=0.2 angleA=None`                        |
+| `"<-["`                 | `CurveBracked`                            | `widthB=1.0, lengthB=0.2, angleB=None`                       |
+| `"simple"`              | `Simple`                                  | `head_length=0.5, head_width=0.5, tail_width=0.2`            |
+| `"fancy"`               | `Fancy`                                   | `head_length=0.4, head_width=0.4, tail_width=0.4`            |
+| `"wedge"`               | `Wedge`                                   | `tail_width=0.3, shrink_factor=0.5`                          |
+
+| `connectionstyle: str`参数值 | 对应`matplotlib.patches.ConnectionStyle`子类 | 默认属性                                             |
+| ---------------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| `"arc3"`                     | `Arc3`                                       | `rad=0.0`                                            |
+| `"angle3"`                   | `Angle3`                                     | `angleA=90, angleB=0`                                |
+| `"angle"`                    | `Angle`                                      | `angleA=90, angleB=0, rad=0.0`                       |
+| `"arc"`                      | `Arc`                                        | `angleA=90, angleB=0, armA=None, armB=None, rad=0.0` |
+| `"bar"`                      | `Bar`                                        | `armA=0.0, armB=0.0, fraction=0.3, angle=None`       |
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+plt.figure(figsize=(20,5))
+arrowstyles = ["-", "<-", "->", "<->", "<|-", "-|>", "<|-|>", "]-", "-[", "]-[", "|-|", "]->", "<-["]
+connectionstyles = ["arc3", "angle3", "angle", "arc", "bar"]
+for i, arrowstyle in enumerate(arrowstyles):
+    for j, connectionstyle in enumerate(connectionstyles):
+        plt.annotate(
+            text = f"{arrowstyle, connectionstyle}", xy = (i * 5 + 4, j * 2), xytext = (i * 5, j * 2),
+            arrowprops={
+                "arrowstyle": arrowstyle,
+                "connectionstyle": connectionstyle
+            }
+        )
+plt.ylim(-1, 9)
+plt.xlim(-1, 65)
+plt.show()
+```
+
+`connectionstyle: str`除了预设值以外，还支持在五个预设参数的基础上自设一些样式。其中各形参出现的组合，必须在五个预设参数的默认值组合的子集中。
+
+- `matplotlib.patches.ConnectionStyle.Angle3`/`"angle3,angleA={},angleB={}"`
+
+  `Angle3`在两点之间创建一条简单的二次贝塞尔曲线，中间控制点位于首尾两个角度构成射线的交点。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  import itertools
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  angle3_examples = [
+      f"angle3,angleA={i},angleB={j}" for i, j in 
+          itertools.product(
+              np.linspace(0, 135, 4).astype(np.int32), 
+              np.linspace(0, 135, 4).astype(np.int32)
+          )
+  ]
+  
+  fig, axes = plt.subplots(4, 4, figsize=(6, 6))
+  connectionstyles = angle3_examples
+  
+  for index, ax in enumerate(axes.flat):
+      ax.set_xlim(0, 1)
+      ax.set_ylim(0, 1.25)
+      ax.set_xticks([])
+      ax.set_yticks([])
+      arrow_head = (0.3, 0.2)
+      arrow_tail = (0.8, 0.6)
+      if index in [0, 5, 10, 15]:
+          ax.text(x = 0.05, y = 0.7, s = "angleA-angleB\n≠can't be kπ/2", wrap=True)
+          continue
+  
+      ax.plot(
+          [arrow_head[0], arrow_tail[0]], 
+          [arrow_head[1], arrow_tail[1]],
+          "g."
+      )
+      ax.annotate(
+          text="", xy=arrow_head, xytext=arrow_tail,
+          arrowprops={
+              "arrowstyle": "->",
+              "connectionstyle": connectionstyles[index]
+          }
+      )
+      ax.text(
+          x = 0.05, y = 1.2, s=connectionstyles[index].replace(",", ",\n"),
+          horizontalalignment="left",
+          verticalalignment="top"
+      )
+  
+  plt.show()
+  ```
+
+- `matplotlib.patches.ConnectionStyle.Angle`/`"angle,angleA={},angleB={},rad={}"`
+
+  `Angle`类在两点之间创建一条分段连续的贝塞尔曲线，通过点位于首尾角度构成射线的交点，连接边缘使用`rad`倒圆角。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  import itertools
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  angle3_examples = [
+      f"angle,angleA=-190,angleB={i},rad={j}" for i, j in 
+          itertools.product(
+              np.linspace(0, 90, 5).astype(np.int32), 
+              np.linspace(0, 90, 10).astype(np.int32)
+          )
+  ]
+  
+  fig, axes = plt.subplots(5, 10, figsize=(15, 8))
+  connectionstyles = angle3_examples
+  
+  for index, ax in enumerate(axes.flat):
+      ax.set_xlim(0, 1)
+      ax.set_ylim(0, 1.25)
+      ax.set_xticks([])
+      ax.set_yticks([])
+      arrow_head = (0.3, 0.2)
+      arrow_tail = (0.8, 0.6)
+  
+      ax.plot(
+          [arrow_head[0], arrow_tail[0]], 
+          [arrow_head[1], arrow_tail[1]],
+          "g."
+      )
+      ax.annotate(
+          text="", xy=arrow_head, xytext=arrow_tail,
+          arrowprops={
+              "arrowstyle": "->",
+              "connectionstyle": connectionstyles[index]
+          }
+      )
+      ax.text(
+          x = 0.05, y = 1.2, s=connectionstyles[index].replace(",", ",\n"),
+          horizontalalignment="left",
+          verticalalignment="top"
+      )
+      
+  fig.subplots_adjust(left=0.01, bottom=0.01, top=0.99, right=0.99)
+  plt.tight_layout()
+  plt.show()
+  ```
+
+- `matplotlib.patches.ConnectionStyle.Arc`/`"arc,angleA={},angleB={},armA={},armB={},rad={}"`
+
+  `Arc`类用于在两点之间创建一条分段连续的二次贝塞尔曲线，该曲线有两个经过点，一个点在与A点相距`armA`且角度为`angleA`的位置，另一个点在与B点相距`armB`且角度为`angleB`的位置，且边缘处均以`rad`为倒角。
+
+- `matplotlib.patches.ConnectionStyle.Arc3`/`"arc3,rad={}"`
+
+  `Arc3`类用于在两点之间创建一条简单的二次贝塞尔曲线。创建曲线时，中间控制点 (C) 与起点`A`和终点`B`的距离相同，并且`C`到连接`A`和`B`的直线距离是`rad`乘以`A`与`B`之间的距离。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  angle3_examples = [
+      f"arc3,rad={i}" for i in np.linspace(-2, 2, 26).round(3)
+  ]
+  
+  fig, axes = plt.subplots(5, 5, figsize=(9, 8))
+  connectionstyles = angle3_examples
+  
+  for index, ax in enumerate(axes.flat):
+      ax.set_xlim(0, 1)
+      ax.set_ylim(0, 1.25)
+      ax.set_xticks([])
+      ax.set_yticks([])
+      arrow_head = (0.3, 0.2)
+      arrow_tail = (0.8, 0.6)
+  
+      ax.plot(
+          [arrow_head[0], arrow_tail[0]], 
+          [arrow_head[1], arrow_tail[1]],
+          "g."
+      )
+      ax.annotate(
+          text="", xy=arrow_head, xytext=arrow_tail,
+          arrowprops={
+              "arrowstyle": "->",
+              "connectionstyle": connectionstyles[index]
+          }
+      )
+      ax.text(
+          x = 0.05, y = 1.2, s=connectionstyles[index].replace(",", ",\n"),
+          horizontalalignment="left",
+          verticalalignment="top"
+      )
+  
+  fig.subplots_adjust(left=0.01, bottom=0.01, top=0.99, right=0.99)
+  plt.tight_layout()
+  plt.show()
+  
+  ```
+
+- `matplotlib.patches.ConnectionStyle.Bar`/`"bar,armA={},armB={},fraction={},angle={}"`
+
+  `Bar`类用于绘制一条由三条线段构成的折线，交点均为$90\degree$，其中头部臂的长度为$\text{armA}+\text{fraction}\times|A-B|$，尾部臂的长度为$\text{armB}+\text{fraction}\times|A-B|$，`angle`决定了连接线的角度，默认为`None`时连接线平行于`A`和`B`。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  import itertools
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  angle3_examples = [
+      f"bar,armA={i},armB={j}" for i, j in 
+          itertools.product(
+              np.linspace(-50, 50, 6).round(3),
+              np.linspace(-50, 50, 6).round(3)
+          )
+  ]
+  
+  fig, axes = plt.subplots(6, 6, figsize=(9, 8))
+  connectionstyles = angle3_examples
+  
+  for index, ax in enumerate(axes.flat):
+      ax.set_xlim(0, 1)
+      ax.set_ylim(0, 1.25)
+      ax.set_xticks([])
+      ax.set_yticks([])
+      arrow_head = (0.3, 0.2)
+      arrow_tail = (0.8, 0.6)
+  
+      ax.plot(
+          [arrow_head[0], arrow_tail[0]], 
+          [arrow_head[1], arrow_tail[1]],
+          "g."
+      )
+      ax.annotate(
+          text="", xy=arrow_head, xytext=arrow_tail,
+          arrowprops={
+              "arrowstyle": "->",
+              "connectionstyle": connectionstyles[index]
+          }
+      )
+      ax.text(
+          x = 0.05, y = 1.2, s=connectionstyles[index].replace(",", ",\n"),
+          horizontalalignment="left",
+          verticalalignment="top"
+      )
+  
+  fig.subplots_adjust(left=0.01, bottom=0.01, top=0.99, right=0.99)
+  plt.tight_layout()
+  plt.show()
+  ```
+
+- 五种预设类的自定义参数演示：
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  import itertools
+  
+  angle3_examples = [
+      f"angle3,angleA={i},angleB={j}"
+      for i, j
+      in itertools.product(np.linspace(0, 180, 8), np.linspace(0, 180, 8))
+  ]
+  
+  fig, axes = plt.subplots(3, 5, figsize=(7, 6.2))
+  connectionstyles = [
+      "angle3,angleA=90,angleB=0",
+      "angle3,angleA=0,angleB=90",
+      "angle,angleA=-90,angleB=180,rad=0",
+      "angle,angleA=-90,angleB=180,rad=5",
+      "angle,angleA=-90,angleB=10,rad=5",
+      "arc3,rad=0.",
+      "arc3,rad=0.3",
+      "arc3,rad=-0.3",
+      "arc,angleA=-90,angleB=0,armA=30,armB=30,rad=0",
+      "arc,angleA=-90,angleB=0,armA=30,armB=30,rad=5",
+      "arc,angleA=-90,angleB=0,armA=0,armB=40,rad=0",
+      "bar,fraction=0.3",
+      "bar,fraction=-0.3",
+      "bar,angle=180,fraction=-0.3",
+      "bar,angle=180,fraction=-0.3"
+  ]
+  
+  for index, ax in enumerate(axes.flat):
+      ax: matplotlib.axes.Axes = ax
+      ax.set_xlim(0, 1)
+      ax.set_ylim(0, 1.25)
+      ax.set_xticks([])
+      ax.set_yticks([])
+      arrow_head = (0.3, 0.2)
+      arrow_tail = (0.8, 0.6)
+      ax.plot([arrow_head[0], arrow_tail[0]], [
+              arrow_head[1], arrow_tail[1]], "g.")
+      ax.annotate(
+          text="", xy=arrow_head, xytext=arrow_tail,
+          arrowprops = {
+              "arrowstyle": "->",
+              "connectionstyle": connectionstyles[index]
+          }
+      )
+      ax.text(
+          x=0.05, y=1.2, s=connectionstyles[index].replace(",", ",\n"),
+          horizontalalignment="left",
+          verticalalignment="top"
+      )
+  
+  plt.tight_layout()
+  plt.show()
+  ```
+
+`arrowstyle`除了上面给出的数种通用种类，还有`simple`、`fancy`、`wedge`三种：
+
+- `simple`：实心三角箭头
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  plt.annotate(
+      text = "arrowstyle: simple", xy = (0.2, 0.2), xytext = (0.7, 0.8),
+      arrowprops = {
+          "arrowstyle": "simple",
+          "connectionstyle": "arc3,rad=0.2"
+      }
+  )
+  plt.show()
+  ```
+
+- `fancy`：头窄尾宽的三角箭头
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  plt.annotate(
+      text = "arrowstyle: fancy", xy = (0.2, 0.2), xytext = (0.7, 0.8),
+      arrowprops = {
+          "arrowstyle": "fancy",
+          "connectionstyle": "arc3,rad=0.2"
+      }
+  )
+  plt.show()
+  ```
+
+- `wedge`：头窄尾宽的曲线，没有三角
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  plt.annotate(
+      text = "arrowstyle: wedge", xy = (0.2, 0.2), xytext = (0.7, 0.8),
+      arrowprops = {
+          "arrowstyle": "wedge",
+          "connectionstyle": "arc3,rad=0.2"
+      }
+  )
+  plt.show()
+  ```
+
+`plt.annotate(**kwargs: matplotlib.text.Text)`中的`bbox: dict[<matplotlib.patches.FancyBboxPatch>]`参数用于设置注释文字所在的文本框样式：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+plt.annotate(
+    text = "arrowstyle: fancy", xy = (0.2, 0.2), xytext = (0.7, 0.8),
+    bbox = {
+    	"boxstyle": "round4",
+        "facecolor": "#66ccff"
+    },
+    arrowprops = {
+        "arrowstyle": "fancy",
+        "connectionstyle": "arc3,rad=0.2"
+    }
+)
+plt.show()
+```
+
+## §1.12 刻度
+
+TODO：？？？？？？？？？？？？？？？
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 100)
+y = np.sin(x)
+
+fig = plt.figure(1)
+ax = fig.add_subplot()
+ax.plot(x, y)
+ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(np.pi / 4))
+ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
+    lambda x, pos: f"$\\frac{{{int(np.round(x/(np.pi/4)))}\pi}}{{{4}}}$"
+))
+
+plt.show()
+```
 
 
 
@@ -2120,6 +2615,19 @@ ax.set_title("极坐标方程 r = θ/3 + sin(2θ)")
 plt.show()
 ```
 
+## §2.3 散点图(`plt.scatter()`)
+
+
+
+```python
+plt.scatter(
+	x / y: float | typing.Sequence[float],
+    s: Optional[float | typing.Sequence[float]] = None,
+    marker = None,
+    
+)
+```
+
 
 
 # §A 附录
@@ -2185,14 +2693,457 @@ plt.show()
 | `k`          | black | `m`          | magenta | `r`          | red   |
 | `w`          | white | `y`          | yellow  |              |       |
 
+## §A.2 TeX符号子集
+
+Matplotlib提供了一套TeX符号的子集，用于在图表中绘制公式。公式需要用`$$`包裹起来。
+
+```python
+import matplotlib.pyplot as plt
+plt.title(r"$2\pi$")
+plt.show()
+```
+
+### §A.2.1 字体
+
+| 字体名称             | 对应`rcParams["mathtext.fontset"]`字符串 |
+| -------------------- | ---------------------------------------- |
+| DejaVu Sans          | `dejavusans`                             |
+| DejaVu Serif         | `dejavuserif`                            |
+| Computer Modern(TeX) | `cm`                                     |
+| STIX                 | `stix`                                   |
+| STIX sans-serif      | `stixsans`                               |
+
+| 字体样式                              | TeX代码                 | 效果演示                 | 对应`rcParams[ "mathtext.fontset" ]`字符串 |
+| ------------------------------------- | ----------------------- | ------------------------ | ------------------------------------------ |
+| 罗马字体                              | `\mathrm{...}`          | $\mathrm{test}$          | `"mathtext.rm"`                            |
+| 意大利斜体                            | `\mathit{...}`          | $\mathit{test}$          | `"mathtext.it"`                            |
+| 打字机字体                            | `\mathtt{...}`          | $\mathtt{test}$          | `"mathtext.tt"`                            |
+| 花体                                  | `'\mathcal{...}`        | $\mathcal{test}$         | `"mathtext.cal"`                           |
+| 空心字体                              | `\mathbb{...}`          | $\mathbb{test}$          |                                            |
+| 罗马字体+空心字体(仅STIX字体格式)     | `\mathrm{\mathbb{...}}` | $\mathrm{\mathbb{test}}$ |                                            |
+| 哥特字体(仅STIX字体格式)              | `\mathfrak{...}`        | $\mathfrak{test}$        |                                            |
+| `sans-serif`字体(仅STIX字体格式)      | `\mathsf{...}`          | $\mathsf{test}$          | `"mathtext.sf"`                            |
+| 罗马字体+无衬线印刷体(仅STIX字体格式) | `\mathrm{\mathsf{...}}` | $\mathrm{\mathsf{test}}$ |                                            |
+| 罗马字体+粗体                         | `\mathbf{}`             | $\mathbf{test}$          | `"mathtext.bf"`                            |
+| 加粗意大利斜体(仅STIX字体格式)        | `\mathbfit{...}`        | $\mathbfit{test}$        | `"mathtext.bfit"`                          |
+
+### §A.2.2 希腊字母
+
+| 小写希腊字母 | 大写希腊字母 | TeX代码    |
+| ------------ | ------------ | ---------- |
+| α            | Α            | `\alpha`   |
+| β            | Β            | `\beta`    |
+| γ            | Γ            | `\gamma`   |
+| δ            | Δ            | `\delta`   |
+| ε            | Ε            | `\epsilon` |
+| ζ            | Ζ            | `\zeta`    |
+| η            | Η            | `\eta`     |
+| θ            | Θ            | `\theta`   |
+| ι            | Ι            | `\lota`    |
+| κ            | Κ            | `\kappa`   |
+| λ            | Λ            | `\lambda`  |
+| μ            | Μ            | `\mu`      |
+| ν            | Ν            | `\nu`      |
+| ξ            | Ξ            | `\xi`      |
+| ο            | Ο            | `\omicron` |
+| π            | Π            | `\pi`      |
+| ρ            | Ρ            | `\rho`     |
+| σ            | Σ            | `\sigma`   |
+| τ            | Τ            | `\tau`     |
+| υ            | Υ            | `\upsilon` |
+| φ            | Φ            | `\phi`     |
+| χ            | Χ            | `\chi`     |
+| ψ            | Ψ            | `\psi`     |
+| ω            | Ω            | `\omega`   |
+
+### §A.2.3 分隔符
+
+| 分隔符 | TeX代码 | 分隔符 | TeX代码   | 分隔符 | TeX代码   |
+| -------- | ------- | --------- | --------- | --------- | --------- |
+| $($    | `(`    | $\leftparen$ | `\leftparen` | $\rightparen$ | `\rightparen` |
+| $)$    | `)`    | $.$ | `.` | $/$ | `/` |
+| $<$    | `<`    | $>$ | `>` | $[$ | `[` |
+| $\lbrack$    | `\lbrack`    | $\backslash$ | `\backslash` | $\vert$ | `\vert` |
+| $|$    | `|`    | $\rbrack$ | `\rbrack` | $]$ | `]` |
+| $\{$    | `\{`    | $\lbrace$ | `\lbrace` | $\leftbrace$ | `\leftbrace` |
+| $\rightbrace$    | `\rightbrace`    | $\}$ | `\}` | $\rbrace$ | `\rbrace` |
+| $\|$    | `\|`    | $\Vert$ | `\Vert` | $\uparrow$ | `\uparrow` |
+| $\downarrow$    | `\downarrow`    | $\updownarrow$ | `\updownarrow` | $\Uparrow$ | `\Uparrow` |
+| $\Downarrow$    | `\Downarrow`    | $\Updownarrow$ | `\Updownarrow` | $\lceil$ | `\lceil` |
+| $\rceil$    | `\rceil`    | $\lfloor$ | `\lfloor` | $\rfloor$ | `\rfloor` |
+| $\langle$    | `\langle`    | $\rangle$ | `\rangle` | $\lgroup$ | `\lgroup` |
+| $\rgroup$    | `\rgroup`    |  |  |||
+
+### §A.2.4 大型运算符
+
+| 大型运算符 | TeX代码 | 大型运算符  | TeX代码   | 大型运算符  | TeX代码   |
+| -------- | ------- | --------- | --------- | --------- | --------- |
+| $\prod$    | `\prod`    | $\coprod$ | `\coprod` | $\sum$ | `\sum` |
+| $\int$    | `\int`    | $\iint$ | `\iint` | $\iiint$ | `\iiint` |
+| $\oint$    | `\oint`    | $\oiint$ | `\oiint` | $\oiiint$ | `\oiiint` |
+| $\bigwedge$    | `\bigwedge`    | $\bigvee$ | `\bigvee` | $\bigcap$ | `\bigcap` |
+| $\bigcup$    | `\bigcup`    | $\bigodot$ | `\bigodot` | $\bigoplus$ | `\bigoplus` |
+| $\bigotimes$    | `\bigotimes`    | $\biguplus$ | `\biguplus` | $\bigsqcup$ | `\bigsqcup` |     
+| $\iiiint$    | `\iiiint`    |  |  |  |  |
+
+### §A.2.5 二元运算符
+
+| 二元运算符 | TeX代码 | 二元运算符 | TeX代码   | 二元运算符 | TeX代码   |
+| -------- | ------- | --------- | --------- | --------- | --------- |
+| $*$    | `*`    | $+$ | `+` | $-$ | `-` |
+| $\pm$    | `\pm`    | $\times$ | `\times` | $\div$ | `\div` |
+| $\dagger$    | `\dagger`    | $\ddagger$ | `\ddagger` | $−$ | `−` |
+| $\mp$    | `\mp`    | $\dotplus$ | `\dotplus` | $\slash$ | `\slash` |
+| $\setminus$    | `\setminus`    | $\ast$ | `\ast` | $\circ$ | `\circ` |
+| $\bullet$    | `\bullet`    | $\wedge$ | `\wedge` | $\vee$ | `\vee` |
+| $\cap$    | `\cap`    | $\cup$ | `\cup` | $\dotminus$ | `\dotminus` |
+| $\minuscolon$    | `\minuscolon`    | $\dotsminusdots$ | `\dotsminusdots` | $\wr$ | `\wr` |
+| $\cupdot$    | `\cupdot`    | $\uplus$ | `\uplus` | $\sqcap$ | `\sqcap` |
+| $\sqcup$    | `\sqcup`    | $\oplus$ | `\oplus` | $\ominus$ | `\ominus` |
+| $\otimes$    | `\otimes`    | $\oslash$ | `\oslash` | $\odot$ | `\odot` |
+| $\circledcirc$    | `\circledcirc`    | $\circledast$ | `\circledast` | $\circleddash$ | `\circleddash` |
+| $\boxplus$    | `\boxplus`    | $\boxminus$ | `\boxminus` | $\boxtimes$ | `\boxtimes` |
+| $\boxdot$    | `\boxdot`    | $\unlhd$ | `\unlhd` | $\unrhd$ | `\unrhd` |
+| $\intercal$    | `\intercal`    | $\veebar$ | `\veebar` | $\barwedge$ | `\barwedge` |
+| $\barvee$    | `\barvee`    | $\diamond$ | `\diamond` | $\cdot$ | `\cdot` |
+| $\star$    | `\star`    | $\divideontimes$ | `\divideontimes` | $\leftthreetimes$ | `\leftthreetimes` |
+| $\rightthreetimes$    | `\rightthreetimes`    | $\curlyvee$ | `\curlyvee` | $\curlywedge$ | `\curlywedge` |
+| $\Cap$    | `\Cap`    | $\Cup$ | `\Cup` | $\doublebarwedge$ | `\doublebarwedge` |
+| $\obar$    | `\obar`    | $\bigtriangleup$ | `\bigtriangleup` | $\rhd$ | `\rhd` |
+| $\triangleright$    | `\triangleright`    | $\bigtriangledown$ | `\bigtriangledown` | $\triangleleft$ | `\triangleleft` |
+| $\lhd$    | `\lhd`    | $\bigcirc$ | `\bigcirc` | $\boxbar$ | `\boxbar` |
+| $\amalg$    | `\amalg`    | $\merge$ | `\merge` |  |  |
+
+### §A.2.6 关系符号
+
+| 关系符号 | TeX代码 | 关系符号  | TeX代码   | 关系符号  | TeX代码   |
+| -------- | ------- | --------- | --------- | --------- | --------- |
+| $:$    | `:`    | $<$ | `<` | $=$ | `=` |
+| $\equal$    | `\equal`    | $>$ | `>` | $\backepsilon$ | `\backepsilon` |
+| $\dots$    | `\dots`    | $\in$ | `\in` | $\notin$ | `\notin` |
+| $\smallin$    | `\smallin`    | $\ni$ | `\ni` | $\notsmallowns$ | `\notsmallowns` |
+| $\smallowns$    | `\smallowns`    | $\propto$ | `\propto` | $\varpropto$ | `\varpropto` |
+| $\rightangle$    | `\rightangle`    | $\mid$ | `\mid` | $\nmid$ | `\nmid` |
+| $\parallel$    | `\parallel`    | $\nparallel$ | `\nparallel` | $\therefore$ | `\therefore` |
+| $\because$    | `\because`    | $\ratio$ | `\ratio` | $\sim$ | `\sim` |
+| $\backsim$    | `\backsim`    | $\nsim$ | `\nsim` | $\eqsim$ | `\eqsim` |
+| $\simeq$    | `\simeq`    | $\nsimeq$ | `\nsimeq` | $\cong$ | `\cong` |
+| $\simneqq$    | `\simneqq`    | $\ncong$ | `\ncong` | $\approx$ | `\approx` |
+| $\napprox$    | `\napprox`    | $\approxeq$ | `\approxeq` | $\approxident$ | `\approxident` |
+| $\backcong$    | `\backcong`    | $\asymp$ | `\asymp` | $\Bumpeq$ | `\Bumpeq` |
+| $\bumpeq$    | `\bumpeq`    | $\doteq$ | `\doteq` | $\doteqdot$ | `\doteqdot` |
+| $\Doteq$    | `\Doteq`    | $\fallingdotseq$ | `\fallingdotseq` | $\risingdotseq$ | `\risingdotseq` |
+| $\coloneq$    | `\coloneq`    | $\eqcolon$ | `\eqcolon` | $\eqcirc$ | `\eqcirc` |
+| $\circeq$    | `\circeq`    | $\arceq$ | `\arceq` | $\wedgeq$ | `\wedgeq` |
+| $\veeeq$    | `\veeeq`    | $\stareq$ | `\stareq` | $\triangleq$ | `\triangleq` |
+| $\triangleeq$    | `\triangleeq`    | $\eqdef$ | `\eqdef` | $\measeq$ | `\measeq` |
+| $\questeq$    | `\questeq`    | $\neq$ | `\neq` | $\ne$ | `\ne` |
+| $\equiv$    | `\equiv`    | $\nequiv$ | `\nequiv` | $\Equiv$ | `\Equiv` |
+| $\leq$    | `\leq`    | $\geq$ | `\geq` | $\leqq$ | `\leqq` |
+| $\geqq$    | `\geqq`    | $\lneqq$ | `\lneqq` | $\gneqq$ | `\gneqq` |
+| $\ll$    | `\ll`    | $\gg$ | `\gg` | $\between$ | `\between` |
+| $\nless$    | `\nless`    | $\ngtr$ | `\ngtr` | $\nleq$ | `\nleq` |
+| $\ngeq$    | `\ngeq`    | $\lesssim$ | `\lesssim` | $\gtrsim$ | `\gtrsim` |
+| $\nlesssim$    | `\nlesssim`    | $\ngtrsim$ | `\ngtrsim` | $\lessgtr$ | `\lessgtr` |
+| $\gtrless$    | `\gtrless`    | $\nlessgtr$ | `\nlessgtr` | $\ngtrless$ | `\ngtrless` |
+| $\prec$    | `\prec`    | $\succ$ | `\succ` | $\preceq$ | `\preceq` |
+| $\preccurlyeq$    | `\preccurlyeq`    | $\succcurlyeq$ | `\succcurlyeq` | $\succeq$ | `\succeq` |
+| $\precsim$    | `\precsim`    | $\succsim$ | `\succsim` | $\nprec$ | `\nprec` |
+| $\nsucc$    | `\nsucc`    | $\subset$ | `\subset` | $\supset$ | `\supset` |
+| $\nsubset$    | `\nsubset`    | $\nsupset$ | `\nsupset` | $\subseteq$ | `\subseteq` |
+| $\supseteq$    | `\supseteq`    | $\nsubseteq$ | `\nsubseteq` | $\nsupseteq$ | `\nsupseteq` |
+| $\subsetneq$    | `\subsetneq`    | $\supsetneq$ | `\supsetneq` | $\sqsubset$ | `\sqsubset` |
+| $\sqsupset$    | `\sqsupset`    | $\sqsubseteq$ | `\sqsubseteq` | $\sqsupseteq$ | `\sqsupseteq` |
+| $\oequal$    | `\oequal`    | $\vdash$ | `\vdash` | $\dashv$ | `\dashv` |
+| $\top$    | `\top`    | $\bot$ | `\bot` | $\rightassert$ | `\rightassert` |
+| $\models$    | `\models`    | $\vDash$ | `\vDash` | $\Vdash$ | `\Vdash` |
+| $\Vvdash$    | `\Vvdash`    | $\rightModels$ | `\rightModels` | $\nvdash$ | `\nvdash` |
+| $\nvDash$    | `\nvDash`    | $\nVdash$ | `\nVdash` | $\nVDash$ | `\nVDash` |
+| $\scurel$    | `\scurel`    | $\trianglelefteq$ | `\trianglelefteq` | $\trianglerighteq$ | `\trianglerighteq` |
+| $\measuredrightangle$    | `\measuredrightangle`    | $\varlrtriangle$ | `\varlrtriangle` | $\bowtie$ | `\bowtie` |
+| $\ltimes$    | `\ltimes`    | $\rtimes$ | `\rtimes` | $\backsimeq$ | `\backsimeq` |
+| $\Subset$    | `\Subset`    | $\Supset$ | `\Supset` | $\pitchfork$ | `\pitchfork` |
+| $\equalparallel$    | `\equalparallel`    | $\lessdot$ | `\lessdot` | $\gtrdot$ | `\gtrdot` |
+| $\lll$    | `\lll`    | $\ggg$ | `\ggg` | $\lesseqgtr$ | `\lesseqgtr` |
+| $\gtreqless$    | `\gtreqless`    | $\eqless$ | `\eqless` | $\eqgtr$ | `\eqgtr` |
+| $\curlyeqprec$    | `\curlyeqprec`    | $\curlyeqsucc$ | `\curlyeqsucc` | $\npreccurlyeq$ | `\npreccurlyeq` |
+| $\nsucccurlyeq$    | `\nsucccurlyeq`    | $\nsqsubseteq$ | `\nsqsubseteq` | $\nsqsupseteq$ | `\nsqsupseteq` |
+| $\sqsubsetneq$    | `\sqsubsetneq`    | $\sqsupsetneq$ | `\sqsupsetneq` | $\lnsim$ | `\lnsim` |
+| $\gnsim$    | `\gnsim`    | $\precnsim$ | `\precnsim` | $\succnsim$ | `\succnsim` |
+| $\ntriangleleft$    | `\ntriangleleft`    | $\ntriangleright$ | `\ntriangleright` | $\ntrianglelefteq$ | `\ntrianglelefteq` |
+| $\ntrianglerighteq$    | `\ntrianglerighteq`    | $\disin$ | `\disin` | $\isins$ | `\isins` |
+| $\varisins$    | `\varisins`    | $\isindot$ | `\isindot` | $\isinobar$ | `\isinobar` |
+| $\varisinobar$    | `\varisinobar`    | $\isinvb$ | `\isinvb` | $\isinE$ | `\isinE` |
+| $\nisd$    | `\nisd`    | $\nis$ | `\nis` | $\varnis$ | `\varnis` |
+| $\niobar$    | `\niobar`    | $\varniobar$ | `\varniobar` | $\bagmember$ | `\bagmember` |
+| $\frown$    | `\frown`    | $\smile$ | `\smile` | $\triangle$ | `\triangle` |
+| $\blacktriangleright$    | `\blacktriangleright`    | $\triangleright$ | `\triangleright` | $\vartriangleright$ | `\vartriangleright` |
+| $\blacktriangleleft$    | `\blacktriangleleft`    | $\triangleleft$ | `\triangleleft` | $\vartriangleleft$ | `\vartriangleleft` |
+| $\perp$    | `\perp`    | $\Join$ | `\Join` | $\leqslant$ | `\leqslant` |
+| $\geqslant$    | `\geqslant`    | $\lessapprox$ | `\lessapprox` | $\gtrapprox$ | `\gtrapprox` |
+| $\lnapprox$    | `\lnapprox`    | $\gnapprox$ | `\gnapprox` | $\lesseqqgtr$ | `\lesseqqgtr` |
+| $\gtreqqless$    | `\gtreqqless`    | $\eqslantless$ | `\eqslantless` | $\eqslantgtr$ | `\eqslantgtr` |
+| $\precapprox$    | `\precapprox`    | $\succapprox$ | `\succapprox` | $\precnapprox$ | `\precnapprox` |
+| $\succnapprox$    | `\succnapprox`    | $\subseteqq$ | `\subseteqq` | $\supseteqq$ | `\supseteqq` |
+| $\subsetneqq$    | `\subsetneqq`    | $\supsetneqq$ | `\supsetneqq` |  |  |
+
+### §A.2.7 箭头符号
+
+| 箭头符号 | TeX代码 | 箭头符号 | TeX代码   | 箭头符号 | TeX代码   |
+| -------- | ------- | --------- | --------- | --------- | --------- |
+| $\overleftarrow{}$ | `\overleftarrow`    | $\overleftrightarrow{}$ | `\overleftrightarrow` | $\leftarrow$ | `\leftarrow` |
+| $\uparrow$    | `\uparrow`    | $\to$ | `\to` | $\rightarrow$ | `\rightarrow` |
+| $\downarrow$    | `\downarrow`    | $\leftrightarrow$ | `\leftrightarrow` | $\updownarrow$ | `\updownarrow` |
+| $\nwarrow$    | `\nwarrow`    | $\nearrow$ | `\nearrow` | $\searrow$ | `\searrow` |
+| $\swarrow$    | `\swarrow`    | $\nleftarrow$ | `\nleftarrow` | $\nrightarrow$ | `\nrightarrow` |
+| $\leftsquigarrow$    | `\leftsquigarrow`    | $\rightsquigarrow$ | `\rightsquigarrow` | $\twoheadleftarrow$ | `\twoheadleftarrow` |
+| $\twoheaduparrow$    | `\twoheaduparrow`    | $\twoheadrightarrow$ | `\twoheadrightarrow` | $\twoheaddownarrow$ | `\twoheaddownarrow` |
+| $\leftarrowtail$    | `\leftarrowtail`    | $\rightarrowtail$ | `\rightarrowtail` | $\mapsfrom$ | `\mapsfrom` |
+| $\mapsup$    | `\mapsup`    | $\mapsto$ | `\mapsto` | $\mapsdown$ | `\mapsdown` |
+| $\updownarrowbar$    | `\updownarrowbar`    | $\hookleftarrow$ | `\hookleftarrow` | $\hookrightarrow$ | `\hookrightarrow` |
+| $\looparrowleft$    | `\looparrowleft`    | $\looparrowright$ | `\looparrowright` | $\leftrightsquigarrow$ | `\leftrightsquigarrow` |
+| $\nleftrightarrow$    | `\nleftrightarrow`    | $\downzigzagarrow$ | `\downzigzagarrow` | $\Lsh$ | `\Lsh` |
+| $\Rsh$    | `\Rsh`    | $\Ldsh$ | `\Ldsh` | $\Rdsh$ | `\Rdsh` |
+| $\curvearrowleft$    | `\curvearrowleft`    | $\curvearrowright$ | `\curvearrowright` | $\circlearrowleft$ | `\circlearrowleft` |
+| $\cwopencirclearrow$    | `\cwopencirclearrow`    | $\circlearrowright$ | `\circlearrowright` | $\leftharpoonup$ | `\leftharpoonup` |
+| $\leftharpoondown$    | `\leftharpoondown`    | $\upharpoonright$ | `\upharpoonright` | $\upharpoonleft$ | `\upharpoonleft` |
+| $\rightharpoonup$    | `\rightharpoonup`    | $\rightharpoondown$ | `\rightharpoondown` | $\downharpoonright$ | `\downharpoonright` |
+| $\downharpoonleft$    | `\downharpoonleft`    | $\rightleftarrows$ | `\rightleftarrows` | $\updownarrows$ | `\updownarrows` |
+| $\leftrightarrows$    | `\leftrightarrows`    | $\leftleftarrows$ | `\leftleftarrows` | $\upuparrows$ | `\upuparrows` |
+| $\rightrightarrows$    | `\rightrightarrows`    | $\downdownarrows$ | `\downdownarrows` | $\leftrightharpoons$ | `\leftrightharpoons` |
+| $\rightleftharpoons$    | `\rightleftharpoons`    | $\nLeftarrow$ | `\nLeftarrow` | $\nLeftrightarrow$ | `\nLeftrightarrow` |
+| $\nRightarrow$    | `\nRightarrow`    | $\Leftarrow$ | `\Leftarrow` | $\Uparrow$ | `\Uparrow` |
+| $\Rightarrow$    | `\Rightarrow`    | $\Downarrow$ | `\Downarrow` | $\Leftrightarrow$ | `\Leftrightarrow` |
+| $\Updownarrow$    | `\Updownarrow`    | $\Nwarrow$ | `\Nwarrow` | $\Nearrow$ | `\Nearrow` |
+| $\Searrow$    | `\Searrow`    | $\Swarrow$ | `\Swarrow` | $\Lleftarrow$ | `\Lleftarrow` |
+| $\Rrightarrow$    | `\Rrightarrow`    | $\rightzigzagarrow$ | `\rightzigzagarrow` | $\leadsto$ | `\leadsto` |
+| $\barleftarrow$    | `\barleftarrow`    | $\rightarrowbar$ | `\rightarrowbar` | $\cupleftarrow$ | `\cupleftarrow` |
+| $\multimap$    | `\multimap`    | $\longleftarrow$ | `\longleftarrow` | $\longrightarrow$ | `\longrightarrow` |
+| $\longleftrightarrow$    | `\longleftrightarrow`    | $\Longleftarrow$ | `\Longleftarrow` | $\Longrightarrow$ | `\Longrightarrow` |
+| $\Longleftrightarrow$    | `\Longleftrightarrow`    | $\longmapsto$ | `\longmapsto` | $\dashleftarrow$ | `\dashleftarrow` |
+| $\dashrightarrow$    | `\dashrightarrow`    |  |  |||
+
+### §A.2.8 杂项符号
+
+| 杂项符号 | TeX代码 | 杂项符号 | TeX代码   | 杂项符号 | TeX代码   |
+| -------- | ------- | --------- | --------- | --------- | --------- |
+| $\$$    | `\$`    | $\cent$¢ | `\cent` | $\sterling$ | `\sterling` |
+| $\yen$    | `\yen`    | $\S$ | `\S` | $\copyright$ | `\copyright` |
+| $\neg$    | `\neg`    | $\circledR$ | `\circledR` | $\degree$ | `\degree` |
+| $\P$    | `\P`    | $\hbar$ | `\hbar` | $\imath$ | `\imath` |
+| $\i$ı   | `\i`    | $\L$Ł | `\L` | $\l$ | `\l` |
+| $\lambdabar$ƛ   | `\lambdabar`    | $\jmath$ | `\jmath` | $\dag$ | `\dag` |
+| $\ddag$‡  | `\ddag`    | $\perthousand$ | `\perthousand` | $\prime$ | `\prime` |
+| $\backprime$    | `\backprime`    | $\hslash$ | `\hslash` | $\Im$ | `\Im` |
+| $\ell$    | `\ell`    | $\wp$ | `\wp` | $\Re$ | `\Re` |
+| $\mho$    | `\mho`    | $\Finv$ | `\Finv` | $\Game$ | `\Game` |
+| $\forall$    | `\forall`    | $\complement$ | `\complement` | $\partial$ | `\partial` |
+| $\exists$    | `\exists`    | $\nexists$ | `\nexists` | $\emptyset$ | `\emptyset` |
+| $\varnothing$    | `\varnothing`    | $\increment$∆ | `\increment` | $\nabla$ | `\nabla` |
+| $\QED$∎   | `\QED`    | $\infty$ | `\infty` | $\angle$ | `\angle` |
+| $\measuredangle$    | `\measuredangle`    | $\sphericalangle$ | `\sphericalangle` | $\ac$ | `\ac` |
+| $\sinewave$∿   | `\sinewave`    | $\hermitmatrix$⊹ | `\hermitmatrix` | $\circledS$ | `\circledS` |
+| $\blacksquare$    | `\blacksquare`    | $\triangle$ | `\triangle` | $\vartriangle$ | `\vartriangle` |
+| $\blacktriangle$    | `\blacktriangle`    | $\blacktriangledown$ | `\blacktriangledown` | $\triangledown$ | `\triangledown` |
+| $\bigstar$    | `\bigstar`    | $\danger$☡ | `\danger` | $\spadesuit$ | `\spadesuit` |
+| $\heartsuit$    | `\heartsuit`    | $\diamondsuit$ | `\diamondsuit` | $\clubsuit$ | `\clubsuit` |
+| $\clubsuitopen$♧   | `\clubsuitopen`    | $\flat$ | `\flat` | $\natural$ | `\natural` |
+| $\sharp$    | `\sharp`    | $\checkmark$ | `\checkmark` | $\maltese$ | `\maltese` |
+
+### §A.2.9 口音字符
+
+| 口音符号 | TeX代码 | 口音符号  | TeX代码   | 口音符号  | TeX代码   |
+| -------- | ------- | --------- | --------- | --------- | --------- |
+| $\acute a$    | `\acute a`    | $\'a$ | `\'a` | $\bar a$ | `\bar a` |
+| $\breve a$    | `\breve a`    | $\dot a$ | `\dot a` | $\.a$ | `\.a` |
+| $\ddot a$    | `\ddot a`    | $\''a$ | `\''a` | $\dddot a$ | `\dddot a` |
+| $\ddddot a$    | `\ddddot a`    | $\grave a$ | `\grave a` | $\`a$ | `\`a` |
+| $\hat a$    | `\hat a`    | $\^a$ | `\^a` | $\tilde a$ | `\tilde a` |
+| $\~a$    | `\~a`    | $\vec a$ | `\vec a` | $\overline{abc}$ | `\overline{abc}` |
 
 
 
 
-11.27 4w+
-
-11.28 5w+
-
-11.29 6w+
 
 11.30 7w+
+
+12.1 8w+
+
+12.2 9w+
+
+12.3 10w+
+
+12.4 11w+
+
+12.5 12w+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
