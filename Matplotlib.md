@@ -2623,8 +2623,18 @@ plt.show()
 plt.scatter(
 	x / y: float | typing.Sequence[float],
     s: Optional[float | typing.Sequence[float]] = None,
-    marker = None,
-    
+    c: Optional[typing.Sequence[COLOR_LIKE]] = None,
+    marker: matplotlib.markers.MakerStyle = "o",
+    cmap: str | matplotlib.colors.Colormap = "viridis",
+    norm: Optional[str | matplotlib.colors.Normalize] = None,
+    vmin: Optional[float] = None,
+    vmax:  = None,
+    alpha = None,
+    linewidths = None, *,
+    edgecolors = None,
+    plotnonfinite = False,
+    data = None,
+    **kwargs
 )
 ```
 
