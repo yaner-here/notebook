@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                           
+>                                   
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                           
+>                                   
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -2245,7 +2245,9 @@ ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
 plt.show()
 ```
 
+## §1.13 色彩映射图
 
+色彩映射图是从数值到颜色的映射。
 
 
 
@@ -2442,6 +2444,73 @@ plt.plot(
 plt.show()
 ```
 
+根据官方函数声明，`marker`应改为`matplotlib.marker.MarkerStyle`。前面我们介绍了`marker: str`，其实查阅[官方文档](https://matplotlib.org/stable/api/_as_gen/matplotlib.markers.MarkerStyle.html#matplotlib.markers.MarkerStyle)，我们发现`marker`还有以下几种取值：
+
+- `marker: tuple[numsides: int, shape: Literal[1, 2, 3], [rotation: float]]`
+
+  `numsides`表示图形中边的数量，`shape`表示图形种类，`rotation`表示旋转角度。其中`shape`只能取三个值，分别是`0`、`1`、`2`，对应正多边形、星形和星号。`rotation`参数可以忽略，缺省为`0`。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  x = np.linspace(0, np.pi * 2, 20)
+  y = np.sin(x)
+  
+  plt.plot(x, y + 0, marker=(6, 0, 30), markersize=12, label="正六边形")
+  plt.plot(x, y + 1, marker=(4, 1, 30), markersize=12, label="原石外形")
+  plt.plot(x, y + 2, marker=(5, 1, 30), markersize=12, label="五角星")
+  plt.plot(x, y + 3, marker=(6, 1, 30), markersize=12, label="六芒星")
+  plt.plot(x, y + 4, marker=(5, 2, 30), markersize=12, label="五瓣星号")
+  plt.plot(x, y + 5, marker=(6, 2, 30), markersize=12, label="六瓣星号")
+  plt.legend()
+  plt.show()
+  ```
+
+- `marker: Regex["$LaTeX字符串$"]`
+
+  `marker`允许使用LaTeX中的数学符号，需要用`$`包裹在LaTeX代码的两侧。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  x = np.linspace(0, np.pi * 2, 20)
+  y = np.sin(x)
+  
+  plt.plot(x, y + 0, marker=r"$\alpha$", markersize=12)
+  plt.plot(x, y + 1, marker=r"$\sum$", markersize=12)
+  plt.plot(x, y + 2, marker=r"$\heartsuit$", markersize=12)
+  plt.show()
+  ```
+
+> 注意：Matplotlib对NumPy的支持较为完善，其中包括掩码数组。掩码数组是由NumPy定义的包含丢失或无效条目的数组。原本数组中的值均为`numpy.int32`之类的数值，而`numpy.ma`模块提供了`numpy.ma.core.MaskedConstant`数据类型，不表示任何实际意义。Matplotlib在处理无意义值的时候，会自动略过，从而完成筛选。
+>
+> ```python
+> import numpy as np
+> import matplotlib.pyplot as plt
+> 
+> plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+> plt.rcParams["axes.unicode_minus"] = False
+> plt.rcParams["figure.autolayout"] = True
+> 
+> x = np.linspace(0, np.pi * 2, 50)
+> x_masked = np.ma.masked_where(x > np.pi*3/2, x)
+> y = np.sin(x)
+> 
+> plt.plot(x, y)
+> plt.plot(x_masked, y + 1)
+> plt.show()
+> ```
+
 ### §2.1.5 设置标题
 
 #### §2.1.5.1 设置图表标题
@@ -2617,25 +2686,43 @@ plt.show()
 
 ## §2.3 散点图(`plt.scatter()`)
 
-
+`plt.scatter()`用于绘制散点图。
 
 ```python
 plt.scatter(
 	x / y: float | typing.Sequence[float],
-    s: Optional[float | typing.Sequence[float]] = None,
-    c: Optional[typing.Sequence[COLOR_LIKE]] = None,
-    marker: matplotlib.markers.MakerStyle = "o",
+    s: Optional[float | typing.Sequence[float]] = None, # 散点尺寸
+    c: Optional[typing.Sequence[COLOR_LIKE], COLOR_LIKE] = None, # 散点颜色
+    marker: matplotlib.markers.MakerStyle | str = "o", # 散点形状
     cmap: str | matplotlib.colors.Colormap = "viridis",
     norm: Optional[str | matplotlib.colors.Normalize] = None,
     vmin: Optional[float] = None,
-    vmax:  = None,
-    alpha = None,
-    linewidths = None, *,
-    edgecolors = None,
-    plotnonfinite = False,
-    data = None,
-    **kwargs
+    vmax: Optional[float] = None,
+    alpha: float = None,
+    linewidths: float | typing.Sequence[float] = None, *,
+    edgecolors: Literal["face", "none"] | COLOR_LIKE | typing.Sequence[COLOR_LIKE] | None = None,
+    plotnonfinite: bool = False,
+    data: typing.Optional[INDEXABLE_OBJECT] = None,
+    **kwargs: {<matplotlib.collections.Collection>:}
 )
+```
+
+这里我们重点介绍`c: typing.Sequence[COLOR_LIKE]`的用法。给颜色形参`c`传递一个颜色数组时，Matplotlib会依次使用其中的颜色绘制散点，要求颜色数组的长度与`x`/`y`一致。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 100)
+y = np.sin(x)
+colors = ["red", "orange", "yellow", "green", "blue", "purple"]
+
+plt.scatter(x, y, c=(colors*17)[:100])
+plt.show()
 ```
 
 
@@ -2971,21 +3058,104 @@ plt.show()
 | $\hat a$    | `\hat a`    | $\^a$ | `\^a` | $\tilde a$ | `\tilde a` |
 | $\~a$    | `\~a`    | $\vec a$ | `\vec a` | $\overline{abc}$ | `\overline{abc}` |
 
+## §A.3 预置颜色映射图
+
+### §A.3.1 感性标准序列颜色映射图
+
+感性标准序列指的是生活中常见的主观色系。
+
+| 颜色映射图名称 | 含义 | 颜色映射图名称 | 含义 |
+| -------------- | ---- | -------------- | ---- |
+|    `viridis`     |  缥缈  |     `plasma`     |  日暮  |
+|    `inferno`     |  地狱  |     `magma`     |  岩浆  |
+|    `cividis`     |  人文  |          |    |
+
+### §A.3.2 序列颜色映射图
+
+序列颜色指的是一种单色从不透明向完全透明过渡的色系。
+
+| 颜色映射图名称 | 含义 | 颜色映射图名称 | 含义 |
+| -------------- | ---- | -------------- | ---- |
+|    `Greys`     |  灰度  |     `Purples`     |  紫色系  |
+|    `Blues`     |  蓝色系  |     `Greens`     |  绿色系  |
+|    `Oranges`     |  橙色系  |     `Reds`     |  红色系  |
+|    `YlOrBr`     |  黄橙色系  |     `YlOrRd`     |  黄橙红色系  |
+|    `OrRd`     |  橙红色系  |     `PuRd`     |  紫红色系  |
+|    `RdPu`     |  红紫色系  |     `BuPu`     |  蓝紫色系  |
+|    `GnBu`     |  绿蓝色系  |     `PuBu`     |  紫蓝色系  |
+|    `YlGnBu`     |  青蓝色系  |     `PuBuGn`     |  蓝青色系  |
+|    `BuGn`     |  青绿色系  |     `YlGn`     |  黄青色系  |
+|    `binary`     |  二值  |     `gist_yarg`     |  颜色颠倒  |
+|    `gist_gray`     |  灰度  |     `gray`     |  灰度  |
+|    `bone`     |  骨骼  |     `pink`     |  粉色  |
+|    `spring`     |  春天  |     `summer`     |  夏天  |
+|    `autumn`     |  秋天  |     `winter`     |  冬天  |
+|    `cool`     |  凉爽  |     `Wistia`     |  韦斯提亚  |
+|    `hot`     |  炙热  |     `afmhot`     |  铁炉  |
+|    `gist_heat`     |  热铜  |     `copper`     |  铜色  |
+
+### §A.3.3 发散颜色映射图
+
+发散颜色类似于Excel按照条件格式设置色阶。例如成绩高的人由绿色表示，成绩低的人用红色表示，中间是一堆过渡色。发散颜色的两端是两个单色，中间完全透明，然后按照这三个点线性插值。
+
+| 颜色映射图名称 | 含义 | 颜色映射图名称 | 含义 |
+| -------------- | ---- | -------------- | ---- |
+|    `PiYG`     |  紫绿  |     `PRGn`     |  紫绿  |
+|    `BrBG`     |  褐绿  |     `PuOr`     |  紫橙  |
+|    `RdGy`     |  红灰  |     `RdBu`     |  红蓝  |
+|    `RdYlBu`     |  红蓝黄  |     `RdYlGn`     |  红黄绿  |
+|    `Spectral`     |  光谱  |     `coolwarm`     |  冷暖  |
+|    `bwr`     |  蓝白红  |     `seismic`     |  地震  |
+
+### §A.3.4 循环颜色映射图
+
+循环颜色的两端颜色完全相同，从而可以首尾衔接，一直循环下去。
+
+| 颜色映射图名称 | 含义 | 颜色映射图名称 | 含义 |
+| -------------- | ---- | -------------- | ---- |
+|    `twilight`     |  黄昏  |     `twilight_shifted`     |  倒转黄昏  |
+|    `hsv`     |  色调饱和度值  |          |    |
+
+### §A.3.5 定量颜色映射图
+
+定量颜色指的是一系列离散的颜色构成的色系。每种单色占据一段连续的区间，颜色在区间的边界上发生突变，没有渐变。
+
+| 颜色映射图名称 | 含义    | 颜色映射图名称 | 含义    |
+| -------------- | ------- | -------------- | ------- |
+| `Pastel1`      | 柔和1   | `Pastel2`      | 柔和2   |
+| `Paired`       | 成对    | `Accent`       | 重点    |
+| `Dark2`        | 深色2   | `Set1`         | 套装1   |
+| `Set2`         | 套装2   | `Set3`         | 套装3   |
+| `tab10`        | 表格10  | `tab20`        | 表格20  |
+| `tab20b`       | 表格20b | `tab20c`       | 表格20c |
+
+### §A.3.6 杂项颜色映射图
+
+| 颜色映射图名称 | 含义    | 颜色映射图名称  | 含义     |
+| -------------- | ------- | --------------- | -------- |
+| `flag`         | 国旗    | `prism`         | 棱镜     |
+| `ocean`        | 海洋    | `gist_earth`    | 地球     |
+| `terrain`      | 地形    | `gist_stern`    | 灰度     |
+| `gnuplot`      | GNU绘图 | `gnuplot2`      | GNU绘图2 |
+| `CMRmap`       | CMR映射 | `cubehelix`     | 立方螺旋 |
+| `brg`          | 蓝红绿  | `gist_rainbow`  | 彩虹图   |
+| `rainbow`      | 彩虹    | `jet`           | 喷射     |
+| `turbo`        | 涡轮    | `nipy_spectral` | NIPY光谱 |
+| `gist_ncar`    | GNU汽车 |                 |          |
 
 
 
+12.04 11w+
 
-11.30 7w+
+12.05 12w+
 
-12.1 8w+
+12.06 13w+
 
-12.2 9w+
+12.07 14w+
 
-12.3 10w+
+12.08 15w+
 
-12.4 11w+
-
-12.5 12w+
+12.09 16w+
 
 
 
