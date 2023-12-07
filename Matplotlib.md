@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                   
+>                                     
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                   
+>                                     
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -1608,6 +1608,32 @@ ax2.plot(x, y_line)
 plt.show()
 ```
 
+### §1.8.9 子图位置(`plt.subplots_adjust()`)
+
+`plt.subplots_adjust()`用于调整子图的位置，包括子图之间的间距和窗口的间距。
+
+```python
+plt.subplots_adjust(
+	left: Optional[float] = None, # 子图与窗口左部的距离,单位为百分比
+    bottom: Optional[float] = None, # 子图与窗口底部的距离,单位为百分比
+    right: Optional[float] = None, # 子图与窗口右部的距离,单位为百分比
+    top: Optional[float] = None, # 子图与窗口顶部的距离,单位为百分比
+    wspace: Optional[float] = None, # 横向间距,单位为百分比
+    hspace: Optionalp[float] = None # 纵向间距,单位为百分比
+)
+```
+
+以上的六个形参分别对应`plt.rcParams[]`中的六个参数：
+
+| `plt.subplots_adjust()`形参 | `plt.rcParams[]`键      |
+| --------------------------- | ----------------------- |
+| `left`                      | `figure.subplot.left`   |
+| `bottom`                    | `figure.subplot.bottom` |
+| `right`                     | `figure.subplot.right`  |
+| `top`                       | `figure.subplot.top`    |
+| `wspace`                    | `figure.subplot.wspace` |
+| `hspace`                    | `figure.subplot.hspace` |
+
 ## §1.9 OO API
 
 我们使用的形如`plt.xxx()`的API，都是Matplotlib提供的函数式API。在通过`ax=plt.subplot()`拿到`matplotlib.axes.Axes`实例后，我们可以使用Matlotlib提供的面向对象的API（Object Oriented API, OOAPI）。
@@ -1625,7 +1651,7 @@ OO API的方法名与函数式API略有不同：
 | `plt.title()`       | `ax.set_title()`         | 设置图表/子图标题          |
 | `plt.figtext()`     | `ax.text()`              | 添加文字(以相对坐标为单位) |
 | `plt.suptitle()`    | `ax.suptitle()`          | 设置子图总标题             |
-| `plt.axis()`        | `ax.set_axis_off()`      | 关闭图表标记               |
+| `plt.axis("off")`   | `ax.set_axis_off()`      | 关闭图表标记               |
 | `plt.axis("equal")` | `ax.set_aspect("equal")` | 让X轴和Y轴单位长度相同     |
 | `plt.xticks()`      | `xaxis.set_ticks()`      | 设置X轴刻度                |
 | `plt.yticks()`      | `xaxis.set_ticks()`      | 设置Y轴刻度                |
@@ -2221,7 +2247,7 @@ plt.show()
 
 ## §1.12 刻度
 
-TODO：？？？？？？？？？？？？？？？
+TODO：
 
 ```python
 import numpy as np
@@ -2247,7 +2273,362 @@ plt.show()
 
 ## §1.13 色彩映射图
 
-色彩映射图是从数值到颜色的映射。
+色彩映射图是从数值到颜色的映射。在Matplotlib中，我们需要指定`c`表示自变量、`cmap`表示映射关系，从而得到映射的颜色$\text{cmap}(c)$。Matplotlib预置了许多色彩映射图，具体名单详见[§A.3 预置颜色映射图](##§A.3 预置颜色映射图)。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 50)
+y = np.sin(x)
+
+plt.scatter(x, y, c=x, cmap="hsv")
+plt.show()
+```
+
+### §1.13.1 色彩映射图标准化
+
+`matplotlib.colors.Normalize`（别名`plt.Normalize`）是Matplotlib提供的一个工具类，用于将数据归一化到区间$[0, 1]$中。其中`clip`缺省值为`False`，表示是否保留超出区间的值。如果保留，会导致数据超出$[0, 1]$。
+
+```python
+matplotlib.colors.Normalize.__init__(
+    vmin: float | None = None,
+    vmax: float | None = None,
+    clip: bool = False
+) -> matplotlib.colors.Normalize
+
+matplotlib.colors.Normalize.__call__(self,
+	value: number | typing.Sequence[number],
+    clip: bool = self.clip
+) -> numpy.ma.core.MaskedArray
+```
+
+当`vmin == vmax`时，返回的值恒为0。
+
+```python
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+
+data = np.linspace(-1, 1, 20)
+"""
+array([-1.        , -0.89473684, -0.78947368, -0.68421053, 
+       -0.57894737, -0.47368421, -0.36842105, -0.26315789,
+       -0.15789474, -0.05263158,  0.05263158,  0.15789474,  
+        0.26315789,  0.36842105,  0.47368421,  0.57894737,  
+        0.68421053,  0.78947368,  0.89473684,  1.        ])
+"""
+
+normalizers: list[matplotlib.colors.Normalize] = [
+    plt.Normalize(-0.5, 0.5, False),
+    plt.Normalize(-0.5, 0.5, True),
+    plt.Normalize(0, 0, False)
+]
+for normalizer in normalizers:
+    pprint.pprint(normalizer(data))
+"""
+masked_array(data=[-0.5       , -0.39473684, -0.28947368, -0.18421053,
+                   -0.07894737,  0.02631579,  0.13157895,  0.23684211,
+                    0.34210526,  0.44736842,  0.55263158,  0.65789474,
+                    0.76315789,  0.86842105,  0.97368421,  1.07894737,
+                    1.18421053,  1.28947368,  1.39473684,  1.5       ],
+             mask=False,
+       fill_value=1e+20)
+masked_array(data=[0.        , 0.        , 0.        , 0.        ,
+                   0.        , 0.02631579, 0.13157895, 0.23684211,
+                   0.34210526, 0.44736842, 0.55263158, 0.65789474,
+                   0.76315789, 0.86842105, 0.97368421, 1.        ,
+                   1.        , 1.        , 1.        , 1.        ],
+             mask=False,
+       fill_value=1e+20)
+masked_array(data=[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                   0., 0., 0., 0., 0., 0.],
+             mask=False,
+       fill_value=1e+20)
+"""
+```
+
+利用这一特性，我们就能将颜色标准化：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, 1, 100)
+y = x
+
+plt.scatter(x, y, s=30, c=x, cmap='Greens')
+plt.scatter(x, y+1, s=30, c=x, cmap='Greens', norm=plt.Normalize(vmin=0.3, vmax=0.7, clip=True))
+plt.scatter(x, y+2, s=30, c=x, cmap='Greens', norm=plt.Normalize(vmin=0.3, vmax=0.7, clip=False))
+plt.show()
+```
+
+`matplotlib.colors.Normalize`只是众多归一化方式中的一种。Matplotlib提供的标准化方式有很多，如下表所示：
+
+| 颜色映射图标准化工具类                                       | 作用                  |
+| ------------------------------------------------------------ | --------------------- |
+| `matplotlib.colors.Normalize(vmin, vmax, clip)`              | 线性归一化            |
+| `matplotlib.colors.LogNorm(vmin, vmax, clip)`                | 对数归一化            |
+| `matplotlib.colors.CenteredNorm(vcenter, halfrange, clip)`   | 线性归一化(均值为`0`) |
+| `matplotlib.colors.SymLogNorm(linthresh, linscale, vmin, vmax, clip, base)` | 对数归一化(均值为`0`) |
+| `matplotlib.colors.TwoSlopeNorm(vcenter, vmin, vmax)`        | 双线性归一化          |
+| `matplotlib.colors.PowerNorm(gamma, vmin, vmax, clip)`       | 幂级归一化            |
+| `matplotlib.colors.BoundaryNorm(boundaries, ncolors, clip, extend)` | 离散归一化            |
+| `matplotlib.colors.FuncNorm((forward, inverse), vmin, vmax)` | 自定义归一化          |
+
+### §1.13.2 自定义色彩映射图
+
+`matplotlib.colors.ListedColormap`用于定义自定义色彩映射图。
+
+```python
+matplotlib.colors.ListedColormap(
+	colors: typing.Sequence[COLOR_LIKE],
+    name: Optional[str] = "from_list",
+    N: Optional[int] = None
+) -> matplotlib.colors.ListedColormap
+
+matplotlib.colors.LinearSegmentedColormap(
+    name,
+    segmentdata,
+    N = 256,
+    gamma = 1.0
+)
+
+matplotlib.colors.Colormap.reversed()
+
+matplotlib.colors.Colormap.register()
+```
+
+
+
+TODO：？？？？？？？？？？？？？
+
+
+
+
+
+
+
+详见[Matplotlib官方文档](https://matplotlib.org/stable/users/explain/colors/colormap-manipulation.html#colormap-manipulation)。TODO：
+
+> 注意：散点图`scatter()`需要同时指定`c`和`cmap`两个参数，而折线图`plot()`只需要指定`c: matplotlib.colors.LinearSegmentedColormap`。
+>
+> ```python
+> import numpy as np
+> import matplotlib.pyplot as plt
+> 
+> plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+> plt.rcParams["axes.unicode_minus"] = False
+> plt.rcParams["figure.autolayout"] = True
+> 
+> x = np.linspace(0, 1, 100)
+> y = np.zeros(100)
+> 
+> for i in np.linspace(0, 1, 30):
+>  plt.plot(x, y+i, c=plt.cm.hsv(i))
+> plt.show()
+> ```
+
+## §1.14 色彩条
+
+`plt.colormap()`用于指定色彩条的样式。
+
+```python
+plt.colorbar(
+	mappable: matplotlib.cm.ScalarMappable = None,
+    cax: Optional[matplotlib.axes.Axes]= None, # 色彩条单独绘制在哪个ax子图，与cax形参互斥
+    ax: Optional[ # 色彩条与哪个ax子图共用空间，与cax形参互斥
+        matplotlib.axes.Axes, 
+        typing.Iterable[matplotlib.axes.Axes], 
+        numpy.ndarray[matplotlib.axes.Axes]
+    ] = None,
+    **kwargs: {
+    	use_gridspec: Optional[bool],
+        location: Literal["left", "right", "top", "bottom"] | None,
+        orientation: Literal["vertical", "horizontal"] | None = "vertical",
+        fraction: float = 0.15,
+        shrink: float = 1.0,
+        aspect: float = 20,
+        pad: float = 0.05 if orientation == "vertical" else 0.15,
+        anchor: Optional[tuple[float, float]] = (0, 0.5) if orientation == "vertical" else (0.5, 1),
+        panchor: Optional[tuple[float, float] | False] = (1, 0.5) if orientation == "vertical" else (0.5, 0),
+        extend: Literal["neither", "both", "min", "max"],
+        extendfrac: Literal["auto"] | None | number | typing.Sequence[number],
+        extendrect: bool,
+        spacing: Literal["uniform", "proportional"],
+        ticks: None | list,
+        format: None | str | matplotlib.ticker.Formatter = matplotlib.ticker.ScalarFormatter,
+        drawedges: bool,
+        label: str,
+        boundaries: typing.Sequence | None,
+        values: typing.Sequence | None
+    }
+) -> matplotlib.colorbar.Colorbar
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.normal(size=500)
+y = np.random.normal(size=500)
+
+plt.scatter(x, y, 30, x+y , "o", "jet", alpha=0.8)
+plt.colorbar()
+plt.show()
+```
+
+`orientation`形参用于指定色彩条的位置，缺省值为`vertical`。这里我们改为`horizontal`：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.normal(size=500)
+y = np.random.normal(size=500)
+
+plt.scatter(x, y, 30, x+y , "o", "jet", alpha=0.8)
+plt.colorbar(orientation="horizontal")
+plt.show()
+```
+
+我们知道，`plt.scatter()`返回一个`matplotlib.collections.PathCollection`实例。追踪这个类的父类，我们发现它是`matplotlib.c,.ScalarMappable`的子类，恰为`mappable`形参声明的类型。在编辑子图时，我们可以使用`mappable`形参指定`plt.scatter()`的返回值，令`ax: matplotlib.axes.Axes`为对应的子图对象。
+
+```mermaid
+graph TB
+	a["matplotlib.collections.PathCollection"]
+	b["matplotlib.collections._CollectionWithSizes"]
+	c["matplotlib.collections.Collection"]
+	d["matplotlib.cm.ScalarMappable"]
+	d-->c-->b-->a
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.normal(size=500)
+y = np.random.normal(size=500)
+
+fig, axes = plt.subplots(3, 1)
+colormaps: list[str] = ["hsv", "brg", "rainbow"]
+for _, (ax, colormap) in enumerate(zip(axes, colormaps)):
+    path_collection: matplotlib.collections.PathCollection = ax.scatter(x, y, 30, x+y , "o", colormap, alpha=0.8)
+    fig.colorbar(mappable=path_collection, ax=ax)
+plt.show()
+```
+
+> 注意：[Matplotlib官方文档](https://matplotlib.org/stable/users/explain/axes/tight_layout_guide.html#tight-layout-guide)中，关于紧密布局的解释是这样的：
+>
+> ```
+> This is an experimental feature and may not work for 
+> some cases. It only checks the extents of ticklabels, 
+> axis labels, and titles.
+> 
+> 这是一个实验性的功能，可能在某些情况下不起作用。它只检查刻度标签、
+> 轴标签和标题的范围。
+> ```
+>
+> 经实测，色彩条使用紧密布局时，子图会忽略色彩条，直接占据整个横向和纵向空间，导致颜色条覆盖在子图的上面，发生重叠。因此绘制色彩条时应避免使用紧密布局，包括`plt.rcParams["figure.autolayout"] = True`。
+
+除了`ax: matplotlib.ax.Axes`之外，`ax`还可以是`typing.Sequence[matplotlib.ax.Axes]`，表示这几个子图共享同一个色彩条：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+
+x = np.random.normal(size=500)
+y = np.random.normal(size=500)
+
+fig, axes = plt.subplots(3, 1)
+path = [None, None, None]
+path[0] = axes[0].scatter(x, y, 30, x+y , "o", "hsv", alpha=0.8)
+path[1] = axes[1].scatter(x, y, 30, x+y , "o", "hsv", alpha=0.8)
+path[2] = axes[2].scatter(x, y, 30, x+y , "o", "hsv", alpha=0.8)
+fig.colorbar(mappable=path[0], ax=[axes[0], axes[1]])
+fig.colorbar(mappable=path[2], ax=axes[2])
+plt.show()
+```
+
+我们知道`ax`形参会将指定的子图分裂（stole）成两部分，一部分用于绘制原本的图，另一部分绘制色彩条。如果我们不想分裂，而是直接指定色彩条在哪个子图上绘制，可以使用`cmax`。`cmax`常用于展示颜色条而不产生新的空白"原本图"。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+
+x = np.random.normal(size=500)
+y = np.random.normal(size=500)
+
+fig, ax = plt.subplots(figsize=(5, 0.5))
+ax.set_axis_off()
+fig.colorbar( # 自定义色彩条
+    mappable=plt.scatter(x, y, c=x+y, cmap="spring"),
+    cax=ax,
+    orientation="horizontal"
+)
+plt.show()
+```
+
+### §1.14.1 自定义色彩条
+
+在上面的例子中，我们使用`plt.scatter()`返回的`matplotlib.collections.PathCollection`，赋给形参`mappable: matplotlib.cm.ScalarMappable`。其实我们也可以自行创建一个`ScalarMappable`的实例：
+
+```python
+matplotlib.cm.ScalaerMappable.__init__(
+	norm: matplotlib.colors.Normalize | str | None = None,
+    cmap: str | matplotlib.colors.Colormap = None
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+
+x = np.random.normal(size=500)
+y = np.random.normal(size=500)
+
+fig, ax = plt.subplots(figsize=(5, 0.5))
+ax.set_axis_off()
+fig.colorbar( # 自定义色彩条
+    mappable=matplotlib.cm.ScalarMappable(
+        norm=matplotlib.colors.Normalize(2, 3), cmap="spring"
+    ),
+    cax=ax,
+    orientation="horizontal"
+)
+plt.show()
+```
+
+
 
 
 
@@ -2725,6 +3106,182 @@ plt.scatter(x, y, c=(colors*17)[:100])
 plt.show()
 ```
 
+## §2.？ 轮廓图/等高线图
+
+轮廓图是指填充不规则区域的图表，而等高线图不是填充所有区域，而是只绘制轮廓。它们使用的函数分别为`plt.contourf()`和`plt.contour()`。这两个函数的语法几乎一致：
+
+```python
+plt.countourf/plt.contour(
+	*args: {
+    	X: Optional[typing.Sequence[number * <M>]],
+    	Y: Optional[typing.Sequence[number * <N>]],
+        Z: typing.Sequence[number * (<M>, <N>)],
+        levels: Optional[int | typing.Sequence[int]]
+    },
+    data: Optional[typing.SupportsIndex] = None,
+    **kwargs: {
+    	corner_mask: bool = True, # 缺省值为plt.rcParams["contour.corner_mask"]
+        colors: Optional[COLOR_LIKE | typing.Sequence[COLOR_LIKE]],
+        alpha: float = 1,
+        cmap: str | matplotlib.colors.Colormap = "viridis", # 缺省值为plt.rcParams["image.cmap"]
+    	norm: Optional[str | matplotlib.colors.Normalize],
+        vmin: Optional[float],
+        vmax: Optional[float],
+        origin: Literal["upper", "lower", "image"] | None = None,
+        extent: Optional[tuple[float, float, float, float]], # (x0, x1, y0, y1)
+        locator: Optional[matplotlib.ticker.Locator],
+        extend: Literal["neither", "both", "min", "max"] = "neither",
+        xunits: Optional[matplotlib.units.ConversionInterface],
+        yunits: Optional[matplotlib.units.ConversionInterface],
+        antialiased: Optional[bool],
+        nchunk: Optional[int >= 0],
+        """限于contour()""" linewidths: float | typing.Sequence[float] = None, # 缺省值为plt.rcParams["contour.linewidth"]
+        """限于contour()""" lienstyles: Optional[Literal["solid", "dashed", "dashdot", "dotted"] | None],
+        """限于contour()""" negative_linestyles: Optional[Literal["solid", "dashed", "dashdot", "dotted"] | None],
+        """限于contour()""" hatches: Optional[list[str]],
+        """限于contourf())""" algorithm: Optional[Literal["mpl2005", "mpl2014", "serial", "threaded"]],
+        clip_path: matplotlib.patches.Patch | matplotlib.path.Path | matplotlib.transforms.TranformedPath
+    }
+) -> matplotlib.contour.QuadContourSet
+```
+
+如果`X`和`Y`都是一维数组，那么`Z`必须是形状为`len(X) * len(Y)`的二维数组；如果`X`和`Y`都是二维数组，则`X`、`Y`、`Z`的形状必须一样。其中`Z`指的是绘制轮廓的高度。
+
+这里我们只讨论果`X`和`Y`都是二维数组的情形。此时该函数的作用是：$\forall i\in[1,m],j\in[1,n]$，`Z`的作用是$\text{height}(\mathbf{X}[i][j],\mathbf{Y}[i][j])=\mathbf{Z}[\mathbf{X}[i][j],\mathbf{Y}[i][j]]$。如果`X`和`Y`是通过`numpy.meshgrid()`生成的，则`Z`与`X`和`Y`的关系是左右相同，上下相反。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(range(5), range(5))
+Z = np.array([
+    [0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 2, 2, 0],
+    [0, 1, 2, 1, 0],
+    [0, 0, 0, 0, 0]
+])
+fig, axes = plt.subplots(1, 2)
+fig.set_size_inches(8, 4)
+axes[0].contour(X, Y, Z)
+axes[0].set_title("contour()")
+axes[1].contourf(X, Y, Z)
+axes[1].set_title("contourf()")
+plt.show()
+```
+
+`plt.contour()`和`plt.contourf()`同样支持`cmap`：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(range(5), range(5))
+Z = np.array([
+    [0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 2, 2, 0],
+    [0, 1, 2, 1, 0],
+    [0, 0, 0, 0, 0]
+])
+fig, axes = plt.subplots(1, 3)
+fig.set_size_inches(8, 4)
+for index, cmap in enumerate(["viridis", "PuRd", "YlOrBr"]):
+    axes[index].contourf(X, Y, Z, cmap=cmap)
+    axes[index].set_title(f"cmap: {cmap}")
+plt.show()
+```
+
+在轮廓图/等高线图中，色彩条图上的刻度表示`Z`的数值。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(
+    np.linspace(0, np.pi * 3, 100),    
+    np.linspace(0, np.pi * 3, 100)    
+)
+Z = np.sin(X) + np.sin(Y) ** 2
+plt.contourf(X, Y, Z)
+plt.colorbar() # 创建色彩条
+plt.show()
+```
+
+`plt.clabel()`用于为轮廓图/等高线图绘制数值标记，指明等高线所处的高度。
+
+```python
+plt.clabel(
+	CS: matplotlib.contour.ContourSet, # 轮廓图/等高线图实例
+    levels: typing.Sequence = None, # 需要绘制等高线的高度列表
+    **kwargs: { <inspect.signature(matplotlib.contour.clabel).parameters>
+		fontsize: str | float = 10.0 # 缺省值为plt.rcParams["font.size"],
+        colors: COLOR_LIKE | tuple[COLOR_LIKE] | None = None,
+        inline: bool = True,
+        inline_spacing: bool = True,
+        fmt: Optional[matplotlib.ticker.Formatter | str | callable | dict],
+        manual: bool | typing.iterable = False,
+        rightside_up: bool = True,
+        use_clabeltext: bool = False,
+        zorder: float | None = 2 + contour.get_zorder()
+	}
+) ->list[matplotlib.text.Text]
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(
+    np.linspace(0, np.pi * 3, 100),    
+    np.linspace(0, np.pi * 3, 100)    
+)
+Z = np.sin(X) + np.sin(Y)
+contour_obj = plt.contour(X, Y, Z)
+plt.clabel(contour_obj, colors="black", fontsize=10)
+plt.show()
+```
+
+`levels`表示绘制的等高线数量，决定了等高线的稠密程度。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(
+    np.linspace(0, np.pi * 3, 100),    
+    np.linspace(0, np.pi * 3, 100)    
+)
+Z = np.sin(X) + np.sin(Y)
+
+fig, axes = plt.subplots(1, 3)
+fig.set_size_inches(8, 4)
+for index, level in enumerate([5, 10, 15]):
+    axes[index].contourf(X, Y, Z, levels=level)
+    axes[index].set_title(f"levels: {level}")
+plt.show()
+```
+
 
 
 # §A 附录
@@ -3060,6 +3617,38 @@ plt.show()
 
 ## §A.3 预置颜色映射图
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+colormaps: list[tuple[str, list[str]]] = [
+    ('Perceptually Uniform Sequential', ['viridis', 'plasma', 'inferno', 'magma', 'cividis']),
+    ('Sequential', ['Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds', 'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu','GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone', 'pink', 'spring', 'summer', 'autumn', 'winter', 'cool', 'Wistia', 'hot', 'afmhot', 'gist_heat', 'copper']),
+    ('Diverging', ['PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu', 'RdYlBu', 'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic']),
+    ('Cyclic', ['twilight', 'twilight_shifted', 'hsv']),
+    ('Qualitative', ['Pastel1', 'Pastel2', 'Paired', 'Accent', 'Dark2', 'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b', 'tab20c']),
+    ('Miscellaneous', ['flag', 'prism', 'ocean', 'gist_earth', 'terrain', 'gist_stern', 'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg', 'gist_rainbow', 'rainbow', 'jet', 'turbo', 'nipy_spectral', 'gist_ncar'])
+]
+
+gradient = [np.linspace(0, 1, 256), np.linspace(0, 1, 256), np.linspace(0, 1, 256)]
+
+for colormap_category, colormap_list in colormaps:
+    fig, axes = plt.subplots(
+        nrows=len(colormap_list),
+        figsize=(6.4, (len(colormap_list) + (len(colormap_list)-1) * 0.1) * 0.22 + 1)
+    )
+    fig.suptitle(f"{colormap_category} colormaps", fontsize=14)
+    for ax, colormap_name in zip(axes, colormap_list):
+        ax.imshow(gradient, aspect='auto', cmap=colormap_name)
+        ax.text(-0.02, 0.5, colormap_name, va='center', ha='right', fontsize=10, transform=ax.transAxes)
+        ax.set_axis_off()
+plt.show()
+```
+
 ### §A.3.1 感性标准序列颜色映射图
 
 感性标准序列指的是生活中常见的主观色系。
@@ -3144,12 +3733,6 @@ plt.show()
 | `gist_ncar`    | GNU汽车 |                 |          |
 
 
-
-12.04 11w+
-
-12.05 12w+
-
-12.06 13w+
 
 12.07 14w+
 
