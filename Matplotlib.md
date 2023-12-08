@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                     
+>                                       
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                     
+>                                       
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -2390,22 +2390,95 @@ plt.show()
 
 ```python
 matplotlib.colors.ListedColormap(
-	colors: typing.Sequence[COLOR_LIKE],
-    name: Optional[str] = "from_list",
-    N: Optional[int] = None
+	colors: typing.Sequence[COLOR_LIKE], # 自定义的色彩列表
+    name: Optional[str] = "from_list", # 标记色彩映射图的字符串
+    N: Optional[int] = None # (colors * ∞)[:N]
 ) -> matplotlib.colors.ListedColormap
-
-matplotlib.colors.LinearSegmentedColormap(
-    name,
-    segmentdata,
-    N = 256,
-    gamma = 1.0
-)
-
-matplotlib.colors.Colormap.reversed()
-
-matplotlib.colors.Colormap.register()
 ```
+
+我们可以使用`matplotlib.colors.ListedColormap`创建色彩映射图，然后用`matplotlib.colors.BoundaryNorm`定义色彩边界序列。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, ax = plt.subplots(1, 1, figsize=(3,1))
+
+fig.colorbar(
+    mappable=matplotlib.cm.ScalarMappable(
+        norm=matplotlib.colors.BoundaryNorm([2, 4, 6, 8], 3),
+        cmap=matplotlib.colors.ListedColormap(["#66ccff", "#ee0000", "#00ffcc"])
+    ),
+    cax=ax,
+    orientation="horizontal",
+    label="自定义色彩映射图"
+)
+plt.show()
+```
+
+也可以使用已有的色彩映射图进行拼接：
+
+```python
+matplotlib.cm.get_cmap(
+	name: str | matplotlib.colors.Colormap | None = None, # 要获取的色彩映射图
+    lut: int = None # 采样数量
+) -> matplotlib.colors.Colormap
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, ax = plt.subplots(1, 1, figsize=(3,1))
+fig.colorbar(
+    mappable=matplotlib.cm.ScalarMappable(
+        cmap=matplotlib.colors.ListedColormap(np.vstack(
+            (
+                matplotlib.cm.get_cmap("Oranges_r", 128)(np.linspace(0, 1, 128)), 
+                matplotlib.cm.get_cmap("Greens", 128)(np.linspace(0, 1, 128))
+            )
+        ))
+    ),
+    cax=ax,
+    orientation="horizontal",
+    label="自定义色彩映射图"
+)
+plt.show()
+```
+
+> 注意：在[§1.13.1 色彩映射图标准化](###§1.13.1 色彩映射图标准化)一节中我们介绍过离散归一化`matplotlib.colors.BoundaryNorm(boundaries, ncolors, clip, extend)`。其中的`extend`形参指的是扩展参数，超出边界的颜色与边界内的颜色不同。从样式上来说，色彩条的超出边界的颜色以三角形状表示。
+>
+> ```python
+> import matplotlib.pyplot as plt
+> 
+> plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+> plt.rcParams["axes.unicode_minus"] = False
+> plt.rcParams["figure.autolayout"] = True
+> 
+> fig, axes = plt.subplots(4, 1, figsize=(3,4))
+> for ax, extend in zip(axes, ["both", "min", "max", "neither"]):
+>     fig.colorbar(
+>         mappable=matplotlib.cm.ScalarMappable(
+>             norm=matplotlib.colors.BoundaryNorm(
+>                 boundaries=[-1, 3, 5, 7, 11, 15],
+>                 ncolors=matplotlib.cm.hsv.N,
+>                 extend=extend
+>             ),
+>             cmap=matplotlib.cm.hsv,
+>         ),
+>         cax=ax,
+>         orientation="horizontal",
+>         label=f"extend: {extend}"
+>     )
+> plt.show()
+> ```
 
 
 
@@ -3105,6 +3178,56 @@ colors = ["red", "orange", "yellow", "green", "blue", "purple"]
 plt.scatter(x, y, c=(colors*17)[:100])
 plt.show()
 ```
+
+## §2.4 矩阵图(`plt.imshow()`)
+
+`plt.imshow()`用于绘制矩阵图，矩阵中的基本单元是正方形格子。
+
+```python
+plt.imshow(
+	X: typing.Sequence | PIL_IMAGE,
+    cmap = str | matplotlib.colors.Colormap = "viridis", # 缺省为plt.rcParams["image.cmap"]
+    norm: Optional[str | matplotlib.colors.Normalize], *
+    vmin: Optional[float],
+    vmax: Optional[float],
+    aspect: Literal["equal", "auto"] | float | None = None,
+    interpolation: str = "antialiased", # 缺省为plt.rcParams["image.aspect"]
+    interpolation_stage: Literal["data", "equal"],
+    alpha: Optional[float | typing.Sequence],
+    origin: Literal["upper", "lower"] = "upper",
+    extent: Optional[tuple[float, float, float, float]], # left, right, bottom, top
+    filternorm: bool = True,
+    filterrad: float[>0] = 4.0,
+    resample = bool = True, # 缺省值为plt.rcParams["image.resample"]
+    url: Optional[str],
+    data: Optional[typing.SupportsIndex],
+    **kwargs: {<matplotlib.artist.Artist>}
+)
+```
+
+形参`X`代表绘制矩阵图所需的数据，根据其形状可分为以下几类：
+
+- `shape = (M, N)`表示每个二维像素点只有一个标量，类似于灰度。具体的颜色要经过`cmap`映射才能得到。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  image = np.arange(25).reshape(5, 5)
+  
+  plt.imshow(image, cmap="Greens")
+  plt.show()
+  ```
+
+- `shape = (M, N, 3)`表示一幅RGB图片，要求数据类型为`int[0, 255]`或`float[0, 1]`。
+
+- `shape = (M, N, 4)`表示一幅RGBA图片，要求数据类型为`int[0, 255]`或`float[0, 1]`。
+
+
 
 ## §2.？ 轮廓图/等高线图
 
