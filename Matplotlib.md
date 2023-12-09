@@ -3207,7 +3207,7 @@ plt.imshow(
 
 形参`X`代表绘制矩阵图所需的数据，根据其形状可分为以下几类：
 
-- `shape = (M, N)`表示每个二维像素点只有一个标量，类似于灰度。具体的颜色要经过`cmap`映射才能得到。
+- `shape=(M, N)`表示每个二维像素点只有一个标量，类似于灰度。具体的颜色要经过`cmap`映射才能得到。
 
   ```python
   import numpy as np
@@ -3223,13 +3223,182 @@ plt.imshow(
   plt.show()
   ```
 
-- `shape = (M, N, 3)`表示一幅RGB图片，要求数据类型为`int[0, 255]`或`float[0, 1]`。
+- `shape=(M, N, 3)`表示一幅RGB图片，要求数据类型为`int[0, 255]`或`float[0, 1]`。
 
-- `shape = (M, N, 4)`表示一幅RGBA图片，要求数据类型为`int[0, 255]`或`float[0, 1]`。
+- `shape=(M, N, 4)`表示一幅RGBA图片，要求数据类型为`int[0, 255]`或`float[0, 1]`。
+
+  ```python
+  import matplotlib.image
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  data = matplotlib.image.imread('./favicon.ico')
+  
+  fig, axes = plt.subplots(1, 4)
+  axes[0].imshow(data)
+  for i, (ax, mask) in enumerate(zip(axes.flat[1:], ["red", "green", "blue"])):
+      channels = [0, 1, 2] # 去除某一通道后，剩下的三个通道叠加
+      channels.remove(i)
+      data_mask = data.copy()
+      data_mask[:,:,[*channels]] = 0
+      ax.set_title(mask)
+      ax.imshow(data_mask)
+  
+  plt.show()
+  ```
+
+`interpolation`用于指定色彩的插值方法。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+data = np.arange(25).reshape(5, 5)
+
+fig, axes = plt.subplots(4, 5, figsize=(6, 6))
+axes = axes.flat
+interpolations = ['none', 'antialiased', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos', 'blackman']
+for ax in axes:
+    ax.set_xticks([])
+    ax.set_yticks([])
+for index, interpolation in enumerate(interpolations):
+    axes[index].imshow(data, interpolation=interpolation)
+    axes[index].set_title(f"{interpolation}")
+plt.show()
+```
+
+`extent`用于规定矩阵图的边界框，常用于绘制多幅图像：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, 8, 100)
+y = np.linspace(0, 8, 100)
+xx, yy = np.meshgrid(x, y)
+extent = (np.min(x), np.max(x), np.min(y), np.max(y))
+
+z1 = np.add.outer(range(8), range(8)) % 2
+plt.imshow(z1, alpha=0.5, cmap="gray")
+
+z2 = np.sin(xx) + np.cos(yy)
+plt.imshow(z2, alpha=0.6, extent=extent)
+
+plt.show()
+```
+
+## §2.5 柱状图(`plt.bar()`)
+
+`plt.bar()`用于绘制纵向或横向的柱状图，也称长条图和横条图。
+
+```python
+plt.bar(
+	x: float | typing.Sequence, # 柱子的横坐标列表
+    height: float | typing.Sequence,
+    width: float | typing.Sequence = 0.8,
+    bottom: float | typing.Sequence = 0,
+    *,
+    align: Optional[Literal["center", "edge"]] = "center", # 柱子之间的对齐方式
+    color: Optional[COLOR_LIKE | list[COLOR_LIKE]],
+    edgecolor: Optional[COLOR_LIKE | list[COLOR_LIKE]],
+    linewidth: Optional[float | typing.Sequence],
+    tick_label: Optional[str | list[str]],
+    xerr / yerr: Optional[float | typing.Sequence[(N)] | typing.Sequence[(2,N)]],
+    ecolor: COLOR_LIKE | list[COLOR_LIKE] = "black",
+    capsize: float = 0.0, # 缺省为plt.rcParams["errorbar.capsize"]
+    error_kw: Optional[dict<matplotlib.axes.Axes.errorbar>:],
+    log: bool = False,
+    data: Optional[typing.SupportIndex],
+    **kwargs: { #<matplotlib.patches.Rectangle>
+    	agg_filter: callable,
+        alpha: float[0, 1] | None,
+        angle,
+        animated：bool,
+        antialiased / aa: bool | None,
+        bounds: tuple[float, float, float, float], # left, bottom, weight, height
+        capstyle: matplotlib._enums.CapStyle | Literal["butt", "projecting", "round"],
+        clip_box: matplotlib.transforms.BboxBase | None,
+        clip_on: bool,
+        clip_path: matplotlib.patches.Patch | tuple[PATH_LIKE, matplotlib.transforms.Transform] | None,
+        color: COLOR_LIKE,
+        edgecolor / ec: COLOR_LIKE | None,
+        facecolor / fc: COLOR_LIKE | None,
+        figure: matplotlib.figure.Figure,
+        fill: bool,
+        gid: str,
+        hatch: Literal["/", r"\", "|", "-", "+", "x", "o", "O", ".", "*"],
+        height,
+        in_layout: bool,
+        joinstyle: matplotlib._enums.JoinStyle | Literal["miter", "round", "bevel"],
+        label: Object,
+        linestyle / ls: LINESTYLE_LIKE,
+        linewidth / lw: float | None,
+        mouseover: bool,
+        path_effects: list[matplotlib.patheffects.AbstractPathEffect],
+        picker: None | bool | float | callable,
+        rasterized: bool,
+        sketch_params: tuple[float, float, float], # scale, length, randomness
+        snap: bool | None,
+        transform: matplotlib.transforms.Transform,
+        url: str,
+        visible: bool,
+        width,
+        x,
+        xy: tuple[float, float],
+        y,
+        zorder: float
+    }
+)
+```
+
+形参`x`可以是`typing.Sequence[float]`，用于指定每个柱子的横坐标位置；也可以是`typing.Sequence[str]`，用于指明每个柱子的标签。形参`height`表示每个柱子的高度。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+plt.bar(["C", "C++", "Java", "Python"], [1, 2, 3, 4])
+plt.show()
+```
+
+形参`align`用于指定柱子与横坐标位置之间的排列方式。`align="center"`表示横坐标在柱子的中间；`align="edge"`表示横坐标在柱子的最左边。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, axes = plt.subplots(1, 2)
+for ax, align in zip(axes, ["center", "edge"]):
+    ax.bar(["C", "C++", "Java", "Python"], [1, 2, 3, 4], align=align)
+plt.show()
+```
+
+形参`color`、`facecolor`、`edgecolor`分别控制柱子的总体颜色、背景颜色、边界颜色。
+
+```python
+
+```
 
 
 
-## §2.？ 轮廓图/等高线图
+
 
 轮廓图是指填充不规则区域的图表，而等高线图不是填充所有区域，而是只绘制轮廓。它们使用的函数分别为`plt.contourf()`和`plt.contour()`。这两个函数的语法几乎一致：
 
@@ -3404,6 +3573,8 @@ for index, level in enumerate([5, 10, 15]):
     axes[index].set_title(f"levels: {level}")
 plt.show()
 ```
+
+
 
 
 
