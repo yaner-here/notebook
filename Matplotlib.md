@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                       
+>                                         
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                       
+>                                         
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -3298,9 +3298,9 @@ plt.imshow(z2, alpha=0.6, extent=extent)
 plt.show()
 ```
 
-## §2.5 柱状图(`plt.bar()`)
+## §2.5 柱状图(`plt.bar()`/`plt.barh()`)
 
-`plt.bar()`用于绘制纵向或横向的柱状图，也称长条图和横条图。
+`plt.bar()`用于绘制纵向柱状图，`plt.barh()`用于绘制横向柱状图。
 
 ```python
 plt.bar(
@@ -3393,12 +3393,684 @@ plt.show()
 形参`color`、`facecolor`、`edgecolor`分别控制柱子的总体颜色、背景颜色、边界颜色。
 
 ```python
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, axes = plt.subplots(4, 1)
+colors = ["black", "green", "blue", "red", "grey", "magenta", "orange", "pink", "salmon"]
+for ax in axes:
+    facecolor = random.choice(colors)
+    edgecolor = random.choice(colors)
+    ax.bar(
+        ["C", "C++", "Java", "Python"], [1, 2, 3, 4],
+        facecolor=facecolor, edgecolor=edgecolor,
+    )
+plt.show()
+```
+
+形参`width`用于指示柱子的宽度，以百分比为单位。如果设为`1`，则柱子之间没有空隙。缺省为`0.8`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+fig, axes = plt.subplots(5, 1)
+for ax, width in zip(axes, np.linspace(0, 1, 5)):
+    ax.bar(
+        ["C", "C++", "Java", "Python"], [1, 2, 3, 4],
+        width=width
+    )
+plt.show()
+```
+
+形参`hatch`用于指定填充柱子内部的图案，支持的图案有`/`、`\`、`|`、`-`、`+`、`x`、`o 、O `、`.`、`*`。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+hatches = ['/', r'\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
+
+fig, axes = plt.subplots(5, 2)
+for ax, hatch in zip(axes.flat, hatches):
+    ax.bar(
+        ["C", "C++", "Java", "Python"], [1, 2, 3, 4],
+        hatch=hatch
+    )
+plt.show()
+```
+
+形参`label`用于指定在单个位置绘制多个柱子时，`plt.bar()`在多个位置绘制的同一类柱子的标签。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.array([0, 1, 2])
+width = 0.25
+
+plt.bar(x + width * 0, [1, 2, 3], width=width, label="部门1")
+plt.bar(x + width * 1, [2, 3, 4], width=width, label="部门2")
+plt.bar(x + width * 2, [4, 5, 6], width=width, label="部门3")
+plt.legend()
+plt.xticks(x + width * 1, ["2021", "2022", "2023"])
+plt.xlabel("年份")
+plt.ylabel("营业额")
+plt.show()
+```
+
+`bottom`属性用于规定柱子底部的绘制起点，常用于将多个柱子堆叠在一个位置上：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.array([0, 1, 2])
+width = 0.25
+
+def draw_stacked_chart(data: list[tuple[str, np.ndarray]], xticks: list[str], xlabel: str, ylabel: str, width: float = 0.25):
+    bottom = np.zeros(len(data))
+    for index, (label, item) in enumerate(data):
+        plt.bar(
+            x, item, width=width, label=label,
+            bottom=bottom
+        )
+        bottom += item
+    plt.legend()
+    plt.xticks(x, xticks)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.show()
+
+draw_stacked_chart(
+    data=[
+        ("部门1", np.array([1, 2, 3])),
+        ("部门2", np.array([3, 2, 1])),
+        ("部门3", np.array([2, 1, 3])),
+    ],
+    xticks=["2021", "2022", "2023"],
+    xlabel="年份",
+    ylabel="销售总额"
+)
+```
+
+`plt.barh()`与`plt.bar()`在语法上有以下区别：
+
+- 形参`x`改为形参`y`
+- 形参`width`改为形参`height`
+- 形参`bottom`改为形参`left`
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+plt.barh(["C", "C++", "Java", "Python"], [1, 2, 3, 4])
+plt.show()
+```
+
+### §2.5.1 双向柱状图
+
+双向柱状图是指两个柱子从相同的位置两相反的两侧延伸。虽然Matplotlib没有直接提供绘制双向柱状图的方法，但是可以利用`bottom`/`left`间接绘制。
+
+```python
+# 纵向双向柱状图
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+xticks = ["2021", "2022", "2023"]
+data = [
+    np.array([1, 2, 3]),
+    np.array([2, 3, 1])
+]
+plt.bar(xticks, data[0], width=0.5, bottom=0, label="部门1")
+plt.bar(xticks, data[1], width=0.5, bottom=-data[1], label="部门2")
+plt.xlabel("年份")
+plt.ylabel("营业额")
+plt.legend()
+plt.show()
+```
+
+```python
+# 横向双向柱状图
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+yticks = ["2021", "2022", "2023"]
+data = [
+    np.array([1, 2, 3]),
+    np.array([2, 3, 1])
+]
+plt.barh(yticks, data[0], height=0.5, left=0, label="部门1")
+plt.barh(yticks, data[1], height=0.5, left=-data[1], label="部门2")
+plt.xlabel("营业额")
+plt.ylabel("年份")
+plt.legend()
+plt.show()
+```
+
+### §2.5.2 极坐标柱状图
+
+在前面正交坐标柱状图的基础上，让`projection=polar`，其它参数不变，即可创建极坐标柱状图。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+yticks = ["2021", "2022", "2023"]
+data = [
+    np.array([1, 2, 3]),
+    np.array([2, 3, 1])
+]
+ax = plt.subplot(projection="polar")
+ax.bar(
+    x=np.linspace(0, np.pi * 3 / 2, 10),
+    height=np.linspace(0, 2, 10),
+    width=0.5,
+    color=plt.cm.hsv(np.linspace(0, 1, 10))
+)
+plt.show()
+```
+
+## §2.6 直方图(`plt.hist()`)
+
+`plt.hist()`用于绘制直方图。
+
+```python
+plt.hist(
+	x: typing.Sequence[(n)],
+    bins: int | typing.Sequence| str = 10, # 缺省为plt.rcParams["hist.bins"]
+    range: tuple | None = None,
+    density: bool = False,
+    weights: typing.Sequence[(n)] | None = None,
+    cumulative: bool | -1 = False,
+    bottom: typing.Sequence | float[0, 1] | None = None,
+    histtype: Literal["bar", "barstacked", "step", "stepfilled"] = "bar",
+    align: Literal["left", "mid", "right"] = "mid",
+    orientation: Literal["vertical", "horizontal"] = "vertical",
+    rwidth: float | None = None,
+    log: bool = False,
+    color: COLOR_LIKE | typing.Sequence[COLOR_LIKE] | None = None,
+    label: str | None = None,
+    stacked: bool = False,
+    data: Optional[typing.SupportIndex],
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> tuple[
+    n: typing.Sequence | list[typing.Sequence],
+    bins: typing.Sequence,
+    patches: matplotlib.container.BarContainer | list[matplotlib.patches.Polygon]
+]
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randint(0, 10, 100)
+
+plt.hist(x)
+plt.show()
+```
+
+形参`color`用于设置直方图的颜色：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randint(0, 10, 100)
+
+plt.hist(x, color="g")
+plt.show()
+```
+
+`plt.hist()`返回三个值，分别是频次统计数据、X轴各个箱子分隔点的坐标、包含所有`Artist`的列表。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randint(0, 10, 100)
+
+result = plt.hist(x)
+print(result[0], result[1])
+"""
+[ 7. 10.  9.  9. 10.  6. 11. 15. 12. 11.]
+[0.  0.9 1.8 2.7 3.6 4.5 5.4 6.3 7.2 8.1 9. ]
+"""
+plt.show()
+```
+
+形参`rwidth`用于指定直方图的宽度，以百分比为单位，缺省为`1`。如果小于`1`，则等价于柱状图。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randint(0, 10, 100)
+
+plt.hist(x, rwidth=0.5)
+plt.show()
+```
+
+形参`cumulative`为`True`时，纵轴的含义不再是频次，而是之前所有频次之和。类似于从$y$变为$\int ydx$。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randint(0, 10, 100)
+
+plt.hist(x, cumulative=True)
+plt.show()
+```
+
+形参`bins`用于指定直方图的细粒度。当`bins`为`int`时，直方图会绘制给定数量个梯度，梯度之间的间隔相等。当`bins`为`list[float]`时，相当于人为指定了各个梯度的区间，此时各个直方图中的柱子宽度不一定相等。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randn(2000)
+
+fig, axes = plt.subplots(2, 5, figsize=(10, 5))
+for ax, bins, cumulative in zip(axes.flat, [10, 20, 30, 40, 50] * 2, [False] * 5 + [True] * 5):
+    ax.set_title(f"bins: {bins}")
+    ax.hist(x, bins=bins, cumulative=cumulative)
+plt.show()
+```
+
+形参`range`表示参与频次统计数据的数值上下限，超出该范围的值将会被忽略。缺省为`None`，表示`range`为`(x.min(), x.max())`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randn(2000)
+
+fig, axes = plt.subplots(1, 4, figsize=(7, 3))
+ranges = [(-5, i) for i in range(-2, 5, 2)]
+for ax, range_tuple in zip(axes, ranges):
+    ax.set_title(f"range: {range_tuple}")
+    ax.hist(x, 30, range=range_tuple)
+plt.show()
+```
+
+形参`density`用于将统计数据归一化。假设样本数有$N$个，则`density=True`会将$[0, N]$中的数字映射到$[0, 1]$，这类似于概率密度函数。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.normal(2, 1, 1000)
+y = np.random.normal(-1, 1, 4000)
+fig, axes = plt.subplots(1, 2)
+for ax, density in zip(axes, [False, True]):
+    ax.set_title(f"density: {density}")
+    ax.hist(x, 50, density=density)
+    ax.hist(y, 50, density=density)
+plt.show()
+```
+
+形参`weights`表示统计数据时，每个数据计数时的权重。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = [i for i in range(1, 11, 1)] + [8] * 10
+weights = [20] + [1] * 19
+
+fig, axes = plt.subplots(1, 2)
+axes[0].hist(x)
+axes[0].set_title("无权重")
+axes[1].hist(x, weights=weights)
+axes[1].set_title("给1添加额外权重")
+plt.show()
+```
+
+形参`x`除了`typing.Sequence`以外，也可以是`list[typing.Sequence]`，表示多个数据来源。数据来源可以通过形参`label: list[str]`区分。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randint(0, 10, 100)
+y = np.random.randint(0, 10, 100)
+
+plt.hist([x, y], 10, label=["语文", "数学"])
+plt.xlabel("分数")
+plt.ylabel("人数")
+plt.legend()
+plt.show()
+```
+
+形参`histtype`用于设定直方图的样式。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randn(2000)
+y = np.random.randn(1000)
+
+fig, axes = plt.subplots(2, 2, figsize=(6, 5))
+histtypes = ['bar', 'barstacked', 'step', 'stepfilled']
+for ax, histtype in zip(axes.flat, histtypes):
+    ax.set_title(f"histtype: {histtype}")
+    ax.hist([x, y], histtype=histtype)
+plt.show()
+```
+
+形参`align`规定直方图位于`bin`的哪一侧。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+np.random.seed(42)
+x = np.random.randint(0, 10, 100)
+
+fig, axes = plt.subplots(1, 3, figsize=(7, 3))
+for ax, align in zip(axes, ["left", "mid", "right"]):
+    ax.set_title(f"align: {align}")
+    ax.hist(x, align=align, ec="black")
+plt.show()
+```
+
+形参`log`用于决定Y轴是否使用对数坐标。
+
+形参`stacked`控制多个数据集是否堆叠，如果为`False`则数据并列，常配合`bottom`属性引用。
+
+## §2.7 圆饼图(`plt.pie()`)
+
+`plt.pie()`用于绘制圆饼图。
+
+```python
+plt.pie(
+	x: typing.Sequence[(N)],
+    explode: typing.Sequence = None,
+    labels: list[str] = None,
+    colors: COLOR_LIKE | typing.Sequence[COLOR_LIKE] = None,
+    hatch: str | list = None,
+    autopct: None | str | callable = None,
+    pctdistance: float = 0.6,
+    labeldistance: float | None = 1.1,
+    shadow: bool | dict = False,
+    startangle: float = 0,
+    radius: float = 1,
+    counterclock: bool = True,
+    wedgeprops: dict[<matplotlib.patches.Wedge>],
+    textprops: dict[<matplotlib.text.text>] = None,
+    center: tuple[float, float] = (0, 0),
+    frame: bool = False,
+    rotatelabels: bool = False,
+    normalize: bool = True,
+    data: Optional[typing.SupportIndex]
+) -> tuple[
+	patches: list[matplotlib.patches.Wedge],
+    texts: list[maplotlib.text.Text],
+    autotexts: list[matplotlib.text.Text] if autopct is not None
+]
+```
+
+形参`x`和`labels`用于指定数据及其标签。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = [1000, 2000, 3000, 4000]
+labels = ["C", "C++", "Java", "Python"]
+
+plt.pie(x=x, labels=labels)
+plt.show()
+```
+
+形参`autopct`用于将计算得到的百分比浮点数进行字符串上的格式化。当`autopct`为`None`时，圆饼图不显示百分比数字。当`autopct`为`str`时，表示格式化字符串，其中`%`作为转义符，`%%`表示一个百分符号。当`autopct`为`callable[float] -> str`时，可以调用自定义函数灵活处理。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = [1000, 2500, 3000, 4000]
+labels = ["C", "C++", "Java", "Python"]
+autopcts = [
+    None, 
+    "%2.2f%%",
+    lambda x: format(x, ".4f") + "%"
+]
+
+fig, axes = plt.subplots(2, 2, figsize=(6, 6))
+for ax, autopct in zip(axes.flat[0:4], autopcts):
+    ax.set_title(f"autopct: {type(autopct)}")
+    ax.pie(x=x, labels=labels, autopct=autopct)
+axes.flat[3].pie(x=x, labels=labels)
+axes.flat[3].set_title(f"autopct: {'缺省'}", fontsize=12)
+plt.show()
+```
+
+形参`explode`用于指定扇形中心与圆饼图圆心的距离，缺省为`0`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.array([1000, 2500, 3000, 4000])
+labels = ["C", "C++", "Java", "Python"]
+explode = [0.05, 0, 0, 0.1]
+
+plt.pie(x, labels=labels, explode=explode)
+plt.show()
+```
+
+形参`startangle`用于指定第一个扇形绘制的起始角度，以角度制为单位，缺省为`0`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.array([1000, 2500, 3000, 4000])
+labels = ["C", "C++", "Java", "Python"]
+
+plt.pie(x, labels=labels, startangle=45)
+plt.show()
+```
+
+形参`colors`用于指定填充扇形区域的颜色。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.array([1000, 2500, 3000, 4000])
+labels = ["C", "C++", "Java", "Python"]
+
+plt.pie(x, labels=labels, colors=[plt.cm.Blues_r(i/len(x)) for i in range(len(x))])
+plt.show()
+```
+
+`plt.pie()`返回三个值，分别是包含所有扇形实例的列表、包含所有标签文本的列表、包含所有百分比数字文本的列表。
+
+- `patches`包含了所有扇形实例，可用于更改形状的颜色、边框等属性。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  x = np.array([1000, 2500, 3000, 4000])
+  labels = ["C", "C++", "Java", "Python"]
+  np.random.seed(42)
+  
+  patches, texts, autotexts = plt.pie(x, labels=labels, autopct="%.2f%%")
+  for patch in patches:
+      patch.set_linewidth(3)
+      patch.set_edgecolor(matplotlib.cm.get_cmap("hsv")(np.random.rand()))
+  plt.show()
+  ```
+
+- `texts`、`autotexts`包含了文本实例，可用于调整文字的字体、大小、颜色等属性。
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  import itertools
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  x = np.array([1000, 2500, 3000, 4000])
+  labels = ["C", "C++", "Java", "Python"]
+  np.random.seed(42)
+  
+  patches, texts, autotexts = plt.pie(x, labels=labels, autopct="%.2f%%")
+  for text in itertools.chain(texts, autotexts):
+      text.set_color(matplotlib.cm.get_cmap("hsv")(np.random.rand()))
+      text.set_fontsize(np.random.randint(8, 18))
+  plt.show()
+  ```
+
+除了获取到扇形或文本实例之外，要控制实例的属性，也可以通过`plt.pie()`提供的`wedgeprops`和`textprops`属性。这种方法的缺点是只能对实例全体进行批量控制，无法细化到单个实例。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.array([1000, 2500, 3000, 4000])
+labels = ["C", "C++", "Java", "Python"]
+np.random.seed(42)
+
+plt.pie(
+    x, labels=labels, autopct="%.2f%%",
+    wedgeprops={
+        "edgecolor": matplotlib.cm.get_cmap("hsv")(np.random.rand()),
+        "linewidth": 3
+    },
+    textprops={
+        "color": matplotlib.cm.get_cmap("hsv")(np.random.rand())
+    }
+)
+plt.show()
 ```
 
 
 
-
+## §2.x
 
 轮廓图是指填充不规则区域的图表，而等高线图不是填充所有区域，而是只绘制轮廓。它们使用的函数分别为`plt.contourf()`和`plt.contour()`。这两个函数的语法几乎一致：
 
@@ -4028,9 +4700,7 @@ plt.show()
 
 
 
-12.07 14w+
 
-12.08 15w+
 
 12.09 16w+
 
