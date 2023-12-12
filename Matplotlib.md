@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                           
+>                                             
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                           
+>                                             
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -4208,12 +4208,12 @@ plt.boxplot(
     meanprops: dict = None,
     data: Optional[typing.SupportIndex]
 ) -> dict{
-    boxes,
-    medians,
-    whiskers,
-    caps,
-    fliers,
-    means
+    boxes: list[matplotlib.patches.PathPatch] if patch_artist else list[matplotlib.lines.Line2D],
+    medians: list[matplotlib.lines.Line2D] if showmeans else list[None],
+    whiskers: list[matplotlib.lines.Line2D],
+    caps: list[matplotlib.lines.Line2D],
+    fliers: list[matplotlib.lines.Line2D],
+    means: list[matplotlib.lines.Line2D]
 }
 ```
 
@@ -4321,17 +4321,558 @@ plt.boxplot(x, flierprops={
     "markerfacecolor": "g",
     "markeredgecolor": "b",
     "markersize": 12
-}
+})
+plt.show()
+```
+
+形参`medianprops`决定了平均线的样式。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+plt.boxplot(x, medianprops={
+    "linestyle": "--",
+    "linewidth": 3,
+    "color": "green"
+})
 plt.show()
 ```
 
 形参`vert: bool`决定了箱线图是垂直排列还是水平排列。
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+plt.boxplot(x, vert=False)
+plt.show()
+```
+
+要表示平均数，可以通过两种方式表示——直线和点。是否表示平均数，由形参`showmeans: bool`K控制。用哪一种方式表示，受形参`meanline: bool`控制。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+fig, axes = plt.subplots(2, 2, figsize=(7, 7))
+for ax, meanline, showmeans in zip(axes.flat, np.meshgrid([True, False], [True, False])[0].flat, np.meshgrid([True, False], [True, False])[1].flat):
+    ax.set_title(f"meanline:{meanline}, showmeans:{showmeans}")
+    ax.boxplot(x, meanline=meanline, showmeans=showmeans)
+plt.show()
+```
+
+形参`whiskerprops`用于控制晶须的样式。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+plt.boxplot(x, whiskerprops={
+    "linestyle": "--",
+    "linewidth": 3,
+    "color": "green"
+})
+plt.show()
+```
+
+形参`showfliers: bool`决定是否显示异常值。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+plt.boxplot(x, showfliers=False)
+plt.show()
+```
+
+形参`capprops`用于控制最大值和最小值两处线条的样式。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+plt.boxplot(x, capprops={
+    "linestyle": "--",
+    "linewidth": 3,
+    "color": "green"
+})
+plt.show()
+```
+
+形参`notch: bool`用于控制箱子中间是否绘制两个小的楔形缺口。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+plt.boxplot(x, notch=True)
+plt.show()
+```
+
+形参`patch_artist`用于决定绘制箱体是使用`matplotlib.lines.Line2D`还是`matplotlib.patches.PathPatch`，`plt.boxplot()`的第一个返回值也会从`list[matplotlib.lines.Line2D]`变为`list[matplotlib.patches.PathPatches]`。这样我们就能给箱子设定不同的背景颜色。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+result = plt.boxplot([x]*4, patch_artist=True)
+for patch, facecolor in zip(result["boxes"], ["r", "g", "b"]):
+    patch.set_facecolor(facecolor)
+plt.grid(True, axis="y")
+plt.show()
+```
+
+`plt.boxplot()`返回一个包含六个键值对的字典。利用其中`matplotlib.lines.Line2D`实例的`.get_ydata()`方法，我们可以获得具体的四分位统计数据。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(1000)
+
+result = plt.boxplot(x, showmeans=True)
+for key, value in result.items():
+    print(f"{key}.get_ydata(): {[i.get_ydata() for i in value]}")
+"""
+whiskers.get_ydata(): [array([-0.68585186, -2.67129371]), array([0.72389456, 2.83843178])]
+caps.get_ydata(): [array([-2.67129371, -2.67129371]), array([2.83843178, 2.83843178])]
+boxes.get_ydata(): [array([-0.68585186, -0.68585186,  0.72389456,  0.72389456, -0.68585186])]
+medians.get_ydata(): [array([0.07507537, 0.07507537])]
+fliers.get_ydata(): [array([-3.19212147,  2.8957767 ,  2.88796309,  3.28505078])]
+means.get_ydata(): [array([0.02084253])]
+"""
+plt.grid(True, axis="y")
+plt.show()
+```
+
+## §2.9 极坐标图(`plt.polar()`)
+
+`plt.polar()`用于绘制极坐标图，格式字符串的语法与`plt.plot()`一致。
+
+```python
+plt.polar(
+	theta: typing.Sequence[number],
+	r: typing.Sequence[number],
+	*args
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+theta = np.linspace(0, np.pi * 2, 20)
+r = 1 + np.cos(theta)
+
+plt.polar(theta, r, 'g--.', markersize=10)
+plt.show()
+```
+
+## §2.10 堆叠折线图(`plt.stackplot()`)
+
+`plt.stackplot()`用于绘制堆叠折线图。堆叠折线图相比于普通折线图的区别在于，第$i$条折线的高度不是$\vec{a}_i$，而是$\sum_{j=1}^{i}\vec{a}_j$。堆叠折叠图自动地实现了数据的累加。
+
+```python
+plt.stackplot(
+	x: typing.Sequence[(N)],
+	y: typing.Sequence[(M, N)],
+	baseline: Literal["zero", "sym", "wiggle", "weighted_wiggle"],
+	labels: Optional[list[str]],
+    colors: Optional[list[COLOR_LIKE]],
+    data: Optional[typing.SupoortIndex],
+    **kwargs: {<matplotlib.axes.Axes.fill_between>:}
+) -> list[matplotlib.collections.PolyCollection]
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.arange(20)
+y = [
+    np.random.randint(0, 10, 20),
+    np.random.randint(0, 10, 20),
+    np.random.randint(0, 10, 20),
+    np.random.randint(0, 10, 20)
+]
+
+plt.stackplot(x, y, labels=[i for i in "ABCD"])
+plt.legend()
+plt.show()
+```
+
+形参`baseline`用于控制堆叠的样式。
+
+- `zero`：以零为基准，向上方叠加。
+- `sym`：以所有数据集在每一列的平均值为零基准，向上方和下方叠加，使得图像沿`X`轴对称。
+- `wiggle`：最小化各段斜率平方和$\min\sum_{i=1}^{n}\sum_{t=1}^{T}k_i(t)^2$。
+- `weighted_wiggle`：最小化各段按数值加权的斜率平方和$\min\sum_{i=1}^{n}\sum_{t=1}^{T}x_i[t]k_i(t)^2$。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.arange(20)
+y = [np.arange(20) + np.random.randint(-3, 3, 20) for _ in range(4)]
+
+fig, axes = plt.subplots(1, 4, figsize=(10, 3))
+for index, (ax, baseline) in enumerate(zip(axes, ["zero", "sym", "wiggle", "weighted_wiggle"])):
+    ax.stackplot(x, y, baseline=baseline)
+    ax.set_title(f"baseline: {baseline}")
+plt.show()
+```
+
+## §2.11 阶梯图(`plt.step()`)
+
+`plt.step()`用于绘制阶梯图。阶梯图与折线图的区别在于，阶梯图中的线不是斜着折的，而是水平或垂直地折。
+
+```python
+plt.step(
+	x: typing.Sequence,
+    y: typing.Sequence,
+    fmt: Optional[str],
+    where: Literal["pre", "post", "mid"] = "pre",
+    data: Optional[typing.SupportIndex],
+    **kwargs: {<matplotlib.pyplot.plot>:}
+) -> list[matplotlib.lines.Line2D]
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.arange(20)
+y = np.random.randint(0, 10, 20)
+
+plt.step(x, y, '--o')
+plt.show()
+```
+
+阶梯图看起来就像楼梯一样，而形参`where`负责控制数据点位于阶梯平面的哪一侧。
+
+- `pre`：阶梯平面右边缘
+- `mid`：阶梯平面中点
+- `post`：阶梯平面左边缘
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.arange(10)
+y = np.random.randint(0, 10, 10)
+
+fig, axes = plt.subplots(1, 3, figsize=(10, 3))
+for ax, where in zip(axes, ["pre", "mid", "post"]):
+    ax.step(x, y, '--o', where=where)
+    ax.set_title(f"where: {where}")
+plt.show()
+```
+
+其实，阶梯图本质上就是折线图的封装。`plt.plot()`提供了`drawstyle`形参，支持与`where`相似的三种取值——`"steps"`、`"steps-mid"`、`"steps-post"`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.arange(10)
+y = np.random.randint(0, 10, 10)
+
+fig, axes = plt.subplots(1, 3, figsize=(10, 3))
+for ax, drawstyle in zip(axes, ["steps", "steps-mid", "steps-post"]):
+    ax.plot(x, y, '--o', drawstyle=drawstyle)
+    ax.set_title(f"drawstyle: {drawstyle}")
+plt.show()
+```
+
+## §2.12 棉棒图(`plt.stem()`)
+
+`plt.stem()`用于绘制棉棒图。
+
+```python
+plt.stem(
+	locs: typing.Sequence = range(len(heads)),
+    heads: typing.Sequence,
+    linefmt: Optional[Literal["-", "--", "-.", ":"]],
+    markerfmt: Optional[str],
+    basefmt: str = "C3-" if "Matplotlib为新版本" else "C2-",
+    orientation: Literal["vertical", "horizontal"],
+    bottom: float = 0,
+    label: str = None,
+    data: Optional[typing.SupportIndex]
+) -> matplotlib.container.StemContainer
+```
+
+形参`locs`和`heads`分别表示`X`轴坐标和`Y`轴坐标。其中`locs`可以省略，其缺省值由`heads`的长度决定。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+y = np.random.randint(-5, 5, 20)
+
+plt.stem(y)
+plt.show()
+```
+
+形参`linefmt: str`用于指定线条的样式。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+y = np.random.randint(-5, 5, 20)
+
+fig, axes = plt.subplots(1, 4, figsize=(9,3))
+for ax, linefmt in zip(axes, ["-.", "--", "-", ":"]):
+    ax.stem(y, linefmt=linefmt)
+    ax.set_title(f"linefmt: {linefmt}")
+plt.show()
+```
+
+形参`markerfmt: str`用于指定数据点的样式。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+y = np.random.randint(-5, 5, 20)
+
+fig, axes = plt.subplots(1, 4, figsize=(9,3))
+for ax, markerfmt in zip(axes, ["o", ".", "d", "1"]):
+    ax.stem(y, markerfmt=markerfmt)
+    ax.set_title(f"linefmt: {markerfmt}")
+plt.show()
+```
+
+形参`basefmt`用于定义基线的样式。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+y = np.random.randint(-5, 5, 20)
+
+fig, axes = plt.subplots(1, 4, figsize=(9,3))
+for ax, basefmt in zip(axes, ["r-", "g:", "b--", "m-."]):
+    ax.stem(y, basefmt=basefmt)
+    ax.set_title(f"basefmt: {basefmt}")
+plt.show()
+```
+
+形参`bottom`用于定义基线的位置。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+y = np.random.randint(-5, 5, 20)
+
+fig, axes = plt.subplots(1, 4, figsize=(9,3))
+for ax, bottom in zip(axes, [-2, -1, 0, 1]):
+    ax.stem(y, bottom=bottom)
+    ax.set_title(f"bottom: {bottom}")
+plt.show()
+```
+
+## §2.13 间断长条图(`plt.broken_barh()`)
+
+`plt.broken_barh()`用于绘制间断长条图。
+
+```python
+plt.broken(
+	xrange: typing.Sequence[tuple[float, float]], # [(xmin, xwidth), ...]
+    yrange: tuple[float, float], # (ymin, yheight)
+	*,
+    data: Optional[typing.SupportIndex],
+    **kwargs: { #<matplotlib.collections.PolyCollection>:
+        agg_filter: callable[typing.Sequence[(M, N, 3)], float],
+        alpha: typing.Sequence[float[0, 1]] | float[0, 1] | None,
+        animated: bool,
+        antialiased / aa / antialiaseds: bool | list[bool],
+        array: typing.Sequence | None,
+        capstyle: matplotlib._enums.CapStyle | Literal["butt", "projecting", "round"],
+        clim: tuple[float, float], # (vmin, vmax)
+        clip_box: matplotlib.transforms.BboxBase | None,
+        clip_on: bool,
+        clip_path: matplotlib.patches.Patch | tuple[matplotlib.patches.Patch, matplotlib.transforms.Transform] | None,
+        cmap: matplotlib.colors.Colormap | str | None,
+        color: COLOR_LIKE | list[COLOR_LIKE],
+        edgecolor / ec / edgecolors: COLOR_LIKE | list[COLOR_LIKE],
+        facecolor / fc / facecolors: COLOR_LIKE | list[COLOR_LIKE],
+        figure: matplotlib.figure.Figure,
+        gid: str,
+        hatch: Literal['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*'],
+        in_layout: bool,
+        joinstyle: matplotlib._enums.JoinStyle | Literal["miter", "round", "bevel"],
+        label: object,
+        linestyle / dashes / linestyles / ls: str | tuple[str] | list[str],
+        linewidth / linewidths / lw: float,
+        mouseover: bool,
+        norm: matplotlib.colors.Normalize | str | None,
+        offset_transform: matplotlib.transforms.Transform,
+        offsets: typing.Sequence[(N, 2)] | typing.Sequence[(2)],
+        path_effects: list[matplotlib.patheffects.AbstractPathEffect],
+        paths: typing.Sequence,
+        picker: None | bool | float | callable,
+        pickradius: float,
+        rasterized: bool,
+        sizes: numpy.ndarray | None,
+        sketch_params: tuple[float, float, float], # (scale, length, randomness)
+        snap: bool | None,
+        transform: matplotlib.transforms.Transform,
+        url: str, 
+        urls: list[str] | None,
+        verts: list[typing.Sequence],
+        verts_and_codes,
+        visiable: bool,
+        zorder: float
+    }
+) -> matplotlib.collections.PolyCollection
+```
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x: list[tuple[float, float]] = [(0, 2), (3, 2), (6, 1)]
+y_1: tuple[float, float] = (1, 3)
+y_2: tuple[float, float] = (-1, 1)
+plt.broken_barh(x, y_1)
+plt.broken_barh(x, y_2)
+plt.show()
+```
+
+## §2.14 小提琴图(`plt.violinplot()`)
+
+`plt.violinplot()`用于绘制小提琴图。小提琴图与箱线图类似，只需让箱子的宽度随数据分布而变化即可。因为小提琴图不绘制异常值，所以上下界分别为数据中的极大值和极小值。
 
 
 
 
-形参`patch_artist`用于决定绘制箱体是使用`matplotlib.lines.Line2D`还是`matplotlib.patches.Patch`。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4967,9 +5508,13 @@ plt.show()
 
 
 
+12.12 19w+
 
+12.13 20w+
 
-12.09 16w+
+12.14 21w+
+
+12.15 22w+
 
 
 
