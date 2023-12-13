@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                             
+>                                               
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                             
+>                                               
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -1492,7 +1492,7 @@ plt.rcParams["axes.unicode_minus"] = False
 plt.rcParams["figure.autolayout"] = True
 
 fig = plt.figure(1)
-gs = fig.add_gridspec(2, 2)
+gs = fig.add_gridspec(2, 2) # 或者gs = matplotlib.gridspec.GridSpec(2, 2)
 axes = [ # 如果无colspan/rowspan需求，可以直接axes = gs.subplots().flat
     fig.add_subplot(gs[0, 0]),
     fig.add_subplot(gs[0, 1]),
@@ -1667,6 +1667,24 @@ ax.grid(True)
 ax.plot(np.arange(5, -10, -1))
 ax.plot(np.arange(-5, 5))
 
+plt.show()
+```
+
+一个`fig`实例可以通过`fig.gca()`方法获取对应的`axes`对象。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.random.randn(100)
+
+fig = plt.figure()
+axes = fig.gca()
+axes.plot(x)
 plt.show()
 ```
 
@@ -2701,9 +2719,235 @@ fig.colorbar( # 自定义色彩条
 plt.show()
 ```
 
+## §1.15 线条
+
+### §1.15.1 横线(`plt.hlines()`)
+
+`plt.hlines()`用于绘制横线。
+
+```python
+plt.hlines(
+	y: float | typing.Sequence[float],
+    xmin: float | typing.Sequence[float],
+    xmax: float | typing.Sequence[float],
+    colors: COLOR_LIKE | list[COLOR_LIKE] = "C0", # 缺省值为plt.rcParams["lines.color"]
+    linestyles: Literal["solid", "dashed", "dashdot", "dotted"] = "solid",
+    label: str = "",
+    *,
+    data: Optional[typing.SupportIndex],
+    **kwargs: {<matplotlib.collections.LineCollection>:}
+) -> matplotlib.collections.LineCollection
+```
+
+形参`y`指定了横线的高度，`xmin`和`xmax`指定了横向的起点和终点。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+plt.hlines(1, 0.5, 1.5, colors="r", linewidth=2)
+plt.show()
+```
+
+### §1.15.2 竖线(`plt.vlines()`)
+
+`plt.vlines()`用于绘制竖线。
+
+```python
+plt.vlines(
+	x: float | typing.Sequence[float],
+    ymin: float | typing.Sequence[float],
+    ymax: float | typing.Sequence[float],
+    colors: COLOR_LIKE | list[COLOR_LIKE] = "C0", # 缺省值为plt.rcParams["lines.color"]
+    linestyles: Literal["solid", "dashed", "dashdot", "dotted"] = "solid",
+    label: str = "",
+    *,
+    data: Optional[typing.SupportIndex],
+    **kwargs: {<matplotlib.collections.LineCollection>:}
+) -> matplotlib.collections.LineCollection
+```
+
+形参`x`指定了横线的高度，`ymin`和`ymax`指定了横向的起点和终点。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+plt.vlines(1, 0.5, 1.5, colors="r", linewidth=2)
+plt.show()
+```
+
+## §1.16 几何图形(`matplotlib.patches`)
+
+`matplotlib.patches`模块预置了一系列几何图形可供绘制。
 
 
 
+```mermaid
+flowchart TB
+	ConnectionSyle
+	BoxStyle
+	ArrowStyle
+	Artist --> Patch -->
+		Annulus & Ellipse & Arrow & RegularPolygon & FancyArrowPatch & Polygon & FancyBboxPatch & PathPatch & Rectangle & Shadow & Wedge
+	Ellipse --> Arc & Circle
+	RegularPolygon --> CirclePolygon
+	FancyArrowPatch --> ConnectionPatch
+	Polygon --> FancyArrow
+	PathPatch --> StepPatch
+```
+
+使用`matplotlib.patches.Patch`的方法有以下几种：
+
+- `ax.add_artist()`
+
+  ```python
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  fig, ax = plt.subplots()
+  ax.set_aspect("equal")
+  ax.set_xlim([-2, 2])
+  ax.set_ylim([-2, 2])
+  ax.add_artist(
+      matplotlib.patches.Circle((0, 0), 0.4, fill=True, facecolor="g", edgecolor="b")
+  )
+  plt.show()
+  ```
+
+- `ax.add_patch()`
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  fig, ax = plt.subplots()
+  ax.set_aspect("equal")
+  ax.set_xlim([-2, 2])
+  ax.set_ylim([-2, 2])
+  ax.add_patch(
+      matplotlib.patches.Circle((0, 0), 0.4, fill=True, facecolor="g", edgecolor="b")
+  )
+  plt.show()
+  ```
+
+- `ax.patch`获取该子图的视野`matplotlib.patches.Rectangle`实例
+
+  ```python
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  fig, ax = plt.subplots() # 或ax = plt.gcf().gca()
+  ax.set_aspect("equal")
+  ax.set_xlim([-2, 2])
+  ax.set_ylim([-2, 2])
+  ax.patch.set_facecolor("b")
+  ax.add_artist(
+      matplotlib.patches.Circle((0, 0), 0.4, fill=True, facecolor="g", edgecolor="b")
+  )
+  plt.show()
+  ```
+
+### §1.16.1 圆形(`matplotlib.patches.Circle`)
+
+```python
+matplotlib.patches.Circle.__init__(
+	xy: tuple[float, float], # 圆心坐标
+    radius: float, # 半径
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> matplotlib.patches.Circle
+```
+
+### §1.16.2 椭圆(`matplotlib.patches.Ellipse`)
+
+```python
+matplotlib.patches.Ellipse.__init__(
+	xy: tuple[float, float], # 圆心坐标
+    width: float, # 横轴长度
+    height: float, # 纵轴长度
+    angle: float = 0, # 旋转角度
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> matplotlib.patches.Ellipse
+```
+
+### §1.16.3 矩形(`matplotlib.patches.Rectangle`)
+
+```python
+matplotlib.patches.Rectangle.__init__(
+	xy: tuple[float, float], # 矩形左下角坐标
+    width: float, # 矩形的宽度
+    height: float, # 矩形的高度
+    angle: float = 0, # 旋转角度
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> matplotlib.patches.Rectangle
+```
+
+### §1.16.4 圆弧(`matplotlib.patches.Arc`)
+
+```python
+matplotlib.patches.Arc.__init__(
+	xy: tuple[float, float], # 圆心坐标
+    width: float, # 椭圆的宽度
+    height: float, # 椭圆的高度
+    angle: float = 0, # 旋转角度
+    theta1: float = 0, # 未经旋转的起始角度
+    theta2: float = 0, # 未经旋转的终止角度
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> matplotlib.patches.Arc
+```
+
+### §1.16.5 楔形/扇形(`matplotlib.patches.Wedge`)
+
+```python
+matplotlib.patches.Wedge.__init__(
+	center: tuple[float, float], # 圆心坐标
+    radius: float, # 扇形半径
+    theta1: float = 0, # 扇形起始角度
+    theta2: float = 0, # 扇形终止角度
+    width: float = None, # 若非None，则绘制radius - width区域的环扇形
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> matplotlib.patches.Wedge
+```
+
+### §1.16.6 箭头(`matplotlib.patches.Arrow`)
+
+```python
+matplotlib.patches.Arrow.__init__(
+	x: float, # 箭头起点X坐标
+    y: float, # 箭头起点Y坐标
+    dx: float, # 箭头终点X轴偏移量
+    dy: float, # 箭头终点Y轴偏移量
+    width: float[0, 1], # 箭头与箭柄宽度大小的缩放系数
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> matplotlib.patches.Arrow
+```
+
+### §1.16.7 多边形(`matplotlib.patches.Polygon`)
+
+```python
+matplotlib.patches.Polygon.__init__(
+	xy: list[list[float, float]],
+    closed: bool = True, # 多边形是否闭合，即是否在起点与终点之间添加一条闭合线
+    **kwargs: {<matplotlib.patches.Patch>:}
+) -> matplotlib.patches.Polygon
+```
 
 # §2 常用图表绘制
 
@@ -4846,39 +5090,325 @@ plt.show()
 
 `plt.violinplot()`用于绘制小提琴图。小提琴图与箱线图类似，只需让箱子的宽度随数据分布而变化即可。因为小提琴图不绘制异常值，所以上下界分别为数据中的极大值和极小值。
 
+```python
+plt.violinplot(
+	dataset: typing.Sequence[number] | typing.Sequence[typing.Sequence[number]],
+    positions: typing.Sequence[number] = range(1, n+1),
+    vert: bool,
+    widths: float[0, 1] | typing.Sequence["widths"] = 0.5,
+    showmeans: bool = False,
+    showextrema: bool = True,
+    showmedians: bool = False,
+    quantiles: typing.Sequence[float] = None,
+    points: int = 100,
+    bw_method: Optional[str | float[0, 1] | callable],
+    data: Optional[typing.Sequence]
+) -> dict[
+	bodies: list[matplotlib.collections.PolyCollection],
+    cmeans: list[matplotlib.collections.LineCollection],
+    cmins: list[matplotlib.collections.LineCollection],
+    cmaxes: list[matplotlib.collections.LineCollection],
+    cbars: list[matplotlib.collections.LineCollection],
+    cmedians: list[matplotlib.collections.LineCollection],
+    cquantiles: list[matplotlib.collections.LineCollection]
+]
+```
 
+形参`dataset`表示`Y`轴数据；形参`positions`表示`X`轴数据，缺省值为`[1, 2,...,len(dataset)-1]`。
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+x = np.random.randn(100)
 
+plt.violinplot(x, [3.14])
+plt.show()
+```
 
+形参`showmedians`用于控制是否绘制中位数线；形参`showmeans`用于控制是否绘制平均数线；形参`showextrema`用于控制是否绘制极值线：
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+x = np.random.randn(100)
 
+fig, axes = plt.subplots(3, 2)
+axes[0][0].violinplot(x, showmedians=True)
+axes[0][1].violinplot(x, showmedians=False)
+axes[1][0].violinplot(x, showmeans=True)
+axes[1][1].violinplot(x, showmeans=False)
+axes[2][0].violinplot(x, showextrema=True)
+axes[2][1].violinplot(x, showextrema=False)
+plt.show()
+```
 
+形参`widths`决定了小提琴图的横向最大宽度，缺省为`0.5`。
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+x = np.random.randn(100)
 
+fig, axes = plt.subplots(1, 3)
+axes[0].violinplot(x, widths=0.2)
+axes[1].violinplot(x, widths=[0.5]) # 可以控制datasets中的多个数据集
+axes[2].violinplot(x, widths=0.8)
+plt.show()
+```
 
+形参`vert: bool`用于控制小提琴图是垂直绘制还是水平绘制：
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+x = np.random.randn(100)
 
+fig, axes = plt.subplots(1, 2)
+axes[0].violinplot(x, vert=True)
+axes[1].violinplot(x, vert=False)
+plt.show()
+```
 
+形参`quantiles: typing.Sequence[float]`负责指定需要绘制的其它位置的“四分线”：
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+x = np.random.randn(100)
 
+plt.violinplot(x, quantiles=[0.25, 0.5, 0.75])
+plt.show()
+```
 
+综上所述，我们可以绘制出这样较为精美的小提琴图：
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+N = 4
+x = [i for i in range(1, N + 1)]
+y = [np.random.randn(100) for _ in range(N)]
 
+resultRaw = plt.violinplot(y, showmeans=False, showmedians=False)
+resultDict = {}
+# resultRaw['cmaxes'].get_segments() -> list
+# list存了N个尺寸为2×2的numpy.ndarray实例
+# 每个numpy.ndarray实例存储了最大值线段的两个端点坐标
+resultDict["cmaxes"] = [max_array[0][1] for max_array in resultRaw['cmaxes'].get_segments()]
+# resultRaw['cmins'].get_segments() -> list
+# list存了N个尺寸为2×2的numpy.ndarray实例
+# 每个numpy.ndarray实例存储了最小值线段的两个端点坐标
+resultDict["cmins"] = [min_array[0][1] for min_array in resultRaw['cmins'].get_segments()]
+resultDict["q1"], resultDict["median"], resultDict["q3"] = np.percentile(y, [25, 50, 75], axis=1)
 
+plt.scatter(x, resultDict["median"], marker='d', color='white', s=30, zorder=3)
+plt.vlines(x, resultDict["q1"], resultDict["q3"], color='green', lw=8)
+plt.vlines(x, resultDict["cmins"], resultDict["cmaxes"], color='green', lw=1)
+for body in resultRaw['bodies']:
+    body.set_facecolor('#66ccff')
+    body.set_edgecolor('black')
+    body.set_alpha(1)
+plt.xticks(np.arange(1, len(x) + 1, 1))
+plt.xlim(0, len(x) + 1)
+plt.show()
+```
 
-## §2.x
+## §2.15 误差条图(`plt.errorbar()`)
+
+`plt.errorbar()`用于绘制误差条图。误差条图在折线图的基础上，在每个数据点都引入了一个竖直绘制的误差条。
+
+```python
+plt.errorbar(
+	x: float | typing.Sequence[float],
+	y: float | typing.Sequence[float],
+	xerr: Optional[float | typing.Sequence[(N)] | typing.Sequence[(2, N)]],
+	yerr: Optional[float | typing.Sequence[(N)] | typing.Sequence[(2, N)]],
+	fmt: str = "",
+	ecolor: COLOR_LIKE = None,
+	elinewidth: float = None,
+	capsize: float = 0.0, # 缺省值为plt.rcParams["errorbar.capsize"],
+	capthick: float = None,
+	barsabove: bool = False,
+	lolims, uplims, xlolims, xuplims: bool | typing.Sequence[bool] = False,
+	errorevery: int | tuple[int, int] = 1,
+	*,
+	data: typing.SupportIndex,
+	**kwargs: {#<matplotlib.pyplot.plot()>
+        agg_filter: callable[typing.Sequence[(M, N, 3)], float],
+        alpha: float[0, 1] | None,
+        animated: bool,
+        antialiased / aa: bool,
+        clip_box: matplotlib.transforms.BboxBase | None,
+        clip_on: bool,
+        clip_path: matplotlib.patches.Patch | tuple[matplotlib.patches.Patch, matplotlib.transforms.Transform],
+        color / c: COLOR_LIKE,
+        dash_capstyle: matplotlib._enums.CapStyle | Literal["butt", "projecting", "round"],
+        dash_joinstyle: matplotlib._enums.JoinStyle | Literal["miter", "round", "bevel"],
+        dashes: typing.Sequence[float] | (None, None),
+        data: typing.Sequence[(2, N)] | (typing.Sequence[(N)], typing.Sequence[(N)])
+        drawstyle / ds: Literal["default", "steps", "steps-pre", "steps-min", "steps-post"] = "default",
+        figure: matplotlib.figure.Figure,
+        fillstyle: Literal["full", "left", "right", "bottom", "top", "none"],
+        gapcolor: COLOR_LIKE | None,
+        gid: str,
+        in_layout: bool,
+        label: object,
+        linestyle / ls: Literal["-", "--", "-.", ":", ""],
+        linewidth / lw: float,
+        marker: MARKER_LIKE | matplotlib.path.Path, matplotlib.markers.MarkerStyle,
+        markeredgecolor / mfc: COLOR_LIKE,
+        markerfacecoloralt / mfcalt: COLOR_LIKE,
+        markersize / ms: float,
+        markevery: None | int | tuple[int | float, int | float] | list[int | bool],
+        mouseover: bool,
+        path_effects: list[matplotlib.patheffects.AbstractPathEffect],
+        picker: float | callable[list[Artist, Event], tuple[bool, dict]],
+        pickradius: float,
+        rasterized: bool,
+        sketch_params: tuple[float, float, float], # (scale, length, randomness)
+        snap: bool | None,
+        solid_capstyle: matplotlib._enums.CapStyle | Literal["butt", "projecting", "round"],
+        solid_joinstyle: matplotlib._enums.JoinStyle | Literal["milter", "round", "bevel"],
+        transform,
+        url: str,
+        visible: bool,
+        xdata: typing.Sequence[(N)],
+        ydata: typing.Sequence[(N)],
+        zorder: float
+	}
+) -> matplotlib.container.ErrorbarContainer
+```
+
+形参`yerr`和`xerr`可以是`typing.Sequence[float]`或`float`，分别表示`Y`轴和`X`轴的误差。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 100)
+y = np.sin(x)
+yerr = np.random.rand(100) * 0.3
+
+plt.errorbar(x, y, yerr)
+plt.show()
+```
+
+形参`fmt: str`用于规定折线和点的样式，作用与折线图`plt.plot()`相同。`color`用于指定点、折线和误差棒的颜色。`ecolor`用于指定误差棒的颜色。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 30)
+y = np.sin(x)
+yerr = np.random.rand(30) * 0.3
+
+plt.errorbar(x, y, yerr, fmt="o--", color="r", ecolor="g")
+plt.show()
+```
+
+形参`capsize`指定了误差棒两端的横线长度。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 40)
+y = np.sin(x)
+yerr = np.random.rand(40) * 0.3
+
+plt.errorbar(x, y, yerr, capsize=8)
+plt.show()
+```
+
+形参`uplims`和`lolims`分别用于控制`yerr`是否隐藏上误差和下误差；`xuplims`和`xlolims`分别用于控制`xerr`是否隐藏左误差和右误差。它们既可以是`bool`，也可是是`list[bool]`，用于实现细粒度的控制。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 30)
+y = np.sin(x)
+xerr = 0.5
+yerr = np.random.rand(30) * 0.3
+
+fig, axes = plt.subplots(2, 4, figsize=(10, 5))
+values = [i.flat for i in np.meshgrid([False, True], [False, True])]
+
+for ax, uplims, lolims in zip(axes[0], *[i.flat for i in np.meshgrid([False, True], [False, True])]):
+    ax.errorbar(x, y, yerr=yerr, uplims=uplims, lolims=lolims)
+    ax.set_title(f"uplims:{uplims}, lolims:{lolims}")
+for ax, xuplims, xlolims in zip(axes[1], *[i.flat for i in np.meshgrid([False, True], [False, True])]):
+    ax.errorbar(x, y, xerr=xerr, xuplims=xuplims, xlolims=xlolims)
+    ax.set_title(f"xuplims:{xuplims}, xlolims:{xlolims}")
+plt.show()
+```
+
+`xerr`和`yerr`还可以是`list[float]`或`list[list[float], list[float]]`，表示给两个相反方向设置不同的误差。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x = np.linspace(0, np.pi * 2, 30)
+y = np.sin(x)
+yerr = [np.random.rand(30) * 0.3 for _ in range(2)]
+
+plt.errorbar(x, y, yerr)
+plt.show()
+```
+
+## §2.16 轮廓图/等高线图(`plt.contourf()`/`plt.contour()`)
 
 轮廓图是指填充不规则区域的图表，而等高线图不是填充所有区域，而是只绘制轮廓。它们使用的函数分别为`plt.contourf()`和`plt.contour()`。这两个函数的语法几乎一致：
 
@@ -5053,6 +5583,285 @@ for index, level in enumerate([5, 10, 15]):
     axes[index].set_title(f"levels: {level}")
 plt.show()
 ```
+
+## §2.17 箭头图(`plt.quiver()`)
+
+`plt.quiver()`用于绘制箭头图。
+
+![image](data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PHN2ZyB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOmNjPSJodHRwOi8vY3JlYXRpdmVjb21tb25zLm9yZy9ucyMiIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyIgeG1sbnM6c3ZnPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczpzb2RpcG9kaT0iaHR0cDovL3NvZGlwb2RpLnNvdXJjZWZvcmdlLm5ldC9EVEQvc29kaXBvZGktMC5kdGQiIHhtbG5zOmlua3NjYXBlPSJodHRwOi8vd3d3Lmlua3NjYXBlLm9yZy9uYW1lc3BhY2VzL2lua3NjYXBlIgogICB3aWR0aD0iMTI0LjYwOTgzbW0iCiAgIGhlaWdodD0iNjYuNjQ5NzQybW0iCiAgIHZpZXdCb3g9IjAgMCAxMjQuNjA5ODQgNjYuNjQ5NzQyIgogICB2ZXJzaW9uPSIxLjEiCiAgIGlkPSJzdmc4IgogICBpbmtzY2FwZTp2ZXJzaW9uPSIwLjkyLjQgKDVkYTY4OWMzMTMsIDIwMTktMDEtMTQpIgogICBzb2RpcG9kaTpkb2NuYW1lPSJxdWl2ZXJfc2l6ZXMuc3ZnIj48ZGVmcwogICAgIGlkPSJkZWZzMiIgLz48c29kaXBvZGk6bmFtZWR2aWV3CiAgICAgaWQ9ImJhc2UiCiAgICAgcGFnZWNvbG9yPSIjZmZmZmZmIgogICAgIGJvcmRlcmNvbG9yPSIjNjY2NjY2IgogICAgIGJvcmRlcm9wYWNpdHk9IjEuMCIKICAgICBpbmtzY2FwZTpwYWdlb3BhY2l0eT0iMC4wIgogICAgIGlua3NjYXBlOnBhZ2VzaGFkb3c9IjIiCiAgICAgaW5rc2NhcGU6em9vbT0iMi44IgogICAgIGlua3NjYXBlOmN4PSIyMDYuNjIxOTgiCiAgICAgaW5rc2NhcGU6Y3k9IjE4Mi41MzQ4MiIKICAgICBpbmtzY2FwZTpkb2N1bWVudC11bml0cz0ibW0iCiAgICAgaW5rc2NhcGU6Y3VycmVudC1sYXllcj0ibGF5ZXIxIgogICAgIHNob3dncmlkPSJmYWxzZSIKICAgICBmaXQtbWFyZ2luLXRvcD0iNCIKICAgICBmaXQtbWFyZ2luLWJvdHRvbT0iNCIKICAgICBmaXQtbWFyZ2luLXJpZ2h0PSIxIgogICAgIGZpdC1tYXJnaW4tbGVmdD0iMSIKICAgICBpbmtzY2FwZTp3aW5kb3ctd2lkdGg9IjI4NDIiCiAgICAgaW5rc2NhcGU6d2luZG93LWhlaWdodD0iMTMwNyIKICAgICBpbmtzY2FwZTp3aW5kb3cteD0iMzI2IgogICAgIGlua3NjYXBlOndpbmRvdy15PSI4OCIKICAgICBpbmtzY2FwZTp3aW5kb3ctbWF4aW1pemVkPSIwIiAvPjxtZXRhZGF0YQogICAgIGlkPSJtZXRhZGF0YTUiPjxyZGY6UkRGPjxjYzpXb3JrCiAgICAgICAgIHJkZjphYm91dD0iIj48ZGM6Zm9ybWF0PmltYWdlL3N2Zyt4bWw8L2RjOmZvcm1hdD48ZGM6dHlwZQogICAgICAgICAgIHJkZjpyZXNvdXJjZT0iaHR0cDovL3B1cmwub3JnL2RjL2RjbWl0eXBlL1N0aWxsSW1hZ2UiIC8+PGRjOnRpdGxlPjwvZGM6dGl0bGU+PC9jYzpXb3JrPjwvcmRmOlJERj48L21ldGFkYXRhPjxnCiAgICAgaW5rc2NhcGU6bGFiZWw9IkViZW5lIDEiCiAgICAgaW5rc2NhcGU6Z3JvdXBtb2RlPSJsYXllciIKICAgICBpZD0ibGF5ZXIxIgogICAgIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yNi40ODk1LC0xNS4xMDAwNDMpIj48cGF0aAogICAgICAgc3R5bGU9ImZpbGw6I2E5YTlhOTtmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMnB4O3N0cm9rZS1saW5lY2FwOmJ1dHQ7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1vcGFjaXR5OjEiCiAgICAgICBkPSJtIDQ5LjI0Nzc2OSwyOS44OTgwNjcgaCA1NS4wMDAwMDEgbCAtNS4wMDAwMDIsLTEwIDUwLjAwMDAwMiwxNSAtNTAuMDAwMDAyLDE1IDUuMDAwMDAyLC0xMCBIIDQ5LjI0Nzc2OSBaIgogICAgICAgaWQ9InBhdGg4MzAiCiAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIgogICAgICAgc29kaXBvZGk6bm9kZXR5cGVzPSJjY2NjY2NjYyIgLz48dGV4dAogICAgICAgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIKICAgICAgIHN0eWxlPSJmb250LXN0eWxlOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7Zm9udC1zaXplOjUuNjQ0NDQ0NDdweDtsaW5lLWhlaWdodDoxLjI1O2ZvbnQtZmFtaWx5OnNhbnMtc2VyaWY7bGV0dGVyLXNwYWNpbmc6MHB4O3dvcmQtc3BhY2luZzowcHg7ZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyIgogICAgICAgeD0iMjcuNDk3NzY4IgogICAgICAgeT0iMzYuNzYzMzkzIgogICAgICAgaWQ9InRleHQ4MzQiPjx0c3BhbgogICAgICAgICBzb2RpcG9kaTpyb2xlPSJsaW5lIgogICAgICAgICBpZD0idHNwYW44MzIiCiAgICAgICAgIHg9IjI3LjQ5Nzc2OCIKICAgICAgICAgeT0iMzYuNzYzMzkzIgogICAgICAgICBzdHlsZT0iZm9udC1zaXplOjUuNjQ0NDQ0NDdweDtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMiI+d2lkdGg8L3RzcGFuPjwvdGV4dD48ZwogICAgICAgaWQ9ImcxMTU3IgogICAgICAgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTAuNzg2ODI5MywwLjEzNDQ5MDY4KSI+PHBhdGgKICAgICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIKICAgICAgICAgaWQ9InBhdGg4MzYiCiAgICAgICAgIGQ9Ik0gNDMuMzk2MzkyLDM4LjAxNjc2NyBWIDMxLjM3ODg5NCIKICAgICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzAwMDAwMDtzdHJva2Utd2lkdGg6MC42MDAwMDAwMjtzdHJva2UtbGluZWNhcDpidXR0O3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eToxIiAvPjxwYXRoCiAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEsMCwwLDEuNDc4ODczMSwtMC4zMzA3Mjg4MSwtNTUuNTE1MDc3KSIKICAgICAgICAgaW5rc2NhcGU6dHJhbnNmb3JtLWNlbnRlci15PSItMC4yMjkwOTg2IgogICAgICAgICBkPSJtIDQ0LjUyMDczNiw1OS4wOTIwMyAtMC43OTM2MTcsMCAtMC43OTM2MTYsMCAwLjM5NjgwOCwtMC42ODcyOTMgMC4zOTY4MDgsLTAuNjg3MjkyIDAuMzk2ODA5LDAuNjg3MjkyIHoiCiAgICAgICAgIGlua3NjYXBlOnJhbmRvbWl6ZWQ9IjAiCiAgICAgICAgIGlua3NjYXBlOnJvdW5kZWQ9IjAiCiAgICAgICAgIGlua3NjYXBlOmZsYXRzaWRlZD0iZmFsc2UiCiAgICAgICAgIHNvZGlwb2RpOmFyZzI9IjEuNTcwNzk2MyIKICAgICAgICAgc29kaXBvZGk6YXJnMT0iMC41MjM1OTg3OCIKICAgICAgICAgc29kaXBvZGk6cjI9IjAuNDU4MTk0NzYiCiAgICAgICAgIHNvZGlwb2RpOnIxPSIwLjkxNjM4OTUyIgogICAgICAgICBzb2RpcG9kaTpjeT0iNTguNjMzODM1IgogICAgICAgICBzb2RpcG9kaTpjeD0iNDMuNzI3MTE5IgogICAgICAgICBzb2RpcG9kaTpzaWRlcz0iMyIKICAgICAgICAgaWQ9InBhdGg4MzgiCiAgICAgICAgIHN0eWxlPSJmaWxsOiMwMDAwMDA7ZmlsbC1vcGFjaXR5OjE7c3Ryb2tlOm5vbmU7c3Ryb2tlLXdpZHRoOjAuNDc4Nzc0NTU7c3Ryb2tlLW1pdGVybGltaXQ6NDtzdHJva2UtZGFzaGFycmF5Om5vbmU7c3Ryb2tlLW9wYWNpdHk6MC41ODU4MjA5MyIKICAgICAgICAgc29kaXBvZGk6dHlwZT0ic3RhciIgLz48cGF0aAogICAgICAgICBpbmtzY2FwZTp0cmFuc2Zvcm0tY2VudGVyLXg9IjEuMTg3Njk5ZS0wNiIKICAgICAgICAgdHJhbnNmb3JtPSJtYXRyaXgoMC41LC0xLjI4MDc0MTcsMC44NjYwMjU0LDAuNzM5NDM2NTUsLTI5Ljg0ODk4NCw1MS42Mjk0NzkpIgogICAgICAgICBpbmtzY2FwZTp0cmFuc2Zvcm0tY2VudGVyLXk9IjAuMjI5MDk2OTMiCiAgICAgICAgIGQ9Im0gNDUuMTU4NTczLDU5LjQyMDU1MSAtMC43OTM2MTcsMCAtMC43OTM2MTcsMCAwLjM5NjgwOSwtMC42ODcyOTIgMC4zOTY4MDgsLTAuNjg3MjkyIDAuMzk2ODA4LDAuNjg3MjkyIHoiCiAgICAgICAgIGlua3NjYXBlOnJhbmRvbWl6ZWQ9IjAiCiAgICAgICAgIGlua3NjYXBlOnJvdW5kZWQ9IjAiCiAgICAgICAgIGlua3NjYXBlOmZsYXRzaWRlZD0iZmFsc2UiCiAgICAgICAgIHNvZGlwb2RpOmFyZzI9IjEuNTcwNzk2MyIKICAgICAgICAgc29kaXBvZGk6YXJnMT0iMC41MjM1OTg3OCIKICAgICAgICAgc29kaXBvZGk6cjI9IjAuNDU4MTk0NzkiCiAgICAgICAgIHNvZGlwb2RpOnIxPSIwLjkxNjM4OTUyIgogICAgICAgICBzb2RpcG9kaTpjeT0iNTguOTYyMzU3IgogICAgICAgICBzb2RpcG9kaTpjeD0iNDQuMzY0OTU2IgogICAgICAgICBzb2RpcG9kaTpzaWRlcz0iMyIKICAgICAgICAgaWQ9InBhdGg4MzgtMyIKICAgICAgICAgc3R5bGU9ImZpbGw6IzAwMDAwMDtmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC40Nzg3NzQ1NTtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eTowLjU4NTgyMDkzIgogICAgICAgICBzb2RpcG9kaTp0eXBlPSJzdGFyIiAvPjwvZz48ZwogICAgICAgaWQ9Imc4NjAtOCIKICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDAsMSwtMS40Nzg4NzMxLDAsMjM0LjYwNDU1LDExLjkzNTA4MSkiPjxwYXRoCiAgICAgICAgIGlua3NjYXBlOmNvbm5lY3Rvci1jdXJ2YXR1cmU9IjAiCiAgICAgICAgIGlkPSJwYXRoODM2LTciCiAgICAgICAgIGQ9Ik0gNDMuNzI3MTIxLDg2Ljk1OTAzMyBWIDU4Ljc1Njg4MyIKICAgICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzAwMDAwMDtzdHJva2Utd2lkdGg6MC40OTMzODQ4NDtzdHJva2UtbGluZWNhcDpidXR0O3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eToxIiAvPjxwYXRoCiAgICAgICAgIGlua3NjYXBlOnRyYW5zZm9ybS1jZW50ZXIteT0iLTAuMjI5MDk4NiIKICAgICAgICAgZD0ibSA0NC41MjA3MzYsNTkuMDkyMDMgLTAuNzkzNjE3LDAgLTAuNzkzNjE2LDAgMC4zOTY4MDgsLTAuNjg3MjkzIDAuMzk2ODA4LC0wLjY4NzI5MiAwLjM5NjgwOSwwLjY4NzI5MiB6IgogICAgICAgICBpbmtzY2FwZTpyYW5kb21pemVkPSIwIgogICAgICAgICBpbmtzY2FwZTpyb3VuZGVkPSIwIgogICAgICAgICBpbmtzY2FwZTpmbGF0c2lkZWQ9ImZhbHNlIgogICAgICAgICBzb2RpcG9kaTphcmcyPSIxLjU3MDc5NjMiCiAgICAgICAgIHNvZGlwb2RpOmFyZzE9IjAuNTIzNTk4NzgiCiAgICAgICAgIHNvZGlwb2RpOnIyPSIwLjQ1ODE5NDc2IgogICAgICAgICBzb2RpcG9kaTpyMT0iMC45MTYzODk1MiIKICAgICAgICAgc29kaXBvZGk6Y3k9IjU4LjYzMzgzNSIKICAgICAgICAgc29kaXBvZGk6Y3g9IjQzLjcyNzExOSIKICAgICAgICAgc29kaXBvZGk6c2lkZXM9IjMiCiAgICAgICAgIGlkPSJwYXRoODM4LTkiCiAgICAgICAgIHN0eWxlPSJmaWxsOiMwMDAwMDA7ZmlsbC1vcGFjaXR5OjE7c3Ryb2tlOm5vbmU7c3Ryb2tlLXdpZHRoOjAuNDc4Nzc0NTU7c3Ryb2tlLW1pdGVybGltaXQ6NDtzdHJva2UtZGFzaGFycmF5Om5vbmU7c3Ryb2tlLW9wYWNpdHk6MC41ODU4MjA5MyIKICAgICAgICAgc29kaXBvZGk6dHlwZT0ic3RhciIgLz48cGF0aAogICAgICAgICBpbmtzY2FwZTp0cmFuc2Zvcm0tY2VudGVyLXg9IjEuMTg3Njk5ZS0wNiIKICAgICAgICAgdHJhbnNmb3JtPSJyb3RhdGUoLTYwLDY4LjQ1ODY4MSw3My42MDkzODEpIgogICAgICAgICBpbmtzY2FwZTp0cmFuc2Zvcm0tY2VudGVyLXk9IjAuMjI5MDk2OTMiCiAgICAgICAgIGQ9Im0gNDUuMTU4NTczLDU5LjQyMDU1MSAtMC43OTM2MTcsMCAtMC43OTM2MTcsMCAwLjM5NjgwOSwtMC42ODcyOTIgMC4zOTY4MDgsLTAuNjg3MjkyIDAuMzk2ODA4LDAuNjg3MjkyIHoiCiAgICAgICAgIGlua3NjYXBlOnJhbmRvbWl6ZWQ9IjAiCiAgICAgICAgIGlua3NjYXBlOnJvdW5kZWQ9IjAiCiAgICAgICAgIGlua3NjYXBlOmZsYXRzaWRlZD0iZmFsc2UiCiAgICAgICAgIHNvZGlwb2RpOmFyZzI9IjEuNTcwNzk2MyIKICAgICAgICAgc29kaXBvZGk6YXJnMT0iMC41MjM1OTg3OCIKICAgICAgICAgc29kaXBvZGk6cjI9IjAuNDU4MTk0NzkiCiAgICAgICAgIHNvZGlwb2RpOnIxPSIwLjkxNjM4OTUyIgogICAgICAgICBzb2RpcG9kaTpjeT0iNTguOTYyMzU3IgogICAgICAgICBzb2RpcG9kaTpjeD0iNDQuMzY0OTU2IgogICAgICAgICBzb2RpcG9kaTpzaWRlcz0iMyIKICAgICAgICAgaWQ9InBhdGg4MzgtMy0yIgogICAgICAgICBzdHlsZT0iZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjQ3ODc3NDU1O3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheTpub25lO3N0cm9rZS1vcGFjaXR5OjAuNTg1ODIwOTMiCiAgICAgICAgIHNvZGlwb2RpOnR5cGU9InN0YXIiIC8+PC9nPjxnCiAgICAgICBpZD0iZzg2MC04LTAiCiAgICAgICB0cmFuc2Zvcm09Im1hdHJpeCgwLDEsLTEuNDY3NzMyOCwwLDIzMy43NzgxNSwxNi4yODE4MDgpIgogICAgICAgc3R5bGU9InN0cm9rZS13aWR0aDoxLjAwMzc4Nzg4Ij48cGF0aAogICAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIgogICAgICAgICBpZD0icGF0aDgzNi03LTIiCiAgICAgICAgIGQ9Ik0gNDMuNzI3MTIxLDkwLjY4ODE4MiBWIDU4Ljc1Njg4MSIKICAgICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzAwMDAwMDtzdHJva2Utd2lkdGg6MC40OTUyNTM3MTtzdHJva2UtbGluZWNhcDpidXR0O3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eToxIiAvPjxwYXRoCiAgICAgICAgIGlua3NjYXBlOnRyYW5zZm9ybS1jZW50ZXIteT0iLTAuMjI5MDk4NiIKICAgICAgICAgZD0ibSA0NC41MjA3MzYsNTkuMDkyMDMgLTAuNzkzNjE3LDAgLTAuNzkzNjE2LDAgMC4zOTY4MDgsLTAuNjg3MjkzIDAuMzk2ODA4LC0wLjY4NzI5MiAwLjM5NjgwOSwwLjY4NzI5MiB6IgogICAgICAgICBpbmtzY2FwZTpyYW5kb21pemVkPSIwIgogICAgICAgICBpbmtzY2FwZTpyb3VuZGVkPSIwIgogICAgICAgICBpbmtzY2FwZTpmbGF0c2lkZWQ9ImZhbHNlIgogICAgICAgICBzb2RpcG9kaTphcmcyPSIxLjU3MDc5NjMiCiAgICAgICAgIHNvZGlwb2RpOmFyZzE9IjAuNTIzNTk4NzgiCiAgICAgICAgIHNvZGlwb2RpOnIyPSIwLjQ1ODE5NDc2IgogICAgICAgICBzb2RpcG9kaTpyMT0iMC45MTYzODk1MiIKICAgICAgICAgc29kaXBvZGk6Y3k9IjU4LjYzMzgzNSIKICAgICAgICAgc29kaXBvZGk6Y3g9IjQzLjcyNzExOSIKICAgICAgICAgc29kaXBvZGk6c2lkZXM9IjMiCiAgICAgICAgIGlkPSJwYXRoODM4LTktMyIKICAgICAgICAgc3R5bGU9ImZpbGw6IzAwMDAwMDtmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC40ODA1ODgxMTtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eTowLjU4NTgyMDkzIgogICAgICAgICBzb2RpcG9kaTp0eXBlPSJzdGFyIiAvPjxwYXRoCiAgICAgICAgIGlua3NjYXBlOnRyYW5zZm9ybS1jZW50ZXIteD0iMS4xODc2OTllLTA2IgogICAgICAgICB0cmFuc2Zvcm09InJvdGF0ZSgtNjAsNzEuNTU3NDcxLDc1LjM5ODQ3MSkiCiAgICAgICAgIGlua3NjYXBlOnRyYW5zZm9ybS1jZW50ZXIteT0iMC4yMjkwOTY5MyIKICAgICAgICAgZD0ibSA0NS4xNTg1NzMsNTkuNDIwNTUxIC0wLjc5MzYxNywwIC0wLjc5MzYxNywwIDAuMzk2ODA5LC0wLjY4NzI5MiAwLjM5NjgwOCwtMC42ODcyOTIgMC4zOTY4MDgsMC42ODcyOTIgeiIKICAgICAgICAgaW5rc2NhcGU6cmFuZG9taXplZD0iMCIKICAgICAgICAgaW5rc2NhcGU6cm91bmRlZD0iMCIKICAgICAgICAgaW5rc2NhcGU6ZmxhdHNpZGVkPSJmYWxzZSIKICAgICAgICAgc29kaXBvZGk6YXJnMj0iMS41NzA3OTYzIgogICAgICAgICBzb2RpcG9kaTphcmcxPSIwLjUyMzU5ODc4IgogICAgICAgICBzb2RpcG9kaTpyMj0iMC40NTgxOTQ3OSIKICAgICAgICAgc29kaXBvZGk6cjE9IjAuOTE2Mzg5NTIiCiAgICAgICAgIHNvZGlwb2RpOmN5PSI1OC45NjIzNTciCiAgICAgICAgIHNvZGlwb2RpOmN4PSI0NC4zNjQ5NTYiCiAgICAgICAgIHNvZGlwb2RpOnNpZGVzPSIzIgogICAgICAgICBpZD0icGF0aDgzOC0zLTItNyIKICAgICAgICAgc3R5bGU9ImZpbGw6IzAwMDAwMDtmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC40ODA1ODgxMTtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eTowLjU4NTgyMDkzIgogICAgICAgICBzb2RpcG9kaTp0eXBlPSJzdGFyIiAvPjwvZz48cGF0aAogICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzAwMDAwMDtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMjtzdHJva2UtbGluZWNhcDpidXR0O3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6MS4wNTgzMzMyNywgMC41MjkxNjY2MztzdHJva2UtZGFzaG9mZnNldDowO3N0cm9rZS1vcGFjaXR5OjEiCiAgICAgICBkPSJNIDk5LjI0Nzc2Niw0OS44OTgwNjcgViA2MS44MDQzMTQiCiAgICAgICBpZD0icGF0aDEwNDEiCiAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIiAvPjxwYXRoCiAgICAgICBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojMDAwMDAwO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyO3N0cm9rZS1saW5lY2FwOmJ1dHQ7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheToxLjA1ODMzMzI3LCAwLjUyOTE2NjYyO3N0cm9rZS1kYXNob2Zmc2V0OjA7c3Ryb2tlLW9wYWNpdHk6MSIKICAgICAgIGQ9Ik0gMTA0LjI0Nzc3LDM5Ljg5ODA2NiBWIDU2LjcxODAwMyIKICAgICAgIGlkPSJwYXRoMTA0MS01IgogICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIgLz48cGF0aAogICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzAwMDAwMDtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMjtzdHJva2UtbGluZWNhcDpidXR0O3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6MS4wNTgzMzMyNiwgMC41MjkxNjY2MjtzdHJva2UtZGFzaG9mZnNldDowO3N0cm9rZS1vcGFjaXR5OjEiCiAgICAgICBkPSJNIDE0OS4yNDc3NywzNC44OTgwNjUgViA3MS45MDU5ODIiCiAgICAgICBpZD0icGF0aDEwNDEtNS05IgogICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIgLz48dGV4dAogICAgICAgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIKICAgICAgIHN0eWxlPSJmb250LXN0eWxlOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7Zm9udC1zaXplOjcuMDU1NTU1MzRweDtsaW5lLWhlaWdodDoxLjI1O2ZvbnQtZmFtaWx5OnNhbnMtc2VyaWY7bGV0dGVyLXNwYWNpbmc6MHB4O3dvcmQtc3BhY2luZzowcHg7ZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyIgogICAgICAgeD0iMTA4LjAzNDAxIgogICAgICAgeT0iNTIuOTg2ODM1IgogICAgICAgaWQ9InRleHQ4MzQtMiI+PHRzcGFuCiAgICAgICAgIHNvZGlwb2RpOnJvbGU9ImxpbmUiCiAgICAgICAgIGlkPSJ0c3BhbjgzMi0yIgogICAgICAgICB4PSIxMDguMDM0MDEiCiAgICAgICAgIHk9IjUyLjk4NjgzNSIKICAgICAgICAgc3R5bGU9ImZvbnQtc2l6ZTo1LjY0NDQ0NDQ3cHg7c3Ryb2tlLXdpZHRoOjAuMjY0NTgzMzIiPmhlYWRheGlzbGVuZ3RoPC90c3Bhbj48L3RleHQ+PHRleHQKICAgICAgIHhtbDpzcGFjZT0icHJlc2VydmUiCiAgICAgICBzdHlsZT0iZm9udC1zdHlsZTpub3JtYWw7Zm9udC13ZWlnaHQ6bm9ybWFsO2ZvbnQtc2l6ZTo3LjA1NTU1NTM0cHg7bGluZS1oZWlnaHQ6MS4yNTtmb250LWZhbWlseTpzYW5zLXNlcmlmO2xldHRlci1zcGFjaW5nOjBweDt3b3JkLXNwYWNpbmc6MHB4O2ZpbGw6IzAwMDAwMDtmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMiIKICAgICAgIHg9IjExMS4zOTAzNyIKICAgICAgIHk9IjY1LjgxNTAwMiIKICAgICAgIGlkPSJ0ZXh0ODM0LTItOCI+PHRzcGFuCiAgICAgICAgIHNvZGlwb2RpOnJvbGU9ImxpbmUiCiAgICAgICAgIGlkPSJ0c3BhbjgzMi0yLTkiCiAgICAgICAgIHg9IjExMS4zOTAzNyIKICAgICAgICAgeT0iNjUuODE1MDAyIgogICAgICAgICBzdHlsZT0iZm9udC1zaXplOjUuNjQ0NDQ0NDdweDtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMiI+aGVhZGxlbmd0aDwvdHNwYW4+PC90ZXh0PjxwYXRoCiAgICAgICBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojMDAwMDAwO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyO3N0cm9rZS1saW5lY2FwOmJ1dHQ7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheToxLjA1ODMzMzIzLCAwLjUyOTE2NjYyO3N0cm9rZS1kYXNob2Zmc2V0OjA7c3Ryb2tlLW9wYWNpdHk6MSIKICAgICAgIGQ9Im0gNDkuMjQ3NzY3LDM5Ljg5ODA2NiBoIC03LjAxNjE4IgogICAgICAgaWQ9InBhdGgxMDQxLTciCiAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIiAvPjxwYXRoCiAgICAgICBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojMDAwMDAwO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyO3N0cm9rZS1saW5lY2FwOmJ1dHQ7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheToxLjA1ODMzMzI0LCAwLjUyOTE2NjYzO3N0cm9rZS1kYXNob2Zmc2V0OjA7c3Ryb2tlLW9wYWNpdHk6MSIKICAgICAgIGQ9Im0gNDkuMjQ3NzY5LDI5Ljg5ODA2NyBoIC03LjAxNjE4IgogICAgICAgaWQ9InBhdGgxMDQxLTctNiIKICAgICAgIGlua3NjYXBlOmNvbm5lY3Rvci1jdXJ2YXR1cmU9IjAiIC8+PGcKICAgICAgIGlkPSJnMTE1Ny0xIgogICAgICAgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDkuMjEzMTcyLDEwLjEzNDQ5MSkiPjxnCiAgICAgICAgIGlkPSJnMTE5MiI+PHBhdGgKICAgICAgICAgICBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojMDAwMDAwO3N0cm9rZS13aWR0aDowLjYwMDAwMDAyO3N0cm9rZS1saW5lY2FwOmJ1dHQ7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheTpub25lO3N0cm9rZS1vcGFjaXR5OjEiCiAgICAgICAgICAgZD0iTSA0My4zOTYzOTMsMzguMDE2NzcxIFYgMTEuNTAwNzI2IgogICAgICAgICAgIGlkPSJwYXRoODM2LTIiCiAgICAgICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIgLz48cGF0aAogICAgICAgICAgIHNvZGlwb2RpOnR5cGU9InN0YXIiCiAgICAgICAgICAgc3R5bGU9ImZpbGw6IzAwMDAwMDtmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC40Nzg3NzQ1NTtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eTowLjU4NTgyMDkzIgogICAgICAgICAgIGlkPSJwYXRoODM4LTkzIgogICAgICAgICAgIHNvZGlwb2RpOnNpZGVzPSIzIgogICAgICAgICAgIHNvZGlwb2RpOmN4PSI0My43MjcxMTkiCiAgICAgICAgICAgc29kaXBvZGk6Y3k9IjU4LjYzMzgzNSIKICAgICAgICAgICBzb2RpcG9kaTpyMT0iMC45MTYzODk1MiIKICAgICAgICAgICBzb2RpcG9kaTpyMj0iMC40NTgxOTQ3NiIKICAgICAgICAgICBzb2RpcG9kaTphcmcxPSIwLjUyMzU5ODc4IgogICAgICAgICAgIHNvZGlwb2RpOmFyZzI9IjEuNTcwNzk2MyIKICAgICAgICAgICBpbmtzY2FwZTpmbGF0c2lkZWQ9ImZhbHNlIgogICAgICAgICAgIGlua3NjYXBlOnJvdW5kZWQ9IjAiCiAgICAgICAgICAgaW5rc2NhcGU6cmFuZG9taXplZD0iMCIKICAgICAgICAgICBkPSJtIDQ0LjUyMDczNiw1OS4wOTIwMyAtMC43OTM2MTcsMCAtMC43OTM2MTYsMCAwLjM5NjgwOCwtMC42ODcyOTMgMC4zOTY4MDgsLTAuNjg3MjkyIDAuMzk2ODA5LDAuNjg3MjkyIHoiCiAgICAgICAgICAgaW5rc2NhcGU6dHJhbnNmb3JtLWNlbnRlci15PSItMC4yMjkwOTg2IgogICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEsMCwwLDEuNDc4ODczMSwtMC4zMzA3Mjg4MSwtNzUuNTQ3ODE1KSIgLz48cGF0aAogICAgICAgICAgIHNvZGlwb2RpOnR5cGU9InN0YXIiCiAgICAgICAgICAgc3R5bGU9ImZpbGw6IzAwMDAwMDtmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC40Nzg3NzQ1NTtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eTowLjU4NTgyMDkzIgogICAgICAgICAgIGlkPSJwYXRoODM4LTMtMSIKICAgICAgICAgICBzb2RpcG9kaTpzaWRlcz0iMyIKICAgICAgICAgICBzb2RpcG9kaTpjeD0iNDQuMzY0OTU2IgogICAgICAgICAgIHNvZGlwb2RpOmN5PSI1OC45NjIzNTciCiAgICAgICAgICAgc29kaXBvZGk6cjE9IjAuOTE2Mzg5NTIiCiAgICAgICAgICAgc29kaXBvZGk6cjI9IjAuNDU4MTk0NzkiCiAgICAgICAgICAgc29kaXBvZGk6YXJnMT0iMC41MjM1OTg3OCIKICAgICAgICAgICBzb2RpcG9kaTphcmcyPSIxLjU3MDc5NjMiCiAgICAgICAgICAgaW5rc2NhcGU6ZmxhdHNpZGVkPSJmYWxzZSIKICAgICAgICAgICBpbmtzY2FwZTpyb3VuZGVkPSIwIgogICAgICAgICAgIGlua3NjYXBlOnJhbmRvbWl6ZWQ9IjAiCiAgICAgICAgICAgZD0ibSA0NS4xNTg1NzMsNTkuNDIwNTUxIC0wLjc5MzYxNywwIC0wLjc5MzYxNywwIDAuMzk2ODA5LC0wLjY4NzI5MiAwLjM5NjgwOCwtMC42ODcyOTIgMC4zOTY4MDgsMC42ODcyOTIgeiIKICAgICAgICAgICBpbmtzY2FwZTp0cmFuc2Zvcm0tY2VudGVyLXk9IjAuMjI5MDk2OTMiCiAgICAgICAgICAgdHJhbnNmb3JtPSJtYXRyaXgoMC41LC0xLjI4MDc0MTcsMC44NjYwMjU0LDAuNzM5NDM2NTUsLTI5Ljg0ODk4NCw1MS42Mjk0NzkpIgogICAgICAgICAgIGlua3NjYXBlOnRyYW5zZm9ybS1jZW50ZXIteD0iMS4xODc2OTllLTA2IiAvPjwvZz48L2c+PHBhdGgKICAgICAgIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiMwMDAwMDA7c3Ryb2tlLXdpZHRoOjAuMjY0NTgzMzI7c3Ryb2tlLWxpbmVjYXA6YnV0dDtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6NDtzdHJva2UtZGFzaGFycmF5OjEuMDU4MzMzMjQsIDAuNTI5MTY2NjM7c3Ryb2tlLWRhc2hvZmZzZXQ6MDtzdHJva2Utb3BhY2l0eToxIgogICAgICAgZD0iTSA5OS4yNDc3NjgsNDkuODk4MDY3IEggOTIuMjMxNTg5IgogICAgICAgaWQ9InBhdGgxMDQxLTctOSIKICAgICAgIGlua3NjYXBlOmNvbm5lY3Rvci1jdXJ2YXR1cmU9IjAiIC8+PHBhdGgKICAgICAgIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiMwMDAwMDA7c3Ryb2tlLXdpZHRoOjAuMjY0NTgzMzI7c3Ryb2tlLWxpbmVjYXA6YnV0dDtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6NDtzdHJva2UtZGFzaGFycmF5OjEuMDU4MzMzMjUsIDAuNTI5MTY2NjM7c3Ryb2tlLWRhc2hvZmZzZXQ6MDtzdHJva2Utb3BhY2l0eToxIgogICAgICAgZD0ibSA5OS4yNDc3NjgsMTkuODk4MDY3IGggLTcuMDE2MTgiCiAgICAgICBpZD0icGF0aDEwNDEtNy02LTQiCiAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIiAvPjx0ZXh0CiAgICAgICB4bWw6c3BhY2U9InByZXNlcnZlIgogICAgICAgc3R5bGU9ImZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtd2VpZ2h0Om5vcm1hbDtmb250LXNpemU6NS42NDQ0NDQ0N3B4O2xpbmUtaGVpZ2h0OjEuMjU7Zm9udC1mYW1pbHk6c2Fucy1zZXJpZjtsZXR0ZXItc3BhY2luZzowcHg7d29yZC1zcGFjaW5nOjBweDtmaWxsOiMwMDAwMDA7ZmlsbC1vcGFjaXR5OjE7c3Ryb2tlOm5vbmU7c3Ryb2tlLXdpZHRoOjAuMjY0NTgzMzIiCiAgICAgICB4PSI2My44OTk4MjIiCiAgICAgICB5PSIyNi42ODU2IgogICAgICAgaWQ9InRleHQ4MzQtNyI+PHRzcGFuCiAgICAgICAgIHNvZGlwb2RpOnJvbGU9ImxpbmUiCiAgICAgICAgIGlkPSJ0c3BhbjgzMi04IgogICAgICAgICB4PSI2My44OTk4MjIiCiAgICAgICAgIHk9IjI2LjY4NTYiCiAgICAgICAgIHN0eWxlPSJmb250LXNpemU6NS42NDQ0NDQ0N3B4O3N0cm9rZS13aWR0aDowLjI2NDU4MzMyIj5oZWFkd2lkdGg8L3RzcGFuPjwvdGV4dD48ZwogICAgICAgaWQ9Imc4NjAtOC0wLTQiCiAgICAgICB0cmFuc2Zvcm09Im1hdHJpeCgwLDEsLTEuNDY3NzMyOCwwLDIzMy43NzgxNSwyNy4wMjE3MDQpIgogICAgICAgc3R5bGU9InN0cm9rZS13aWR0aDoxLjAwMzc4Nzg4Ij48ZwogICAgICAgICBpZD0iZzEyNTQiPjxwYXRoCiAgICAgICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzAwMDAwMDtzdHJva2Utd2lkdGg6MC40OTUyNTM3MTtzdHJva2UtbGluZWNhcDpidXR0O3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2Utb3BhY2l0eToxIgogICAgICAgICAgIGQ9Ik0gNDMuNzI3MTIxLDEyNC41Nzc3NSBWIDU4Ljc1Njg3OSIKICAgICAgICAgICBpZD0icGF0aDgzNi03LTItNSIKICAgICAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIiAvPjxwYXRoCiAgICAgICAgICAgc29kaXBvZGk6dHlwZT0ic3RhciIKICAgICAgICAgICBzdHlsZT0iZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjQ4MDU4ODExO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheTpub25lO3N0cm9rZS1vcGFjaXR5OjAuNTg1ODIwOTMiCiAgICAgICAgICAgaWQ9InBhdGg4MzgtOS0zLTAiCiAgICAgICAgICAgc29kaXBvZGk6c2lkZXM9IjMiCiAgICAgICAgICAgc29kaXBvZGk6Y3g9IjQzLjcyNzExOSIKICAgICAgICAgICBzb2RpcG9kaTpjeT0iNTguNjMzODM1IgogICAgICAgICAgIHNvZGlwb2RpOnIxPSIwLjkxNjM4OTUyIgogICAgICAgICAgIHNvZGlwb2RpOnIyPSIwLjQ1ODE5NDc2IgogICAgICAgICAgIHNvZGlwb2RpOmFyZzE9IjAuNTIzNTk4NzgiCiAgICAgICAgICAgc29kaXBvZGk6YXJnMj0iMS41NzA3OTYzIgogICAgICAgICAgIGlua3NjYXBlOmZsYXRzaWRlZD0iZmFsc2UiCiAgICAgICAgICAgaW5rc2NhcGU6cm91bmRlZD0iMCIKICAgICAgICAgICBpbmtzY2FwZTpyYW5kb21pemVkPSIwIgogICAgICAgICAgIGQ9Im0gNDQuNTIwNzM2LDU5LjA5MjAzIC0wLjc5MzYxNywwIC0wLjc5MzYxNiwwIDAuMzk2ODA4LC0wLjY4NzI5MyAwLjM5NjgwOCwtMC42ODcyOTIgMC4zOTY4MDksMC42ODcyOTIgeiIKICAgICAgICAgICBpbmtzY2FwZTp0cmFuc2Zvcm0tY2VudGVyLXk9Ii0wLjIyOTA5ODYiIC8+PHBhdGgKICAgICAgICAgICBzb2RpcG9kaTp0eXBlPSJzdGFyIgogICAgICAgICAgIHN0eWxlPSJmaWxsOiMwMDAwMDA7ZmlsbC1vcGFjaXR5OjE7c3Ryb2tlOm5vbmU7c3Ryb2tlLXdpZHRoOjAuNDgwNTg4MTE7c3Ryb2tlLW1pdGVybGltaXQ6NDtzdHJva2UtZGFzaGFycmF5Om5vbmU7c3Ryb2tlLW9wYWNpdHk6MC41ODU4MjA5MyIKICAgICAgICAgICBpZD0icGF0aDgzOC0zLTItNy0zIgogICAgICAgICAgIHNvZGlwb2RpOnNpZGVzPSIzIgogICAgICAgICAgIHNvZGlwb2RpOmN4PSI0NC4zNjQ5NTYiCiAgICAgICAgICAgc29kaXBvZGk6Y3k9IjU4Ljk2MjM1NyIKICAgICAgICAgICBzb2RpcG9kaTpyMT0iMC45MTYzODk1MiIKICAgICAgICAgICBzb2RpcG9kaTpyMj0iMC40NTgxOTQ3OSIKICAgICAgICAgICBzb2RpcG9kaTphcmcxPSIwLjUyMzU5ODc4IgogICAgICAgICAgIHNvZGlwb2RpOmFyZzI9IjEuNTcwNzk2MyIKICAgICAgICAgICBpbmtzY2FwZTpmbGF0c2lkZWQ9ImZhbHNlIgogICAgICAgICAgIGlua3NjYXBlOnJvdW5kZWQ9IjAiCiAgICAgICAgICAgaW5rc2NhcGU6cmFuZG9taXplZD0iMCIKICAgICAgICAgICBkPSJtIDQ1LjE1ODU3Myw1OS40MjA1NTEgLTAuNzkzNjE3LDAgLTAuNzkzNjE3LDAgMC4zOTY4MDksLTAuNjg3MjkyIDAuMzk2ODA4LC0wLjY4NzI5MiAwLjM5NjgwOCwwLjY4NzI5MiB6IgogICAgICAgICAgIGlua3NjYXBlOnRyYW5zZm9ybS1jZW50ZXIteT0iMC4yMjkwOTY5MyIKICAgICAgICAgICB0cmFuc2Zvcm09InJvdGF0ZSgtNjAsMTAwLjk5NjQsOTIuMzk1MDQ1KSIKICAgICAgICAgICBpbmtzY2FwZTp0cmFuc2Zvcm0tY2VudGVyLXg9IjEuMTg3Njk5ZS0wNiIgLz48L2c+PC9nPjxwYXRoCiAgICAgICBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojMDAwMDAwO3N0cm9rZS13aWR0aDowLjI2NDU4MzM1O3N0cm9rZS1saW5lY2FwOmJ1dHQ7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheToxLjA1ODMzMzI5LCAwLjUyOTE2NjYzO3N0cm9rZS1kYXNob2Zmc2V0OjA7c3Ryb2tlLW9wYWNpdHk6MSIKICAgICAgIGQ9Ik0gNDkuMjQ3NzY0LDM5Ljg5ODA2NyBWIDcyLjMwOTUyMyIKICAgICAgIGlkPSJwYXRoMTA0MS02IgogICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIgLz48dGV4dAogICAgICAgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIKICAgICAgIHN0eWxlPSJmb250LXN0eWxlOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7Zm9udC1zaXplOjUuNjQ0NDQ0NDdweDtsaW5lLWhlaWdodDoxLjI1O2ZvbnQtZmFtaWx5OnNhbnMtc2VyaWY7bGV0dGVyLXNwYWNpbmc6MHB4O3dvcmQtc3BhY2luZzowcHg7ZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyIgogICAgICAgeD0iOTMuMjI5NDA4IgogICAgICAgeT0iNzYuNTc4NDUzIgogICAgICAgaWQ9InRleHQ4MzQtNy0xIj48dHNwYW4KICAgICAgICAgc29kaXBvZGk6cm9sZT0ibGluZSIKICAgICAgICAgaWQ9InRzcGFuODMyLTgtMCIKICAgICAgICAgeD0iOTMuMjI5NDA4IgogICAgICAgICB5PSI3Ni41Nzg0NTMiCiAgICAgICAgIHN0eWxlPSJmb250LXNpemU6NS42NDQ0NDQ0N3B4O3N0cm9rZS13aWR0aDowLjI2NDU4MzMyIj5sZW5ndGg8L3RzcGFuPjwvdGV4dD48Y2lyY2xlCiAgICAgICBzdHlsZT0iZmlsbDojMTE1NTdjO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheToxLjA1ODMzMzI2LCAwLjUyOTE2NjYzO3N0cm9rZS1kYXNob2Zmc2V0OjA7c3Ryb2tlLW9wYWNpdHk6MC41ODU4MjA5MyIKICAgICAgIGlkPSJwYXRoMTI3NCIKICAgICAgIGN4PSI0OS4yNjI1NjYiCiAgICAgICBjeT0iMjkuODk2MzYiCiAgICAgICByPSIwLjg1MDQ0NjQiIC8+PGNpcmNsZQogICAgICAgc3R5bGU9ImZpbGw6IzExNTU3YztmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6MS4wNTgzMzMyNywgMC41MjkxNjY2MztzdHJva2UtZGFzaG9mZnNldDowO3N0cm9rZS1vcGFjaXR5OjAuNTg1ODIwOTMiCiAgICAgICBpZD0icGF0aDEyNzQtNiIKICAgICAgIGN4PSI0OS4yNjI1NjYiCiAgICAgICBjeT0iMzkuNzQ3MzY0IgogICAgICAgcj0iMC44NTA0NDY0IiAvPjxjaXJjbGUKICAgICAgIHN0eWxlPSJmaWxsOiMxMTU1N2M7ZmlsbC1vcGFjaXR5OjE7c3Ryb2tlOm5vbmU7c3Ryb2tlLXdpZHRoOjAuMjY0NTgzMzI7c3Ryb2tlLW1pdGVybGltaXQ6NDtzdHJva2UtZGFzaGFycmF5OjEuMDU4MzMzMjcsIDAuNTI5MTY2NjM7c3Ryb2tlLWRhc2hvZmZzZXQ6MDtzdHJva2Utb3BhY2l0eTowLjU4NTgyMDkzIgogICAgICAgaWQ9InBhdGgxMjc0LTMiCiAgICAgICBjeD0iOTkuMjUzNjE2IgogICAgICAgY3k9IjE5Ljk1MDQ4OSIKICAgICAgIHI9IjAuODUwNDQ2NCIgLz48Y2lyY2xlCiAgICAgICBzdHlsZT0iZmlsbDojMTE1NTdjO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheToxLjA1ODMzMzI4LCAwLjUyOTE2NjYzO3N0cm9rZS1kYXNob2Zmc2V0OjA7c3Ryb2tlLW9wYWNpdHk6MC41ODU4MjA5MyIKICAgICAgIGlkPSJwYXRoMTI3NC0zLTIiCiAgICAgICBjeD0iOTkuMjUzNjMyIgogICAgICAgY3k9IjQ5Ljg4MDk1MSIKICAgICAgIHI9IjAuODUwNDQ2NCIgLz48Y2lyY2xlCiAgICAgICBzdHlsZT0iZmlsbDojMTE1NTdjO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO3N0cm9rZS13aWR0aDowLjI2NDU4MzMyO3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheToxLjA1ODMzMzI3LCAwLjUyOTE2NjYzO3N0cm9rZS1kYXNob2Zmc2V0OjA7c3Ryb2tlLW9wYWNpdHk6MC41ODU4MjA5MyIKICAgICAgIGlkPSJwYXRoMTI3NC0wIgogICAgICAgY3g9IjEwNC4xOTgxMSIKICAgICAgIGN5PSIyOS43OTE2MjYiCiAgICAgICByPSIwLjg1MDQ0NjQiIC8+PGNpcmNsZQogICAgICAgc3R5bGU9ImZpbGw6IzExNTU3YztmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6MS4wNTgzMzMyOCwgMC41MjkxNjY2MztzdHJva2UtZGFzaG9mZnNldDowO3N0cm9rZS1vcGFjaXR5OjAuNTg1ODIwOTMiCiAgICAgICBpZD0icGF0aDEyNzQtNi02IgogICAgICAgY3g9IjEwNC4xOTgxMSIKICAgICAgIGN5PSIzOS42NDI2MzIiCiAgICAgICByPSIwLjg1MDQ0NjQiIC8+PGNpcmNsZQogICAgICAgc3R5bGU9ImZpbGw6IzExNTU3YztmaWxsLW9wYWNpdHk6MTtzdHJva2U6bm9uZTtzdHJva2Utd2lkdGg6MC4yNjQ1ODMzMjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6MS4wNTgzMzMyOCwgMC41MjkxNjY2MztzdHJva2UtZGFzaG9mZnNldDowO3N0cm9rZS1vcGFjaXR5OjAuNTg1ODIwOTMiCiAgICAgICBpZD0icGF0aDEyNzQtMy0xIgogICAgICAgY3g9IjE0OS4yNDg4OSIKICAgICAgIGN5PSIzNC44Nzg0MjkiCiAgICAgICByPSIwLjg1MDQ0NjQiIC8+PC9nPjwvc3ZnPgo=)
+
+```python
+plt.quiver(
+	X: Optional[typing.Sequence[(N)] | typing.Sequence[(M, N)]],
+    Y: Optional[typing.Sequence[(N)] | typing.Sequence[(M, N)]],
+    U: typing.Sequence[(N)] | typing.Sequence[(M, N)],
+    V: typing.Sequence[(N)] | typing.Sequence[(M, N)],
+    C: Optional[typing.Sequence[(N)] | typing.Sequence[(M, N)]],
+    angles: Literal["uv", "xy"] | typing.Sequence = “uv”,
+    pivot: Literal["tail", "mid", "middle", "tip"] = "tail",
+    scale: Optional[float]
+    scale_units: Optional[Literal["width", "height", "dots", "inches", "x", "y", "xy"]]
+    units: Literal["width", "height", "dots", "inches", "x", "y", "xy"] = "width",
+    width: Optional[float],
+    headwidth: float = 3,
+    headlength: float = 5,
+    headaxislength: float = 4.5,
+    minshaft: float = 1,
+    minlength: float = 1,
+    color: Optional[COLOR_LIKE | typing.Sequence[COLOR_LIKE]],
+    data: Optional[typing.SupportIndex],
+    **kwargs: {<matplotlib.collections.PolyCollection>:
+    	agg_filter: callable[typing.Sequence[(M, N, 3)], float],
+        alpha: typing.Sequence[float[0, 1]] | float[0, 1] | None,
+        animated: bool,
+        antialiased / aa / antialiaseds: bool | list[bool],
+        array: typing.Sequence | None,
+        capstyle: matplotlib._enums.CapStyle | Literal["butt", "projecting", "round"],
+        clim: tuple[float, float], # (vmin, vmax)
+        clip_box: matplotlib.transforms.BboxBase | None,
+        clip_on: bool,
+        clip_path: matplotlib.patches.Patch | tuple[matplotlib.patches.Patch, matplotlib.transforms.Transform] | None,
+        cmap: matplotlib.colors.Colormap | str | None,
+        color: COLOR_LIKE | list[COLOR_LIKE],
+        edgecolor / ec / edgecolors: COLOR_LIKE | list[COLOR_LIKE],
+        facecolor / fc / facecolors: COLOR_LIKE | list[COLOR_LIKE],
+        figure: matplotlib.figure.Figure,
+        gid: str,
+        hatch: Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"],
+        in_layout: bool,
+        joinstyle: matplotlib._enums.JoinStyle | Literal["miter", "round", "bevel"],
+        label: object,
+        linestyle / dashes / linestyles / ls: str | tuple[str] | list[str],
+        linewidth / linewidths / lw: float | list[float],
+        mouseover: bool,
+        norm: matplotlib.colors.Normalize | str | None,
+        offset_transform / transOffset: matplotlib.transforms.Transform,
+        offsets: typing.Sequence[(N, 2)] | typing.Sequence[(2)],
+        path_effects: list[matplotlib.patheffects.AbstractPathEffects],
+        paths: list[typing.Sequence],
+        picker: None | bool | float | callable,
+        pickradius: float,
+        rasterized: bool,
+        sizes: numpy.ndarray | None,
+        sketch_params: tuple[float, float, float], # (scale, length, randomness)
+        snap: bool | None,
+        transform: matplotlib.transforms.Transform,
+        url: str,
+        urls: list[str] | None,
+        verts: list[typing.Sequence],
+        verts_and_codes,
+        visiable: bool,
+        zorder: float
+    }
+) -> matplotlib.quiver.Quiver
+```
+
+`X`、`Y`表示箭头起始位置，`U`、`V`表示箭头指向（如果给定了形参`scale`，则不是箭头终点）。
+
+- `X`/`Y`/`U`/`V`都是`float`，绘制单一箭头：
+
+  ```python
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  plt.quiver(0, 0, 10, 10)
+  plt.show()
+  ```
+
+- `X`/`Y`/`U`/`V`都是`list[float]`，绘制多个箭头：
+
+  ```python
+  import matplotlib.pyplot as plt
+  
+  plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+  plt.rcParams["axes.unicode_minus"] = False
+  plt.rcParams["figure.autolayout"] = True
+  
+  X = [0, 2]
+  Y = [0, 0]
+  U = [1, 1]
+  V = [1, 1]
+  
+  plt.quiver(X, Y, U, V)
+  plt.show()
+  ```
+
+形参`angles`指定了确定箭头方向的方法。`"xy"`表示相对于坐标轴，`"uv"`表示相对于屏幕。形参`scale_units`指定了`scale`的单位。
+
+形参`scale`反映了箭头上刻度的稠密程度，间接影响了箭头的长度。该值与箭头长度呈反比例关系。
+
+```python
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X = [0, 2]
+Y = [0, 0]
+U = [1, -1]
+V = [1, -1]
+
+plt.xlim([-5, 5])
+plt.ylim([-5, 5])
+plt.quiver(X, Y, U, V, scale_units="xy", scale=1)
+plt.show()
+```
+
+使用`numpy.meshgrid()`，我们就能快速地创建向量场图像。形参`cmap`的缺省值是``None`。给定形参`C`时，`cmap`会自动设为`"viridis"`。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(range(-10, 11), range(-10, 11))
+U, V = np.cos(Y), np.sin(X)
+C = U + V
+plt.quiver(X, Y, U, V, X)
+plt.axis("equal")
+plt.show()
+```
+
+## §2.18 流线图(`plt.streamplot()`)
+
+`plt.streamplot()`用于绘制流线图。
+
+```python
+plt.streamplot(
+	x: typing.Sequence[(N)] | typing.Sequence[(M, N)],
+    y: typing.Sequence[(N)] | typing.Sequence[(M, N)],,
+    u: typing.Sequence[(M, N)],
+    v: typing.Sequence[(M, N)],
+    density: float | tuple[float, float],
+    linewidth: float | typing.Sequence[(M, N)],
+    color: COLOR_LIKE | typing.Sequence[(M, N):COLOR_LIKE],
+    cmap: matplotlib.colors.Colormap,
+    norm: matplotlib.colors.Normalize,
+    arrowsize: float,
+    arrowstyle: str,
+    minlength: float,
+    start_points: typing.Sequence[(N, 2)],
+    zorder: float,
+    maxlength: float,
+    integration_direction: Literal["forward", "backward", "both"] = "both",
+    data: Optional[typing.SupportIndex],
+    broken_streamlines: bool = True
+) -> matplotlib.streamplot.StreamplotSet{
+	.lines: matplotlib.collections.LineCollection,
+    .arrows: matplotlib.collections.PatchCollection
+}
+```
+
+在场论中，我们记一个二维向量场为$\overrightarrow{\mathbf{F}}(x,y)$，可以$\overrightarrow{\mathbf{F}}$分解为两个正交分量，即$U$和$V$。Matplotlib参考了场论使用的符号。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(np.linspace(-2, 2, 10), np.linspace(-2, 2, 10))
+U, V = X**2 - Y - 1, Y**2 - X + 1
+
+plt.streamplot(X, Y, U, V)
+plt.xlim([-2, 2])
+plt.ylim([-2, 2])
+plt.show()
+```
+
+形参`density`表示流线的密度，缺省值为`1`。也可以使用`tuple[float, float]`控制不同方向的密度。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(np.linspace(-2, 2, 10), np.linspace(-2, 2, 10))
+U, V = X**2 - Y - 1, Y**2 - X + 1
+
+fig, axes = plt.subplots(1, 4, figsize=(10, 3))
+for ax, density in zip(axes, [0.25, 0.5, 1, 2]):
+    ax.streamplot(X, Y, U, V, density=density)
+    ax.set_xlim([-2, 2])
+    ax.set_ylim([-2, 2])
+    ax.set_title(f"density:{density}")
+plt.show()
+```
+
+`linewidth: float | typing.Sequence[(M, N):float]`用于控制流线的宽度。配合`color`和`cmap`使用可以实现更绚丽的效果。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+X, Y = np.meshgrid(np.linspace(-2, 2, 10), np.linspace(-2, 2, 10))
+U, V = X**2 - Y - 1, Y**2 - X + 1
+length = U**2 + V**2
+length /= length.max()
+length *= 10
+
+result = plt.streamplot(X, Y, U, V, color=length, cmap="hsv", linewidth=length)
+plt.colorbar() # 或者plt.colorbar(result.lines)
+plt.show()
+```
+
+## §2.19 表格图(`plt.table()`)
+
+`plt.table()`用于绘制表格。
+
+```python
+plt.table(
+	cellText: Optional[list[list[str]]],
+    cellColours: Optional[list[list[COLOR_LIKE]]],
+    cellLoc: Literal["left", "center", "right"],
+    colWidths: Optional[list[float]],
+    rowLabels: Optional[list[str]],
+    rowColours: Optional[list[COLOR_LIKE]],
+    rowLoc: Literal["left", "center", "right"],
+    colLabels: Optional[list[str]],
+    colColours: Optional[list[COLOR_LIKE]],
+    colLoc: Literal["left", "center", "right"],
+    bbox: Optional[matplotlib.transforms.Bbox | tuple[float, float, float, float]], # (xmin, ymin, width, height)
+    edges: "BRTL".slice() | Literal["open", "closed", "horizontal", "vertical"],
+    **kwargs: {<matplotlib.table.Ta>:}
+) -> matplotlib.table.Table
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
