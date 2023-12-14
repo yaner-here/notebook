@@ -1340,7 +1340,7 @@ ax[1].plot([0, 2])
 plt.show()
 ```
 
-由于`axes`也可能是`numpy.ndarray`，所以我们可以使用Numpy数组提供的高级索引功能：
+由于`axes`也可能是`numpy.ndarray`，所以我们可以使用NumPy数组提供的高级索引功能：
 
 ```python
 import numpy as np
@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                               
+>                                                 
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                               
+>                                                 
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -2498,16 +2498,6 @@ plt.show()
 > plt.show()
 > ```
 
-
-
-TODO：？？？？？？？？？？？？？
-
-
-
-
-
-
-
 详见[Matplotlib官方文档](https://matplotlib.org/stable/users/explain/colors/colormap-manipulation.html#colormap-manipulation)。TODO：
 
 > 注意：散点图`scatter()`需要同时指定`c`和`cmap`两个参数，而折线图`plot()`只需要指定`c: matplotlib.colors.LinearSegmentedColormap`。
@@ -3541,6 +3531,8 @@ plt.imshow(z2, alpha=0.6, extent=extent)
 
 plt.show()
 ```
+
+形参`origin`和`extent`的用法，参考[Matplotlib官方文档](https://matplotlib.org/stable/users/explain/artists/imshow_extent.html#imshow-extent)。TODO：
 
 ## §2.5 柱状图(`plt.bar()`/`plt.barh()`)
 
@@ -5827,45 +5819,481 @@ plt.show()
 
 ```python
 plt.table(
-	cellText: Optional[list[list[str]]],
+	cellText: Optional[list[list[str]]], # 数据
     cellColours: Optional[list[list[COLOR_LIKE]]],
     cellLoc: Literal["left", "center", "right"],
     colWidths: Optional[list[float]],
-    rowLabels: Optional[list[str]],
-    rowColours: Optional[list[COLOR_LIKE]],
+    rowLabels: Optional[list[str]], # 行标签内容
+    rowColours: Optional[list[COLOR_LIKE]], # 行标签背景颜色
     rowLoc: Literal["left", "center", "right"],
-    colLabels: Optional[list[str]],
+    colLabels: Optional[list[str]], # 列标签内容
     colColours: Optional[list[COLOR_LIKE]],
     colLoc: Literal["left", "center", "right"],
     bbox: Optional[matplotlib.transforms.Bbox | tuple[float, float, float, float]], # (xmin, ymin, width, height)
     edges: "BRTL".slice() | Literal["open", "closed", "horizontal", "vertical"],
-    **kwargs: {<matplotlib.table.Ta>:}
+    **kwargs: {<matplotlib.table.Table>:}
 ) -> matplotlib.table.Table
 ```
 
+形参`loc`表示单元格的位置，与[§1.3 图例(`plt.legend()`)](##§1.3 图例(`plt.legend()`))中的`loc`效果类似，但是具体的数字有所区别。
 
+| `loc`字符串      | `loc`等价数字 | `loc`字符串      | `loc`等价数字 |
+| ---------------- | ------------- | ---------------- | ------------- |
+| `"best"`         | `0`           | `"center"`       | `9`           |
+| `"upper right1"` | `1`           | `"top right"`    | `10`          |
+| `"upper left"`   | `2`           | `"top left"`     | `11`          |
+| `"lower left"`   | `3`           | `"upper left"`   | `12`          |
+| `"lower right"`  | `4`           | `"bottom right"` | `13`          |
+| `"center left"`  | `5`           | `"right"`        | `14`          |
+| `"center right"` | `6`           | `"left"`         | `15`          |
+| `"lower center"` | `7`           | `"top"`          | `16`          |
+| `"upper center"` | `8`           | `"bottom"`       | `17`          |
 
+```python
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+data = [[100, 200], [300, 400], [500, 600]]
+plt.table(
+    cellText = data,
+    colColours = ["#66ccff", "#9999ff"],
+    colLabels = ["1", "2"],
+    rowLabels = ["A", "B", "C"],
+    rowColours = ["lightblue", "lightyellow", "lightgreen"],
+    loc = "bottom"
+)
+plt.plot(data)
+plt.xticks([])
+plt.show()
+```
 
+## §2.20 3D绘图
 
+在使用`subplot()`函数创建子图时，使用形参`projection="3D"`，可以建立3D绘图。
 
+```python
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+ax = plt.subplot(projection="3d")
+plt.show()
+```
 
+我们可以使用`ax.view_init()`初始化视角。
 
+```python
+mpl_toolkits.mplot3d.axes3d.Axes3D.view_init(
+	# 单位均为角度
+    elev: float = None, # 垂直平面的仰角
+    azim: float = None, # 水平面的方位角
+    roll: float = None,
+    vertical_axis = None, # 垂直对齐的轴，视角围绕该轴旋转
+    share: bool = False
+)
+```
 
+### §2.20.1 3D折线图(`ax.plot3D()`)
 
+在创建3D绘图后，我们可以使用`ax.plot(x, y, z)`或`ax.plot3D(x, y, z)`绘制3D折线图。
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+z = np.linspace(0, 1, 100)
+x = np.sin(10 * z)
+y = np.cos(10 * z)
 
+ax = plt.subplot(projection="3d")
+ax.plot3D(x, y, z) # 或ax.plot(x, y, z)
+plt.show()
+```
 
+### §2.20.2 3D散点图(`ax.scatter3D()`)
 
+在创建3D绘图后，我们可以使用`ax.scatter(x, y, z)`或`ax.scatter3D(x, y, z)`绘制3D折线图。
 
+```python
+import numpy as np
+import matplotlib.pyplot as plt
 
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
 
+z = np.linspace(0, 1, 100)
+x = np.sin(10 * z)
+y = np.cos(10 * z)
 
+ax = plt.subplot(projection="3d")
+ax.scatter3D(x, y, z) # 或ax.scatter(x, y, z)
+plt.show()
+```
+
+### §2.20.3 3D曲面(`ax.plot_surface()`)
+
+`ax.plot_surface()`用于绘制3D曲面。
+
+```python
+mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface(
+	X, Y, Z: typing.Sequence[(M, N)],
+    rcount / ccount: int = 50, # 每个方向的最大样本数，与rstride/cstride不能同时使用
+    rstride / cstride: int = 10, # 每个方向的向下采样步幅，与rcount/ccount不能同时使用
+    color: COLOR_LIKE,
+    cmap: matplotlib.colors.Colormap,
+    facecolors: typing.Sequence[COLOR_LIKE],
+    norm: matplotlib.colors.Normalize,
+    vmin / vmax: float,
+    shade: bool = True,
+    lightsource: matplotlib.colors.LightSource,
+    **kwargs: {<mpl_toolkits.mplot3d.art3d.Poly3DCollection>:}
+)
+```
+
+这里我们使用Matplotlib提供的测试数据为例：
+
+```python
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x, y, z = mpl_toolkits.mplot3d.axes3d.get_test_data(0.05)
+
+ax = plt.subplot(projection="3d")
+ax.plot_surface(x, y, z, cmap="hsv")
+plt.show()
+```
+
+我们通常使用`np.meshgrid()`创建曲面：
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x, y = np.meshgrid(np.linspace(-1, 1, 100), np.linspace(-1, 1, 100))
+z = x ** 2 + y ** 2 + 2 * np.exp(-(x ** 2 + y ** 2))
+
+ax = plt.subplot(projection="3d")
+result = ax.plot_surface(x, y, z, cmap="hsv")
+plt.colorbar(result)
+plt.show()
+```
+
+### §2.20.4 3D网格(`ax.plot_wireframe()`)
+
+`ax.plot_wireframe()`用于绘制3D网格。
+
+```python
+mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface(
+	X, Y, Z: typing.Sequence[(M, N)],
+    rcount / ccount: int = 50, # 每个方向的最大样本数，与rstride/cstride不能同时使用
+    rstride / cstride: int = 1, # 每个方向的向下采样步幅，与rcount/ccount不能同时使用
+    **kwargs: {<mpl_toolkits.mplot3d.art3d.Line3DCollection>:}
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x, y = np.meshgrid(np.linspace(-1, 1, 100), np.linspace(-1, 1, 100))
+z = x ** 2 + y ** 2 + 2 * np.exp(-(x ** 2 + y ** 2))
+
+ax = plt.subplot(projection="3d")
+ax.plot_wireframe(x, y, z, colors="blue")
+plt.show()
+```
+
+### §2.20.5 3D轮廓图/3D等高线图(`ax.contourf3D()`/`ax.contour3D()`)
+
+`ax.contourf(x, y, z)`或`ax.contourf3D(x, y, z)`用于绘制3D轮廓图；`ax.contour3D(x, y, z)`或`ax.contour3D(x, y, z)`用于绘制3D等高线图。
+
+这两个函数有一个非常重要的参数：`zdir: Literal["x", "y", "z"]`。它会将3D轮廓图投影到`zdir`表示的平面上，而`offset: float`表示平面在`zdir`轴上的位置。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x, y = np.meshgrid(np.linspace(-1, 1, 100), np.linspace(-1, 1, 100))
+z = x ** 2 + y ** 2 + 2 * np.exp(-(x ** 2 + y ** 2))
+
+ax = plt.subplot(projection="3d")
+ax.plot_surface(x, y, z)
+ax.contourf3D(x, y, z, zdir="x", offset=-2)
+ax.contourf3D(x, y, z, zdir="y", offset=2)
+ax.contourf3D(x, y, z, zdir="z", offset=1)
+ax.set_xlim([-3, 2])
+ax.set_ylim([-3, 3])
+ax.set_zlim([0, 3])
+plt.show()
+```
+
+### §2.20.6 3D箭头图(`ax.quiver3D()`)
+
+`ax.quiver(x, y, z, u, v, w)`或`ax.quiver3D(x, y, z, u, v, w)`用于绘制3D箭头图。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+x, y, z = np.meshgrid(
+    np.linspace(-1, 1, 5),
+    np.linspace(-1, 1, 5),
+    np.linspace(-1, 1, 5),
+)
+u, v, w = (
+    np.cos(x),
+    np.sin(y),
+    np.sin(z)
+)
+ax = plt.subplot(projection="3d")
+ax.quiver3D(x, y, z, u, v, w, length=0.1)
+ax.set_xlim([-1, 1])
+ax.set_ylim([-1, 1])
+ax.set_zlim([-1, 1])
+plt.show()
+```
+
+### §2.20.7 3D柱状图(`ax.bar()`/`ax.bar3d()`)
+
+`ax.bar()`或`ax.bar3d()`用于绘制3D柱状图。（不是`ax.bar3D()`，只能小写）
+
+```python
+mpl_toolkits.mplot3d.axes3d.Axes3D.bar(
+	left: typing.Sequence[(N)], # 长条的横坐标
+    height: typing.Sequence[(N)], # 长条的高度
+    zs: float | typing.Sequence[(N)], # 所在平面在zdir轴上的坐标
+    zdir: Literal["x", "y", "z"],
+    data: Optional[typing.SupportIndex],
+    **kwargs:{<matplotlib.axes.Axes.bar>:}
+) -> mpl_toolkits.mplot3d.art3d.Patch3DCollection
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+ax = plt.subplot(projection="3d")
+for zs in range(5):
+    ax.bar(
+        left = np.arange(10),
+        height = np.random.randint(1, 10, 10),
+        zs = zs,
+        zdir = "y",
+        alpha = 0.7
+    )
+plt.show()
+```
+
+`ax.bar3d()`的特殊之处在于，相比于`ax.bar()`的“纸片”，`ax.bar3d()`可以创建有厚度的柱形，而且可以不沿直线排列。
+
+```python
+mpl_toolkits.mplot3d.axes3d.Axes3D.bar3d(
+	x, y, z: typing.Sequence,
+    dx, dy, dz: typing.Sequence, # 长，宽，高
+    color: Optional[typing.Sequence[COLOR_LIKE]],
+    zsort: Optional[str],
+    shade: bool = True,
+    lightsource: matplotlib.colors.LightSource,
+    data: Optional[],
+    **kwargs: {mpl_toolits.mplot3d.art3d.Poly3DCollection}
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+ax = plt.subplot(projection="3d")
+x, y = np.meshgrid(range(10), range(10))
+dz = (np.sin(x) + y + 1) * 0.2
+ax.bar3d(
+    x = x.flat,
+    y = y.flat,
+    z = 0,
+    dx = 0.2,
+    dy = 0.2,
+    dz = dz.flat
+)
+plt.show()
+```
+
+> 注意：`ax.bar3d()`只能接受一维的数组，因此`np.meshgrid()`返回的二维数组是不能直接使用的，必须经过`.flat`、`.flatten()`、`.ravel()`展开成一维数组。其中`.ravel()`不会创建新副本，而`.flatten()`会占用新的空间。
+
+形参`shade: bool`表示是否添加阴影，即各个面的亮度是否受朝向影响。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+ax = plt.subplot(projection="3d")
+x, y = np.meshgrid(range(5), range(5))
+dz = (np.sin(x) + y + 1) * 0.2
+ax.bar3d(
+    x = x.flat,
+    y = y.flat,
+    z = 0,
+    dx = 0.8,
+    dy = 0.8,
+    dz = dz.flat,
+    shade = True
+)
+plt.show()
+```
+
+## §2.21 动画
+
+Matplotlib可以通过`animation`模块绘制动图。
+
+### §2.21.1 函数动画(`maplotlib.animation.FuncAnimation`)
+
+```python
+matplotlib.animation.FuncAanimation.__init__(
+	fig: matplotlib.figure.Figure,
+    func: callable,
+    frames: Optional[typing.iterable | typing.Generator |int | None] = None,
+    init_func: Optional[callable],
+    fargs: tuple[None] = None,
+    save_count: Optional[int] = None,
+    interval: int = 200, # 刷新时间间隔
+    repeat_delay: int = 0, # 循环动画之间的毫秒间隔
+    repeat: bool = True, # 动画是否循环播换
+    blit: bool = False, # 是否使用Blit技术优化
+    *,
+    cache_frame_data: bool = True
+)
+```
+
+`init_func: callable`会在动画开始前执行一次。然后每隔`interval`毫秒，就会调用一次`func: callable[int]`，传入一个`int`数字（从`0`开始，一直到`frames-1`）。
+
+这里我们获取`ax.plot()->[matplotlib.lines.Line2D]`返回的线条实例，使用其中的`.set_data([], [])`、`.set_xdata([])`、`.set_ydata([])`方法改变线条，从而实现动画效果。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+def init():
+    line.set_data([], [])
+    # return line,
+
+def animate(i):
+    x = np.linspace(0, 2 * np.pi, 80)
+    y = np.sin(2 * (x - 0.02 * i))
+    line.set_data(x, y)
+    # return line,
+
+fig, ax = plt.subplots(1,1)
+ax.set_xlim([0, np.pi * 2])
+ax.set_ylim([-2, 2])
+line = ax.plot([], [], lw=3)[0]
+
+animation = matplotlib.animation.FuncAnimation(
+    fig = fig, 
+    func = animate, 
+    frames = 200, 
+    init_func = init, 
+    interval = 20
+)
+plt.show()
+```
+
+### §2.21.2 幻灯片动画(`matplotlib.animation.ArtistAnimation`)
+
+`matplotlib.animation.ArtistAnimation`的核心思想是：将所有图像都预先绘制好，用一个`list`套起来，最后像幻灯片一样放映。
+
+```python
+matplotlib.animation.ArtistAnimation.__init__(
+	fig: matplotlib.figure.Figure,
+    artist: list[matplotlib.collections.Collection],
+    *,
+    interval: int = 200, # 刷新时间间隔
+    repeat_delay: int = 0, # 循环动画之间的毫秒间隔
+    repeat: bool = True, # 动画是否循环播换
+    blit: bool = False, # 是否使用Blit技术优化
+)
+```
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+def f(x, y):
+    return np.sin(x) + np.cos(y)
+x = np.linspace(0, 2 * np.pi, 100)
+y = np.linspace(0, 2 * np.pi, 100).reshape(-1, 1)
+picts = []
+fig, ax = plt.subplots()
+for i in range(50):
+    x += 2 * np.pi / 50
+    y += 2 * np.pi / 50
+    pict = ax.imshow(f(x, y), cmap='hsv')
+    picts.append([pict]) # 需要再包一个list
+
+animation = matplotlib.animation.ArtistAnimation(
+    fig, 
+    picts,
+    interval=50,
+    repeat_delay=0,
+    repeat=True
+)
+# animation.save("1.gif")
+plt.axis('off')
+plt.show()
+```
 
 # §A 附录
 
@@ -6314,184 +6742,3 @@ plt.show()
 | `rainbow`      | 彩虹    | `jet`           | 喷射     |
 | `turbo`        | 涡轮    | `nipy_spectral` | NIPY光谱 |
 | `gist_ncar`    | GNU汽车 |                 |          |
-
-
-
-12.12 19w+
-
-12.13 20w+
-
-12.14 21w+
-
-12.15 22w+
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
