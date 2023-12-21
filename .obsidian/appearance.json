@@ -1,7 +1,8 @@
 {
-  "baseFontSize": 16,
+  "baseFontSize": 17,
   "translucency": false,
   "monospaceFontFamily": "Cascadia Mono",
-  "cssTheme": "Royal Velvet",
-  "accentColor": ""
+  "cssTheme": "Catppuccin",
+  "accentColor": "",
+  "textFontFamily": "HYZhengYuan,Consolas"
 }
