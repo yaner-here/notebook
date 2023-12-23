@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                                 
+>                                                   
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                                 
+>                                                   
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
@@ -6742,3 +6742,23 @@ plt.show()
 | `rainbow`      | 彩虹    | `jet`           | 喷射     |
 | `turbo`        | 涡轮    | `nipy_spectral` | NIPY光谱 |
 | `gist_ncar`    | GNU汽车 |                 |          |
+
+## §B 起手式板子
+
+```python
+import typing, typing_extensions
+import itertools, random, pprint, collections, pydantic
+import matplotlib, matplotlib.artist, matplotlib.axes, matplotlib.cm, matplotlib.collections, matplotlib.colorbar, matplotlib.colors, matplotlib.figure, matplotlib.lines, matplotlib.mathtext, matplotlib.patches, matplotlib.ticker, matplotlib.ticker, matplotlib.typing, matplotlib.image
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = ["Microsoft JhengHei"]
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.autolayout"] = True
+
+# Code here ...
+
+plt.show()
+```
+
