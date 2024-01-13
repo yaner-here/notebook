@@ -11130,7 +11130,7 @@ h2.section {
 | 装饰属性        | -      | `color`、`background`、`opacity`、`cursor`                   |
 | 其他属性        | --     | `content`、`list-style`、`quotes`                            |
 
-## §18.4 重置默认样式
+## §18.4 重置默认样式(CSS Reset)
 
 我们知道，浏览器已经给部分HTML元素设置了默认样式，例如`<input type="button">`、`<ul><li>`等等。每种元素设置的默认样式种类都不一样，因此要重置所有默认样式时，会遇到以下几个问题：
 
@@ -11191,6 +11191,57 @@ q:before, q:after {
 table {
 	border-collapse: collapse;
 	border-spacing: 0;
+}
+```
+
+在之后的数年内，随着CSS的发展，有很多前端开发者对其进行了改良。例如[Josh Comeau](https://www.joshwcomeau.com/css/custom-css-reset/)的版本：
+
+```css
+/*
+  1. Use a more-intuitive box-sizing model.
+*/
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+/*
+  2. Remove default margin
+*/
+* {
+  margin: 0;
+}
+/*
+  Typographic tweaks!
+  3. Add accessible line-height
+  4. Improve text rendering
+*/
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+/*
+  5. Improve media defaults
+*/
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+/*
+  6. Remove built-in form typography styles
+*/
+input, button, textarea, select {
+  font: inherit;
+}
+/*
+  7. Avoid text overflows
+*/
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+/*
+  8. Create a root stacking context
+*/
+#root, #__next {
+  isolation: isolate;
 }
 ```
 

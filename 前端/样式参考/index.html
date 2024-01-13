@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { display: flex; }
+        body > * {
+            margin: 1rem;
+        }
+    </style>
+    <title>Document</title>
+</head>
+<body>
+
+    <style>
+        .card-1 {
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 5px 5px 30px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+    <div class="card-1" style="width: 20rem; height: 12rem;">透明卡片</div>
+    
+    <style>
+        .button-1 {
+            border-radius: 1.5rem;
+            background: linear-gradient(#fff, rgb(0 0 0 / 0.02));
+            --shadow-color: rgb(0 0 0 / 0.06);
+            box-shadow: 
+                0px 0px 0px 1px var(--shadow-color),
+                0px 1px 1px -0.5px var(--shadow-color),
+                0px 3px 3px -1.5px var(--shadow-color),
+                0px 6px 6px -3px var(--shadow-color),
+                0px 12px 12px -6px var(--shadow-color),
+                0px 24px 24px -12px var(--shadow-color)
+            ;
+        }
+    </style>
+    <div class="button-1" style="width: 8rem; height: 3rem;">苹果风格按钮</div>
+
+    <style>
+        .button-2 {
+            outline-style: solid;
+
+            outline-width: 5px;
+            box-shadow: 0 0 0 0 #F4BD50;
+            outline-color: black;
+            outline-offset: 0px;
+            
+            transition: all 200ms cubic-bezier(0.36, 0.63, 0.5, 0.73);
+        }
+        .button-2:hover {
+            outline-width: 0px;
+            box-shadow: 0 0 0 5px #F4BD50;
+            outline-color: rgba(255, 255, 255, 0);
+            outline-offset: 15px;
+        }
+    </style>
+    <div class="button-2" style="width: 8rem; height: 3rem;">边框扩张按钮</div>
+
+    <style>
+        .text-1 {
+            font-size: xx-large;
+            font-weight: bold;
+        }
+        &::before {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: -10%;
+            right: -10%;
+            height: 4px;
+            border-radius: 4px;
+            margin-top: -2px;
+            transform: scale(0);
+            transition: transform 0.8s cubic-bezier(0.16, 1.08, 0.38, 0.98);
+            z-index: 1;
+        }
+    </style>
+    <div class="text-1">测试文本Text</div>
+</body>
+</html>
