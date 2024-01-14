@@ -2,3 +2,4 @@
 .trash/**
 GPT_history/**
 ebooks/**
+node_modules/**
