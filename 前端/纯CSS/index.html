@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                background: url(./background.jpg) no-repeat center/cover;
+            }
+
+            header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                padding: 20px 100px;
+                background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .logo {
+                font-size: 1.5rem;
+                color: white;
+                user-select: none;
+            }
+
+            .navigation {
+                --margin-horizontal: 20px;
+
+                & * {
+                    font-size: 1.1rem;
+                    color: white;
+                }
+
+                &>a {
+                    position: relative;
+                    text-decoration: none;
+
+                    &::after {
+                        content: '';
+                        width: 100%;
+                        height: 2px;
+                        background-color: white;
+                        border-radius: 5px;
+
+                        position: absolute;
+                        left: 0;
+                        bottom: -2px;
+
+                        transition: all 0.2s ease;
+                        transform-origin: right;
+                        transform: scale(0);
+
+                    }
+
+                    &:hover::after {
+                        transform-origin: left;
+                        transform: scale(1);
+                    }
+
+                    &+a {
+                        margin-left: var(--margin-horizontal);
+                    }
+                }
+
+                .btnLogin-popup {
+                    width: 130px;
+                    height: 50px;
+                    background: transparent;
+                    border: 2px solid white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    margin-left: var(--margin-horizontal);
+                    transition: 0.1s;
+
+                    &:hover {
+                        background: white;
+                        color: #162938;
+                    }
+                }
+            }
+
+            .wrapper {
+                --width: 400px;
+                position: relative;
+                width: var(--width);
+                height: 440px;
+                border: 2px solid rgba(255, 255, 255, 0.5);
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(20px);
+                box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+
+                display: flex;
+                justify-content: center;
+                align-items: center;
+
+                overflow: hidden;
+
+                &>.form-box {
+                    width: 100%;
+                    padding: 40px;
+
+                    &>h2 {
+                        font-size: 2em;
+                        text-align: center;
+                    }
+
+                    & .input-box {
+                        position: relative;
+                        width: 100%;
+                        height: 50px;
+                        border-bottom: 2px solid #162938;
+                        margin: 30px 0;
+
+                        & label {
+                            position: absolute;
+                            top: 50%;
+                            left: 5px;
+                            transform: translateY(-50%);
+                            font-size: 1em;
+                            pointer-events: none;
+                            /* 防止显示在input图层之上 */
+                            transition: 0.2s;
+                        }
+
+                        & input {
+                            width: 100%;
+                            height: 100%;
+                            background: transparent;
+                            border: none;
+                            outline: none;
+                            /* 防止选中input时产生边框 */
+                            font-size: large;
+                            padding: 0 35px 0 5px;
+
+                            &:focus~label,
+                            &:valid~label {
+                                font-size: 0.8em;
+                                top: -5px;
+                            }
+                        }
+                    }
+
+                    & .remember-forgot {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 0.9rem;
+                        margin: -15px 0 15px;
+
+                        & label input {
+                            accent-color: #162938;
+                            margin-right: 3px;
+                        }
+
+                        & a {
+                            color: black;
+                            text-decoration: none;
+
+                            &:hover {
+                                text-decoration: underline;
+                            }
+                        }
+                    }
+
+                    & .btn {
+                        height: 3em;
+                        width: 100%;
+                        background: #162938;
+                        border: none;
+                        outline: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 1em;
+                        color: white;
+                        font-weight: bold;
+                    }
+
+                    & .switch-link {
+                        font-size: 0.9em;
+                        text-align: center;
+                        margin: 1em 0 10px;
+
+                        & a {
+                            color: black;
+                            text-decoration: none;
+                            font-weight: bold;
+                        }
+                    }
+                }
+
+                transition: all 0.2s ease;
+
+                &.active {
+                    height: 520px;
+                }
+
+                &>.login {
+                    transition: transform 0.2s ease;
+                    transform: translateX(0);
+                }
+
+                &>.register {
+                    position: absolute;
+                    transition: transform 0.2s ease;
+                    transform: translateX(var(--width));
+                }
+
+                &.active .register {
+                    transition: transform 0.2s ease;
+                    transform: none;
+                }
+
+                &.active .login {
+                    transition: transform 0.2s ease;
+                    transform: translateX(calc(-1 * var(--width)));
+                }
+
+                transform: scale(0);
+
+                &.active-popup {
+                    transform: scale(1);
+                }
+
+            }
+
+            .icon-close {
+                width: 3rem;
+                height: 3rem;
+                border-bottom-left-radius: 20px;
+
+                color: white;
+                font-size: 3em;
+                text-indent: 0.15em;
+                line-height: 0.9em;
+
+                position: absolute;
+                top: 0;
+                right: 0;
+                cursor: pointer;
+                background-color: rgba(0, 0, 0, 0.6);
+                z-index: 1;
+                /* 防止padding覆盖 */
+            }
+        </style>
+
+    </head>
+
+    <body>
+        <header>
+            <h2 class="logo">Logo</h2>
+            <nav class="navigation">
+                <a href="#">Home</a>
+                <a href="#">About</a>
+                <a href="#">Service</a>
+                <a href="#">Contact</a>
+                <button class="btnLogin-popup">Login</button>
+            </nav>
+        </header>
+
+        <div class="wrapper active-popup">
+            <div class="icon-close">×</div>
+            <div class="form-box login">
+                <h2>Login</h2>
+                <form action="#">
+                    <div class="input-box">
+                        <span class="icon"></span>
+                        <!-- <input type="email" required> BUG:当用户输入非邮箱数据时，判定为非valid，导致字符重叠 -->
+                        <input type="email" required>
+                        <label>Email</label>
+                    </div>
+                    <div class="input-box">
+                        <span class="icon"></span>
+                        <input type="password" required>
+                        <label>Password</label>
+                    </div>
+                    <div class="remember-forgot">
+                        <label><input type="checkbox">Remember me</label>
+                        <a href="#">Forgot Password?</a>
+                    </div>
+                    <button type="submit" class="btn">Login</button>
+                    <div class="switch-link">
+                        <p>Don't have an account? <a class="register-link" href="#">Register</a></p>
+                    </div>
+                </form>
+            </div>
+            <div class="form-box register">
+                <h2>Register</h2>
+                <form action="#">
+                    <div class="input-box">
+                        <span class="icon"></span>
+                        <input type="text" required>
+                        <label>Username</label>
+                    </div>
+                    <div class="input-box">
+                        <span class="icon"></span>
+                        <input type="email" required>
+                        <label>Email</label>
+                    </div>
+                    <div class="input-box">
+                        <span class="icon"></span>
+                        <input type="password" required>
+                        <label>Password</label>
+                    </div>
+                    <div class="remember-forgot">
+                        <label><input type="checkbox">Agree to terms and conditions</label>
+                    </div>
+                    <button type="submit" class="btn">Login</button>
+                    <div class="switch-link">
+                        <p>Already have an account? <a class="login-link" href="#">Login</a></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script>
+            const wrapper = document.querySelector('.wrapper');
+            const loginLink = document.querySelector('.login-link');
+            const registerLink = document.querySelector('.register-link');
+            const buttonPopup = document.querySelector('.btnLogin-popup');
+            const iconClose = document.querySelector('.icon-close');
+            registerLink.addEventListener('click', () => {
+                wrapper.classList.add('active');
+            });
+            loginLink.addEventListener('click', () => {
+                wrapper.classList.remove('active');
+            });
+            buttonPopup.addEventListener('click', () => {
+                wrapper.classList.toggle('active-popup');
+            });
+            iconClose.addEventListener('click', () => {
+                wrapper.classList.toggle('active-popup');
+            })
+        </script>
+    </body>
+
+</html>
