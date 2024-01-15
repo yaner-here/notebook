@@ -83,6 +83,8 @@ Bootstrap提供了两种容器元素，分别是`.container`和`.container-fluid
 
 Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
 
+### §1.2.1 `.row`/`.col`
+
 默认的`.row`和`.col`负责启用Flex布局与指定默认宽度，此时还没有Flex的12个格子这一说法：
 
 ```css
@@ -109,8 +111,6 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
 }
 ```
 
-
-
 ```html
 <!DOCTYPE html>
 <html lang="zh_CN">
@@ -134,7 +134,7 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
 </html>
 ```
 
-`.col-1`、`.col-2`、...、`.col-12`将Flex布局假想分割为12等份，然后占据其中的几等份：
+`.col-1`、`.col-2`、...、`.col-12`将Flex布局假想分割为12等份，然后占据其中的几等份。从这里开始出现“12份”的说法，当一行的元素份数之和超过12份时会被换行：
 
 ```css
 .col-1 {
@@ -164,9 +164,11 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
     </head>
     <body>
         <div class="row bg-light border">
-            <div class="col-3">123</div>
-            <div class="col-6">123</div>
-            <div class="col-3">123</div>
+            <div class="col-3 border">123</div>
+            <div class="col-6 border">123</div>
+            <div class="col-3 border">123</div>
+            <div class="col-5 border">123</div>
+            <div class="col-5 border">123</div>
         </div>
     </body>
 </html>
@@ -227,3 +229,244 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
     </body>
 </html>
 ```
+
+如果我们要换行，其实不用非要让上一层的各元素宽度之和达到12份。Bootstrap提供了`.w-100`让一行没有高度的元素单独占一列，于是后面的元素自然换到了下一行：
+
+```css
+.w-100 {
+  width: 100% !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="row">
+            <div class="col border bg-light">栏目</div>
+            <div class="col border bg-light">栏目</div>
+            <div class="w-100"></div>
+            <div class="col border bg-light">栏目</div>
+            <div class="col border bg-light">栏目</div>
+        </div>
+    </body>
+</html>
+```
+
+由于Flex布局原生支持嵌套，因此Bootstrap中的这两个属性也可以嵌套：
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="row bg-light border">
+                <div class="border">嵌套列演示</div>
+                <div class="col-8 border">
+                    <div>左侧列</div>
+                    <div class="row border">
+                        <div class="col-6 border">嵌套列</div>
+                        <div class="col-6 border">嵌套列</div>
+                    </div>
+                </div>
+                <div class="col-4 border">右侧列</div>
+        </div>
+    </body>
+</html>
+```
+
+
+
+### §1.2.2 `.order`
+
+`.order-first`、`.order-last`、`.order-<数字>`通过改变原生CSS中的`order`属性值，来调整Flex布局中的元素顺序：
+
+```css
+.order-first {
+  order: -1 !important;
+}
+.order-0 {
+  order: 0 !important;
+}
+.order-1 {
+  order: 1 !important;
+}
+.order-2 {
+  order: 2 !important;
+}
+.order-3 {
+  order: 3 !important;
+}
+.order-4 {
+  order: 4 !important;
+}
+.order-5 {
+  order: 5 !important;
+}
+.order-last {
+  order: 6 !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="row bg-light border">
+            <div class="col border order-last">1+.order-last</div>
+            <div class="col border">2</div>
+            <div class="col border order-first">3+.order-first</div>
+        </div>
+    </body>
+</html>
+```
+
+### §1.2.3 `.offset`
+
+`.offset-<数字>`通过调整原生CSS的`margin-left`属性值，使得目标元素向右移动的“份”数。
+
+```css
+.offset-1 {
+  margin-left: 8.33333333%;
+}
+.offset-2 {
+  margin-left: 16.66666667%;
+}
+.offset-3 {
+  margin-left: 25%;
+}
+.offset-4 {
+  margin-left: 33.33333333%;
+}
+.offset-5 {
+  margin-left: 41.66666667%;
+}
+.offset-6 {
+  margin-left: 50%;
+}
+.offset-7 {
+  margin-left: 58.33333333%;
+}
+.offset-8 {
+  margin-left: 66.66666667%;
+}
+.offset-9 {
+  margin-left: 75%;
+}
+.offset-10 {
+  margin-left: 83.33333333%;
+}
+.offset-11 {
+  margin-left: 91.66666667%;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="row bg-light border">
+            <div class="col-6 offset-3 bg-warning">col-6 + offset-3</div>
+        </div>
+</html>
+```
+
+同样的，`.offset`也提供了对应的响应式属性`.offset-<BREAK_POINT>-<数字>`：
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="row bg-light border">
+            <div class="col-md-6 offset-md-3 bg-warning">col-md-6 + offset-md-3</div>
+        </div>
+        <div class="row bg-light border">
+            <div class="col-md-4 offset-md-1 bg-warning">col-md-6 + offset-md-3</div>
+            <div class="col-md-4 offset-md-2 bg-warning">col-md-6 + offset-md-3</div>
+        </div>
+        <div class="row bg-light border">
+            <div class="col-md-4 bg-warning">col-md-6 + offset-md-3</div>
+            <div class="col-md-4 offset-md-4 bg-warning">col-md-6 + offset-md-3</div>
+        </div>
+    </body>
+</html>
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+`.g-0`
+
+```css
+.row {
+  --bs-gutter-x: 1.5rem;
+  --bs-gutter-y: 0;
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: calc(-1 * var(--bs-gutter-y));
+  margin-right: calc(-0.5 * var(--bs-gutter-x));
+  margin-left: calc(-0.5 * var(--bs-gutter-x));
+}
+.row > * {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-right: calc(var(--bs-gutter-x) * 0.5);
+  padding-left: calc(var(--bs-gutter-x) * 0.5);
+  margin-top: var(--bs-gutter-y);
+}
+```
+
