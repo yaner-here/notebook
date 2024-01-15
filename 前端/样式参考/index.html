@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { display: flex; }
+        body { 
+            display: flex;
+            flex-wrap: wrap;
+        }
         body > * {
             margin: 1rem;
         }
@@ -61,24 +64,34 @@
 
     <style>
         .text-1 {
-            font-size: xx-large;
-            font-weight: bold;
+            text-spacing-trim: space-first;
         }
-        &::before {
-            content: "";
-            display: block;
-            position: absolute;
-            top: 50%;
-            left: -10%;
-            right: -10%;
-            height: 4px;
-            border-radius: 4px;
-            margin-top: -2px;
-            transform: scale(0);
-            transition: transform 0.8s cubic-bezier(0.16, 1.08, 0.38, 0.98);
-            z-index: 1;
+        /* 目前仅Safari、Chrome Canary开启text-autospace flags才能支持 */
+    </style>
+    <div>关闭标点挤压——他说：“《红楼梦》是一本名著。”</div>
+    <div class="text-1">开启标点挤压——他说：“《红楼梦》是一本名著。”</div>
+
+    <style>
+        .text-2 {
+            font-feature-settings: "tnum";
         }
     </style>
-    <div class="text-1">测试文本Text</div>
+    <div>数字不等宽：
+        <div>111.888</div>
+        <div>888.111</div>
+    </div>
+    <div class="text-2">数字等宽
+        <div class="text-2">111.888</div>
+        <div class="text-2">888.111</div>
+    </div>
+
+    <style>
+        .text-3 {
+            display: block;
+            width: 10rem;
+            text-indent: -0.577em;  
+        }
+    </style>
+    <div class="text-3">"This is a long sentence of quote."引号字符光学对齐</div>
 </body>
 </html>
