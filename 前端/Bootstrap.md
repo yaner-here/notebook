@@ -79,13 +79,13 @@ Bootstrap提供了两种容器元素，分别是`.container`和`.container-fluid
 | `.container-xl`  | `100%` | `100%` | `100%` | `100%` | `1140px` | `1320px` |
 | `.container-xll` | `100%` | `100%` | `100%` | `100%` | `100%` | `1320px` |
 
-## §1.2 Flex布局
+## §1.2 栅格布局
 
-Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
+Bootstrap使用自定义的`.row-*`和`-.col-*`来封装原生CSS的Flex布局，形成Bootstrap自己的栅格布局。
 
 ### §1.2.1 `.row`/`.col`
 
-默认的`.row`和`.col`负责启用Flex布局与指定默认宽度，此时还没有Flex的12个格子这一说法：
+默认的`.row`和`.col`负责启用Bootstrap的栅格布局与指定默认宽度，此时还没有Flex的12个格子这一说法：
 
 ```css
 .row {
@@ -134,7 +134,7 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
 </html>
 ```
 
-`.col-1`、`.col-2`、...、`.col-12`将Flex布局假想分割为12等份，然后占据其中的几等份。从这里开始出现“12份”的说法，当一行的元素份数之和超过12份时会被换行：
+`.col-1`、`.col-2`、...、`.col-12`将Bootstrap的栅格布局假想分割为12等份，然后占据其中的几等份。从这里开始出现“12份”的说法，当一行的元素份数之和超过12份时会被换行：
 
 ```css
 .col-1 {
@@ -260,7 +260,7 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
 </html>
 ```
 
-由于Flex布局原生支持嵌套，因此Bootstrap中的这两个属性也可以嵌套：
+由于原生CSS的Flex布局原生支持嵌套，因此Bootstrap中的这两个属性也可以嵌套：
 
 ```html
 <!DOCTYPE html>
@@ -288,11 +288,9 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
 </html>
 ```
 
-
-
 ### §1.2.2 `.order`
 
-`.order-first`、`.order-last`、`.order-<数字>`通过改变原生CSS中的`order`属性值，来调整Flex布局中的元素顺序：
+`.order-first`、`.order-last`、`.order-<数字>`通过改变原生CSS中的`order`属性值，来调整Bootstrap栅格布局中的元素顺序：
 
 ```css
 .order-first {
@@ -426,17 +424,262 @@ Bootstrap使用自定义的`.row-*`和`-.col-*`来封装Flex布局。
 </html>
 ```
 
+## §1.3 弹性布局
 
+Bootstrap使用自定义的`.d-flex`和`.d-inline-flex`来封装原生CSS的Flex布局，形成Bootstrap自己的弹性布局。
 
+### §1.3.1 `.d-flex`/`.d-inline-flex`
 
+`.d-flex`用于创建弹性布局，`.d-inline-flex`用于创建行内弹性布局。
 
+```css
+.d-flex {
+  display: flex !important;
+}
+.d-inline-flex {
+  display: inline-flex !important;
+}
+```
 
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="d-flex p-2 border bg-success">
+            <span>.d-flex</span>
+            <div class="bg-light border p-2 m-1">测试按钮</div>
+            <div class="bg-light border p-2 m-1">测试按钮</div>
+            <div class="bg-light border p-2 m-1">测试按钮</div>
+        </div>
+        <div class="d-inline-flex p-2 border bg-success">
+            <span>.d-inline-flex</span>
+            <div class="bg-light border p-2 m-1">测试按钮</div>
+            <div class="bg-light border p-2 m-1">测试按钮</div>
+            <div class="bg-light border p-2 m-1">测试按钮</div>
+        </div>
+    </body>
+</html>
+```
 
+同样地，Bootstrap也提供了相应的响应式属性`.d-<BREAK_POINT>-flex`和`.d-<BREAK_POINT>-inline-flex`。
 
+### §1.3.2 `.flex-row`/`.flex-column`
 
+Bootstrap通过设置原生CSS中的`flex-direction`属性值，为弹性布局提供了一系列决定排列方向的属性。
 
+```css
+.flex-row {
+  flex-direction: row !important;
+}
+.flex-column {
+  flex-direction: column !important;
+}
+.flex-row-reverse {
+  flex-direction: row-reverse !important;
+}
+.flex-column-reverse {
+  flex-direction: column-reverse !important;
+}
+```
 
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["flex-row", "flex-row-reverse", "flex-column-reverse", "flex-column"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <div class="d-flex ${className} p-2 m-3 border bg-success">
+                        <span>.${className}</span>
+                        <div class="bg-light border p-2 m-1">测试按钮1</div>
+                        <div class="bg-light border p-2 m-1">测试按钮2</div>
+                        <div class="bg-light border p-2 m-1">测试按钮3</div>
+                    </div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            })
+        </script>
+    </body>
+</html>
+```
 
+同样地，Bootstrap也提供了相应的响应式属性`.flex-<BREAK_POINT>-row`和`.flex-<BREAK_POINT>-column`。
+
+### §1.3.3 `.justify-content-*`
+
+Bootstrap通过更改原生CSS中的`justify-contnet`属性值，封装了一系列控制弹性布局元素排列的属性。
+
+```css
+.justify-content-start {
+  justify-content: flex-start !important;
+}
+.justify-content-end {
+  justify-content: flex-end !important;
+}
+.justify-content-center {
+  justify-content: center !important;
+}
+.justify-content-between {
+  justify-content: space-between !important;
+}
+.justify-content-around {
+  justify-content: space-around !important;
+}
+.justify-content-evenly {
+  justify-content: space-evenly !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["justify-content-start", "justify-content-end", "justify-content-center", "justify-content-between", "justify-content-around", "justify-content-evenly"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <span class="w-100">.${className}</span>
+                    <div class="d-flex flex-row ${className} p-2 m-3 border bg-success">
+                        <div class="bg-light border p-2 m-1">测试按钮1</div>
+                        <div class="bg-light border p-2 m-1">测试按钮2</div>
+                        <div class="bg-light border p-2 m-1">测试按钮3</div>
+                    </div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            })
+        </script>
+    </body>
+</html>
+```
+
+同样地，Bootstrap也提供了相应的响应式属性`.justify-content-<BREAK_POINT>-*`。
+
+### §1.3.4 `.align-items-*`
+
+Bootstrap通过更改原生CSS中的`align-items`属性值，封装了一系列控制弹性布局元素垂直对齐的属性。
+
+```css
+.align-items-start {
+  align-items: flex-start !important;
+}
+.align-items-end {
+  align-items: flex-end !important;
+}
+.align-items-center {
+  align-items: center !important;
+}
+.align-items-baseline {
+  align-items: baseline !important;
+}
+.align-items-stretch {
+  align-items: stretch !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["align-items-start", "align-items-end", "align-items-center", "align-items-baseline", "align-items-stretch"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <span class="w-100">.${className}</span>
+                    <div class="d-flex flex-row ${className} p-1 m-3 border bg-success" style="height:100px;">
+                        <div class="bg-light border p-2 m-1">测试按钮1</div>
+                        <div class="bg-light border p-2 m-1">测试按钮2</div>
+                        <div class="bg-light border p-2 m-1">测试按钮3</div>
+                    </div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            })
+        </script>
+    </body>
+</html>
+```
+
+同样地，Bootstrap也提供了相应的响应式属性`.align-items-<BREAK_POINT>-*`。
+
+### §1.3.5 `.align-self-*`
+
+Bootstrap通过更改原生CSS中的`align-self`属性值，封装了一系列控制弹性布局元素垂直对齐参考线的属性。
+
+```css
+.align-self-auto {
+  align-self: auto !important;
+}
+.align-self-start {
+  align-self: flex-start !important;
+}
+.align-self-end {
+  align-self: flex-end !important;
+}
+.align-self-center {
+  align-self: center !important;
+}
+.align-self-baseline {
+  align-self: baseline !important;
+}
+.align-self-stretch {
+  align-self: stretch !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["align-self-auto", "align-self-start", "align-self-end", "align-self-center", "align-self-baseline", "align-self-stretch"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <span class="w-100">.${className}</span>
+                    <div class="d-flex flex-row p-1 m-3 border bg-success" style="height:100px;">
+                        <div class="bg-light border p-2 m-1">测试按钮1</div>
+                        <div class="bg-light border p-2 m-1 ${className}">测试按钮2</div>
+                        <div class="bg-light border p-2 m-1">测试按钮3</div>
+                    </div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            })
+        </script>
+    </body>
+</html>
+```
+
+### §
 
 
 
