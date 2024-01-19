@@ -1113,7 +1113,7 @@ Bootstrap通过更改原生CSS中的`float`属性值，封装成了自己的浮�
 
 #### §1.4.2.1 文本对齐
 
-Bootstrap通过更改原生CSS中的`text-align`属性值，封装成了自己的浮动布局。
+Bootstrap提供了下面三个属性，用于更改原生CSS中的`text-align`属性值。
 
 ```css
 .text-start {
@@ -1153,17 +1153,220 @@ Bootstrap通过更改原生CSS中的`text-align`属性值，封装成了自己�
 
 同样地，Bootstrap也提供了相应的响应式属性`.text-<BREAK_POINT>-*`。
 
-#### §1.4.2.2 文本换行
+#### §1.4.2.2 文本换行(`.text-wrap`)
 
+Bootstrap提供了下面两个属性，用于更改原生CSS中的`white-space`属性值。
 
+```css
+.text-wrap {
+  white-space: normal !important;
+}
+.text-nowrap {
+  white-space: nowrap !important;
+}
+```
 
-#### §1.4.2.3 文本大小写
+#### §1.4.2.3 文本大小写(`.text-*case`)
 
+Bootstrap提供了下面三个属性，用于更改原生CSS中的`text-transform`属性值。
 
+```css
+.text-lowercase {
+  text-transform: lowercase !important;
+}
+.text-uppercase {
+  text-transform: uppercase !important;
+}
+.text-capitalize {
+  text-transform: capitalize !important;
+}
+```
 
-#### §1.4.2.4 文本加粗与斜体
+#### §1.4.2.4 文本加粗与斜体(`.fw-*`/`.fst-*`)
 
+Bootstrap提供了以下属性，用于更改原生CSS中的`font-weight`属性值。
 
+```css
+.fw-lighter {
+  font-weight: lighter !important;
+}
+.fw-light {
+  font-weight: 300 !important;
+}
+.fw-normal {
+  font-weight: 400 !important;
+}
+.fw-medium {
+  font-weight: 500 !important;
+}
+.fw-semibold {
+  font-weight: 600 !important;
+}
+.fw-bold {
+  font-weight: 700 !important;
+}
+.fw-bolder {
+  font-weight: bolder !important;
+}
+```
+
+Bootstrap提供了以下属性，用于更改原生CSS中的`font-style`属性值。
+
+```css
+.fst-italic {
+  font-style: italic !important;
+}
+.fst-normal {
+  font-style: normal !important;
+}
+```
+
+#### §1.4.2.5 文本大小(`.fs-*`)
+
+Bootstrap提供了以下属性，用于更改原生CSS中的`font-size`属性值。
+
+```css
+.fs-1 {
+  font-size: calc(1.375rem + 1.5vw) !important;
+}
+.fs-2 {
+  font-size: calc(1.325rem + 0.9vw) !important;
+}
+.fs-3 {
+  font-size: calc(1.3rem + 0.6vw) !important;
+}
+.fs-4 {
+  font-size: calc(1.275rem + 0.3vw) !important;
+}
+.fs-5 {
+  font-size: 1.25rem !important;
+}
+.fs-6 {
+  font-size: 1rem !important;
+}
+```
+
+#### §1.4.2.6 文本颜色(`.text-*`)
+
+Bootstrap提供了许多改变文本颜色的属性。
+
+| 属性名 | 作用 |
+| ------ | ---- |
+|`text-primary`|蓝色|
+|`text-secondary`|灰色|
+|`text-success`|浅绿色|
+|`text-danger`|浅红色|
+|`text-warning`|浅黄色|
+|`text-info`|浅蓝色|
+|`text-light`|浅灰色|
+|`text-dark`|深灰色|
+|`text-muted`|灰色|
+|`text-white`|白色|
+|`text-black-50`|半透明黑色|
+|`text-white-50`|半透明白色|
+|`text-inherit`|`inherit`|
+
+```css
+.text-primary {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-primary-rgb), var(--bs-text-opacity)) !important;
+}
+.text-secondary {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-secondary-rgb), var(--bs-text-opacity)) !important;
+}
+.text-success {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-success-rgb), var(--bs-text-opacity)) !important;
+}
+.text-info {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-info-rgb), var(--bs-text-opacity)) !important;
+}
+.text-warning {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-warning-rgb), var(--bs-text-opacity)) !important;
+}
+.text-danger {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-danger-rgb), var(--bs-text-opacity)) !important;
+}
+.text-light {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-light-rgb), var(--bs-text-opacity)) !important;
+}
+.text-dark {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-dark-rgb), var(--bs-text-opacity)) !important;
+}
+.text-black {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-black-rgb), var(--bs-text-opacity)) !important;
+}
+.text-white {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-white-rgb), var(--bs-text-opacity)) !important;
+}
+.text-body {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-body-color-rgb), var(--bs-text-opacity)) !important;
+}
+.text-muted {
+  --bs-text-opacity: 1;
+  color: var(--bs-secondary-color) !important;
+}
+.text-black-50 {
+  --bs-text-opacity: 1;
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+.text-white-50 {
+  --bs-text-opacity: 1;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <style>
+            body { background-color: antiquewhite; }
+        </style>
+        <script>
+            ["text-primary", "text-secondary", "text-success", "text-danger", "text-warning", "text-info", "text-light", "text-dark", "text-muted", "text-white"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <p class="${className}">${className}</p>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+#### §1.4.2.7 文本修饰(`.text-decoration-*`)
+
+Bootstrap提供了`text-decoration-*`属性，用于改变元素的`text-decoration`的属性值。
+
+```css
+.text-decoration-none {
+  text-decoration: none !important;
+}
+.text-decoration-underline {
+  text-decoration: underline !important;
+}
+.text-decoration-line-through {
+  text-decoration: line-through !important;
+}
+```
 
 ### §1.4.3 `.g-*`/`.gx-*`/`.gy-*`
 
@@ -1219,184 +1422,6 @@ Bootstrap内置了`.g-*`/`.gx-*`/`.gy-*`等属性，通过更改CSS变量的值�
   padding-right: calc(var(--bs-gutter-x) * 0.5);
   padding-left: calc(var(--bs-gutter-x) * 0.5);
   margin-top: var(--bs-gutter-y);
-}
-```
-
-### §1.4.4 `.rounded-*`
-
-Bootstrap`.rounded-*`用于改变元素的`border-radius`属性值，使其等于预置的CSS变量。
-
-```css
-.rounded {
-  border-radius: var(--bs-border-radius) !important;
-}
-.rounded-0 {
-  border-radius: 0 !important;
-}
-.rounded-1 {
-  border-radius: var(--bs-border-radius-sm) !important;
-}
-.rounded-2 {
-  border-radius: var(--bs-border-radius) !important;
-}
-.rounded-3 {
-  border-radius: var(--bs-border-radius-lg) !important;
-}
-.rounded-4 {
-  border-radius: var(--bs-border-radius-xl) !important;
-}
-.rounded-5 {
-  border-radius: var(--bs-border-radius-xxl) !important;
-}
-.rounded-circle {
-  border-radius: 50% !important;
-}
-.rounded-pill {
-  border-radius: var(--bs-border-radius-pill) !important;
-}
-.rounded-top {
-  border-top-left-radius: var(--bs-border-radius) !important;
-  border-top-right-radius: var(--bs-border-radius) !important;
-}
-.rounded-top-0 {
-  border-top-left-radius: 0 !important;
-  border-top-right-radius: 0 !important;
-}
-.rounded-top-1 {
-  border-top-left-radius: var(--bs-border-radius-sm) !important;
-  border-top-right-radius: var(--bs-border-radius-sm) !important;
-}
-.rounded-top-2 {
-  border-top-left-radius: var(--bs-border-radius) !important;
-  border-top-right-radius: var(--bs-border-radius) !important;
-}
-.rounded-top-3 {
-  border-top-left-radius: var(--bs-border-radius-lg) !important;
-  border-top-right-radius: var(--bs-border-radius-lg) !important;
-}
-.rounded-top-4 {
-  border-top-left-radius: var(--bs-border-radius-xl) !important;
-  border-top-right-radius: var(--bs-border-radius-xl) !important;
-}
-.rounded-top-5 {
-  border-top-left-radius: var(--bs-border-radius-xxl) !important;
-  border-top-right-radius: var(--bs-border-radius-xxl) !important;
-}
-.rounded-top-circle {
-  border-top-left-radius: 50% !important;
-  border-top-right-radius: 50% !important;
-}
-.rounded-top-pill {
-  border-top-left-radius: var(--bs-border-radius-pill) !important;
-  border-top-right-radius: var(--bs-border-radius-pill) !important;
-}
-.rounded-end {
-  border-top-right-radius: var(--bs-border-radius) !important;
-  border-bottom-right-radius: var(--bs-border-radius) !important;
-}
-.rounded-end-0 {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-}
-.rounded-end-1 {
-  border-top-right-radius: var(--bs-border-radius-sm) !important;
-  border-bottom-right-radius: var(--bs-border-radius-sm) !important;
-}
-.rounded-end-2 {
-  border-top-right-radius: var(--bs-border-radius) !important;
-  border-bottom-right-radius: var(--bs-border-radius) !important;
-}
-.rounded-end-3 {
-  border-top-right-radius: var(--bs-border-radius-lg) !important;
-  border-bottom-right-radius: var(--bs-border-radius-lg) !important;
-}
-.rounded-end-4 {
-  border-top-right-radius: var(--bs-border-radius-xl) !important;
-  border-bottom-right-radius: var(--bs-border-radius-xl) !important;
-}
-.rounded-end-5 {
-  border-top-right-radius: var(--bs-border-radius-xxl) !important;
-  border-bottom-right-radius: var(--bs-border-radius-xxl) !important;
-}
-.rounded-end-circle {
-  border-top-right-radius: 50% !important;
-  border-bottom-right-radius: 50% !important;
-}
-.rounded-end-pill {
-  border-top-right-radius: var(--bs-border-radius-pill) !important;
-  border-bottom-right-radius: var(--bs-border-radius-pill) !important;
-}
-.rounded-bottom {
-  border-bottom-right-radius: var(--bs-border-radius) !important;
-  border-bottom-left-radius: var(--bs-border-radius) !important;
-}
-.rounded-bottom-0 {
-  border-bottom-right-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
-}
-.rounded-bottom-1 {
-  border-bottom-right-radius: var(--bs-border-radius-sm) !important;
-  border-bottom-left-radius: var(--bs-border-radius-sm) !important;
-}
-.rounded-bottom-2 {
-  border-bottom-right-radius: var(--bs-border-radius) !important;
-  border-bottom-left-radius: var(--bs-border-radius) !important;
-}
-.rounded-bottom-3 {
-  border-bottom-right-radius: var(--bs-border-radius-lg) !important;
-  border-bottom-left-radius: var(--bs-border-radius-lg) !important;
-}
-.rounded-bottom-4 {
-  border-bottom-right-radius: var(--bs-border-radius-xl) !important;
-  border-bottom-left-radius: var(--bs-border-radius-xl) !important;
-}
-.rounded-bottom-5 {
-  border-bottom-right-radius: var(--bs-border-radius-xxl) !important;
-  border-bottom-left-radius: var(--bs-border-radius-xxl) !important;
-}
-.rounded-bottom-circle {
-  border-bottom-right-radius: 50% !important;
-  border-bottom-left-radius: 50% !important;
-}
-.rounded-bottom-pill {
-  border-bottom-right-radius: var(--bs-border-radius-pill) !important;
-  border-bottom-left-radius: var(--bs-border-radius-pill) !important;
-}
-.rounded-start {
-  border-bottom-left-radius: var(--bs-border-radius) !important;
-  border-top-left-radius: var(--bs-border-radius) !important;
-}
-.rounded-start-0 {
-  border-bottom-left-radius: 0 !important;
-  border-top-left-radius: 0 !important;
-}
-.rounded-start-1 {
-  border-bottom-left-radius: var(--bs-border-radius-sm) !important;
-  border-top-left-radius: var(--bs-border-radius-sm) !important;
-}
-.rounded-start-2 {
-  border-bottom-left-radius: var(--bs-border-radius) !important;
-  border-top-left-radius: var(--bs-border-radius) !important;
-}
-.rounded-start-3 {
-  border-bottom-left-radius: var(--bs-border-radius-lg) !important;
-  border-top-left-radius: var(--bs-border-radius-lg) !important;
-}
-.rounded-start-4 {
-  border-bottom-left-radius: var(--bs-border-radius-xl) !important;
-  border-top-left-radius: var(--bs-border-radius-xl) !important;
-}
-.rounded-start-5 {
-  border-bottom-left-radius: var(--bs-border-radius-xxl) !important;
-  border-top-left-radius: var(--bs-border-radius-xxl) !important;
-}
-.rounded-start-circle {
-  border-bottom-left-radius: 50% !important;
-  border-top-left-radius: 50% !important;
-}
-.rounded-start-pill {
-  border-bottom-left-radius: var(--bs-border-radius-pill) !important;
-  border-top-left-radius: var(--bs-border-radius-pill) !important;
 }
 ```
 
@@ -2006,19 +2031,1141 @@ Bootstrap提供了`.table-responsive`属性，当表格内容过长时，会自�
 }
 ```
 
-## §2.10 按钮(`.btn-*`)
+## §2.10 边框(`.border-*`)
+
+### §2.10.1 边框位置(`.border-*`)
+
+Bootstrap将原生CSS的`border-top`、`border-right`、`border-bottom`、`border-left`封装起来，形成了自己的属性——`border-top`、`border-end`、`border-bottom`、`border-start`。
+
+`.border-*`用于创建边框，而`.border-*-0`用于隐藏边框。
+
+```css
+.border {
+  border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+}
+.border-0 {
+  border: 0 !important;
+}
+.border-top {
+  border-top: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+}
+.border-top-0 {
+  border-top: 0 !important;
+}
+.border-end {
+  border-right: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+}
+.border-end-0 {
+  border-right: 0 !important;
+}
+.border-bottom {
+  border-bottom: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+}
+.border-bottom-0 {
+  border-bottom: 0 !important;
+}
+.border-start {
+  border-left: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+}
+.border-start-0 {
+  border-left: 0 !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["border", "border-top", "border-end", "border-bottom", "border-start"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <div style="width:10rem" class="m-2 ${className}">${className}</div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.10.2 边框颜色(`.border-*`)
+
+Bootstrap为边框设置了多种可选的颜色。
+
+```css
+.border-primary {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-primary-rgb), var(--bs-border-opacity)) !important;
+}
+.border-secondary {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-secondary-rgb), var(--bs-border-opacity)) !important;
+}
+.border-success {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-success-rgb), var(--bs-border-opacity)) !important;
+}
+.border-info {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-info-rgb), var(--bs-border-opacity)) !important;
+}
+.border-warning {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-warning-rgb), var(--bs-border-opacity)) !important;
+}
+.border-danger {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-danger-rgb), var(--bs-border-opacity)) !important;
+}
+.border-light {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-light-rgb), var(--bs-border-opacity)) !important;
+}
+.border-dark {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-dark-rgb), var(--bs-border-opacity)) !important;
+}
+.border-black {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-black-rgb), var(--bs-border-opacity)) !important;
+}
+.border-white {
+  --bs-border-opacity: 1;
+  border-color: rgba(var(--bs-white-rgb), var(--bs-border-opacity)) !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["border-primary", "border-secondary", "border-success", "border-danger", "border-warning", "border-info", "border-light", "border-dark", "border-white"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <div class="border m-2 ${className}">${className}</div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.10.3 圆角边框(`.rounded-*`)
+
+Bootstrap中的`.rounded-*`用于改变元素的`border-radius`属性值，使其等于预置的CSS变量。
+
+```css
+.rounded {
+  border-radius: var(--bs-border-radius) !important;
+}
+.rounded-0 {
+  border-radius: 0 !important;
+}
+.rounded-1 {
+  border-radius: var(--bs-border-radius-sm) !important;
+}
+.rounded-2 {
+  border-radius: var(--bs-border-radius) !important;
+}
+.rounded-3 {
+  border-radius: var(--bs-border-radius-lg) !important;
+}
+.rounded-4 {
+  border-radius: var(--bs-border-radius-xl) !important;
+}
+.rounded-5 {
+  border-radius: var(--bs-border-radius-xxl) !important;
+}
+.rounded-circle {
+  border-radius: 50% !important;
+}
+.rounded-pill {
+  border-radius: var(--bs-border-radius-pill) !important;
+}
+.rounded-top {
+  border-top-left-radius: var(--bs-border-radius) !important;
+  border-top-right-radius: var(--bs-border-radius) !important;
+}
+.rounded-top-0 {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+.rounded-top-1 {
+  border-top-left-radius: var(--bs-border-radius-sm) !important;
+  border-top-right-radius: var(--bs-border-radius-sm) !important;
+}
+.rounded-top-2 {
+  border-top-left-radius: var(--bs-border-radius) !important;
+  border-top-right-radius: var(--bs-border-radius) !important;
+}
+.rounded-top-3 {
+  border-top-left-radius: var(--bs-border-radius-lg) !important;
+  border-top-right-radius: var(--bs-border-radius-lg) !important;
+}
+.rounded-top-4 {
+  border-top-left-radius: var(--bs-border-radius-xl) !important;
+  border-top-right-radius: var(--bs-border-radius-xl) !important;
+}
+.rounded-top-5 {
+  border-top-left-radius: var(--bs-border-radius-xxl) !important;
+  border-top-right-radius: var(--bs-border-radius-xxl) !important;
+}
+.rounded-top-circle {
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+}
+.rounded-top-pill {
+  border-top-left-radius: var(--bs-border-radius-pill) !important;
+  border-top-right-radius: var(--bs-border-radius-pill) !important;
+}
+.rounded-end {
+  border-top-right-radius: var(--bs-border-radius) !important;
+  border-bottom-right-radius: var(--bs-border-radius) !important;
+}
+.rounded-end-0 {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.rounded-end-1 {
+  border-top-right-radius: var(--bs-border-radius-sm) !important;
+  border-bottom-right-radius: var(--bs-border-radius-sm) !important;
+}
+.rounded-end-2 {
+  border-top-right-radius: var(--bs-border-radius) !important;
+  border-bottom-right-radius: var(--bs-border-radius) !important;
+}
+.rounded-end-3 {
+  border-top-right-radius: var(--bs-border-radius-lg) !important;
+  border-bottom-right-radius: var(--bs-border-radius-lg) !important;
+}
+.rounded-end-4 {
+  border-top-right-radius: var(--bs-border-radius-xl) !important;
+  border-bottom-right-radius: var(--bs-border-radius-xl) !important;
+}
+.rounded-end-5 {
+  border-top-right-radius: var(--bs-border-radius-xxl) !important;
+  border-bottom-right-radius: var(--bs-border-radius-xxl) !important;
+}
+.rounded-end-circle {
+  border-top-right-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
+}
+.rounded-end-pill {
+  border-top-right-radius: var(--bs-border-radius-pill) !important;
+  border-bottom-right-radius: var(--bs-border-radius-pill) !important;
+}
+.rounded-bottom {
+  border-bottom-right-radius: var(--bs-border-radius) !important;
+  border-bottom-left-radius: var(--bs-border-radius) !important;
+}
+.rounded-bottom-0 {
+  border-bottom-right-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+.rounded-bottom-1 {
+  border-bottom-right-radius: var(--bs-border-radius-sm) !important;
+  border-bottom-left-radius: var(--bs-border-radius-sm) !important;
+}
+.rounded-bottom-2 {
+  border-bottom-right-radius: var(--bs-border-radius) !important;
+  border-bottom-left-radius: var(--bs-border-radius) !important;
+}
+.rounded-bottom-3 {
+  border-bottom-right-radius: var(--bs-border-radius-lg) !important;
+  border-bottom-left-radius: var(--bs-border-radius-lg) !important;
+}
+.rounded-bottom-4 {
+  border-bottom-right-radius: var(--bs-border-radius-xl) !important;
+  border-bottom-left-radius: var(--bs-border-radius-xl) !important;
+}
+.rounded-bottom-5 {
+  border-bottom-right-radius: var(--bs-border-radius-xxl) !important;
+  border-bottom-left-radius: var(--bs-border-radius-xxl) !important;
+}
+.rounded-bottom-circle {
+  border-bottom-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+}
+.rounded-bottom-pill {
+  border-bottom-right-radius: var(--bs-border-radius-pill) !important;
+  border-bottom-left-radius: var(--bs-border-radius-pill) !important;
+}
+.rounded-start {
+  border-bottom-left-radius: var(--bs-border-radius) !important;
+  border-top-left-radius: var(--bs-border-radius) !important;
+}
+.rounded-start-0 {
+  border-bottom-left-radius: 0 !important;
+  border-top-left-radius: 0 !important;
+}
+.rounded-start-1 {
+  border-bottom-left-radius: var(--bs-border-radius-sm) !important;
+  border-top-left-radius: var(--bs-border-radius-sm) !important;
+}
+.rounded-start-2 {
+  border-bottom-left-radius: var(--bs-border-radius) !important;
+  border-top-left-radius: var(--bs-border-radius) !important;
+}
+.rounded-start-3 {
+  border-bottom-left-radius: var(--bs-border-radius-lg) !important;
+  border-top-left-radius: var(--bs-border-radius-lg) !important;
+}
+.rounded-start-4 {
+  border-bottom-left-radius: var(--bs-border-radius-xl) !important;
+  border-top-left-radius: var(--bs-border-radius-xl) !important;
+}
+.rounded-start-5 {
+  border-bottom-left-radius: var(--bs-border-radius-xxl) !important;
+  border-top-left-radius: var(--bs-border-radius-xxl) !important;
+}
+.rounded-start-circle {
+  border-bottom-left-radius: 50% !important;
+  border-top-left-radius: 50% !important;
+}
+.rounded-start-pill {
+  border-bottom-left-radius: var(--bs-border-radius-pill) !important;
+  border-top-left-radius: var(--bs-border-radius-pill) !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            [
+                "rounded", "rounded-start", "rounded-end", "rounded-top", "rounded-bottom", "rounded-circle", "rounded-pill",
+                "rounded-0", "rounded-1", "rounded-2", "rounded-3", "rounded-4", "rounded-5"
+            ].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <div class="border m-2 border-black ${className}">${className}</div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.10.4 边框宽度(`.border-*`)
+
+Bootstrap提供了从一到五的边框宽度等级。
+
+```css
+.border-1 {
+  border-width: 1px !important;
+}
+
+.border-2 {
+  border-width: 2px !important;
+}
+
+.border-3 {
+  border-width: 3px !important;
+}
+
+.border-4 {
+  border-width: 4px !important;
+}
+
+.border-5 {
+  border-width: 5px !important;
+}
+```
+
+## §2.11 背景(`.bg-*`)
+
+Bootstrap提供了许多调整背景颜色的属性。
+
+```css
+.bg-primary {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-primary-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-secondary {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-secondary-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-success {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-success-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-info {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-info-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-warning {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-warning-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-danger {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-danger-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-light {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-dark {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-black {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-black-rgb), var(--bs-bg-opacity)) !important;
+}
+.bg-white {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-white-rgb), var(--bs-bg-opacity)) !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["bg-primary", "bg-secondary", "bg-success", "bg-info", "bg-warning", "bg-danger", "bg-light", "bg-dark", "bg-black"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <div class="border m-2 ${className}">${className}</div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+## §2.12 宽度和高度(`.w-*`/`.h-*`)
+
+Bootstrap提供了调整宽度和高度的属性。
+
+```css
+.w-25 {
+  width: 25% !important;
+}
+.w-50 {
+  width: 50% !important;
+}
+.w-75 {
+  width: 75% !important;
+}
+.w-100 {
+  width: 100% !important;
+}
+.w-auto {
+  width: auto !important;
+}
+.mw-100 {
+  max-width: 100% !important;
+}
+.vw-100 {
+  width: 100vw !important;
+}
+.min-vw-100 {
+  min-width: 100vw !important;
+}
+
+.h-25 {
+  height: 25% !important;
+}
+.h-50 {
+  height: 50% !important;
+}
+.h-75 {
+  height: 75% !important;
+}
+.h-100 {
+  height: 100% !important;
+}
+.h-auto {
+  height: auto !important;
+}
+.mh-100 {
+  max-height: 100% !important;
+}
+.vh-100 {
+  height: 100vh !important;
+}
+.min-vh-100 {
+  min-height: 100vh !important;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["w-25", "w-50", "w-75", "w-100", "w-auto"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <div class="border m-2 border-black ${className}">${className}</div>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+## §2.13 外边距和内边距(`.m-*`/`.p-*`)
+
+Bootstrap提供了调整`margin`和`padding`的属性。
+
+| 简写 | 全拼      | 含义           |
+| ---- | --------- | -------------- |
+| `m`  | `margin`  | 外边距         |
+| `p`  | `padding` | 内边距         |
+| `t`  | `top`     | 上             |
+| `b`  | `bottom`  | 下             |
+| `s`  | `start`   | 左             |
+| `e`  | `end`     | 右             |
+| `x`  | `x`       | 横向（上和下） |
+| `y`  | `y`       | 竖向（左和右） |
+
+```css
+.m-0 { margin: 0 !important;}
+.m-1 { margin: 0.25rem !important;}
+.m-2 { margin: 0.5rem !important;}
+.m-3 { margin: 1rem !important;}
+.m-4 { margin: 1.5rem !important;}
+.m-5 { margin: 3rem !important;}
+.m-auto { margin: auto !important;}
+
+.mx-0 { margin-right: 0 !important; margin-left: 0 !important;}
+.mx-1 { margin-right: 0.25rem !important; margin-left: 0.25rem !important;}
+.mx-2 { margin-right: 0.5rem !important; margin-left: 0.5rem !important;}
+.mx-3 { margin-right: 1rem !important; margin-left: 1rem !important;}
+.mx-4 { margin-right: 1.5rem !important; margin-left: 1.5rem !important;}
+.mx-5 { margin-right: 3rem !important; margin-left: 3rem !important;}
+.mx-auto { margin-right: auto !important; margin-left: auto !important;}
+
+.my-0 { margin-top: 0 !important; margin-bottom: 0 !important;}
+.my-1 { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important;}
+.my-2 { margin-top: 0.5rem !important; margin-bottom: 0.5rem !important;}
+.my-3 { margin-top: 1rem !important; margin-bottom: 1rem !important;}
+.my-4 { margin-top: 1.5rem !important; margin-bottom: 1.5rem !important;}
+.my-5 { margin-top: 3rem !important; margin-bottom: 3rem !important;}
+.my-auto { margin-top: auto !important; margin-bottom: auto !important;}
+
+.mt-0 { margin-top: 0 !important;}
+.mt-1 { margin-top: 0.25rem !important;}
+.mt-2 { margin-top: 0.5rem !important;}
+.mt-3 { margin-top: 1rem !important;}
+.mt-4 { margin-top: 1.5rem !important;}
+.mt-5 { margin-top: 3rem !important;}
+.mt-auto { margin-top: auto !important;}
+
+.me-0 { margin-right: 0 !important;}
+.me-1 { margin-right: 0.25rem !important;}
+.me-2 { margin-right: 0.5rem !important;}
+.me-3 { margin-right: 1rem !important;}
+.me-4 { margin-right: 1.5rem !important;}
+.me-5 { margin-right: 3rem !important;}
+.me-auto { margin-right: auto !important;}
+
+.mb-0 { margin-bottom: 0 !important;}
+.mb-1 { margin-bottom: 0.25rem !important;}
+.mb-2 { margin-bottom: 0.5rem !important;}
+.mb-3 { margin-bottom: 1rem !important;}
+.mb-4 { margin-bottom: 1.5rem !important;}
+.mb-5 { margin-bottom: 3rem !important;}
+.mb-auto { margin-bottom: auto !important;}
+
+.ms-0 { margin-left: 0 !important;}
+.ms-1 { margin-left: 0.25rem !important;}
+.ms-2 { margin-left: 0.5rem !important;}
+.ms-3 { margin-left: 1rem !important;}
+.ms-4 { margin-left: 1.5rem !important;}
+.ms-5 { margin-left: 3rem !important;}
+.ms-auto { margin-left: auto !important;}
+
+.p-0 { padding: 0 !important;}
+.p-1 { padding: 0.25rem !important;}
+.p-2 { padding: 0.5rem !important;}
+.p-3 { padding: 1rem !important;}
+.p-4 { padding: 1.5rem !important;}
+.p-5 { padding: 3rem !important;}
+
+.px-0 { padding-right: 0 !important; padding-left: 0 !important;}
+.px-1 { padding-right: 0.25rem !important; padding-left: 0.25rem !important;}
+.px-2 { padding-right: 0.5rem !important; padding-left: 0.5rem !important;}
+.px-3 { padding-right: 1rem !important; padding-left: 1rem !important;}
+.px-4 { padding-right: 1.5rem !important; padding-left: 1.5rem !important;}
+.px-5 { padding-right: 3rem !important; padding-left: 3rem !important;}
+
+.py-0 { padding-top: 0 !important; padding-bottom: 0 !important;}
+.py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;}
+.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;}
+.py-3 { padding-top: 1rem !important; padding-bottom: 1rem !important;}
+.py-4 { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important;}
+.py-5 { padding-top: 3rem !important; padding-bottom: 3rem !important;}
+
+.pt-0 { padding-top: 0 !important;}
+.pt-1 { padding-top: 0.25rem !important;}
+.pt-2 { padding-top: 0.5rem !important;}
+.pt-3 { padding-top: 1rem !important;}
+.pt-4 { padding-top: 1.5rem !important;}
+.pt-5 { padding-top: 3rem !important;}
+
+.pe-0 { padding-right: 0 !important;}
+.pe-1 { padding-right: 0.25rem !important;}
+.pe-2 { padding-right: 0.5rem !important;}
+.pe-3 { padding-right: 1rem !important;}
+.pe-4 { padding-right: 1.5rem !important;}
+.pe-5 { padding-right: 3rem !important;}
+
+.pb-0 { padding-bottom: 0 !important;}
+.pb-1 { padding-bottom: 0.25rem !important;}
+.pb-2 { padding-bottom: 0.5rem !important;}
+.pb-3 { padding-bottom: 1rem !important;}
+.pb-4 { padding-bottom: 1.5rem !important;}
+.pb-5 { padding-bottom: 3rem !important;}
+
+.ps-0 { padding-left: 0 !important;}
+.ps-1 { padding-left: 0.25rem !important;}
+.ps-2 { padding-left: 0.5rem !important;}
+.ps-3 { padding-left: 1rem !important;}
+.ps-4 { padding-left: 1.5rem !important;}
+.ps-5 { padding-left: 3rem !important;} 
+```
+
+## §2.14 显示(`.d-*`)
+
+Bootstrap将原生CSS中的`display`属性进行了封装。
+
+```css
+.d-inline {
+  display: inline !important;
+}
+.d-inline-block {
+  display: inline-block !important;
+}
+.d-block {
+  display: block !important;
+}
+.d-grid {
+  display: grid !important;
+}
+.d-inline-grid {
+  display: inline-grid !important;
+}
+.d-table {
+  display: table !important;
+}
+.d-table-row {
+  display: table-row !important;
+}
+.d-table-cell {
+  display: table-cell !important;
+}
+.d-flex {
+  display: flex !important;
+}
+.d-inline-flex {
+  display: inline-flex !important;
+}
+.d-none {
+  display: none !important;
+}
+```
+
+同样地，Bootstrap提供了相应的响应式属性`.d-<BREAK_POINT>-*`。以下是几种常见的组合使用方式：
+
+| 属性                          | 作用                       |
+| ----------------------------- | -------------------------- |
+| `d-block d-sm-none`           | 只在超小型设备(`xs`)上显示 |
+| `d-none d-sm-block d-md-none` | 只在小型设备(`sm`)上显示   |
+| `d-none d-md-block d-lg-none` | 只在中型设备(`md`)上显示   |
+| `d-none d-lg-block d-xl-none` | 只在大型设备(`lg`)上显示   |
+| `d-none d-xl-block`           | 只在超大型设备(`xl`)上显示 |
+| `d-none`                      | 在所有设备上隐藏           |
+| `[d-block]`或空字符串         | 在所有设备上显示           |
+| `d-none d-sm-block`           | 只在超小型设备(`xs`)上隐藏 |
+| `d-sm-none d-md-block`        | 只在小型设备(`sm`)上隐藏   |
+| `d-md-none d-lg-block`        | 只在中型设备(`md`)上隐藏   |
+| `d-lg-none d-xl-block`        | 只在大型设备(`lg`)上隐藏   |
+| `d-xl-none`                   | 只在超大型设备(`xl`)上隐藏 |
+
+## §2.15 溢出(`.overflow-*`)
+
+Bootstrap对原生CSS中的`overflow`进行了封装。
+
+```css
+.overflow-auto {
+  overflow: auto !important;
+}
+.overflow-hidden {
+  overflow: hidden !important;
+}
+.overflow-visible {
+  overflow: visible !important;
+}
+.overflow-scroll {
+  overflow: scroll !important;
+}
+.overflow-x-auto {
+  overflow-x: auto !important;
+}
+.overflow-x-hidden {
+  overflow-x: hidden !important;
+}
+.overflow-x-visible {
+  overflow-x: visible !important;
+}
+.overflow-x-scroll {
+  overflow-x: scroll !important;
+}
+.overflow-y-auto {
+  overflow-y: auto !important;
+}
+.overflow-y-hidden {
+  overflow-y: hidden !important;
+}
+.overflow-y-visible {
+  overflow-y: visible !important;
+}
+.overflow-y-scroll {
+  overflow-y: scroll !important;
+}
+```
+
+## §2.16 定位方式(`.position-*`)
+
+Bootstrap封装了原生CSS中的`position`属性值。
+
+```css
+.position-static {
+  position: static !important;
+}
+.position-relative {
+  position: relative !important;
+}
+.position-absolute {
+  position: absolute !important;
+}
+.position-fixed {
+  position: fixed !important;
+}
+.position-sticky {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+}
+```
+
+## §2.17 阴影(`.shadow-*`)
+
+Bootstrap封装了原生CSS中的`box-shadow`属性值。
+
+```css
+.shadow {
+  box-shadow: var(--bs-box-shadow) !important;
+}
+.shadow-sm {
+  box-shadow: var(--bs-box-shadow-sm) !important;
+}
+.shadow-lg {
+  box-shadow: var(--bs-box-shadow-lg) !important;
+}
+.shadow-none {
+  box-shadow: none !important;
+}
+```
+
+> 注意：这里的`sm`、`lg`不是响应式的意思，而是表示阴影的大小。
+
+## §2.18 表单(`.form-*`)
+
+我们直到，HTML提供了`<input>`、`<select>`、`<option>`、`<textarea>`等表单元素，
+
+```css
+input, button, select, optgroup, textarea {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+button, select {
+  text-transform: none;
+}
+[role=button] {
+  cursor: pointer;
+}
+select {
+  word-wrap: normal;
+}
+select:disabled {
+  opacity: 1;
+}
+[list]:not([type=date]):not([type=datetime-local]):not([type=month]):not([type=week]):not([type=time])::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+button, [type=button], [type=reset], [type=submit] {
+  -webkit-appearance: button;
+}
+button:not(:disabled), [type=button]:not(:disabled), [type=reset]:not(:disabled), [type=submit]:not(:disabled) {
+  cursor: pointer;
+}
+::-moz-focus-inner {
+  padding: 0;
+  border-style: none;
+}
+textarea {
+  resize: vertical;
+}
+fieldset {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-size: calc(1.275rem + 0.3vw);
+  line-height: inherit;
+}
+@media (min-width: 1200px) {
+  legend {
+    font-size: 1.5rem;
+  }
+}
+legend + * {
+  clear: left;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <form class="p-5">
+            <div class="my-3">
+                <label class="form-label">用户名</label>
+                <input class="form-control" type="text" name="username" id="username">
+            </div>
+            <div class="my-3">
+                <label class="form-label">密码</label>
+                <input class="form-control" type="text" name="username" id="username">
+            </div>
+            <button class="btn btn-primary">登录</button>
+        </form>
+    </body>
+</html>
+```
+
+### §2.18.1 表单控件(`.form-control-*`)
+
+在HTML中，可供用户输入的元素称为表单控件。Bootstrap对众多表单控件的样式进行了重写。
+
+```css
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--bs-body-color);
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: var(--bs-body-bg);
+  background-clip: padding-box;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .form-control {
+    transition: none;
+  }
+}
+.form-control[type=file] {
+  overflow: hidden;
+}
+.form-control[type=file]:not(:disabled):not([readonly]) {
+  cursor: pointer;
+}
+.form-control:focus {
+  color: var(--bs-body-color);
+  background-color: var(--bs-body-bg);
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.form-control::-webkit-date-and-time-value {
+  min-width: 85px;
+  height: 1.5em;
+  margin: 0;
+}
+.form-control::-webkit-datetime-edit {
+  display: block;
+  padding: 0;
+}
+.form-control::-moz-placeholder {
+  color: var(--bs-secondary-color);
+  opacity: 1;
+}
+.form-control::placeholder {
+  color: var(--bs-secondary-color);
+  opacity: 1;
+}
+.form-control:disabled {
+  background-color: var(--bs-secondary-bg);
+  opacity: 1;
+}
+.form-control::-webkit-file-upload-button {
+  padding: 0.375rem 0.75rem;
+  margin: -0.375rem -0.75rem;
+  -webkit-margin-end: 0.75rem;
+  margin-inline-end: 0.75rem;
+  color: var(--bs-body-color);
+  background-color: var(--bs-tertiary-bg);
+  pointer-events: none;
+  border-color: inherit;
+  border-style: solid;
+  border-width: 0;
+  border-inline-end-width: var(--bs-border-width);
+  border-radius: 0;
+  -webkit-transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.form-control::file-selector-button {
+  padding: 0.375rem 0.75rem;
+  margin: -0.375rem -0.75rem;
+  -webkit-margin-end: 0.75rem;
+  margin-inline-end: 0.75rem;
+  color: var(--bs-body-color);
+  background-color: var(--bs-tertiary-bg);
+  pointer-events: none;
+  border-color: inherit;
+  border-style: solid;
+  border-width: 0;
+  border-inline-end-width: var(--bs-border-width);
+  border-radius: 0;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .form-control::-webkit-file-upload-button {
+    -webkit-transition: none;
+    transition: none;
+  }
+  .form-control::file-selector-button {
+    transition: none;
+  }
+}
+.form-control:hover:not(:disabled):not([readonly])::-webkit-file-upload-button {
+  background-color: var(--bs-secondary-bg);
+}
+.form-control:hover:not(:disabled):not([readonly])::file-selector-button {
+  background-color: var(--bs-secondary-bg);
+}
+
+.form-control-plaintext {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0;
+  margin-bottom: 0;
+  line-height: 1.5;
+  color: var(--bs-body-color);
+  background-color: transparent;
+  border: solid transparent;
+  border-width: var(--bs-border-width) 0;
+}
+.form-control-plaintext:focus {
+  outline: 0;
+}
+.form-control-plaintext.form-control-sm, .form-control-plaintext.form-control-lg {
+  padding-right: 0;
+  padding-left: 0;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <form class="p-5">
+            <input class="form-control my-2" type="button" value="按钮">
+            <input class="form-control my-2" type="date" name="" id="">
+            <input class="form-control my-2" type="datetime-local" name="" id="">
+            <input class="form-control my-2" type="file" name="" id="">
+            <input class="form-control my-2" type="range" name="" id="">
+            <input class="form-control my-2" type="submit" value="提交">
+            <textarea class="form-control" name="" id="" cols="30" rows="3">多行文本</textarea>
+        </form>
+    </body>
+</html>
+```
+
+### §2.18.2 表单控件大小(`.form-control-*`)
+
+Bootstrap为表单控件提供了三种尺寸，从小到大依次为：`.form-control-sm`、`.form-control`、`.form-control-lg`。首尾两个属性都需要配合中间的`,form-control`一起使用。
+
+```css
+.form-control-sm {
+  min-height: calc(1.5em + 0.5rem + calc(var(--bs-border-width) * 2));
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: var(--bs-border-radius-sm);
+}
+.form-control-sm::-webkit-file-upload-button {
+  padding: 0.25rem 0.5rem;
+  margin: -0.25rem -0.5rem;
+  -webkit-margin-end: 0.5rem;
+  margin-inline-end: 0.5rem;
+}
+.form-control-sm::file-selector-button {
+  padding: 0.25rem 0.5rem;
+  margin: -0.25rem -0.5rem;
+  -webkit-margin-end: 0.5rem;
+  margin-inline-end: 0.5rem;
+}
+
+.form-control-lg {
+  min-height: calc(1.5em + 1rem + calc(var(--bs-border-width) * 2));
+  padding: 0.5rem 1rem;
+  font-size: 1.25rem;
+  border-radius: var(--bs-border-radius-lg);
+}
+.form-control-lg::-webkit-file-upload-button {
+  padding: 0.5rem 1rem;
+  margin: -0.5rem -1rem;
+  -webkit-margin-end: 1rem;
+  margin-inline-end: 1rem;
+}
+.form-control-lg::file-selector-button {
+  padding: 0.5rem 1rem;
+  margin: -0.5rem -1rem;
+  -webkit-margin-end: 1rem;
+  margin-inline-end: 1rem;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["form-control-sm", "form-control-lg"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <form id="form" class="p-5">
+                        <input class="form-control ${className} my-2" type="button" value="按钮">
+                        <input class="form-control ${className} my-2" type="date" name="" id="">
+                        <input class="form-control ${className} my-2" type="datetime-local" name="" id="">
+                        <input class="form-control ${className} my-2" type="file" name="" id="">
+                        <input class="form-control ${className} my-2" type="range" name="" id="">
+                        <input class="form-control ${className} my-2" type="submit" value="提交">
+                        <textarea class="form-control ${className} my-2" name="" id="" cols="30" rows="3">多行文本</textarea>
+                    </form>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.18.3 表单控件只读(`readonly`)
+
+Bootstrap会探测DOM上是否有`readonly`属性，从而调整只读的样式。
+
+```css
+.form-control[type=file]:not(:disabled):not([readonly]) {
+  cursor: pointer;
+}
+.form-control:hover:not(:disabled):not([readonly])::-webkit-file-upload-button {
+  background-color: var(--bs-secondary-bg);
+}
+.form-control:hover:not(:disabled):not([readonly])::file-selector-button {
+  background-color: var(--bs-secondary-bg);
+}
+.form-control-color:not(:disabled):not([readonly]) {
+  cursor: pointer;
+}
+```
+
+### §2.18.4 表单纯文本(`.form-plaintext`)
 
 
 
-## §2.11 
+
+
+## §2. 按钮(`.btn-*`)
+
+
 
 # §3 常用组件设计
 
 
-
-2024.01.17 3w+
-
-2024.01.18 4w+
 
 2024.01.19 5w+
 
