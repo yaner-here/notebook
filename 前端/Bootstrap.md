@@ -3153,21 +3153,1146 @@ Bootstrap会探测DOM上是否有`readonly`属性，从而调整只读的样式�
 }
 ```
 
-### §2.18.4 表单纯文本(`.form-plaintext`)
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["readonly"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <form id="form" class="p-5">
+                        <input ${className} class="form-control my-2" type="button" value="按钮">
+                        <input ${className} class="form-control my-2" type="date" name="" id="">
+                        <input ${className} class="form-control my-2" type="datetime-local" name="" id="">
+                        <input ${className} class="form-control my-2" type="file" name="" id="">
+                        <input ${className} class="form-control my-2" type="range" name="" id="">
+                        <input ${className} class="form-control my-2" type="submit" value="提交">
+                        <textarea ${className} class="form-control my-2" name="" id="" cols="30" rows="3">多行文本</textarea>
+                    </form>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.18.4 表单纯文本(`.form-control-plaintext`)
+
+`.form-control-plaintext`使得表单控件丢失边框样式，但是保留`:active`和输入功能。
+
+```css
+.form-control-plaintext {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0;
+  margin-bottom: 0;
+  line-height: 1.5;
+  color: var(--bs-body-color);
+  background-color: transparent;
+  border: solid transparent;
+  border-width: var(--bs-border-width) 0;
+}
+.form-control-plaintext:focus {
+  outline: 0;
+}
+.form-control-plaintext.form-control-sm, .form-control-plaintext.form-control-lg {
+  padding-right: 0;
+  padding-left: 0;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["form-control-plaintext"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <form id="form" class="p-5">
+                        <input class="form-control ${className} my-2" type="button" value="按钮">
+                        <input class="form-control ${className} my-2" type="date" name="" id="">
+                        <input class="form-control ${className} my-2" type="datetime-local" name="" id="">
+                        <input class="form-control ${className} my-2" type="file" name="" id="">
+                        <input class="form-control ${className} my-2" type="range" name="" id="">
+                        <input class="form-control ${className} my-2" type="submit" value="提交">
+                        <textarea class="form-control ${className} my-2" name="" id="" cols="30" rows="3">多行文本</textarea>
+                    </form>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.18.5 范围输入控件(`.form-range`)
+
+Bootstrap使用`.form-range`修饰`<input type="range">`。
+
+```css
+.form-range {
+  width: 100%;
+  height: 1.5rem;
+  padding: 0;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: transparent;
+}
+.form-range:focus {
+  outline: 0;
+}
+.form-range:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px #fff, 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.form-range:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 1px #fff, 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.form-range::-moz-focus-outer {
+  border: 0;
+}
+.form-range::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.25rem;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #0d6efd;
+  border: 0;
+  border-radius: 1rem;
+  -webkit-transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .form-range::-webkit-slider-thumb {
+    -webkit-transition: none;
+    transition: none;
+  }
+}
+.form-range::-webkit-slider-thumb:active {
+  background-color: #b6d4fe;
+}
+.form-range::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 0.5rem;
+  color: transparent;
+  cursor: pointer;
+  background-color: var(--bs-secondary-bg);
+  border-color: transparent;
+  border-radius: 1rem;
+}
+.form-range::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: #0d6efd;
+  border: 0;
+  border-radius: 1rem;
+  -moz-transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .form-range::-moz-range-thumb {
+    -moz-transition: none;
+    transition: none;
+  }
+}
+.form-range::-moz-range-thumb:active {
+  background-color: #b6d4fe;
+}
+.form-range::-moz-range-track {
+  width: 100%;
+  height: 0.5rem;
+  color: transparent;
+  cursor: pointer;
+  background-color: var(--bs-secondary-bg);
+  border-color: transparent;
+  border-radius: 1rem;
+}
+.form-range:disabled {
+  pointer-events: none;
+}
+.form-range:disabled::-webkit-slider-thumb {
+  background-color: var(--bs-secondary-color);
+}
+.form-range:disabled::-moz-range-thumb {
+  background-color: var(--bs-secondary-color);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        音量：<label id="volume"></label>
+        <script>
+            function onRangeChange(event) {
+                document.getElementById("volume").innerHTML = event.target.value
+            }
+        </script>
+        <form id="form" class="p-5">
+            <input class="form-control form-range my-2" type="range" step="1" min="0" max="100" oninput="onRangeChange(event)">
+        </form>
+    </body>
+</html>
+```
+
+
+
+### §2.18.6 单选框/复选框控件(`.form-check-*`)
+
+我们知道，一个完整的单选框包含左边的输入控件和右边的文字标签。Bootstrap使用`.form-check`修饰这个完整的整体，然后使用`.form-check-input`和`.form-check-label`分别修饰控件和文本。
+
+```css
+.form-check {
+  display: block;
+  min-height: 1.5rem;
+  padding-left: 1.5em;
+  margin-bottom: 0.125rem;
+}
+.form-check .form-check-input {
+  float: left;
+  margin-left: -1.5em;
+}
+.form-check-input {
+  --bs-form-check-bg: var(--bs-body-bg);
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  margin-top: 0.25em;
+  vertical-align: top;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: var(--bs-form-check-bg);
+  background-image: var(--bs-form-check-bg-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  -webkit-print-color-adjust: exact;
+  color-adjust: exact;
+  print-color-adjust: exact;
+}
+.form-check-input[type=checkbox] {
+  border-radius: 0.25em;
+}
+.form-check-input[type=radio] {
+  border-radius: 50%;
+}
+.form-check-input:active {
+  filter: brightness(90%);
+}
+.form-check-input:focus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.form-check-input:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+.form-check-input:checked[type=checkbox] {
+  --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+}
+.form-check-input:checked[type=radio] {
+  --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2' fill='%23fff'/%3e%3c/svg%3e");
+}
+.form-check-input[type=checkbox]:indeterminate {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10h8'/%3e%3c/svg%3e");
+}
+.form-check-input:disabled {
+  pointer-events: none;
+  filter: none;
+  opacity: 0.5;
+}
+.form-check-input[disabled] ~ .form-check-label, .form-check-input:disabled ~ .form-check-label {
+  cursor: default;
+  opacity: 0.5;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <form id="form" class="p-5">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="radio" id="radio">
+                <label class="form-check-label" for="radio">单选框</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="checkbox" id="checkbox">
+                <label class="form-check-label" for="checkbox">复选框</label>
+            </div>
+        </form>
+    </body>
+</html>
+```
+
+前面我们说过，Bootstrap使用`.form-check`修饰这个完整的整体。其实我们也可以用`.form-check-inline`，使多个单选框/复选框控件水平排列。
+
+```css
+.form-check-inline {
+  display: inline-block;
+  margin-right: 1rem;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <form id="form" class="p-5">
+            <div class="form-check-inline">
+                <input class="form-check-input" type="radio" name="radio" id="radio">
+                <label class="form-check-label" for="radio">单选框</label>
+            </div>
+            <div class="form-check-inline">
+                <input class="form-check-input" type="checkbox" name="checkbox" id="checkbox">
+                <label class="form-check-label" for="checkbox">复选框</label>
+            </div>
+        </form>
+    </body>
+</html>
+```
+
+### §2.18.7 表单文本
+
+Bootstrap提供了`.form-text`属性，常用于作为提示文字。
+
+```css
+.form-text {
+  margin-top: 0.25rem;
+  font-size: 0.875em;
+  color: var(--bs-secondary-color);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <form id="form" class="p-5">
+            <label class="form-label">新密码</label>
+            <input class="form-control" type="text">
+            <span class="form-text">密码必须包含大小写和数字。</span>
+        </form>
+    </body>
+</html>
+```
+
+### §2.18.8 表单控件禁用(`disabled`)
+
+与[§2.18.3 表单控件只读(`readonly`)](###§2.18.3 表单控件只读(`readonly`))类似，Bootstrap也提供了`disabled`DOM属性。这里不再赘述。
+
+### §2.18.9 单选/多选菜单(`select.form-select`)
+
+Bootstrap针对`<select>`和`<select multiple>`提供了`.form-select`属性，为单选/多选菜单提供样式。
+
+```css
+.form-select {
+  --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  display: block;
+  width: 100%;
+  padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--bs-body-color);
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: var(--bs-body-bg);
+  background-image: var(--bs-form-select-bg-img), var(--bs-form-select-bg-icon, none);
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .form-select {
+    transition: none;
+  }
+}
+.form-select:focus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.form-select[multiple], .form-select[size]:not([size="1"]) {
+  padding-right: 0.75rem;
+  background-image: none;
+}
+.form-select:disabled {
+  background-color: var(--bs-secondary-bg);
+}
+.form-select:-moz-focusring {
+  color: transparent;
+  text-shadow: 0 0 0 var(--bs-body-color);
+}
+.form-select-sm {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  padding-left: 0.5rem;
+  font-size: 0.875rem;
+  border-radius: var(--bs-border-radius-sm);
+}
+.form-select-lg {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  padding-left: 1rem;
+  font-size: 1.25rem;
+  border-radius: var(--bs-border-radius-lg);
+}
+[data-bs-theme=dark] .form-select {
+  --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23dee2e6' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <select class="form-select m-2">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+        </select>
+        <select multiple class="form-select m-2">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+        </select>
+    </body>
+</html>
+```
+
+### §2.18.10 浮动标签(`.form-floating`)
+
+在Bootstrap中，`.form-floating`的样式效果类似于Material UI中的文本框标签动画。当元素被选中时，`placeholder`的文本会自动缩小并向上移动。`.form-floating`要求第一个元素必须为`<input>`且DOM上带有`placeholder`属性值，第二个子元素必须为`<label>`。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <form action="">
+            <div class="form-floating m-3">
+                <input type="text" class="form-control" id="email" placeholder="输入邮箱">
+                <label>输入邮箱</label>
+            </div>
+            <div class="form-floating m-3">
+                <input type="text" class="form-control" placeholder="输入密码">
+                <label>输入密码</label>
+            </div>
+        </form>
+    </body>
+</html>
+```
+
+### §2.18.11 表单验证(`.*-feedback`/`.*-valid*`)
+
+用Bootstrap提供的`.was-validated`和`.needs-validation`修饰`<form>`元素，可以让其中的`<input>`根据数据是否符合要求来改变边框颜色。而`.valid-feedback`和`.invalid-feedback`用于提供反馈。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <form class="was-validated needs-validation">
+            <div class="form-floating m-3">
+                <input type="email" required class="form-control" placeholder="输入邮箱">
+                <label>输入邮箱</label>
+                <div class="invalid-feedback">邮箱格式错误</div>
+            </div>
+            <div class="form-floating m-3">
+                <input type="password" required class="form-control" placeholder="输入密码">
+                <label>输入密码</label>
+                <div class="invalid-feedback">请输入密码</div>
+            </div>
+        </form>
+    </body>
+</html>
+```
+
+## §2.19 按钮(`.btn-*`)
+
+Bootstrap通过`.btn`来表示按钮，每个按钮都应该带有该属性。
+
+### §2.19.1 按钮背景颜色(`.btn-*`)
+
+| 属性名           | 颜色   |
+| ---------------- | ------ |
+| `.btn-primary`   | 蓝色   |
+| `.btn-secondary` | 灰色   |
+| `.btn-success`   | 绿色   |
+| `.btn-danger`    | 红色   |
+| `.btn-warning`   | 黄色   |
+| `.btn-info`      | 浅蓝色 |
+| `.btn-light`     | 浅灰色 |
+| `.btn-dark`      | 黑色   |
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["btn-primary", "btn-secondary", "btn-success", "btn-danger", "btn-warning", "btn-info", "btn-light", "btn-dark"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <button class="m-2 btn ${className}">${className}</button>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.19.2 按钮边框颜色(`.btn-outline-*`)
+
+`.btn-outline-*`用于同时改变按钮的边框与文字的颜色。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["btn-outline-primary", "btn-outline-secondary", "btn-outline-success", "btn-outline-danger", "btn-outline-warning", "btn-outline-info", "btn-outline-light", "btn-outline-dark"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <button class="m-2 btn ${className}">${className}</button>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.19.3 按钮大小(`.btn-*`)
+
+Bootstrap提供了三种不同大小的尺寸属性——`.btn-sm`、`.btn`、`.btn-lg`。首尾两个属性需要搭配中间的属性一起使用。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["btn btn-sm", "btn", "btn btn-lg"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <button class="m-2 btn-primary ${className}">${className}</button>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.19.4 按钮激活与禁用(`[active]`/`[disabled]`)
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["active", "正常按钮" ,"disabled"].forEach((className)=>{
+                const flexBoxDomSerialization = `
+                    <button class="m-2 btn btn-primary ${className}">${className}</button>
+                `;
+                document.querySelector("body").innerHTML += flexBoxDomSerialization;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.19.5 按钮加载样式(`.spinner-border`/`.spinner-grow`)
+
+Bootstrap提供了两种加载动画样式——`.spinner-border`和`.spinner-grow`，并且配备了对应的小尺寸属性。
+
+```css
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <button class="btn btn-primary m-2">
+            <span class="spinner-border spinner-border-sm"></span>
+            按钮 spinner-border
+        </button>
+        <button class="btn btn-primary m-2">
+            <span class="spinner-grow spinner-grow-sm"></span>
+            按钮 grow-border
+        </button>
+    </body>
+</html>
+```
+
+### §2.19.6 按钮组(`.btn-group`)
+
+Bootstrap提供了按钮组属性，用于将许多按钮排成一行。该样式常用于翻页按钮组。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="btn-group m-2">
+            <button type="button" class="btn border btn-primary">&lt;</button>
+            <button type="button" class="btn border btn-light">1</button>
+            <button type="button" class="btn border btn-light">2</button>
+            <button type="button" class="btn border btn-warning">3</button>
+            <button type="button" class="btn border btn-light">4</button>
+            <button type="button" class="btn border btn-primary">&gt;</button>
+        </div>
+    </body>
+</html>
+```
+
+同样地，Bootstrap也提供了三档尺寸：`.btn-group-sm`、`.btn-group`、`.btn-group-lg`。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <script>
+            ["btn-group-sm", "", "btn-group-lg"].forEach((className) => {
+                const htmlString = `
+                    <div class="btn-group ${className}">
+                        <button type="button" class="btn border btn-primary">&lt;</button>
+                        <button type="button" class="btn border btn-light">1</button>
+                        <button type="button" class="btn border btn-light">2</button>
+                        <button type="button" class="btn border btn-warning">3</button>
+                        <button type="button" class="btn border btn-light">4</button>
+                        <button type="button" class="btn border btn-primary">&gt;</button>
+                    </div>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.19.7 按钮组工具栏(`.btn-toolbar`)
+
+在上一节中，我们接触了Bootstrap中的`.btn-group`。实际上Bootstrap提供的组还有`.input-group`。将多个组包裹起来，对父元素使用`.btn-toolbar`，我们就得到了更复杂的按钮组工具栏。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.js"></script>
+    </head>
+    <body>
+        <div class="btn-toolbar m-2">
+            <div class="btn-group">
+                <button type="button" class="btn border btn-primary">&lt;</button>
+                <button type="button" class="btn border btn-light">1</button>
+                <button type="button" class="btn border btn-light">2</button>
+                <button type="button" class="btn border btn-warning">3</button>
+                <button type="button" class="btn border btn-light">4</button>
+                <button type="button" class="btn border btn-primary">&gt;</button>
+            </div>
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <div class="input-group-text">跳转至</div>
+                </div>
+                <input class="form-control" type="text">
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+## §2.20 下拉菜单(`.dropdown-*`)
+
+下拉菜单整体作为一个`.btn-group`，包含了三个部分：一是菜单入口`.dropdown`，二是子菜单`.dropdown-menu`，三是一系列子菜单项`.dropdown-item`。
+
+> 注意：下拉菜单需要`popper.js`的支持。在Bootstrap发行的JavaScript脚本中，`bootstrap.js`不包含`popper.js`框架，这里我们需要使用`bootstrap.bundle.js`。
+
+一个基本的下拉菜单结构如下所示，其中`.dropdown-toggle`用于修饰按钮的三角形展开图标，`data-bs-toggle`用于让JavaScript绑定菜单展开的行为。
+
+```html
+<div class="dropdown">
+    <button class="dropdown-toggle" data-bs-toggle="dropdown">触发按钮</button>
+    <div class="dropdown-menu">
+        <div class="dropdown-item"></div>
+    </div>
+```
+
+下面是一个完整的例子：
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <div class="btn-group">
+            <button class="btn btn-primary">首页</button>
+            <div class="btn-group">
+                <button class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">课程</button>
+                <div class="dropdown-menu">
+                    <button class="dropdown-item">C</button>
+                    <button class="dropdown-item">C++</button>
+                    <button class="dropdown-item">Java</button>
+                    <button class="dropdown-item">Python</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.20.1 分裂式菜单(`.dropdown-toggle-split`)
+
+假设有一个按钮组包含了两个按钮，左边的按钮表示主页设置，占了四个中文字符，而右边的按钮只有一个三角形，表示点击展开更多项目。我们希望右边的按钮尽可能短，给其他同级菜单项腾出更多空间。Bootstrap提供了`.dropdown-toggle-split`属性来实现这一点。
+
+```css
+.dropdown-toggle-split {
+  padding-right: 0.5625rem;
+  padding-left: 0.5625rem;
+}
+.dropdown-toggle-split::after, .dropup .dropdown-toggle-split::after, .dropend .dropdown-toggle-split::after {
+  margin-left: 0;
+}
+.dropstart .dropdown-toggle-split::before {
+  margin-right: 0;
+}
+
+.btn-sm + .dropdown-toggle-split, .btn-group-sm > .btn + .dropdown-toggle-split {
+  padding-right: 0.375rem;
+  padding-left: 0.375rem;
+}
+
+.btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <div class="btn-group">
+            <button class="btn btn-primary">个人信息</button>
+            <div class="btn-group">
+                <button class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                <div class="dropdown-menu">
+                    <button class="dropdown-item">C</button>
+                    <button class="dropdown-item">C++</button>
+                    <button class="dropdown-item">Java</button>
+                    <button class="dropdown-item">Python</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.20.2 菜单展开方向(`.drop*`)
+
+在前文中，我们一直给下拉菜单的整体元素赋予`.btn-group`。在此基础上，Bootstrap提供了`.dropup`、`.dropdown`、`.dropstart`、`.dropend`，用于规定菜单的展开方向。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <script>
+            ["dropdown", "dropstart", "dropend", "dropup"].forEach((className) => {
+                const htmlString = `
+                    <div class="btn-group">
+                        <button class="btn btn-primary">${className}</button>
+                        <div class="btn-group ${className}">
+                            <button class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item">C</button>
+                                <button class="dropdown-item">C++</button>
+                                <button class="dropdown-item">Java</button>
+                                <button class="dropdown-item">Python</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.20.3 菜单分割线(`.dropdown-divider`)
+
+Bootstrap提供了菜单分隔线，只需在众多`.dropdown-item`中插入一个`.dropdown-divider`即可。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <div class="btn-group">
+            <button class="btn btn-primary">课程信息</button>
+            <div class="btn-group">
+                <button class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                <div class="dropdown-menu">
+                    <button class="dropdown-item">C</button>
+                    <button class="dropdown-item">C++</button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item">Java</button>
+                    <button class="dropdown-item">Python</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.20.4 菜单激活和禁用(`.active`/`.disabled`)
+
+> 注意：这里的激活与禁用不是附加在DOM上的属性，而是`class`属性名。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <div class="btn-group">
+            <button class="btn btn-primary">课程信息</button>
+            <div class="btn-group">
+                <button class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                <div class="dropdown-menu">
+                    <button class="dropdown-item disabled">C(disabled)</button>
+                    <button class="dropdown-item">C++</button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item active">Java(active)</button>
+                    <button class="dropdown-item">Python</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.20.5 菜单项对齐方式(`.dropdown-menu-*`)
+
+Bootstrap为`.dropdown-menu`提供了两种菜单项对齐方式：`.dropdown-menu-start`、`.dropdown-menu-end`。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <script>
+            ["dropdown-menu-start", "dropdown-menu-end"].forEach((className) => {
+                const htmlString = `
+                    <div class="btn-group">
+                        <button class="btn btn-primary">${className}</button>
+                        <div class="btn-group">
+                            <button class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                            <div class="dropdown-menu ${className}">
+                                <button class="dropdown-item">C</button>
+                                <button class="dropdown-item">C++</button>
+                                <button class="dropdown-item">Java</button>
+                                <button class="dropdown-item">Python</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.20.6 菜单位置偏移(`[data-bs-offset]`)
+
+针对`button.dropdown-toggle[data-bs-toggle="dropdown"]`，Bootstrap为其DOM引入了`[data-bs-offset]=“%d,%d”`属性，其属性值的两个数字分别表示水平和垂直方向的偏移量，中间用逗号分隔。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <script>
+            ["0,0", "100,0", "0,100", "100,100"].forEach((className) => {
+                const htmlString = `
+                    <div class="btn-group">
+                        <button class="btn btn-primary">${className}</button>
+                        <div class="btn-group">
+                            <button class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" data-bs-offset="${className}""></button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item">C</button>
+                                <button class="dropdown-item">C++</button>
+                                <button class="dropdown-item">Java</button>
+                                <button class="dropdown-item">Python</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.20.7 垂直菜单(`.btn-group-vertical`)
+
+给菜单入口加上`.btn-group-vertical`，可以让按钮组垂直排列。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body>
+        <div class="btn-group-vertical">
+            <button class="btn btn-primary">首页</button>
+            <div class="btn-group dropend">
+                <button class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">课程</button>
+                <div class="dropdown-menu">
+                    <button class="dropdown-item">C</button>
+                    <button class="dropdown-item">C++</button>
+                    <button class="dropdown-item">Java</button>
+                    <button class="dropdown-item">Python</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+## §2.21 导航组件(`.nav`)
+
+```
+
+```
 
 
 
 
 
-## §2. 按钮(`.btn-*`)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 # §3 常用组件设计
 
 
-
-2024.01.19 5w+
 
 2024.01.20 6w+
 
@@ -3180,3 +4305,5 @@ Bootstrap会探测DOM上是否有`readonly`属性，从而调整只读的样式�
 2024.01.24 10w+
 
 2024.01.25 11w+
+
+2024.01.26 12w+
