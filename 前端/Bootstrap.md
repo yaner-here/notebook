@@ -4258,43 +4258,1135 @@ Bootstrap为`.dropdown-menu`提供了两种菜单项对齐方式：`.dropdown-me
 
 ## §2.21 导航组件(`.nav`)
 
+在Bootstrap中，一个基本的导航组件`ul.nav`由众多`li.nav-item`构成，每个`li.nav-item`包含对应的超链接`.nav-link`：
+
+```html
+<ul class="nav">
+    <li class="nav-item"><a href="#" class="nav-link">首页</a></li>
+    <li class="nav-item"><a href="#" class="nav-link">新闻</a></li>
+    <li class="nav-item"><a href="#" class="nav-link">联系我们</a></li>
+</ul>
 ```
 
+```css
+.nav {
+  --bs-nav-link-padding-x: 1rem;
+  --bs-nav-link-padding-y: 0.5rem;
+  --bs-nav-link-font-weight: ;
+  --bs-nav-link-color: var(--bs-link-color);
+  --bs-nav-link-hover-color: var(--bs-link-hover-color);
+  --bs-nav-link-disabled-color: var(--bs-secondary-color);
+  display: flex;
+  flex-wrap: wrap;
+  padding-left: 0;
+  margin-bottom: 0;
+  list-style: none;
+}
+
+.nav-link {
+  display: block;
+  padding: var(--bs-nav-link-padding-y) var(--bs-nav-link-padding-x);
+  font-size: var(--bs-nav-link-font-size);
+  font-weight: var(--bs-nav-link-font-weight);
+  color: var(--bs-nav-link-color);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+```
+
+注意到`.nav`会设置原生CSS为`display: flex;`，因此我们可以使用`justify-content-*`、`flex-column`等弹性布局相关属性，调整导航组件的对齐方式、排列方向等属性。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["justify-content-start", "justify-content-end", "justify-content-center", "flex-column"].forEach((className) => {
+                const htmlString = `
+                    <ul class="nav ${className} border">
+                        <li class="nav-item"><a href="#" class="nav-link">${className}</a></li>
+                        <li class="nav-item"><a href="#" class="nav-link">${className}</a></li>
+                        <li class="nav-item"><a href="#" class="nav-link">${className}</a></li>
+                    </ul>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.21.1 标签页(`.nav-tabs`)
+
+Bootstrap在`ul.nav`的基础上增加`.nav-tabs`修饰，可以将导航组件转换为标签页的样式。
+
+```css
+.nav-tabs {
+  --bs-nav-tabs-border-width: var(--bs-border-width);
+  --bs-nav-tabs-border-color: var(--bs-border-color);
+  --bs-nav-tabs-border-radius: var(--bs-border-radius);
+  --bs-nav-tabs-link-hover-border-color: var(--bs-secondary-bg) var(--bs-secondary-bg) var(--bs-border-color);
+  --bs-nav-tabs-link-active-color: var(--bs-emphasis-color);
+  --bs-nav-tabs-link-active-bg: var(--bs-body-bg);
+  --bs-nav-tabs-link-active-border-color: var(--bs-border-color) var(--bs-border-color) var(--bs-body-bg);
+  border-bottom: var(--bs-nav-tabs-border-width) solid var(--bs-nav-tabs-border-color);
+}
+.nav-tabs .nav-link {
+  margin-bottom: calc(-1 * var(--bs-nav-tabs-border-width));
+  border: var(--bs-nav-tabs-border-width) solid transparent;
+  border-top-left-radius: var(--bs-nav-tabs-border-radius);
+  border-top-right-radius: var(--bs-nav-tabs-border-radius);
+}
+.nav-tabs .nav-link:hover, .nav-tabs .nav-link:focus {
+  isolation: isolate;
+  border-color: var(--bs-nav-tabs-link-hover-border-color);
+}
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+  color: var(--bs-nav-tabs-link-active-color);
+  background-color: var(--bs-nav-tabs-link-active-bg);
+  border-color: var(--bs-nav-tabs-link-active-border-color);
+}
+.nav-tabs .dropdown-menu {
+  margin-top: calc(-1 * var(--bs-nav-tabs-border-width));
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+```
+
+标签页也可以与下拉菜单相结合：
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="nav nav-tabs">
+            <li class="nav-item"><a href="#" class="nav-link">首页</a></li>
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">课程列表</a>
+                <div class="dropdown-menu">
+                    <div class="dropdown-item">C</div>
+                    <div class="dropdown-item">C++</div>
+                    <div class="dropdown-item">Java</div>
+                    <div class="dropdown-item">Python</div>
+                </div>
+            </li>
+            <li class="nav-item"><a href="#" class="nav-link">关于我们</a></li>
+        </ul>
+    </body>
+</html>
+```
+
+### §2.21.2 胶囊式导航(`.nav-pills`)
+
+Bootstrap在`ul.nav`的基础上增加`.nav-pills`修饰，可以将导航组件转换为胶囊式导航的样式。再给`a.nav-link`增加`.active`修饰，可以改变其背景色表示选中状态。
+
+```css
+.nav-pills {
+  --bs-nav-pills-border-radius: var(--bs-border-radius);
+  --bs-nav-pills-link-active-color: #fff;
+  --bs-nav-pills-link-active-bg: #0d6efd;
+}
+.nav-pills .nav-link {
+  border-radius: var(--bs-nav-pills-border-radius);
+}
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+  color: var(--bs-nav-pills-link-active-color);
+  background-color: var(--bs-nav-pills-link-active-bg);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="nav nav-pills">
+            <li class="nav-item"><a href="#" class="nav-link active">首页</a></li>
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">课程列表</a>
+                <div class="dropdown-menu">
+                    <div class="dropdown-item">C</div>
+                    <div class="dropdown-item">C++</div>
+                    <div class="dropdown-item">Java</div>
+                    <div class="dropdown-item">Python</div>
+                </div>
+            </li>
+            <li class="nav-item"><a href="#" class="nav-link">关于我们</a></li>
+        </ul>
+    </body>
+</html>
+```
+
+### §2.21.3 导航填充(`.nav-fill`)
+
+Bootstrap在`ul.nav`的基础上增加`.nav-fill`修饰，可以让导航组件在水平方向上填满整个空间。
+
+```css
+.nav-fill > .nav-link, .nav-fill .nav-item {
+  flex: 1 1 auto;
+  text-align: center;
+}
+.nav-justified > .nav-link, .nav-justified .nav-item {
+  flex-basis: 0;
+  flex-grow: 1;
+  text-align: center;
+}
+.nav-fill .nav-item .nav-link, .nav-justified .nav-item .nav-link {
+  width: 100%;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="nav nav-pills nav-fill">
+            <li class="nav-item"><a href="#" class="nav-link active">首页</a></li>
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">课程列表</a>
+                <div class="dropdown-menu">
+                    <div class="dropdown-item">C</div>
+                    <div class="dropdown-item">C++</div>
+                    <div class="dropdown-item">Java</div>
+                    <div class="dropdown-item">Python</div>
+                </div>
+            </li>
+            <li class="nav-item"><a href="#" class="nav-link">关于我们</a></li>
+        </ul>
+    </body>
+</html>
+```
+
+### §2.21.4 选项卡切换(`.tab-*`)
+
+对于`a.dropdown-link`元素，Bootstrap允许其作为触发选项卡切换的元素。众多选项卡`.tan-pane[id]`包裹在一个整体容器`.tab-content`中，然后给`a.dropdown-link`元素添加`[data-bs-toggle="pill", href="#id"]`，使得JavaScript建立触发关系，同时会改变`.dropdown-item`的`.active`状态。
+
+```css
+.tab-content > .tab-pane {
+  display: none;
+}
+.tab-content > .active {
+  display: block;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#home">首页</a>
+            </li>
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#home">课程列表</a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" data-bs-toggle="pill" href="#c">C</a>
+                    <a class="dropdown-item" data-bs-toggle="pill" href="#c++">C++</a>
+                    <a class="dropdown-item" data-bs-toggle="pill" href="#java">Java</a>
+                    <a class="dropdown-item" data-bs-toggle="pill" href="#python">Python</a>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a href="#about" class="nav-link" data-bs-toggle="pill">关于我们</a>
+            </li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane" id="home">这是首页内容</div>
+            <div class="tab-pane" id="c">这是C内容</div>
+            <div class="tab-pane" id="c++">这是C++内容</div>
+            <div class="tab-pane" id="java">这是Java内容</div>
+            <div class="tab-pane" id="python">这是Python内容</div>
+            <div class="tab-pane" id="about">这是关于我们内容</div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.21.5 导航项展开排列(`.nav-justified`)
+
+`.nav-justified`可以使`.nav`中的`.nav-item`均匀展开排列。
+
+```css
+.nav-justified > .nav-link,
+.nav-justified .nav-item {
+  flex-basis: 0;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.nav-fill .nav-item .nav-link,
+.nav-justified .nav-item .nav-link {
+  width: 100%;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="nav nav-tabs nav-justified">
+            <li class="nav-item"><a href="#" class="nav-link">首页</a></li>
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">课程列表</a>
+                <div class="dropdown-menu">
+                    <div class="dropdown-item">C</div>
+                    <div class="dropdown-item">C++</div>
+                    <div class="dropdown-item">Java</div>
+                    <div class="dropdown-item">Python</div>
+                </div>
+            </li>
+            <li class="nav-item"><a href="#" class="nav-link">关于我们</a></li>
+        </ul>
+    </body>
+</html>
+```
+
+## §2.22 警告框(`.alert-*`)
+
+类似于Github对Markdown的扩展语法`![warning]`，Bootstrap也提供了类似的不同颜色的警告框。
+
+```css
+.alert {
+  --bs-alert-bg: transparent;
+  --bs-alert-padding-x: 1rem;
+  --bs-alert-padding-y: 1rem;
+  --bs-alert-margin-bottom: 1rem;
+  --bs-alert-color: inherit;
+  --bs-alert-border-color: transparent;
+  --bs-alert-border: var(--bs-border-width) solid var(--bs-alert-border-color);
+  --bs-alert-border-radius: var(--bs-border-radius);
+  --bs-alert-link-color: inherit;
+  position: relative;
+  padding: var(--bs-alert-padding-y) var(--bs-alert-padding-x);
+  margin-bottom: var(--bs-alert-margin-bottom);
+  color: var(--bs-alert-color);
+  background-color: var(--bs-alert-bg);
+  border: var(--bs-alert-border);
+  border-radius: var(--bs-alert-border-radius);
+}
+.alert-heading {
+  color: inherit;
+}
+.alert-link {
+  font-weight: 700;
+  color: var(--bs-alert-link-color);
+}
+.alert-dismissible {
+  padding-right: 3rem;
+}
+.alert-dismissible .btn-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  padding: 1.25rem 1rem;
+}
+.alert-primary {
+  --bs-alert-color: var(--bs-primary-text-emphasis);
+  --bs-alert-bg: var(--bs-primary-bg-subtle);
+  --bs-alert-border-color: var(--bs-primary-border-subtle);
+  --bs-alert-link-color: var(--bs-primary-text-emphasis);
+}
+.alert-secondary {
+  --bs-alert-color: var(--bs-secondary-text-emphasis);
+  --bs-alert-bg: var(--bs-secondary-bg-subtle);
+  --bs-alert-border-color: var(--bs-secondary-border-subtle);
+  --bs-alert-link-color: var(--bs-secondary-text-emphasis);
+}
+.alert-success {
+  --bs-alert-color: var(--bs-success-text-emphasis);
+  --bs-alert-bg: var(--bs-success-bg-subtle);
+  --bs-alert-border-color: var(--bs-success-border-subtle);
+  --bs-alert-link-color: var(--bs-success-text-emphasis);
+}
+.alert-info {
+  --bs-alert-color: var(--bs-info-text-emphasis);
+  --bs-alert-bg: var(--bs-info-bg-subtle);
+  --bs-alert-border-color: var(--bs-info-border-subtle);
+  --bs-alert-link-color: var(--bs-info-text-emphasis);
+}
+.alert-warning {
+  --bs-alert-color: var(--bs-warning-text-emphasis);
+  --bs-alert-bg: var(--bs-warning-bg-subtle);
+  --bs-alert-border-color: var(--bs-warning-border-subtle);
+  --bs-alert-link-color: var(--bs-warning-text-emphasis);
+}
+.alert-danger {
+  --bs-alert-color: var(--bs-danger-text-emphasis);
+  --bs-alert-bg: var(--bs-danger-bg-subtle);
+  --bs-alert-border-color: var(--bs-danger-border-subtle);
+  --bs-alert-link-color: var(--bs-danger-text-emphasis);
+}
+.alert-light {
+  --bs-alert-color: var(--bs-light-text-emphasis);
+  --bs-alert-bg: var(--bs-light-bg-subtle);
+  --bs-alert-border-color: var(--bs-light-border-subtle);
+  --bs-alert-link-color: var(--bs-light-text-emphasis);
+}
+.alert-dark {
+  --bs-alert-color: var(--bs-dark-text-emphasis);
+  --bs-alert-bg: var(--bs-dark-bg-subtle);
+  --bs-alert-border-color: var(--bs-dark-border-subtle);
+  --bs-alert-link-color: var(--bs-dark-text-emphasis);
+}
+```
+
+```css
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["纯alert", "alert-success", "alert-info", "alert-warning", "alert-danger", "alert-primary", "alert-secondary", "alert-dark", "alert-light"].forEach((className) => {
+                const htmlString = `
+                    <div class="alert ${className}">${className}</div>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.22.1 警告链接(`.alert-link`)
+
+Bootstrap对警告框中的超链接`<a>`做了额外的样式优化。
+
+```css
+.alert-link {
+  font-weight: 700;
+  color: var(--bs-alert-link-color);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["纯alert", "alert-success", "alert-info", "alert-warning", "alert-danger", "alert-primary", "alert-secondary", "alert-dark", "alert-light"].forEach((className) => {
+                const htmlString = `
+                    <div class="alert ${className}">这是一个引用:<a class="alert-link" href="#">${className}</a></div>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.22.2 关闭警告框(`.alert-dismissible`)
+
+Bootstrap允许用户关闭警告框。需要给警告框`div.alert`增加`.alert-dismissible`属性，并且在内部增加`<button class="btn-close" data-bs-dismiss="alert">`关闭按钮。
+
+```css
+.alert-dismissible {
+  padding-right: 3rem;
+}
+.alert-dismissible .btn-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  padding: 1.25rem 1rem;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["纯alert", "alert-success", "alert-info", "alert-warning", "alert-danger", "alert-primary", "alert-secondary", "alert-dark", "alert-light"].forEach((className) => {
+                const htmlString = `
+                    <div class="alert ${className} alert-dismissible">
+                        ${className}
+                        <button class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+## §2.23 徽章(`.badge`)
+
+徽章的作用类似于标签，Bootstrap规定徽章通常使用`<span>`标签，其背景颜色由`.bg-*`指定。
+
+```css
+.badge {
+  --bs-badge-padding-x: 0.65em;
+  --bs-badge-padding-y: 0.35em;
+  --bs-badge-font-size: 0.75em;
+  --bs-badge-font-weight: 700;
+  --bs-badge-color: #fff;
+  --bs-badge-border-radius: var(--bs-border-radius);
+  display: inline-block;
+  padding: var(--bs-badge-padding-y) var(--bs-badge-padding-x);
+  font-size: var(--bs-badge-font-size);
+  font-weight: var(--bs-badge-font-weight);
+  line-height: 1;
+  color: var(--bs-badge-color);
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: var(--bs-badge-border-radius);
+}
+.badge:empty {
+  display: none;
+}
+.btn .badge {
+  position: relative;
+  top: -1px;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["bg-primary", "bg-secondary", "bg-success", "bg-danger", "bg-warning", "bg-info", "bg-light", "bg-dark"].forEach((className) => {
+                const htmlString = `
+                    <span class="badge ${className}">${className}</span>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script>
+    </body>
+</html>
+```
+
+## §2.24 进度条(`.progress`/`.progress-bar`)
+
+一个完整的进度条可以拆分成两部分：外面的槽`.progress`和里面的条`.progress-bar`。多个条可以将进度加起来。
+
+```css
+.progress, .progress-stacked {
+  --bs-progress-height: 1rem;
+  --bs-progress-font-size: 0.75rem;
+  --bs-progress-bg: var(--bs-secondary-bg);
+  --bs-progress-border-radius: var(--bs-border-radius);
+  --bs-progress-box-shadow: var(--bs-box-shadow-inset);
+  --bs-progress-bar-color: #fff;
+  --bs-progress-bar-bg: #0d6efd;
+  --bs-progress-bar-transition: width 0.6s ease;
+  display: flex;
+  height: var(--bs-progress-height);
+  overflow: hidden;
+  font-size: var(--bs-progress-font-size);
+  background-color: var(--bs-progress-bg);
+  border-radius: var(--bs-progress-border-radius);
+}
+.progress-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--bs-progress-bar-color);
+  text-align: center;
+  white-space: nowrap;
+  background-color: var(--bs-progress-bar-bg);
+  transition: var(--bs-progress-bar-transition);
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar {
+    transition: none;
+  }
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="progress">
+            <div class="progress-bar w-25">25%</div>
+            <div class="progress-bar w-50 bg-secondary">50%</div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.24.1 条纹进度条(`.progress-bar-striped`)
+
+Bootstrap给`.progress-bar`提供了`.progress-bar-striped`属性，使其带有条纹样式。
+
+```css
+.progress-bar-striped {
+  background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+  background-size: var(--bs-progress-height) var(--bs-progress-height);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="progress">
+            <div class="progress-bar w-25 progress-bar-striped">25%</div>
+            <div class="progress-bar w-50 progress-bar-striped bg-secondary">50%</div>
+        </div>
+        <!-- <script>
+            ["bg-primary", "bg-secondary", "bg-success", "bg-danger", "bg-warning", "bg-info", "bg-light", "bg-dark"].forEach((className) => {
+                const htmlString = `
+                    <span class="badge ${className}">${className}</span>
+                `;
+                document.body.innerHTML += htmlString;
+            });
+        </script> -->
+    </body>
+</html>
+```
+
+### §2.24.2 动画进度条(`.progress-bar-animated`)
+
+Bootstrap给`.progress-bar.progress-bar-striped`提供了`.progress-bar-animated`属性，使条纹样式带有动画效果。
+
+```css
+.progress-bar-animated {
+  animation: 1s linear infinite progress-bar-stripes;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar-animated {
+    animation: none;
+  }
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="progress">
+            <div class="progress-bar w-25 progress-bar-striped progress-bar-animated">25%</div>
+            <div class="progress-bar w-50 progress-bar-striped progress-bar-animated bg-secondary">50%</div>
+        </div>
+    </body>
+</html>
+```
+
+## §2.25 导航栏(`.navbar`)
+
+Bootstrap使用`.navbar`定义导航栏，并通过`.navbar-expand-<BREAK_POINT>`定义响应式布局。导航栏内还可以包含以下组件：
+
+| 属性名                         | 作用                         |
+| ------------------------------ | ---------------------------- |
+| `.navbar-brand`                | LOGO                         |
+| `.navbar-nav`                  | 下拉菜单                     |
+| `.navbar-toggler`              | 折叠插件与切换导航           |
+| `.navbar-text`                 | 优化垂直对齐、水平间距的文本 |
+| `.navbar-collapse`/`.collapse` | 折叠的导航栏内容             |
+
+```css
+.navbar {
+  --bs-navbar-padding-x: 0;
+  --bs-navbar-padding-y: 0.5rem;
+  --bs-navbar-color: rgba(var(--bs-emphasis-color-rgb), 0.65);
+  --bs-navbar-hover-color: rgba(var(--bs-emphasis-color-rgb), 0.8);
+  --bs-navbar-disabled-color: rgba(var(--bs-emphasis-color-rgb), 0.3);
+  --bs-navbar-active-color: rgba(var(--bs-emphasis-color-rgb), 1);
+  --bs-navbar-brand-padding-y: 0.3125rem;
+  --bs-navbar-brand-margin-end: 1rem;
+  --bs-navbar-brand-font-size: 1.25rem;
+  --bs-navbar-brand-color: rgba(var(--bs-emphasis-color-rgb), 1);
+  --bs-navbar-brand-hover-color: rgba(var(--bs-emphasis-color-rgb), 1);
+  --bs-navbar-nav-link-padding-x: 0.5rem;
+  --bs-navbar-toggler-padding-y: 0.25rem;
+  --bs-navbar-toggler-padding-x: 0.75rem;
+  --bs-navbar-toggler-font-size: 1.25rem;
+  --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  --bs-navbar-toggler-border-color: rgba(var(--bs-emphasis-color-rgb), 0.15);
+  --bs-navbar-toggler-border-radius: var(--bs-border-radius);
+  --bs-navbar-toggler-focus-width: 0.25rem;
+  --bs-navbar-toggler-transition: box-shadow 0.15s ease-in-out;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--bs-navbar-padding-y) var(--bs-navbar-padding-x);
+}
+.navbar > .container,
+.navbar > .container-fluid,
+.navbar > .container-sm,
+.navbar > .container-md,
+.navbar > .container-lg,
+.navbar > .container-xl,
+.navbar > .container-xxl {
+  display: flex;
+  flex-wrap: inherit;
+  align-items: center;
+  justify-content: space-between;
+}
+.navbar-brand {
+  padding-top: var(--bs-navbar-brand-padding-y);
+  padding-bottom: var(--bs-navbar-brand-padding-y);
+  margin-right: var(--bs-navbar-brand-margin-end);
+  font-size: var(--bs-navbar-brand-font-size);
+  color: var(--bs-navbar-brand-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.navbar-brand:hover, .navbar-brand:focus {
+  color: var(--bs-navbar-brand-hover-color);
+}
+.navbar-nav {
+  --bs-nav-link-padding-x: 0;
+  --bs-nav-link-padding-y: 0.5rem;
+  --bs-nav-link-font-weight: ;
+  --bs-nav-link-color: var(--bs-navbar-color);
+  --bs-nav-link-hover-color: var(--bs-navbar-hover-color);
+  --bs-nav-link-disabled-color: var(--bs-navbar-disabled-color);
+  display: flex;
+  flex-direction: column;
+  padding-left: 0;
+  margin-bottom: 0;
+  list-style: none;
+}
+.navbar-nav .nav-link.active, .navbar-nav .nav-link.show {
+  color: var(--bs-navbar-active-color);
+}
+.navbar-nav .dropdown-menu {
+  position: static;
+}
+.navbar-text {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  color: var(--bs-navbar-color);
+}
+.navbar-text a,
+.navbar-text a:hover,
+.navbar-text a:focus {
+  color: var(--bs-navbar-active-color);
+}
+.navbar-collapse {
+  flex-basis: 100%;
+  flex-grow: 1;
+  align-items: center;
+}
+.navbar-toggler {
+  padding: var(--bs-navbar-toggler-padding-y) var(--bs-navbar-toggler-padding-x);
+  font-size: var(--bs-navbar-toggler-font-size);
+  line-height: 1;
+  color: var(--bs-navbar-color);
+  background-color: transparent;
+  border: var(--bs-border-width) solid var(--bs-navbar-toggler-border-color);
+  border-radius: var(--bs-navbar-toggler-border-radius);
+  transition: var(--bs-navbar-toggler-transition);
+}
+@media (prefers-reduced-motion: reduce) {
+  .navbar-toggler {
+    transition: none;
+  }
+}
+.navbar-toggler:hover {
+  text-decoration: none;
+}
+.navbar-toggler:focus {
+  text-decoration: none;
+  outline: 0;
+  box-shadow: 0 0 0 var(--bs-navbar-toggler-focus-width);
+}
+.navbar-toggler-icon {
+  display: inline-block;
+  width: 1.5em;
+  height: 1.5em;
+  vertical-align: middle;
+  background-image: var(--bs-navbar-toggler-icon-bg);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100%;
+}
+.navbar-nav-scroll {
+  max-height: var(--bs-scroll-height, 75vh);
+  overflow-y: auto;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <nav class="navbar navbar-expand-md bg-light">
+            <a href="#" class="navbar-brand">
+                <img src="https://www.baidu.com/favicon.ico" alt="">
+                <span>百度</span>
+            </a>
+            <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#collapse">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item active">
+                        <a class="nav-link " href="#">首页</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">课程列表</a>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#">C</a>
+                            <a class="dropdown-item" href="#">C++</a>
+                            <a class="dropdown-item" href="#">Java</a>
+                            <a class="dropdown-item" href="#">Python</a>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#">关于我们</a>
+                    </li>
+                </ul>
+            </div>
+            <span class="navbar-text">当前时间: 2024/01/21</span>
+        </nav>
+    </body>
+</html>
+```
+
+### §2.25.1 导航栏定位(`.fixed-*`)
+
+Bootstrap提供了两种用于导航栏定位的属性：`.fixed-top`和`.fixed-bottom`。
+
+```css
+.fixed-top {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1030;
+}
+.fixed-bottom {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1030;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["fixed-top", "fixed-bottom"].forEach((className) => {
+                document.body.innerHTML += `
+                    <nav class="navbar navbar-expand-md bg-light ${className}">
+                        <a href="#" class="navbar-brand">
+                            <img src="https://www.baidu.com/favicon.ico" alt="">
+                            <span>百度</span>
+                        </a>
+                        <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#collapse">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
+                        <div class="collapse navbar-collapse" id="collapse">
+                            <ul class="navbar-nav">
+                                <li class="nav-item active">
+                                    <a class="nav-link " href="#">首页</a>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">课程列表</a>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="#">C</a>
+                                        <a class="dropdown-item" href="#">C++</a>
+                                        <a class="dropdown-item" href="#">Java</a>
+                                        <a class="dropdown-item" href="#">Python</a>
+                                    </div>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link disabled" href="#">关于我们</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <span class="navbar-text">当前时间: 2024/01/21</span>
+                    </nav>
+                `;
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §2.25.2 导航栏颜色(`.navbar-dark`)
+
+Bootstrap在`.navbar`的基础上，引入了`.navbar-dark`属性用于重新更改导航栏颜色为暗色模式，需要配合`.bg-*`一起使用。
+
+```css
+.navbar-dark,
+.navbar[data-bs-theme=dark] {
+  --bs-navbar-color: rgba(255, 255, 255, 0.55);
+  --bs-navbar-hover-color: rgba(255, 255, 255, 0.75);
+  --bs-navbar-disabled-color: rgba(255, 255, 255, 0.25);
+  --bs-navbar-active-color: #fff;
+  --bs-navbar-brand-color: #fff;
+  --bs-navbar-brand-hover-color: #fff;
+  --bs-navbar-toggler-border-color: rgba(255, 255, 255, 0.1);
+  --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["navbar bg-light", "navbar-dark bg-dark"].forEach((className) => {
+                document.body.innerHTML += `
+                    <nav class="navbar navbar-expand-md ${className}">
+                        <a href="#" class="navbar-brand">
+                            <img src="https://www.baidu.com/favicon.ico" alt="">
+                            <span>百度</span>
+                        </a>
+                        <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#collapse">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
+                        <div class="collapse navbar-collapse" id="collapse">
+                            <ul class="navbar-nav">
+                                <li class="nav-item active">
+                                    <a class="nav-link " href="#">首页</a>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">课程列表</a>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="#">C</a>
+                                        <a class="dropdown-item" href="#">C++</a>
+                                        <a class="dropdown-item" href="#">Java</a>
+                                        <a class="dropdown-item" href="#">Python</a>
+                                    </div>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link disabled" href="#">关于我们</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <span class="navbar-text">当前时间: 2024/01/21</span>
+                    </nav>
+                `;
+            })
+        </script>
+    </body>
+</html>
+```
+
+## §2.26 列表组(`.list-group`)
+
+Bootstrap在`<ul>`元素的基础上，设计了列表组样式。一个列表组`ul.list-group`包含了若干列表元素`li.list-group-item`/`li.list-group-action`，分别指定了`li`和`li:active`的样式。
+
+```css
+.list-group {
+  --bs-list-group-color: var(--bs-body-color);
+  --bs-list-group-bg: var(--bs-body-bg);
+  --bs-list-group-border-color: var(--bs-border-color);
+  --bs-list-group-border-width: var(--bs-border-width);
+  --bs-list-group-border-radius: var(--bs-border-radius);
+  --bs-list-group-item-padding-x: 1rem;
+  --bs-list-group-item-padding-y: 0.5rem;
+  --bs-list-group-action-color: var(--bs-secondary-color);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-tertiary-bg);
+  --bs-list-group-action-active-color: var(--bs-body-color);
+  --bs-list-group-action-active-bg: var(--bs-secondary-bg);
+  --bs-list-group-disabled-color: var(--bs-secondary-color);
+  --bs-list-group-disabled-bg: var(--bs-body-bg);
+  --bs-list-group-active-color: #fff;
+  --bs-list-group-active-bg: #0d6efd;
+  --bs-list-group-active-border-color: #0d6efd;
+  display: flex;
+  flex-direction: column;
+  padding-left: 0;
+  margin-bottom: 0;
+  border-radius: var(--bs-list-group-border-radius);
+}
+.list-group-item {
+  position: relative;
+  display: block;
+  padding: var(--bs-list-group-item-padding-y) var(--bs-list-group-item-padding-x);
+  color: var(--bs-list-group-color);
+  text-decoration: none;
+  background-color: var(--bs-list-group-bg);
+  border: var(--bs-list-group-border-width) solid var(--bs-list-group-border-color);
+}
+.list-group-item + .list-group-item {
+  border-top-width: 0;
+}
+.list-group-item + .list-group-item.active {
+  margin-top: calc(-1 * var(--bs-list-group-border-width));
+  border-top-width: var(--bs-list-group-border-width);
+}
+.list-group-item-action {
+  width: 100%;
+  color: var(--bs-list-group-action-color);
+  text-align: inherit;
+}
+.list-group-item-action:hover, .list-group-item-action:focus {
+  z-index: 1;
+  color: var(--bs-list-group-action-hover-color);
+  text-decoration: none;
+  background-color: var(--bs-list-group-action-hover-bg);
+}
+.list-group-item-action:active {
+  color: var(--bs-list-group-action-active-color);
+  background-color: var(--bs-list-group-action-active-bg);
+}
+```
+
+```html
+
 ```
 
 
 
+## §2.27 面包屑
 
 
 
+## §2.28 分页效果
 
 
 
+## §2.29 卡片
 
 
 
+## §2.30 旋转器
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+## §2.31 手风琴
 
 
 
 # §3 常用组件设计
-
-
-
-2024.01.20 6w+
 
 2024.01.21 7w+
 
