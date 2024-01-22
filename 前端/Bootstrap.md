@@ -3817,7 +3817,7 @@ Bootstrap提供了三种不同大小的尺寸属性——`.btn-sm`、`.btn`、`.
 
 ### §2.19.5 按钮加载样式(`.spinner-border`/`.spinner-grow`)
 
-Bootstrap提供了两种加载动画样式——`.spinner-border`和`.spinner-grow`，并且配备了对应的小尺寸属性。
+Bootstrap提供了两种加载动画样式——`.spinner-border`和`.spinner-grow`，并且配备了对应的小尺寸属性。我们可以使用`text-*`改变其颜色，或者`.spinner-border-sm`/`.spinner-grow-sm`来缩小尺寸。
 
 ```css
 <!DOCTYPE html>
@@ -5300,7 +5300,7 @@ Bootstrap在`.navbar`的基础上，引入了`.navbar-dark`属性用于重新更
 
 ## §2.26 列表组(`.list-group`)
 
-Bootstrap在`<ul>`元素的基础上，设计了列表组样式。一个列表组`ul.list-group`包含了若干列表元素`li.list-group-item`/`li.list-group-action`，分别指定了`li`和`li:active`的样式。
+Bootstrap在`<ul>`元素的基础上，设计了列表组样式。一个列表组`ul.list-group`包含了若干列表元素`li.list-group-item`/`li.list-group-action`，分别指定了`li`和`li:active`的样式。同理，`.list-group-item`也支持`.active`和`.disabled`的修饰。
 
 ```css
 .list-group {
@@ -5361,34 +5361,938 @@ Bootstrap在`<ul>`元素的基础上，设计了列表组样式。一个列表�
 ```
 
 ```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="list-group">
+            <li class="list-group-item">列表项</li>
+            <li class="list-group-item list-group-item-action">列表项(有:hover效果)</li>
+            <li class="list-group-item active">列表项(active)</li>
+            <li class="list-group-item disabled">列表项(disabled)</li>
+        </ul>
+    </body>
+</html>
+```
 
+### §2.26.1 无边框列表组(`.list-group-flush`)
+
+在`ul.list-group`的基础上，Bootstrap提供了`ul.list-group.list-group-flush`，用于消除列表组的边框和圆角。
+
+```css
+.list-group-flush {
+  border-radius: 0;
+}
+.list-group-flush > .list-group-item {
+  border-width: 0 0 var(--bs-list-group-border-width);
+}
+.list-group-flush > .list-group-item:last-child {
+  border-bottom-width: 0;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item">列表项</li>
+            <li class="list-group-item list-group-item-action">列表项(有:hover效果)</li>
+            <li class="list-group-item active">列表项(active)</li>
+            <li class="list-group-item disabled">列表项(disabled)</li>
+        </ul>
+    </body>
+</html>
+```
+
+### §2.26.2 列表项颜色(`.list-group-item-*`)
+
+```css
+.list-group-item-primary {
+  --bs-list-group-color: var(--bs-primary-text-emphasis);
+  --bs-list-group-bg: var(--bs-primary-bg-subtle);
+  --bs-list-group-border-color: var(--bs-primary-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-primary-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-primary-border-subtle);
+  --bs-list-group-active-color: var(--bs-primary-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-primary-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-primary-text-emphasis);
+}
+.list-group-item-secondary {
+  --bs-list-group-color: var(--bs-secondary-text-emphasis);
+  --bs-list-group-bg: var(--bs-secondary-bg-subtle);
+  --bs-list-group-border-color: var(--bs-secondary-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-secondary-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-secondary-border-subtle);
+  --bs-list-group-active-color: var(--bs-secondary-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-secondary-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-secondary-text-emphasis);
+}
+.list-group-item-success {
+  --bs-list-group-color: var(--bs-success-text-emphasis);
+  --bs-list-group-bg: var(--bs-success-bg-subtle);
+  --bs-list-group-border-color: var(--bs-success-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-success-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-success-border-subtle);
+  --bs-list-group-active-color: var(--bs-success-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-success-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-success-text-emphasis);
+}
+.list-group-item-info {
+  --bs-list-group-color: var(--bs-info-text-emphasis);
+  --bs-list-group-bg: var(--bs-info-bg-subtle);
+  --bs-list-group-border-color: var(--bs-info-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-info-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-info-border-subtle);
+  --bs-list-group-active-color: var(--bs-info-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-info-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-info-text-emphasis);
+}
+.list-group-item-warning {
+  --bs-list-group-color: var(--bs-warning-text-emphasis);
+  --bs-list-group-bg: var(--bs-warning-bg-subtle);
+  --bs-list-group-border-color: var(--bs-warning-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-warning-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-warning-border-subtle);
+  --bs-list-group-active-color: var(--bs-warning-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-warning-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-warning-text-emphasis);
+}
+.list-group-item-danger {
+  --bs-list-group-color: var(--bs-danger-text-emphasis);
+  --bs-list-group-bg: var(--bs-danger-bg-subtle);
+  --bs-list-group-border-color: var(--bs-danger-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-danger-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-danger-border-subtle);
+  --bs-list-group-active-color: var(--bs-danger-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-danger-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-danger-text-emphasis);
+}
+.list-group-item-light {
+  --bs-list-group-color: var(--bs-light-text-emphasis);
+  --bs-list-group-bg: var(--bs-light-bg-subtle);
+  --bs-list-group-border-color: var(--bs-light-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-light-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-light-border-subtle);
+  --bs-list-group-active-color: var(--bs-light-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-light-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-light-text-emphasis);
+}
+.list-group-item-dark {
+  --bs-list-group-color: var(--bs-dark-text-emphasis);
+  --bs-list-group-bg: var(--bs-dark-bg-subtle);
+  --bs-list-group-border-color: var(--bs-dark-border-subtle);
+  --bs-list-group-action-hover-color: var(--bs-emphasis-color);
+  --bs-list-group-action-hover-bg: var(--bs-dark-border-subtle);
+  --bs-list-group-action-active-color: var(--bs-emphasis-color);
+  --bs-list-group-action-active-bg: var(--bs-dark-border-subtle);
+  --bs-list-group-active-color: var(--bs-dark-bg-subtle);
+  --bs-list-group-active-bg: var(--bs-dark-text-emphasis);
+  --bs-list-group-active-border-color: var(--bs-dark-text-emphasis);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["list-group-item-success", "list-group-item-secondary", "list-group-item-info", "list-group-item-warning", "list-group-item-danger", "list-group-item-light", "list-group-item-dark"].forEach((className) => {
+                document.body.innerHTML += `
+                    <ul class="list-group m-2">
+                        <li class="list-group-item">列表项</li>
+                        <li class="list-group-item ${className}">${className}</li>
+                        <li class="list-group-item">列表项</li>
+                    </ul>
+                `;
+            })
+        </script>
+    </body>
+</html>
+```
+
+### §2.26.3 水平排列列表组(`.list-group-horizontal`)
+
+Bootstrap在`ul.list-group`的基础上，提供了`.list-group-horizontal`属性，用于设置水平排列的列表组。
+
+```css
+.list-group-horizontal {
+  flex-direction: row;
+}
+.list-group-horizontal > .list-group-item:first-child:not(:last-child) {
+  border-bottom-left-radius: var(--bs-list-group-border-radius);
+  border-top-right-radius: 0;
+}
+.list-group-horizontal > .list-group-item:last-child:not(:first-child) {
+  border-top-right-radius: var(--bs-list-group-border-radius);
+  border-bottom-left-radius: 0;
+}
+.list-group-horizontal > .list-group-item.active {
+  margin-top: 0;
+}
+.list-group-horizontal > .list-group-item + .list-group-item {
+  border-top-width: var(--bs-list-group-border-width);
+  border-left-width: 0;
+}
+.list-group-horizontal > .list-group-item + .list-group-item.active {
+  margin-left: calc(-1 * var(--bs-list-group-border-width));
+  border-left-width: var(--bs-list-group-border-width);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="list-group list-group-horizontal">
+            <li class="list-group-item list-group-item-action">列表项</li>
+            <li class="list-group-item list-group-item-action">列表项(有:hover效果)</li>
+            <li class="list-group-item list-group-item-action active">列表项(active)</li>
+            <li class="list-group-item list-group-item-action disabled">列表项(disabled)</li>
+        </ul>
+    </body>
+</html>
+```
+
+## §2.27 面包屑(`.breadcrumb`)
+
+面包屑本质上是一种分隔符，例如文件路径中的路径分隔符`/`就可以看作是面包屑。Bootstrap规定，一个文件路径整体为`.breadcrumb`，其中的文件夹都是`.breadcrumb-item`。
+
+```css
+.breadcrumb {
+  --bs-breadcrumb-padding-x: 0;
+  --bs-breadcrumb-padding-y: 0;
+  --bs-breadcrumb-margin-bottom: 1rem;
+  --bs-breadcrumb-bg: ;
+  --bs-breadcrumb-border-radius: ;
+  --bs-breadcrumb-divider-color: var(--bs-secondary-color);
+  --bs-breadcrumb-item-padding-x: 0.5rem;
+  --bs-breadcrumb-item-active-color: var(--bs-secondary-color);
+  display: flex;
+  flex-wrap: wrap;
+  padding: var(--bs-breadcrumb-padding-y) var(--bs-breadcrumb-padding-x);
+  margin-bottom: var(--bs-breadcrumb-margin-bottom);
+  font-size: var(--bs-breadcrumb-font-size);
+  list-style: none;
+  background-color: var(--bs-breadcrumb-bg);
+  border-radius: var(--bs-breadcrumb-border-radius);
+}
+.breadcrumb-item + .breadcrumb-item {
+  padding-left: var(--bs-breadcrumb-item-padding-x);
+}
+.breadcrumb-item + .breadcrumb-item::before {
+  float: left;
+  padding-right: var(--bs-breadcrumb-item-padding-x);
+  color: var(--bs-breadcrumb-divider-color);
+  content: var(--bs-breadcrumb-divider, "/") /* rtl: var(--bs-breadcrumb-divider, "/") */;
+}
+.breadcrumb-item.active {
+  color: var(--bs-breadcrumb-item-active-color);
+}
+```
+
+Bootstrap默认使用的分隔符为`/`。我们也可以手动更改`.breadcrumb-item + .breadcrumb-item::before { content: "/" }`中的`content`属性值，来手动设置分隔符。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">新闻</li>
+            <li class="breadcrumb-item">国际新闻</li>
+            <li class="breadcrumb-item">俄乌局势</li>
+        </ol>
+    </body>
+</html>
+```
+
+## §2.28 分页按钮组(`.pagination`)
+
+如果一个网页内容过多，我们通常会选择分页处理，并给用户提供一个用于切换分页的按钮组。在之前的学习中，我们曾经手动使用按钮组实现了分页效果。其实Bootstrap已经做了分页按钮的样式。只需给`<ul>`增加`.pagination`属性，并在其中包含一系列`<li class="page-item">`，每个`li.page-item`包含一个`a.page-link`即可。
+
+```css
+.pagination {
+  --bs-pagination-padding-x: 0.75rem;
+  --bs-pagination-padding-y: 0.375rem;
+  --bs-pagination-font-size: 1rem;
+  --bs-pagination-color: var(--bs-link-color);
+  --bs-pagination-bg: var(--bs-body-bg);
+  --bs-pagination-border-width: var(--bs-border-width);
+  --bs-pagination-border-color: var(--bs-border-color);
+  --bs-pagination-border-radius: var(--bs-border-radius);
+  --bs-pagination-hover-color: var(--bs-link-hover-color);
+  --bs-pagination-hover-bg: var(--bs-tertiary-bg);
+  --bs-pagination-hover-border-color: var(--bs-border-color);
+  --bs-pagination-focus-color: var(--bs-link-hover-color);
+  --bs-pagination-focus-bg: var(--bs-secondary-bg);
+  --bs-pagination-focus-box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  --bs-pagination-active-color: #fff;
+  --bs-pagination-active-bg: #0d6efd;
+  --bs-pagination-active-border-color: #0d6efd;
+  --bs-pagination-disabled-color: var(--bs-secondary-color);
+  --bs-pagination-disabled-bg: var(--bs-secondary-bg);
+  --bs-pagination-disabled-border-color: var(--bs-border-color);
+  display: flex;
+  padding-left: 0;
+  list-style: none;
+}
+.page-item:not(:first-child) .page-link {
+  margin-left: calc(var(--bs-border-width) * -1);
+}
+.page-item:first-child .page-link {
+  border-top-left-radius: var(--bs-pagination-border-radius);
+  border-bottom-left-radius: var(--bs-pagination-border-radius);
+}
+.page-item:last-child .page-link {
+  border-top-right-radius: var(--bs-pagination-border-radius);
+  border-bottom-right-radius: var(--bs-pagination-border-radius);
+}
+.page-link {
+  position: relative;
+  display: block;
+  padding: var(--bs-pagination-padding-y) var(--bs-pagination-padding-x);
+  font-size: var(--bs-pagination-font-size);
+  color: var(--bs-pagination-color);
+  text-decoration: none;
+  background-color: var(--bs-pagination-bg);
+  border: var(--bs-pagination-border-width) solid var(--bs-pagination-border-color);
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-link {
+    transition: none;
+  }
+}
+.page-link:hover {
+  z-index: 2;
+  color: var(--bs-pagination-hover-color);
+  background-color: var(--bs-pagination-hover-bg);
+  border-color: var(--bs-pagination-hover-border-color);
+}
+.page-link:focus {
+  z-index: 3;
+  color: var(--bs-pagination-focus-color);
+  background-color: var(--bs-pagination-focus-bg);
+  outline: 0;
+  box-shadow: var(--bs-pagination-focus-box-shadow);
+}
+.page-link.active, .active > .page-link {
+  z-index: 3;
+  color: var(--bs-pagination-active-color);
+  background-color: var(--bs-pagination-active-bg);
+  border-color: var(--bs-pagination-active-border-color);
+}
+.page-link.disabled, .disabled > .page-link {
+  color: var(--bs-pagination-disabled-color);
+  pointer-events: none;
+  background-color: var(--bs-pagination-disabled-bg);
+  border-color: var(--bs-pagination-disabled-border-color);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="pagination">
+            <li class="page-item"><a href="#" class="page-link">&lt;</a></li>
+            <li class="page-item"><a href="#" class="page-link">1</a></li>
+            <li class="page-item"><a href="#" class="page-link active">2</a></li>
+            <li class="page-item"><a href="#" class="page-link disabled">3</a></li>
+            <li class="page-item"><a href="#" class="page-link">&gt;</a></li>
+        </ul>
+    </body>
+</html>
+```
+
+注意到`.pagination`设置了`display: flex`，因此我们可以使用`justify-content-*`设置分页按钮组居左、居中、居右对齐。
+
+### §2.28.1 分页按钮组尺寸(`.pagination-*`)
+
+Bootstrap提供了三种分页按钮组的尺寸：`.pagination-sm`、`.pagination`、`.pagination-lg`。
+
+```css
+.pagination-lg {
+  --bs-pagination-padding-x: 1.5rem;
+  --bs-pagination-padding-y: 0.75rem;
+  --bs-pagination-font-size: 1.25rem;
+  --bs-pagination-border-radius: var(--bs-border-radius-lg);
+}
+.pagination-sm {
+  --bs-pagination-padding-x: 0.5rem;
+  --bs-pagination-padding-y: 0.25rem;
+  --bs-pagination-font-size: 0.875rem;
+  --bs-pagination-border-radius: var(--bs-border-radius-sm);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["pagination pagination-sm", "pagination", "pagination pagination-lg"].forEach((className) => {
+                document.body.innerHTML += `
+                    <ul class="${className}">
+                        <li class="page-item"><a href="#" class="page-link">&lt;</a></li>
+                        <li class="page-item"><a href="#" class="page-link">1</a></li>
+                        <li class="page-item"><a href="#" class="page-link active">2</a></li>
+                        <li class="page-item"><a href="#" class="page-link disabled">3</a></li>
+                        <li class="page-item"><a href="#" class="page-link">&gt;</a></li>
+                    </ul>
+                `;
+            })
+        </script>
+    </body>
+</html>
+```
+
+## §2.29 卡片(`.card`)
+
+Bootstrap提供了卡片`.card`的样式，包含以下附属属性：
+
+| 属性名          | 作用       |
+| --------------- | ---------- |
+| `card-title`    | 卡片标题   |
+| `card-subtitle` | 卡片副标题 |
+| `card-body`     | 卡片主题   |
+| `card-text`     | 卡片文本   |
+| `card-link`     | 卡片超链接 |
+| `card-img`      | 卡片图片   |
+| `card-header`   | 卡片页眉   |
+| `card-footer`   | 卡片页尾   |
+
+```css
+.card {
+  --bs-card-spacer-y: 1rem;
+  --bs-card-spacer-x: 1rem;
+  --bs-card-title-spacer-y: 0.5rem;
+  --bs-card-title-color: ;
+  --bs-card-subtitle-color: ;
+  --bs-card-border-width: var(--bs-border-width);
+  --bs-card-border-color: var(--bs-border-color-translucent);
+  --bs-card-border-radius: var(--bs-border-radius);
+  --bs-card-box-shadow: ;
+  --bs-card-inner-border-radius: calc(var(--bs-border-radius) - (var(--bs-border-width)));
+  --bs-card-cap-padding-y: 0.5rem;
+  --bs-card-cap-padding-x: 1rem;
+  --bs-card-cap-bg: rgba(var(--bs-body-color-rgb), 0.03);
+  --bs-card-cap-color: ;
+  --bs-card-height: ;
+  --bs-card-color: ;
+  --bs-card-bg: var(--bs-body-bg);
+  --bs-card-img-overlay-padding: 1rem;
+  --bs-card-group-margin: 0.75rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: var(--bs-card-height);
+  color: var(--bs-body-color);
+  word-wrap: break-word;
+  background-color: var(--bs-card-bg);
+  background-clip: border-box;
+  border: var(--bs-card-border-width) solid var(--bs-card-border-color);
+  border-radius: var(--bs-card-border-radius);
+}
+.card > hr {
+  margin-right: 0;
+  margin-left: 0;
+}
+.card > .list-group {
+  border-top: inherit;
+  border-bottom: inherit;
+}
+.card > .list-group:first-child {
+  border-top-width: 0;
+  border-top-left-radius: var(--bs-card-inner-border-radius);
+  border-top-right-radius: var(--bs-card-inner-border-radius);
+}
+.card > .list-group:last-child {
+  border-bottom-width: 0;
+  border-bottom-right-radius: var(--bs-card-inner-border-radius);
+  border-bottom-left-radius: var(--bs-card-inner-border-radius);
+}
+.card > .card-header + .list-group, .card > .list-group + .card-footer {
+  border-top: 0;
+}
+.card-body {
+  flex: 1 1 auto;
+  padding: var(--bs-card-spacer-y) var(--bs-card-spacer-x);
+  color: var(--bs-card-color);
+}
+.card-title {
+  margin-bottom: var(--bs-card-title-spacer-y);
+  color: var(--bs-card-title-color);
+}
+.card-subtitle {
+  margin-top: calc(-0.5 * var(--bs-card-title-spacer-y));
+  margin-bottom: 0;
+  color: var(--bs-card-subtitle-color);
+}
+.card-text:last-child {
+  margin-bottom: 0;
+}
+.card-link + .card-link {
+  margin-left: var(--bs-card-spacer-x);
+}
+.card-header {
+  padding: var(--bs-card-cap-padding-y) var(--bs-card-cap-padding-x);
+  margin-bottom: 0;
+  color: var(--bs-card-cap-color);
+  background-color: var(--bs-card-cap-bg);
+  border-bottom: var(--bs-card-border-width) solid var(--bs-card-border-color);
+}
+.card-header:first-child {
+  border-radius: var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0;
+}
+.card-footer {
+  padding: var(--bs-card-cap-padding-y) var(--bs-card-cap-padding-x);
+  color: var(--bs-card-cap-color);
+  background-color: var(--bs-card-cap-bg);
+  border-top: var(--bs-card-border-width) solid var(--bs-card-border-color);
+}
+.card-footer:last-child {
+  border-radius: 0 0 var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius);
+}
+.card-header-tabs {
+  margin-right: calc(-0.5 * var(--bs-card-cap-padding-x));
+  margin-bottom: calc(-1 * var(--bs-card-cap-padding-y));
+  margin-left: calc(-0.5 * var(--bs-card-cap-padding-x));
+  border-bottom: 0;
+}
+.card-header-tabs .nav-link.active {
+  background-color: var(--bs-card-bg);
+  border-bottom-color: var(--bs-card-bg);
+}
+.card-header-pills {
+  margin-right: calc(-0.5 * var(--bs-card-cap-padding-x));
+  margin-left: calc(-0.5 * var(--bs-card-cap-padding-x));
+}
+.card-img-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: var(--bs-card-img-overlay-padding);
+  border-radius: var(--bs-card-inner-border-radius);
+}
+.card-img,
+.card-img-top,
+.card-img-bottom {
+  width: 100%;
+}
+.card-img,
+.card-img-top {
+  border-top-left-radius: var(--bs-card-inner-border-radius);
+  border-top-right-radius: var(--bs-card-inner-border-radius);
+}
+.card-img,
+.card-img-bottom {
+  border-bottom-right-radius: var(--bs-card-inner-border-radius);
+  border-bottom-left-radius: var(--bs-card-inner-border-radius);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="card">
+            <div class="card-header">卡片页眉</div>
+            <img src="https://www.baidu.com/favicon.ico" alt="" class="card-img" style="width: 3rem;">
+            <div class="card-title">卡片标题</div>
+            <div class="card-subtitle">卡片副标题</div>
+            <div class="card-body">
+                <p class="card-text">卡片文本</p>
+                <a class="card-link" href="#">加入购物车</a>
+                <a class="card-link" href="#">立即购买</a>
+            </div>
+            <div class="card-footer">卡片页脚</div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.29.1 卡片背景图片(`.card-img-overlay`)
+
+`.card-img-overlay`用于将文字放在图片之上。
+
+```css
+.card-img-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: var(--bs-card-img-overlay-padding);
+  border-radius: var(--bs-card-inner-border-radius);
+}
+```
+
+```css
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="card bg-primary">
+            <img src="https://www.baidu.com/favicon.ico" alt="" style="width: 10rem;">
+            <div class="card-img-overlay">这段文字浮在图片之上</div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.29.2 卡片组(`.card-group`)
+
+`.card-group`用于对多个卡片进行排版。
+
+```css
+.card-group > .card {
+  margin-bottom: var(--bs-card-group-margin);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="card-group center">
+            <div class="card">
+                <img class="card-img-top mx-auto" src="https://www.baidu.com/favicon.ico" alt="" style="width: 10rem;">
+                <div class="card-body">
+                    <h5 class="card-title">baidu</h5>
+                    <p class="card-text">搜索引擎</p>
+                </div>
+            </div>
+            <div class="card">
+                <img class="card-img-top mx-auto" src="https://www.bing.com/favicon.ico" alt="" style="width: 10rem;">
+                <div class="card-body">
+                    <h5 class="card-title">bing</h5>
+                    <p class="card-text">搜索引擎</p>
+                </div>
+            </div>
+            <div class="card">
+                <img class="card-img-top mx-auto" src="https://www.google.com/favicon.ico" alt="" style="width: 10rem;">
+                <div class="card-body">
+                    <h5 class="card-title">google</h5>
+                    <p class="card-text">搜索引擎</p>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+## §2.30 手风琴(`.accordion`)
+
+我们知道，选项卡是横向排列的。手风琴的作用类似于选项卡，但是沿纵向排列。一个手风琴(`.accordion`)包含了若干个手风琴项(`.accordion-item`)。每个手风琴项可以由下列部件组成：
+
+| 属性名               | 作用         |
+| -------------------- | ------------ |
+| `accordion-header`   | 标题         |
+| `accordion-button`   | 折叠按钮     |
+| `accordion-collapse` | 手风琴折叠体 |
+| `accordion-body`     | 手风琴内容区 |
+
+```css
+.accordion {
+  --bs-accordion-color: var(--bs-body-color);
+  --bs-accordion-bg: var(--bs-body-bg);
+  --bs-accordion-transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, border-radius 0.15s ease;
+  --bs-accordion-border-color: var(--bs-border-color);
+  --bs-accordion-border-width: var(--bs-border-width);
+  --bs-accordion-border-radius: var(--bs-border-radius);
+  --bs-accordion-inner-border-radius: calc(var(--bs-border-radius) - (var(--bs-border-width)));
+  --bs-accordion-btn-padding-x: 1.25rem;
+  --bs-accordion-btn-padding-y: 1rem;
+  --bs-accordion-btn-color: var(--bs-body-color);
+  --bs-accordion-btn-bg: var(--bs-accordion-bg);
+  --bs-accordion-btn-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23212529'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+  --bs-accordion-btn-icon-width: 1.25rem;
+  --bs-accordion-btn-icon-transform: rotate(-180deg);
+  --bs-accordion-btn-icon-transition: transform 0.2s ease-in-out;
+  --bs-accordion-btn-active-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23052c65'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+  --bs-accordion-btn-focus-border-color: #86b7fe;
+  --bs-accordion-btn-focus-box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  --bs-accordion-body-padding-x: 1.25rem;
+  --bs-accordion-body-padding-y: 1rem;
+  --bs-accordion-active-color: var(--bs-primary-text-emphasis);
+  --bs-accordion-active-bg: var(--bs-primary-bg-subtle);
+}
+.accordion-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--bs-accordion-btn-padding-y) var(--bs-accordion-btn-padding-x);
+  font-size: 1rem;
+  color: var(--bs-accordion-btn-color);
+  text-align: left;
+  background-color: var(--bs-accordion-btn-bg);
+  border: 0;
+  border-radius: 0;
+  overflow-anchor: none;
+  transition: var(--bs-accordion-transition);
+}
+@media (prefers-reduced-motion: reduce) {
+  .accordion-button {
+    transition: none;
+  }
+}
+.accordion-button:not(.collapsed) {
+  color: var(--bs-accordion-active-color);
+  background-color: var(--bs-accordion-active-bg);
+  box-shadow: inset 0 calc(-1 * var(--bs-accordion-border-width)) 0 var(--bs-accordion-border-color);
+}
+.accordion-button:not(.collapsed)::after {
+  background-image: var(--bs-accordion-btn-active-icon);
+  transform: var(--bs-accordion-btn-icon-transform);
+}
+.accordion-button::after {
+  flex-shrink: 0;
+  width: var(--bs-accordion-btn-icon-width);
+  height: var(--bs-accordion-btn-icon-width);
+  margin-left: auto;
+  content: "";
+  background-image: var(--bs-accordion-btn-icon);
+  background-repeat: no-repeat;
+  background-size: var(--bs-accordion-btn-icon-width);
+  transition: var(--bs-accordion-btn-icon-transition);
+}
+@media (prefers-reduced-motion: reduce) {
+  .accordion-button::after {
+    transition: none;
+  }
+}
+.accordion-button:hover {
+  z-index: 2;
+}
+.accordion-button:focus {
+  z-index: 3;
+  border-color: var(--bs-accordion-btn-focus-border-color);
+  outline: 0;
+  box-shadow: var(--bs-accordion-btn-focus-box-shadow);
+}
+.accordion-header {
+  margin-bottom: 0;
+}
+.accordion-item {
+  color: var(--bs-accordion-color);
+  background-color: var(--bs-accordion-bg);
+  border: var(--bs-accordion-border-width) solid var(--bs-accordion-border-color);
+}
+.accordion-item:first-of-type {
+  border-top-left-radius: var(--bs-accordion-border-radius);
+  border-top-right-radius: var(--bs-accordion-border-radius);
+}
+.accordion-item:first-of-type .accordion-button {
+  border-top-left-radius: var(--bs-accordion-inner-border-radius);
+  border-top-right-radius: var(--bs-accordion-inner-border-radius);
+}
+.accordion-item:not(:first-of-type) {
+  border-top: 0;
+}
+.accordion-item:last-of-type {
+  border-bottom-right-radius: var(--bs-accordion-border-radius);
+  border-bottom-left-radius: var(--bs-accordion-border-radius);
+}
+.accordion-item:last-of-type .accordion-button.collapsed {
+  border-bottom-right-radius: var(--bs-accordion-inner-border-radius);
+  border-bottom-left-radius: var(--bs-accordion-inner-border-radius);
+}
+.accordion-item:last-of-type .accordion-collapse {
+  border-bottom-right-radius: var(--bs-accordion-border-radius);
+  border-bottom-left-radius: var(--bs-accordion-border-radius);
+}
+
+.accordion-body {
+  padding: var(--bs-accordion-body-padding-y) var(--bs-accordion-body-padding-x);
+}
+```
+
+给`.accordion-collapse.accordion`指定`.show`属性，可以使其处于展开状态。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="accordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" data-bs-toggle="collapse" data-bs-target="#collapse-1">这里是标题</button>
+                </h2>
+                <div class="accordion accrodion-aollapse collapse show" id="collapse-1">
+                    <div class="accordion-body">
+                        <p>这里是内容</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §2.30.1 无边框手风琴(`.accordion-flush`)
+
+Bootstrap在`.accordion`的基础上，引入了`.accordion-flush`，用于将手风琴样式改为无边框。
+
+```css
+.accordion-flush .accordion-collapse {
+  border-width: 0;
+}
+.accordion-flush .accordion-item {
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+}
+.accordion-flush .accordion-item:first-child {
+  border-top: 0;
+}
+.accordion-flush .accordion-item:last-child {
+  border-bottom: 0;
+}
+.accordion-flush .accordion-item .accordion-button, .accordion-flush .accordion-item .accordion-button.collapsed {
+  border-radius: 0;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="accordion accordion-flush">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" data-bs-toggle="collapse" data-bs-target="#collapse-1">这里是标题</button>
+                </h2>
+                <div class="accordion accrodion-aollapse collapse show" id="collapse-1">
+                    <div class="accordion-body">
+                        <p>这里是内容</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
 ```
 
 
 
-## §2.27 面包屑
-
-
-
-## §2.28 分页效果
-
-
-
-## §2.29 卡片
-
-
-
-## §2.30 旋转器
-
-
-
-## §2.31 手风琴
+## §2.31
 
 
 
 # §3 常用组件设计
-
-2024.01.21 7w+
 
 2024.01.22 8w+
 
