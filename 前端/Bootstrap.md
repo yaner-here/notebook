@@ -6286,15 +6286,1193 @@ Bootstrap在`.accordion`的基础上，引入了`.accordion-flush`，用于将�
 </html>
 ```
 
+# §3 JavaScript插件
 
+作为一个UI组件库，Bootstrap除了提供必要的CSS以外，还要有JavaScript的支撑。Bootstrap的所有JavaScript插件存放在`node_modules/bootstrap/js/dist`目录下，合在一起形成了`node_modules/bootstrap/dist/js/bootstrap.bundle.js`。
 
-## §2.31
+| 文件名              | 作用       |
+| ------------------- | ---------- |
+| `alert.js`          | 警告框     |
+| `base-component.js` | 基本组件   |
+| `button.js`         | 按钮       |
+| `carousel.js`       | 轮播组件   |
+| `collapse.js`       | 折叠组件   |
+| `dropdown.js`       | 下拉菜单   |
+| `modal.js`          | 模态框     |
+| `offcanvas.js`      | 侧边栏导航 |
+| `popover.js`        | 弹窗       |
+| `scrollspy.js`      | 滚动监听   |
+| `tab.js`            | 便签页     |
+| `toast.js`          | Toast组件  |
+| `tooltip.js`        | 工具提示   |
 
+## §3.1 警告框插件(`alert.js`)
 
+警告框插件文件在`node_modules/bootstrap/js/dist/alert.js`。该插件与[§2.22 警告框(`.alert-*`)](##§2.22 警告框(`.alert-*`))配合使用。对于关闭按钮`button.btn.btn-close`，我们需要为其指定`[data-bs-dismiss="alert"]`属性。
 
-# §3 常用组件设计
+在Bootstrap中，警告框元素实例可以通过`bootstrap.Alert(element)`构造函数获得，也提供了`.close()`方法，用于关闭警告框。
 
-2024.01.22 8w+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="alert alert-primary show fade" id="alert">
+            警告框文本
+            <button class="btn btn-close float-end" data-bs-dismiss="alert"></button>
+        </div>
+        <button id="trigger" class="btn btn-primary">手动调用JavaScript关闭警告框</button>
+        <script>
+            const alertDom = document.getElementById("alert")
+            const alertBootstrap = new bootstrap.Alert(alertDom);
+            document.getElementById("trigger").addEventListener("click", () => {
+                alertBootstrap.close();
+            });
+        </script>
+    </body>
+</html>
+```
+
+## §3.2 按钮插件(`alert.js`)
+
+按钮插件文件在`node_modules/bootstrap/js/dist/button.js`。对于按钮组`btn-group`，我们需要为其指定`[data-bs-toggle="button"]`属性。
+
+### §3.2.1 按钮式复选框组(`label.btn`)
+
+我们用`.btn`修饰`<label>`，并在内部包含一个`<input type="checkbox">`，即可得到一堆形如按钮的复选框。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="btn-group">
+            <label class="btn btn-primary" for="checkbox-apple">
+                <input type="checkbox" name="apple" id="checkbox-apple">
+                <span>苹果</span>
+            </label>
+            <label class="btn btn-primary" for="checkbox-banana">
+                <input type="checkbox" name="apple" id="checkbox-banana">
+                <span>香蕉</span>
+            </label>
+            <label class="btn btn-primary" for="checkbox-cheery">
+                <input type="checkbox" name="apple" id="checkbox-cheery">
+                <span>樱桃</span>
+            </label>
+        </div>
+    </body>
+</html>
+```
+
+## §3.3 轮播插件(`carousel.js`)
+
+轮播插件文件在`node_modules/bootstrap/js/dist/carousel.js`。
+
+一个轮播元素需要`.slide`规定动画效果，也需要`.carousel`进行JavaScript绑定，同时添加DOM属性`[data-bs-ride="carousel"]`，并规定自己的`[id]`。轮播元素内部由三个元素构成：
+
+- `.carousel-indicators`：最下方的播放进度指示条。里面的`<button>`元素既要有`[data-bs-target]`指向轮播元素`.carousel`的`[id]`，也要有`data-bs-slide-to`指向图片的索引数字（从零计数）。
+- `.carousel-inner`：用于存放众多`.carousel-item`，每个`.carousel`由图片`img`和文字`carousel.caption`。其中`img`需要设置`.w-100`。我们还可以给`.carousel-item`指定DOM属性`[data-bs-interval]`，设置自动循环的间隔时间。
+- 前进和后退按钮：`button.carousel-control-prev`和`button.carousel-control-next`。均需要设置DOM属性`data-bs-target`为轮播元素的`[id]`，也要设置`data-bs-slide`为`"prev"`或`"next"`来绑定行为。
+
+```css
+.carousel {
+  position: relative;
+}
+.carousel.pointer-event {
+  touch-action: pan-y;
+}
+.carousel-inner {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.carousel-inner::after {
+  display: block;
+  clear: both;
+  content: "";
+}
+.carousel-item {
+  position: relative;
+  display: none;
+  float: left;
+  width: 100%;
+  margin-right: -100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transition: transform 0.6s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carousel-item {
+    transition: none;
+  }
+}
+.carousel-item.active,
+.carousel-item-next,
+.carousel-item-prev {
+  display: block;
+}
+.carousel-item-next:not(.carousel-item-start),
+.active.carousel-item-end {
+  transform: translateX(100%);
+}
+.carousel-item-prev:not(.carousel-item-end),
+.active.carousel-item-start {
+  transform: translateX(-100%);
+}
+.carousel-control-prev,
+.carousel-control-next {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15%;
+  padding: 0;
+  color: #fff;
+  text-align: center;
+  background: none;
+  border: 0;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carousel-control-prev,
+  .carousel-control-next {
+    transition: none;
+  }
+}
+.carousel-control-prev:hover, .carousel-control-prev:focus,
+.carousel-control-next:hover,
+.carousel-control-next:focus {
+  color: #fff;
+  text-decoration: none;
+  outline: 0;
+  opacity: 0.9;
+}
+.carousel-control-prev {
+  left: 0;
+}
+.carousel-control-next {
+  right: 0;
+}
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  background-repeat: no-repeat;
+  background-position: 50%;
+  background-size: 100% 100%;
+}
+.carousel-control-prev-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23fff'%3e%3cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3e%3c/svg%3e");
+}
+.carousel-control-next-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23fff'%3e%3cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+}
+.carousel-indicators {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin-right: 15%;
+  margin-bottom: 1rem;
+  margin-left: 15%;
+}
+.carousel-indicators [data-bs-target] {
+  box-sizing: content-box;
+  flex: 0 1 auto;
+  width: 30px;
+  height: 3px;
+  padding: 0;
+  margin-right: 3px;
+  margin-left: 3px;
+  text-indent: -999px;
+  cursor: pointer;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  opacity: 0.5;
+  transition: opacity 0.6s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carousel-indicators [data-bs-target] {
+    transition: none;
+  }
+}
+.carousel-indicators .active {
+  opacity: 1;
+}
+.carousel-caption {
+  position: absolute;
+  right: 15%;
+  bottom: 1.25rem;
+  left: 15%;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  color: #fff;
+  text-align: center;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="carousel slide bg-dark" data-bs-ride="carousel" id="carousel-1">
+            <div class="carousel-indicators">
+                <button class="active" data-bs-target="#carousel-1" data-bs-slide-to="0"></button>
+                <button data-bs-target="#carousel-1" data-bs-slide-to="1"></button>
+                <button data-bs-target="#carousel-1" data-bs-slide-to="2"></button>
+            </div>
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <img src="https://www.baidu.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>百度</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.bing.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>必应</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.google.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>谷歌</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>   
+            </div>
+            <button class="carousel-control-prev" data-bs-target="#carousel-1" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+            </button>
+            <button class="carousel-control-next" data-bs-target="#carousel-1" data-bs-slide="next">
+                <span class="carousel-control-next-icon"></span>
+            </button>
+        </div>
+    </body>
+</html>
+```
+
+### §3.3.1 渐变轮播(`.carousel.fade`)
+
+轮播使用的动画由`.slide`指定。在默认的左右滑动`.slide`基础上，轮播组件提供了`.carousel-fade`效果。
+
+```css
+.carousel-fade .carousel-item {
+  opacity: 0;
+  transition-property: opacity;
+  transform: none;
+}
+.carousel-fade .carousel-item.active,
+.carousel-fade .carousel-item-next.carousel-item-start,
+.carousel-fade .carousel-item-prev.carousel-item-end {
+  z-index: 1;
+  opacity: 1;
+}
+.carousel-fade .active.carousel-item-start,
+.carousel-fade .active.carousel-item-end {
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0s 0.6s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carousel-fade .active.carousel-item-start,
+  .carousel-fade .active.carousel-item-end {
+    transition: none;
+  }
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="carousel slide bg-dark carousel-fade" data-bs-ride="carousel" id="carousel-1">
+            <div class="carousel-indicators">
+                <button class="active" data-bs-target="#carousel-1" data-bs-slide-to="0"></button>
+                <button data-bs-target="#carousel-1" data-bs-slide-to="1"></button>
+                <button data-bs-target="#carousel-1" data-bs-slide-to="2"></button>
+            </div>
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <img src="https://www.baidu.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>百度</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.bing.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>必应</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.google.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>谷歌</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>   
+            </div>
+            <button class="carousel-control-prev" data-bs-target="#carousel-1" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+            </button>
+            <button class="carousel-control-next" data-bs-target="#carousel-1" data-bs-slide="next">
+                <span class="carousel-control-next-icon"></span>
+            </button>
+        </div>
+    </body>
+</html>
+```
+
+### §3.3.2 轮播暗色主题(`.carousel-dark`)
+
+Bootstrap在默认的白色主题`.carousel`基础上，提供了暗色主题`.carousel-dark`效果。
+
+```css
+.carousel-dark .carousel-control-prev-icon,
+.carousel-dark .carousel-control-next-icon {
+  filter: invert(1) grayscale(100);
+}
+.carousel-dark .carousel-indicators [data-bs-target] {
+  background-color: #000;
+}
+.carousel-dark .carousel-caption {
+  color: #000;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="carousel slide bg-dark carousel-dark" data-bs-ride="carousel" id="carousel-1">
+            <div class="carousel-indicators">
+                <button class="active" data-bs-target="#carousel-1" data-bs-slide-to="0"></button>
+                <button data-bs-target="#carousel-1" data-bs-slide-to="1"></button>
+                <button data-bs-target="#carousel-1" data-bs-slide-to="2"></button>
+            </div>
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <img src="https://www.baidu.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>百度</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.bing.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>必应</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.google.com/favicon.ico" style="width:100%">
+                    <div class="carousel-caption">
+                        <h3>谷歌</h3>
+                        <p>搜索引擎</p>
+                    </div>
+                </div>   
+            </div>
+            <button class="carousel-control-prev" data-bs-target="#carousel-1" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+            </button>
+            <button class="carousel-control-next" data-bs-target="#carousel-1" data-bs-slide="next">
+                <span class="carousel-control-next-icon"></span>
+            </button>
+        </div>
+    </body>
+</html>
+```
+
+## §3.4 折叠插件(`collapse.js`)
+
+折叠插件文件在`node_modules/bootstrap/js/dist/collapse.js`。
+
+一个折叠插件需要由两部分组成：触发器和折叠元素。
+
+- 折叠元素可以由以下两种属性之一声明：`.collapse`表示无动画的折叠元素，`.collapsing`表示有动画的折叠元素。两种方式都需要附有`[id]`属性。
+- 触发器需要用`[data-bs-toggle="collapse"]`声明。当触发器为`<a>`时，只需在其`[href]`中声明`[id]`即可；如果触发器是`<button>`，还需要指定DOM属性`data-bs-target`，其属性值为`selector`，可以批量选择多个元素。
+
+```css
+.collapse:not(.show) {
+  display: none;
+}
+.collapsing {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.35s ease;
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <a class="btn btn-primary" href="#collapse-1" data-bs-toggle="collapse">&lt;a&gt;触发折叠</a>
+        <button class="btn btn-primary" data-bs-target="#collapse-2" data-bs-toggle="collapse">&lt;button&gt;触发折叠</button></button>
+        <div class="collapsing" id="collapse-1">
+            <div class="card card-body">由&lt;a&gt;触发的折叠内容</div>
+        </div>
+        <div class="collapse" id="collapse-2">
+            <div class="card card-body">由&lt;button&gt;触发的折叠内容</div>
+        </div>
+        <div class="collapse show" id="collapse-3">
+            <div class="card card-body">由.show修饰的折叠控件自动展开</div>
+        </div>
+    </body>
+</html>
+```
+
+## §3.5 下拉菜单插件(`dropdown.js`)
+
+下拉菜单插件文件在`node_modules/bootstrap/js/dist/dropdown.js`。
+
+Bootstrap对下拉菜单`.dropdown`提供了四种触发事件：
+
+| 事件名称             | 作用                     |
+| -------------------- | ------------------------ |
+| `show.bs.dropdown`   | 展开下拉菜单开始时的事件 |
+| `shown.bs.dropdown`  | 展开下拉菜单结束时的事件 |
+| `hide.bs.dropdown`   | 折叠下拉菜单开始时的事件 |
+| `hidden.bs.dropdown` | 折叠下拉菜单结束时的事件 |
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">展开菜单</button>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="#">首页</a>
+                <a class="dropdown-item" href="#">课程列表</a>
+                <a class="dropdown-item" href="#">关于我们</a>
+            </div>
+        </div>
+        <div id="info"></div>
+        <script>
+            const infoDom = document.querySelector("#info");
+            const dropdownDom = document.querySelector(".dropdown");
+            ["show.bs.dropdown", "shown.bs.dropdown", "hide.bs.dropdown", "hidden.bs.dropdown"].forEach((eventName) => {
+                dropdownDom.addEventListener(eventName, (event) => {
+                    infoDom.innerHTML += `检测到${eventName}事件触发<br>`;
+                });
+            });
+        </script>
+    </body>
+</html>
+```
+
+## §3.6 模态框插件(`modal.js`)
+
+模态框插件文件在`node_modules/bootstrap/js/dist/modal.js`。模态框是覆盖在父窗体上的子窗体，通常用于显示通知。
+
+一个模态框元素由`.modal`声明，用于定义窗体，里面包含`.modal-dialog`用于定义对话框层，里面再嵌套一层`.modal-content`用于定义显示内容。`.modal-content`可以包含以下元素：
+
+- `.modal-header`：模态框页眉
+- `.modal-body`：模态框正文
+- `.modal-footer`：模态框页脚
+- `.modal-title`：模态框标题
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <button class="btn btn-primary" data-bs-target="#modal" data-bs-toggle="modal">打开模态框</button>
+        <div class="modal" id="modal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">模态框标题</h5>
+                        <button class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>这是模态框正文</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary">确认</button>
+                        <button class="btn btn-danger">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §3.6.1 模态框居中(`.modal-dialog-centered`)
+
+Bootstrap为`.modal-dialog`提供了`.modal-dialog-centered`属性，用于规定模态框在垂直方向上居中显示。
+
+```css
+.modal-dialog-centered {
+  display: flex;
+  align-items: center;
+  min-height: calc(100% - var(--bs-modal-margin) * 2);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <button class="btn btn-primary" data-bs-target="#modal" data-bs-toggle="modal">打开模态框</button>
+        <div class="modal" id="modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">模态框标题</h5>
+                        <button class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>这是模态框正文</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" data-bs-dismiss="modal">确认</button>
+                        <button class="btn btn-danger" data-bs-dismiss="modal">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §3.6.2 模态框尺寸(`.modal-*`)
+
+Bootstrap为`.modal-dialog`提供了四种尺寸：
+
+```css
+@media (min-width: 576px) {
+  .modal {
+    --bs-modal-margin: 1.75rem;
+    --bs-modal-box-shadow: var(--bs-box-shadow);
+  }
+  .modal-dialog {
+    max-width: var(--bs-modal-width);
+    margin-right: auto;
+    margin-left: auto;
+  }
+  .modal-sm {
+    --bs-modal-width: 300px;
+  }
+}
+@media (min-width: 992px) {
+  .modal-lg,
+  .modal-xl {
+    --bs-modal-width: 800px;
+  }
+}
+@media (min-width: 1200px) {
+  .modal-xl {
+    --bs-modal-width: 1140px;
+  }
+}
+```
+
+| 属性名                    | 模态框宽度 |
+| ------------------------- | ---------- |
+| `.modal-dialog .modal-sm` | 300px      |
+| `.modal-dialog`           | 500px      |
+| `.modal-dialog .modal-lg` | 800px      |
+| `.modal-dialog .modal-xl` | 1140px     |
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["modal-sm", "modal-", "modal-lg", "modal-xl"].forEach((className, index) => {
+                document.body.innerHTML += `
+                    <button class="btn btn-primary" data-bs-target="#modal-${index}" data-bs-toggle="modal">打开模态框${className}</button>
+                    <div class="modal" id="modal-${index}">
+                        <div class="modal-dialog modal-dialog-centered ${className}">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">模态框标题(${className})</h5>
+                                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>这是模态框正文</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-primary" data-bs-dismiss="modal">确认</button>
+                                    <button class="btn btn-danger" data-bs-dismiss="modal">取消</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
+        </script>
+    </body>
+</html>
+```
+
+## §3.7 侧边栏插件(`offcanvas.js`)
+
+侧边栏插件文件在`node_modules/bootstrap/js/dist/offcanvas.js`。
+
+一个侧边栏元素由`.offcanvas`声明，内部包含两部分：`.offcanvas-header`和`.offcanvas-body`。同样地，侧边栏默认为隐藏状态，需要由`<button data-bs-toggle="offcanvas" data-bs-target="...">`触发展开。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <button class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#offcanvas-1">展开侧边栏</button>
+        <div class="offcanvas offcanvas-start" id="offcanvas-1">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title">侧边栏标题</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div>你好</div>
+                <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown">更多</button>
+                    <ul class="dropdown-menu">
+                        <li class="dropdown-item"><a class="dropdown-link" href="#">1</a></li>
+                        <li class="dropdown-item"><a class="dropdown-link" href="#">2</a></li>
+                        <li class="dropdown-item"><a class="dropdown-link" href="#">3</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+### §3.7.1 侧边栏位置(`.offcanvas-*`)
+
+在`.offcanvas`的基础上，Bootstrap允许侧边栏元素在屏幕的左、右、上、下边缘弹出和隐藏，分别对应`.offcanvas-start`、`.offcanvas-end`、`.offcanvas-top`、`.offcanvas-bottom`。
+
+```css
+.offcanvas.offcanvas-start {
+  top: 0;
+  left: 0;
+  width: var(--bs-offcanvas-width);
+  border-right: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+  transform: translateX(-100%);
+}
+.offcanvas.offcanvas-end {
+  top: 0;
+  right: 0;
+  width: var(--bs-offcanvas-width);
+  border-left: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+  transform: translateX(100%);
+}
+.offcanvas.offcanvas-top {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--bs-offcanvas-height);
+  max-height: 100%;
+  border-bottom: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+  transform: translateY(-100%);
+}
+.offcanvas.offcanvas-bottom {
+  right: 0;
+  left: 0;
+  height: var(--bs-offcanvas-height);
+  max-height: 100%;
+  border-top: var(--bs-offcanvas-border-width) solid var(--bs-offcanvas-border-color);
+  transform: translateY(100%);
+}
+```
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            ["offcanvas-start", "offcanvas-end", "offcanvas-top", "offcanvas-bottom"].forEach((className, index) => {
+                document.body.innerHTML += `
+                    <button class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#offcanvas-${index}">展开${className}侧边栏</button>
+                    <div class="offcanvas ${className}" id="offcanvas-${index}">
+                        <div class="offcanvas-header">
+                            <h5 class="offcanvas-title">侧边栏标题</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+                        </div>
+                        <div class="offcanvas-body">
+                            <div>你好</div>
+                            <div class="dropdown">
+                                <button class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown">更多</button>
+                                <ul class="dropdown-menu">
+                                    <li class="dropdown-item"><a class="dropdown-link" href="#">1</a></li>
+                                    <li class="dropdown-item"><a class="dropdown-link" href="#">2</a></li>
+                                    <li class="dropdown-item"><a class="dropdown-link" href="#">3</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
+        </script>
+    </body>
+</html>
+```
+
+### §3.7.2 侧边栏背景行为(`[data-bs-scroll]`/`[data-bs-backdrop]`)
+
+针对`.offcanvas`，Bootstrap提供了`[data-bs-scroll]`用于设置`<body>`是否可以滚动，`[data-bs-backdrop]`用预示着是否显示给`<body>`蒙上一层灰色背景。两个属性值的取值范围均为`"true"`或`"false"`。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <script>
+            [["true", "true"], ["true", "false"], ["false", "true"], ["false", "false"]].forEach((classNames, index) => {
+                document.body.innerHTML += `
+                    <button class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#offcanvas-${index}">展开侧边栏${index}</button>
+                    <div class="offcanvas offcanvas-start" id="offcanvas-${index}" data-bs-scroll="${classNames[0]}" data-bs-backdrop="${classNames[1]}">
+                        <div class="offcanvas-header">
+                            <h5 class="offcanvas-title">侧边栏标题</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+                        </div>
+                        <div class="offcanvas-body">
+                            <div>
+                                data-bs-scroll="${classNames[0]}" &lt;body&gt;${classNames[0] === "true" ? "可以" : "不可以"}用鼠标滚轮滚动
+                                <br>
+                                data-bs-backdrop="${classNames[1]}" &lt;body&gt;${classNames[1] === "true" ? "" : "没有"}被灰色背景覆盖
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.body.innerHTML += "<p>很长的文本，仅供占位翻页使用</p>".repeat(50)
+        </script>
+    </body>
+</html>
+```
+
+## §3.8 弹窗插件(`tooltip.js`)
+
+弹窗插件文件在`node_modules/bootstrap/js/dist/tooltip.js`，同时也需要`popover.js`的支持。
+
+一个弹窗本身不需要任何元素作为支撑，我们只需考虑弹窗的触发器即可。触发器`[data-bs-toggle="popover", title="标题", data-bs-content="内容"]`应该同时带有弹窗本身的信息。受制于性能问题，Bootstrap不会根据`data-bs-toggle="popover"`自动初始化弹窗，而是需要开发者手动调用JavaScript注册弹窗控件。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <span data-bs-toggle="popover" title="弹出标题" data-bs-content="弹出内容">
+            <button class="btn btn-primary">打开弹窗</button>
+        </span>
+        <script>
+            let popoverInstances = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]')).map(
+                function (popoverElement){
+                    return new bootstrap.Popover(popoverElement);
+                }
+            );
+        </script>
+    </body>
+</html>
+```
+
+### §3.8.1 弹窗方向(`[data-bs-placement]`)
+
+在`[data-bs-toggle="popover"]`的基础上，Bootstrap为DOM提供了`[data-bs-placement]`属性，用于规定弹窗弹出后所在的位置，取值范围有`"left"`、`"right"`、`"top"`、`"bottom"`。当空间不足时，弹出方向会有所差异，因此必须保证距离视口边缘有充足的空间。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body style="padding: 10rem;">
+        <script>
+            ["left", "right", "top", "bottom"].forEach((className) => {
+                document.body.innerHTML += `
+                    <button class="btn btn-primary" data-bs-toggle="popover" title="弹出标题" data-bs-content="弹出内容" data-bs-placement="${className}">
+                        打开弹窗${className}
+                    </button>
+                `;
+            })
+        </script>
+        <script>
+            let popoverInstances = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]')).map(
+                function (popoverElement){
+                    return new bootstrap.Popover(popoverElement);
+                }
+            );
+        </script>
+    </body>
+</html>
+```
+
+### §3.8.2 弹窗关闭方式(`[data-bs-trigger]`)
+
+Bootstrap给`[data-bs-toggle="popover"]`提供了`[data-bs-trigger]`属性，用户规定弹窗的关闭方式：
+
+- `""`(缺省)：再次单击触发器来关闭
+- `"focus"`：单击弹窗以外的区域自动关闭
+- `"hover"`：鼠标移出后自动关闭
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body style="padding: 10rem;">
+        <script>
+            ["", "focus", "hover"].forEach((className) => {
+                document.body.innerHTML += `
+                    <button class="btn btn-primary" data-bs-toggle="popover" title="弹出标题" data-bs-content="弹出内容" ${className ? `data-bs-trigger="${className}"` : ""}>
+                        打开弹窗(${className})
+                    </button>
+                `;
+            })
+        </script>
+        <script>
+            let popoverInstances = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]')).map(
+                function (popoverElement){
+                    return new bootstrap.Popover(popoverElement);
+                }
+            );
+        </script>
+    </body>
+</html>
+```
+
+## §3.9 滚动监听插件(`scrollspy.js`)
+
+滚动监听插件文件在`node_modules/bootstrap/js/dist/spyscroll.js`。
+
+我们知道，HTML中提供了锚点效果，只需在URL的末尾添加`#...`，就能跳转至对应`[id]`元素所在的位置。Bootstrap提供的滚动监听插件，用于根据滚动条的位置给元素添加属性。
+
+一个导航栏监听一段区域的进度条。被监听的的元素用`[data-bs-spy="scroll"]`声明，并用`[data-bs-target]`指明导航栏，可选`[data-bs-offset]`给定进度条偏移距离。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <nav class="navbar navbar-light bg-light" id="navbar">
+            <ul class="nav nav-pills">
+                <li class="nav-item">
+                    <a class="nav-link" href="#list1">项目1</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#list2">项目2</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#list3">项目3</a>
+                    <div class="dropdown-menu">
+                        <a href="#list4" class="dropdown-item">项目4</a>
+                        <a href="#list5" class="dropdown-item">项目5</a>
+                        <a href="#list6" class="dropdown-item">项目6</a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+        <div data-bs-spy="scroll" data-bs-target="#navbar" data-bs-offset="80" style="width: 500px; height: 300px; overflow: scroll;">
+            <div class="h-50 border m-3 py-5 bg-light text-center" id="list1">项目1</div>
+            <div class="h-50 border m-3 py-5 bg-light text-center" id="list2">项目2</div>
+            <div class="h-50 border m-3 py-5 bg-light text-center" id="list3">项目3</div>
+            <div class="h-50 border m-3 py-5 bg-light text-center" id="list4">项目4</div>
+            <div class="h-50 border m-3 py-5 bg-light text-center" id="list5">项目5</div>
+            <div class="h-50 border m-3 py-5 bg-light text-center" id="list6">项目6</div>
+        </div>
+    </body>
+</html>
+```
+
+## §3.10 标签页插件(`tab.js`)
+
+标签页插件文件在`node_modules/bootstrap/js/dist/tab.js`。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <ul class="nav nav-tabs">
+            <li class="nav-item"><a class="nav-link" href="#item1" data-bs-toggle="tab">项目1</a></li>
+            <li class="nav-item"><a class="nav-link" href="#item2" data-bs-toggle="tab">项目2</a></li>
+            <li class="nav-item"><a class="nav-link" href="#item3" data-bs-toggle="tab">项目3</a></li>
+        </ul>
+        <div class="tab-content">
+            <div id="item1" class="tab-pane fade show active">
+                <img src="https://www.baidu.com/favicon.ico" alt="">
+            </div>
+            <div id="item2" class="tab-pane fade">
+                <img src="https://www.bing.com/favicon.ico" alt="">
+            </div>
+            <div id="item3" class="tab-pane fade">
+                <img src="https://www.google.com/favicon.ico" alt="">
+            </div>
+        </div>
+    </body>
+</html>
+```
+
+## §3.11 提示框插件(`tooltip.js`)
+
+提示框插件文件在`node_modules/bootstrap/js/dist/tooltip.js`。提示框类似于漫画中人物间常用的对话框。其用法与[§3.8 弹窗插件(`tooltip.js`)](##§3.8 弹窗插件(`tooltip.js`))完全一致。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-trigger="click" data-bs-placement="top" title="提示信息">点击查看提示信息(top)</button>
+        <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-trigger="click" data-bs-placement="bottom" title="提示信息">点击查看提示信息(bottom)</button>
+        <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-trigger="click" data-bs-placement="left" title="提示信息">点击查看提示信息(left)</button>
+        <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-trigger="click" data-bs-placement="right" title="提示信息">点击查看提示信息(right)</button>
+        <script>
+            let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]')).map(
+                (element) => { return new bootstrap.Tooltip(element); }
+            );
+        </script>
+    </body>
+</html>
+```
+
+## §3.12 Toast插件(`toast.js`)
+
+Toast插件文件在`node_modules/bootstrap/js/dist/toast.js`。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <button class="btn btn-primary">生成Toast消息</button>
+        <div class="toast position-fixed bottom-0 end-0" data-bs-animation="false">
+            <div class="toast-header">
+                <strong class="me-auto">Toast标题</strong>
+                <small class="ms-auto">Toast副标题</small>
+                <button class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                <p>这是一条Toast消息</p>
+            </div>
+        </div>
+        <script>
+            document.querySelector("button").addEventListener("click", function() {
+                new bootstrap.Toast(document.querySelector(".toast")).show();
+            });
+        </script>
+    </body>
+</html>
+```
+
+### §3.12.1 堆叠Toast消息(`.toast-container`)
+
+Boostrap使用`.toast-container`管理多个堆叠的Toast消息。
+
+```html
+<!DOCTYPE html>
+<html lang="zh_CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="referrer" content="never">
+        <title>BootStrap</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </head>
+    <body class="p-5">
+        <button class="btn btn-primary" id="toast-button-1">生成Toast消息1</button>
+        <button class="btn btn-primary" id="toast-button-2">生成Toast消息2</button>
+        <div class="toast-container position-fixed bottom-0 end-0">
+            <div id="toast-1" class="toast" data-bs-animation="false">
+                <div class="toast-header">
+                    <strong class="me-auto">Toast标题</strong>
+                    <small class="ms-auto">Toast副标题</small>
+                    <button class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>这是一条Toast消息</p>
+                </div>
+            </div>
+            <div id="toast-2" class="toast" data-bs-animation="false">
+                <div class="toast-header">
+                    <strong class="me-auto">Toast标题</strong>
+                    <small class="ms-auto">Toast副标题</small>
+                    <button class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>这是一条Toast消息</p>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.querySelector("#toast-button-1").addEventListener("click", function() {
+                new bootstrap.Toast(document.querySelector("#toast-1")).show();
+            });
+            document.querySelector("#toast-button-2").addEventListener("click", function() {
+                new bootstrap.Toast(document.querySelector("#toast-2")).show();
+            });
+        </script>
+    </body>
+</html>
+```
 
 2024.01.23 9w+
 
