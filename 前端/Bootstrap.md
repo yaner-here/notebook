@@ -4,6 +4,8 @@
 
 - 《Bootstrap 5.x 从入门到项目实战》 [豆瓣](https://book.douban.com/subject/36489295/)
 
+本笔记内容基于Bootstrap 5.3.2。
+
 # §1 布局
 
 ## §1.1 布局容器
@@ -7473,11 +7475,3 @@ Boostrap使用`.toast-container`管理多个堆叠的Toast消息。
     </body>
 </html>
 ```
-
-2024.01.23 9w+
-
-2024.01.24 10w+
-
-2024.01.25 11w+
-
-2024.01.26 12w+
