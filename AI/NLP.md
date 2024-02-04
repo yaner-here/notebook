@@ -131,3 +131,6 @@ word2vec.most_similar(
 )
 ```
 
+## §3.2 AvgWord2Vec
+
+AvgWord2Vec的核心思想是：将一句话中的所有单词向量取平均数，作为这句话的句子向量。
