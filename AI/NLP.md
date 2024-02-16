@@ -9,12 +9,11 @@ NLP(自然语言处理，Natural Language Process)的架构层级自底向上可
 - 第一层——预处理层：Tokenization、Lemmatization、Stemming、StopWords
 - 第二层——预处理层：BOW(Bag Of Words)、TFIDF、Unigrams/Bigrams
 - 第三层——预处理层：Word2Vec、AvgWord2Vec
-- 第四层——机器学习层：
-- 第五层——深度学习层：RNN、LSTM、GRU、RNN
-- 第六层——预处理层：Word Embedding
-- 第七层：Bidirectional LSTM、Encoder/Decoder、Attention
-- 第八层：Transformer
-- 第九层：BERT
+- 第四层——深度学习层：RNN、LSTM、GRU、RNN
+- 第五层——预处理层：Word Embedding
+- 第六层：Bidirectional LSTM、Encoder/Decoder、Attention
+- 第七层：Transformer
+- 第八层：BERT
 
 # §1 第一层——预处理层
 
@@ -134,3 +133,47 @@ word2vec.most_similar(
 ## §3.2 AvgWord2Vec
 
 AvgWord2Vec的核心思想是：将一句话中的所有单词向量取平均数，作为这句话的句子向量。
+
+#  §4 第四层——深度学习
+
+RNN
+
+
+
+LSTM RNN
+
+LSTM是RNN的升级版。在RNN中，我们只有一条负反馈通路，称为短期记忆。LSTM引入了长期记忆。
+
+令第$t$个LSTM神经元的输入为$x_t$，输出的短期记忆为$h_t$，经过处理得到的长期记忆为$C_t$，则LSTM定义如下：
+$$
+\begin{cases}
+	f_t = \sigma\left(W_f\times\text{concat}(h_{t-1},x_t)+b_f\right) \\
+	i_t = \sigma(W_i\times\text{concat}(h_{t-1},x_t)+b_i) \\
+	\tilde{C}_t = \tanh\left(W_C\times\text{concat}(h_{t-1},x_t)+b_C\right) \\
+	o_t = \sigma(W_o\times\text{concat}(h_{t-1},x_t)+b_o) \\
+	\\
+	C_t = f_t\otimes C_{t-1} + i_t\otimes\tilde{C_t} \\
+	h_t = o_t\otimes\tanh(C_t)
+\end{cases}
+$$
+
+
+
+
+GRU RNN
+
+
+
+双向LSTM RNN
+
+
+
+Encoder-Decoder
+
+
+
+Transformer
+
+
+
+BERT
