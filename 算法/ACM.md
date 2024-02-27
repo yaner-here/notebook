@@ -1,8 +1,8 @@
 # ACM
 
-# §0 STL
+# §1 STL
 
-## §0.1 `<iomainip>`
+## §1.1 `<iomainip>`
 
 
 
@@ -19,3 +19,13 @@ int a = max({9, 9, 12, 97301, 937});
 ```cpp
 cout << fixed << setprecision(位数) << 值;
 ```
+
+## §1.2 `<algorithm>`
+
+### §1.2.1 `std::sort()`
+
+`std::sort(Iterator begin, Iterator end)`默认从小到大排序。
+
+### §1.2.2 `std::lower_bound()`
+
+`std::lower_bound(Iterator begin, Iterator end, T value)`要求迭代器必须从小到大排列，找到第一个大于等于`value`的位置，并返回这个位置的迭代器，
