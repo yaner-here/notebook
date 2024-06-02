@@ -729,7 +729,7 @@ plt.axline(
 ```
 
 ```python
-import typing, typing_extensions
+import typing, typing_extensionsc
 import matplotlib.lines
 
 import numpy as np
@@ -1387,11 +1387,11 @@ plt.show()
 >   ```python
 >   import numpy as np
 >   import matplotlib.pyplot as plt
->                                                   
+>                                                     
 >   plt.rcParams["font.family"] = ["Microsoft JhengHei"]
 >   plt.rcParams["axes.unicode_minus"] = False
 >   plt.rcParams["figure.autolayout"] = True
->                                                   
+>                                                     
 >   fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6, 3))
 >   for ax in np.nditer(axes, flags=["refs_ok"]):
 >       ax = ax.item()
