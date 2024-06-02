@@ -161,7 +161,7 @@ SELECT ? FROM ? WHERE ?='$id' LIMIT 0,1 ? ;
 接下来使用`ORDER BY`爆列数，同时使用`--`注释掉`LIMIT`语句，得到列数为3：
 
 ```sql
-id=1 ORDER BY 1 --  (一定要在--后面加空格,才能识别为有效的注释)
+id=1‘ ORDER BY 1 --  (一定要在--后面加空格,才能识别为有效的注释)
 => SELECT ? FROM ? WHERE ?='   1' ORDER BY 1 --   ' LIMIT 0,1 ? ;
 => SELECT ? FROM ? WHERE ?='1' ORDER BY 1;
 			-- Login name: Dumb		Password: Dumb
@@ -1203,7 +1203,7 @@ ERROR 1105 (HY000): XPATH syntax error: '~security'
 >   只能使用`substring()`、`substr()`、`left()`、`right()`、`regexp()`等函数分批次获取：？？？？？？？？？？TODO：？？？
 >
 >   ```
->                       
+>                         
 >   ```
 >
 >   
@@ -1470,21 +1470,21 @@ Runtime error: integer overflow
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->                     
+>                       
 >   mysql> select abs(0x8000000000000000);
 >   +-------------------------+
 >   | abs(0x8000000000000000) |
 >   +-------------------------+
 >   |     9223372036854776000 |
 >   +-------------------------+
->                     
+>                       
 >   mysql> select abs(0x7fffffffffffffff + 1);
 >   +-----------------------------+
 >   | abs(0x7fffffffffffffff + 1) |
 >   +-----------------------------+
 >   |         9223372036854776000 |
 >   +-----------------------------+
->                     
+>                       
 >   mysql> select abs(0xFFFFFFFFFFFFFFFF);
 >   +-------------------------+
 >   | abs(0xFFFFFFFFFFFFFFFF) |
