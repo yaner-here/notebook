@@ -1089,7 +1089,7 @@ public class PlainCircle extends Circle{
         this.radius = radius;
     }
     public static void main(String[] args){
-        PlainCircle a = new PlainCircle();
+        PlainCircle a = new PlainCircle(1.0);
         System.out.println(a.radius); // 1.0
     }
 }

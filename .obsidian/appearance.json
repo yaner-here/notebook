@@ -1,8 +1,9 @@
 {
-  "baseFontSize": 15,
+  "baseFontSize": 16,
   "translucency": false,
   "monospaceFontFamily": "Cascadia Mono",
   "cssTheme": "Catppuccin",
   "accentColor": "",
-  "textFontFamily": "HYZhengYuan,Consolas"
+  "textFontFamily": "HYZhengYuan,Consolas",
+  "baseFontSizeAction": true
 }
