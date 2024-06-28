@@ -269,6 +269,27 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n)$。
 
+TODO？？？？？？？？？？？完全背包也有类似的常数优化
+
+```
+    for (int i = 0; i < n; ++i) { // 遍历每种物品
+        int itemCost = cost[i];
+        int itemValue = value[i];
+
+        // 更新当前选择的最小和最大代价范围
+        minCost = max(0, min(minCost, minCost + itemCost));
+        maxCost = min(maxCapacity, max(maxCost, maxCost + itemCost));
+
+        for (int j = minCost; j <= maxCost; ++j) {
+            if (j >= itemCost && dp[j - itemCost] != INF) {
+                dp[j] = max(dp[j], dp[j - itemCost] + itemValue);
+            }
+        }
+    }
+```
+
+
+
 ### §2.1.3 分组背包
 
 > [洛谷P1757](https://www.luogu.com.cn/problem/P1757)：给定容量为`capacity`的背包，`n`个供应量无穷大的，体积、价值、类别分别为`volume[i]`、`value[i]`和`type[i]`的物品，每个类别中最多只能挑出一个物品装入背包，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
@@ -354,11 +375,7 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n\cdot\log_2(\text{count}[i])$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n\cdot\log_2(\text{count}[i]))$。
 
-### §2.1.5 背包的初值选择
-
-在前面几节中，我们接触到的背包题型都是价值最大化问题，`dp`数组初始值值均为0。本节将介绍其它与`dp`初始值紧密相关的题型。
-
-#### §2.1.5.1 附属值最小化
+### §2.1.5 费用背包
 
 > [洛谷P1510](https://www.luogu.com.cn/problem/P1510)：给定一个体积为`v`的坑洞，需要用石子填满（允许体积溢出）。石子的体积和代价（附属值）分别为`v[i]`和`c[i]`，求完成该任务的代价最小值。
 
@@ -436,20 +453,20 @@ int main(){
   }
   ```
 
-#### §2.1.5.2 背包恰好装满
+### §2.1.6 恰满背包
 
 之前我们接触的背包题型往往带有$\sum\text{volume}_i\le \text{capacity}$的约束条件。本节讨论的是$\sum\text{volume}_i= \text{capacity}$。
 
 - 以价值最大化问题为例，我们希望不合法的状态全为负无穷大，这样在$\max(\cdot)$的各参数大小竞争中，非法状态就会不起作用，等价于不存在。于是`dp[0][0]`为0，而`dp[0][1->n]`均为负无穷大。
 - 以统计方案数问题为例，我们希望不合法的状态不对应任何方案，也就是0。于是`dp[0][0]`反而是一种合法的方案，因为什么都不选也能填满容量为0的背包，而`dp[0][1->n]`均为0。
 
-### §2.1.6 依赖背包
+### §2.1.7 依赖背包
 
 > [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定$n$个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个此物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$m$的约束条件下，求物品价值之和的最大值。
 
 ？？？？？？？？？？？？？？？？？？？TODO
 
-### §2.1.x 混合背包
+### §2.1.8 混合背包
 
 混合背包指的是上述背包问题中提到的物品特性混合起来。针对此类问题，我们只需对不同问题的物品分别套用不同的转移方程即可。
 
@@ -463,7 +480,7 @@ for i=1..N
         // ...
 ```
 
-### §2.1.x 多维背包
+### §2.1.9 多维背包
 
 > [洛谷P1855](https://www.luogu.com.cn/problem/P1855)：在0/1背包的基础上，总共引入了两个约束条件。
 
@@ -502,6 +519,8 @@ int main(){
 }
 ```
 
+### §2.1.10 二维费用背包
+
 > [洛谷P1509](https://www.luogu.com.cn/problem/P1509)：给定`n`个物品，第`i`个物品含有金钱代价`money[i]`、幸运代价`luck[i]`、时间代价`time[i]`和价值`value[i]`（本题恒为1）。现在金钱预算只有`money_budget`，幸运运算只有`luck_budget`。请求出一种方案，使得物品总价值最大化。如果有多种方式均能使得物品总价值到达最大值，则选取时间总代价最小的方案，并输出该方案所需的时间总代价。
 
 本题涉及到的最优化变量有两个，因此要设置两个`dp`数组——`dp_value`表示前`i`个物品在预算约束内能达到的价值最大值；`dp_time`表示第`i`个物品在预算约束内达到价值最大值时，能达到的时间总代价最小值。
@@ -534,6 +553,96 @@ int main(){
         }
     }
     std::cout << dp_time[money_budget][luck_budget];
+}
+```
+
+### §2.1.11 泛化预算背包
+
+
+
+### §2.1.x 转化为背包问题
+
+> [洛谷P1853](https://www.luogu.com.cn/problem/P1853)：给定`n`种无限供应的定期理财方案，每种定期理财方案的单位投入和单位纯收益分别为`price[i]`和`benefit[i]`，均耗时1个单位时间。现在总时间预算有`time_budget`个单位时间，初始资金为`money`，要求选择一种投资策略，使得最终资金最大化。（额外给定数据约束条件：`price[i]`必为1000的倍数，且`benefit[i]`不大于`price[i]`的10%，便于压缩状态。）
+
+本题的物品是谁呢？仍然是`n`个理财方案。但本题的特殊之处在于，这是一道重复了`time_budget`次的完全背包问题。这是因为在前`i-1`个单位时间耗尽后，我们就得到了新的“初始资金”，此时抛开前`i-1`个单位时间不看，为了求解第`i`个单位时间的决策，我们可以认为问题转化为`time_bugdet`为1的情景。这类似于《概率论与数理统计》中的指数分布，都具有无记忆性。
+
+基于此`dp[i][j]`指的是前`i`个理财方案内，初始资金为`j`的最大**总纯收益**，为了计算最终资金，可以将总纯收益与初始本金相加就能得到。基于此可以写出状态方程：
+$$
+\text{dp}[i][j] = \max\Big(
+	\text{dp}[i-1][j], 
+	\text{dp}[i-1][j-\text{price}[i]] + \text{benefit}[i]
+\Big)
+$$
+
+```c++
+const long long int MONEY_MAX = 1e6 / 1e3 * 100, TIME_MAX = 40, N_MAX = 10; // 最终money可能会很大，所以dp要多开空间(×100)，否则会RE
+long long int money, time_budget, n;
+long long int dp[MONEY_MAX + 1], price[N_MAX + 1], benefit[N_MAX + 1];
+int main(){
+    std::cin >> money >> time_budget >> n;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> price[i] >> benefit[i];
+    }
+    for(long long int tim = 1 ; tim <= time_budget ; ++tim){ // 重复计算time_budget次完全背包问题
+        for(long long int i = 1 ; i <= n ; ++i){
+            for(long long int j = 0 ; j <= money / 1000 ; ++j){ // 每种理财方案的价格均大于等于1000，因此舍去1000以下的余数并无大碍
+                if(j >= price[i] / 1000){
+                    dp[j] = std::max(dp[j], dp[j - price[i] / 1000] + benefit[i]);
+                }
+            }
+        }
+        money += dp[money / 1000]; // 下一轮的初始资金 = 这一轮的初始资金 + 这一轮的纯收益
+        std::fill(dp, dp + 1 + MONEY_MAX, 0ll); // 每次计算背包问题前都要重置dp数组
+    }
+    std::cout << money;
+}
+```
+
+> [洛谷P4832](https://www.luogu.com.cn/problem/solution/P4832)：给定`n`组物品，每组物品均包含`a[i]`个A物品和`b[i]`个B物品。有一些特殊的物品组选择方案，使得这几组物品中的A物品数量之和等于B物品数量之和，在此基础上求A物品数量之和的最大值。
+
+本题的关键在于将`a[i]-b[i]`视为代价`cost[i]`，`a[i]`视为价值`value[i]`，`dp[i][j]`定义为前`i`组物品恰好花费`j`的物品A数量最大值，于是`dp[n][0]`即为本题所求。对应的状态转移方程为：
+$$
+\text{dp}[i][j] = \max\Big(
+	\text{dp}[i-1][j],
+	\text{dp}[i-1][j-\text{cost}[i]] + \text{value}[i]
+\Big)
+$$
+本题相比于传统模板题的区别有以下两点：
+
+1. 由于`cost[i]`可以为负值，取值范围为$[-\text{capacity\_max},+\text{capacity\_max}]$，所以在索引`dp`数组时需要手动增加偏移量`offset`，其值就是`CAPACITY_MAX`。这类似于《计算机组成原理》中的补码逻辑，将左右对称的正负区间映射到全为正数的区间。
+
+2. 滚动数组的优化有所区别。在0/1背包和完全背包中，我们将`dp`数组的第一维从`n`压缩为1，是秉承着防止变量覆盖的原则的。然而在本题中，由于`cost[i]`可以为正，也可以为负，因此`j-cost[i]`即可能索引前面的值，也可能索引后面的值。在第二轮循环中，无论选择从小到大，还是从大到小的顺序，都有可能违背上述原则。因此本题只能将`dp`数组的第一维从`n`压缩为**2**。
+
+   **注意`std::copy()`的复制源指针右边界，需要额外加一。**
+
+   除了手动设置`dp[]`和`dp_old[]`数组外，也可以批量开辟`dp[2][]`，调用时使用模运算动态决定谁新谁旧：`dp[(n++)%2][]`。
+
+3. 常数优化的边界需要重新考虑。在0/1背包中，`dp[i][-1]`是没有意义的，一律判为$-\infin$，因此第二层循环的左边界为`0`（当然可以进一步常数优化为$\max\Big(\text{capacity}-\sum_{j=p}^{n}\text{volume}[j],\text{volume}[p]\Big)$），右边界为`capacity`。但是在本题中，负数索引有了意义。在下面的代码中，我们动态地扩充枚举范围，从$[0,0]$起步，以极限思维分别扩充左右边界——当代价为负时扩充左边界，当代价为正时扩充右边界。
+
+```c++
+const long long int N_MAX = 50, CAPACITY_MAX = 1e6, OFFSET = CAPACITY_MAX;
+long long int n;
+long long int dp[2 * OFFSET + 1], dp_old[2 * OFFSET + 1]; // 虚拟的dp[0]对应的是物理的dp[CAPACITY]
+int main(){
+    std::cin >> n;
+    long long int left_bound = 0, right_bound = 0; // 第二层循环的遍历区间，初始为[0, 0]
+    std::fill(dp, dp + 2 * OFFSET + 1, INT64_MIN); dp[OFFSET] = 0;
+    std::fill(dp_old, dp_old + 2 * OFFSET + 1, INT64_MIN); dp_old[OFFSET] = 0;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::string temp; std::cin >> temp;
+        long long int 
+            a_count = std::count(temp.begin(), temp.end(), 's'),
+            b_count = std::count(temp.begin(), temp.end(), 'c'),
+            value = a_count,
+            cost = a_count - b_count;
+        if(cost < 0){ left_bound += cost; } // 动态扩充左边界
+        if(cost > 0){ right_bound += cost; } // 动态扩充右边界
+        for(long long int j = left_bound ; j <= right_bound ; ++j){
+            dp[j + OFFSET] = std::max(dp[j + OFFSET], dp_old[j + OFFSET - cost] + value);
+        }
+        std::copy(dp + left_bound + OFFSET, dp + right_bound + OFFSET + 1, dp_old + left_bound + OFFSET); // 暂存dp数组，以供下一轮使用
+    }
+    std::cout << dp[0 + OFFSET];
 }
 ```
 
