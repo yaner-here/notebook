@@ -60,11 +60,13 @@ BFS板子：
     }
 ```
 
-# §2 算法
+# §2 动态规划
 
-## §2.1 动态规划
+- 同时用到先后两次的`dp[n][]`和`dp[n-1][]`，且背包容量`j`与体积代价`cost[i]`满足严格偏序关系，才能使用一行滚动数组`dp[j]=...dp[j-cost[i]]`
+- 只用到`dp[n][]`单层的递推式，使用一行滚动数组存储完毕后必须再次初始化，防止干扰下一层。
+- 不满足严格偏序关系，必须使用两行滚动数组`dp[(n++)&1][j]`，且使用新行之前必须初始化为新值，否则本次在该行未经更新的数值就是两轮之前 的`dp[n-2][j]`
 
-### §2.1.1 0/1背包
+## §2.1 0/1背包
 
 > [洛谷P1048](https://www.luogu.com.cn/problem/P1048)：给定容量为`capacity`的背包，`n`个体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -173,7 +175,7 @@ int main(){
 
 该优化在$\text{capacity}$特别大时非常有效。
 
-#### §2.1.1.1 时间最优做法
+### §2.1.1 时间最优做法
 
 为了进一步优化时间，我们考虑上述常数优化的枚举范围。其左端点极度依赖于$\sum_{j=p}^{n}\text{volume}[j]$，我们希望这个值越大越好，这依赖于`volumn`数组的顺序。于是，当$\text{volume}[i]$非常大时，先处理代价（本题为体积）较大的物品能更缩小枚举范围。只需付出一点很小的排序时间开销，就能抵消大$\text{volume}[i]$造成的劣势。
 
@@ -193,9 +195,8 @@ int main(){
     }); // 排序，让大的volumn物品在前，先被处理
     for(long long int i = 1 ; i <= n ; ++i){
         for(long long int j = capacity ; j >= std::max(capacity - volume_sum, data[i].first) ; --j){
-            if(j >= data[i].first){
-                dp[j] = std::max(dp[j], dp[j - data[i].first] + data[i].second);
-            }
+            // 没有必要使用if(j >= data[i].first)，该条件以合并到上一行的边界中
+            dp[j] = std::max(dp[j], dp[j - data[i].first] + data[i].second);
         }
         volume_sum -= data[i].first;
     }
@@ -204,7 +205,7 @@ int main(){
 }
 ```
 
-#### §2.1.1.2 空间最优做法
+### §2.1.2 空间最优做法
 
 注意到在最外层循环中，遍历到第`p`个物品时，只有该物品的代价和价值参与了计算。因此我们可以不用一次性保存所有石子的全部数据，而是按需读入，即用即扔。空间复杂度$O(\text{capacity}\cdot n)$仍未改变，只是缩小了$O(n)$的常数而已。
 
@@ -232,11 +233,11 @@ int main(){
 }
 ```
 
-### §2.1.2 完全背包
+## §2.2 完全背包
 
 > 给定容量为`capacity`的背包，`n`种供应量无穷大的，体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
-令`dp[i][j]`表示当背包容量为`j`时，在前`i`种物品中，能取得的最大物品总价值。其中`dp[0][j]`恒为0，表示什么都不选的情况。与0/1背包不同，选中了第`i`个物品后还可以接着再选一次，因此状态转义方程为：
+令`dp[i][j]`表示当背包容量为`j`时，在前`i`种物品中，能取得的最大物品总价值。其中`dp[0][j]`恒为0，表示什么都不选的情况。与0/1背包不同，选中了第`i`个物品后还可以接着再选一次，因此状态转移方程为：
 $$
 \text{dp}[i][j]=\max\left(
 	\text{dp}[i-1][j],
@@ -290,7 +291,7 @@ TODO？？？？？？？？？？？完全背包也有类似的常数优化
 
 
 
-### §2.1.3 分组背包
+## §2.3 分组背包
 
 > [洛谷P1757](https://www.luogu.com.cn/problem/P1757)：给定容量为`capacity`的背包，`n`个供应量无穷大的，体积、价值、类别分别为`volume[i]`、`value[i]`和`type[i]`的物品，每个类别中最多只能挑出一个物品装入背包，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -333,7 +334,7 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n)$。
 
-### §2.1.4 多重背包
+## §2.4 多重背包
 
 > [洛谷P1776](https://www.luogu.com.cn/problem/P1776)：给定容量为`capacity`的背包，`n`种数量为`count[i]`的，体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -375,7 +376,7 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n\cdot\log_2(\text{count}[i])$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n\cdot\log_2(\text{count}[i]))$。
 
-### §2.1.5 费用背包
+## §2.5 费用背包
 
 > [洛谷P1510](https://www.luogu.com.cn/problem/P1510)：给定一个体积为`v`的坑洞，需要用石子填满（允许体积溢出）。石子的体积和代价（附属值）分别为`v[i]`和`c[i]`，求完成该任务的代价最小值。
 
@@ -453,20 +454,20 @@ int main(){
   }
   ```
 
-### §2.1.6 恰满背包
+## §2.6 恰满背包
 
 之前我们接触的背包题型往往带有$\sum\text{volume}_i\le \text{capacity}$的约束条件。本节讨论的是$\sum\text{volume}_i= \text{capacity}$。
 
 - 以价值最大化问题为例，我们希望不合法的状态全为负无穷大，这样在$\max(\cdot)$的各参数大小竞争中，非法状态就会不起作用，等价于不存在。于是`dp[0][0]`为0，而`dp[0][1->n]`均为负无穷大。
 - 以统计方案数问题为例，我们希望不合法的状态不对应任何方案，也就是0。于是`dp[0][0]`反而是一种合法的方案，因为什么都不选也能填满容量为0的背包，而`dp[0][1->n]`均为0。
 
-### §2.1.7 依赖背包
+## §2.7 依赖背包
 
 > [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定$n$个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个此物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$m$的约束条件下，求物品价值之和的最大值。
 
 ？？？？？？？？？？？？？？？？？？？TODO
 
-### §2.1.8 混合背包
+## §2.8 混合背包
 
 混合背包指的是上述背包问题中提到的物品特性混合起来。针对此类问题，我们只需对不同问题的物品分别套用不同的转移方程即可。
 
@@ -480,7 +481,7 @@ for i=1..N
         // ...
 ```
 
-### §2.1.9 多维背包
+## §2.9 多维背包
 
 > [洛谷P1855](https://www.luogu.com.cn/problem/P1855)：在0/1背包的基础上，总共引入了两个约束条件。
 
@@ -519,7 +520,7 @@ int main(){
 }
 ```
 
-### §2.1.10 二维费用背包
+## §2.10 二维费用背包
 
 > [洛谷P1509](https://www.luogu.com.cn/problem/P1509)：给定`n`个物品，第`i`个物品含有金钱代价`money[i]`、幸运代价`luck[i]`、时间代价`time[i]`和价值`value[i]`（本题恒为1）。现在金钱预算只有`money_budget`，幸运运算只有`luck_budget`。请求出一种方案，使得物品总价值最大化。如果有多种方式均能使得物品总价值到达最大值，则选取时间总代价最小的方案，并输出该方案所需的时间总代价。
 
@@ -556,11 +557,75 @@ int main(){
 }
 ```
 
-### §2.1.11 泛化预算背包
+## §2.11 泛化预算背包
 
 
 
-### §2.1.x 转化为背包问题
+## §2.12 剔除物品背包
+
+剔除物品背包在普通背包已经求解完毕的前提下，在可选择的物品列表中剔除某些物品，随后提问最优值。
+
+> [洛谷P4141](https://www.luogu.com.cn/problem/P4141)：给定`n`个代价分别为`cost[i]`的物品和一个代价容量为`budget`的背包。要求现在从中抽离出第$i\in[1,n]$个物品，在剩下的`n-1`个物体中，能恰好填满容量为$j\in[1,\text{budget}]$背包的方案数`answer[i][j]`矩阵。（模`10`输出）
+
+令`dp[i][j]`表示使用前`i`个物品能得到的代价之和恰好为`j`的方案数，`dp_unique[i][j]`表示在`n`个物品中抽离第`i`个物品后，代价之和恰好为`j`的方案数。那么显然`dp[n][j]`由两部分组成：
+
+1. 不包含第`i`个物品的方案数。由定义可知等于`dp_unique[i][j]`。
+2. 包含第`i`个物品的方案数。由假设可知，这些方案肯定都包含第`i`个物品。因此对于每种方案，我们将第`i`个物品剔除，对应背包容量缩小至`j-cost[i]`，都能对应到一种符合新条件的方案，这个新条件就是"在`n`个物品中剔除第`i`个物品，背包容量恰好为`j-cost[i]`"，由定义可知这部分方案数等于`dp_unique[i][j-cost[i]]`。当然，如果`j<cost[i]`，那么当前背包容量`j`不可能放下第`i`个物品，这部分方案数退化为0。
+
+基于此，我们可以写出状态转移方程：
+$$
+\text{dp\_unique}[i][j] = \begin{cases}
+	\text{dp}[n][j] - \text{dp\_unique}[i][j-\text{cost}[i]] & ,j\ge\text{cost}[i] \\
+	\text{dp}[n][j] & ,j<\text{cost}[i] \\
+\end{cases}
+$$
+然后考虑滚动数组优化。在推导`dp_unique`数组时，用到的都是`dp[n][j]`一行，因此可以直接退化为`dp[j]`。对于`dp_unique[i][j]`，我们只用到了`dp_unique[i][]`当前层的数值，与上一层无关，因此可以直接退化成`dp[]`。因为`j-cost[i]<=j`，用到了`dp_unique`已经在本层计算出的值，所以第二层循环的顺序为从左到右。**尤其要警惕第二层循环的左边界必须为`1`，不能为`cost[i]`，否则`dp_unique[j]`可能不是`dp[n][j]`这个预期的常数，而是上一层计算的值`dp[n][j]-dp_unique[i-1][cost[i-1]]`。**
+
+```c++
+const long long int N_MAX = 2000, BUDGET_MAX = 2000, MOD = 10;
+long long int n, budget, dp[BUDGET_MAX + 1], dp_unique[BUDGET_MAX + 1], cost[N_MAX + 1];
+int main(){
+    std::cin >> n >> budget;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> cost[i];
+    }
+    dp[0] = 1 % MOD;
+    for(long long int i = 1 ; i <= n ; ++i){
+        for(long long int j = budget ; j >= cost[i] ; --j){
+            dp[j] = (dp[j] + dp[j - cost[i]]) % MOD;
+        }
+    }
+    dp_unique[0] = 1;
+    for(long long int i = 1 ; i <= n ; ++i){
+        for(long long int j = 1 ; j <= budget ; ++j){
+            if(j >= cost[i]){
+                dp_unique[j] = (dp[j] - dp_unique[j - cost[i]] + MOD) % MOD;
+            }else{
+                dp_unique[j] = dp[j];
+            }
+            std::cout << dp_unique[j];
+        }
+        std::cout << '\n';
+    }
+}
+```
+
+另一种思路是从撤销角度理解。背包的一个重要特点是物品顺序不影响最终结果，而这就是本题的关键。先讨论`n`个物品全部参与运算的情况：既然顺序不影响，我们可以认为`n-1`个物品先参与运算，而抽离的第`i`个物品最后参与运算。只要能根据`dp[n][]`将最后物品的第`n`次计算撤销掉，那么`dp[n-1][]`对应的第`n-1`次计算就是我们所求的值。
+
+令`dp[i][j]`表示使用前`i`个物品能得到的代价之和恰好为`j`的方案数，`dp_unique[i][j]`表示将第`k`个物品放在最后，其余`n-1`个物品放在前面排序后，前`i`个物品代价之和恰好为`j`的方案数。那么根据上一段的结论可以得到这`dp[n][*]==dp_unique[n][*]`，我们要求的是`k`个`dp_unique[n-1][*]`。
+
+`dp_unique[n][j]`（即`dp[n][j]`）由两部分组成：
+
+1. 不包含第`i`个物品的方案数。因为不包含第`i`个物品，所以物品选择范围从`1->n`退化到`1->n-1`不会对这部分方案数造成影响。由定义可知这部分方案数等于`dp_unique[n-1][j]`。
+2. 包含第`i`个物品的方案数。由假设可知，这些方案肯定都包含第`i`个物品。因此对于每种方案，我们将第`i`个物品剔除，对应背包容量缩小至`j-cost[i]`，都能对应到一种符合新条件的方案，这个新条件就是"在`n`个物品中剔除第`i`个物品，背包容量恰好为`j-cost[i]`"，由定义可知这部分方案数等于`dp_unique[n-1][j-cost[i]]`。当然，如果`j<cost[i]`，那么当前背包容量`j`不可能放下第`i`个物品，这部分方案数退化为0。
+
+$$
+\text{dp\_unique}[n-1][j] = \text{dp}[n][j] - \text{dp\_unique}[n-1][j-\text{cost}[k]]
+$$
+
+剩余步骤完全相同。
+
+## §2.x 转化为背包问题
 
 > [洛谷P1853](https://www.luogu.com.cn/problem/P1853)：给定`n`种无限供应的定期理财方案，每种定期理财方案的单位投入和单位纯收益分别为`price[i]`和`benefit[i]`，均耗时1个单位时间。现在总时间预算有`time_budget`个单位时间，初始资金为`money`，要求选择一种投资策略，使得最终资金最大化。（额外给定数据约束条件：`price[i]`必为1000的倍数，且`benefit[i]`不大于`price[i]`的10%，便于压缩状态。）
 
@@ -607,7 +672,7 @@ $$
 	\text{dp}[i-1][j-\text{cost}[i]] + \text{value}[i]
 \Big)
 $$
-本题相比于传统模板题的区别有以下两点：
+本题相比于传统模板题的区别有以下三点：
 
 1. 由于`cost[i]`可以为负值，取值范围为$[-\text{capacity\_max},+\text{capacity\_max}]$，所以在索引`dp`数组时需要手动增加偏移量`offset`，其值就是`CAPACITY_MAX`。这类似于《计算机组成原理》中的补码逻辑，将左右对称的正负区间映射到全为正数的区间。
 
@@ -643,6 +708,329 @@ int main(){
         std::copy(dp + left_bound + OFFSET, dp + right_bound + OFFSET + 1, dp_old + left_bound + OFFSET); // 暂存dp数组，以供下一轮使用
     }
     std::cout << dp[0 + OFFSET];
+}
+```
+
+> [洛谷P2946](https://www.luogu.com.cn/problem/P2946)：给定`n`个物品，每种物品的价值为`value[i]`。现要求选择的物品价值总和恰好为`f`的倍数（不包括`0`），求有多少种不同的选法（输出结果对`1e8`取模）。
+
+`dp[i][j]`表示在前`i`组物品中总价值模`f`恰为`j`的选择方法数量，初值`dp[0][0]`为1。由于`j-value`可正可负，所以也不能用滚动数组优化。
+
+```c++
+const long long int N_MAX = 2000, F_MAX = 1000, MOD = 1e8;
+long long int n, f, mod, dp[2][F_MAX], flag;
+int main(){
+    std::cin >> n >> f;
+    dp[flag % 2][0] = 1;
+    for(long long int i = 1 ; i <= n ; ++i){
+        long long int value; std::cin >> value; value %= f;
+        for(long long int j = 0 ; j < f ; ++j){
+            dp[(flag + 1) % 2][j] = (
+                dp[flag % 2][j] + 
+                dp[flag % 2][(j - value + f) % f]
+            ) % MOD;
+        }
+        flag++;
+    }
+    std::cout << dp[flag % 2][0] - 1;
+}
+```
+
+> [洛谷P3983](https://www.luogu.com.cn/problem/P3983)：在生产地给定`n`个物品，重量`weight[i]`均为1。多个小物品可以打包成一个大物品，大物品无法拆分成小物品，大物品的重量是各个小物品重量之和。在生产地融合之后，要通过船舶运输到售卖地。现有10种无限供应的船舶，最大运载量分别为1到10，运价分别为`price[i]`。在售卖地，重量为`j`的物品的售价为`benefit[j]`。求一种融合方案，使得总收益最大化，并输出其最大值。
+
+这道题的本质是两道背包题融合在一起。
+
+首先考虑船舶，我们希望船舶尽可能装满，因为单艘船舶的价格是固定的，那么依据贪心思想，给未装满的船舶再塞上一点额外的物品，这点额外的物品也能盈利。于是最大运载量为`i`的船舶一定存在理论收益最大值。这就转化为了一个子问题：给定重量从1到10全覆盖的、无限量供应的物品，船舶容量为`i`，求售卖额的最大值`dp_boat[i]`。该最大值减去船舶价格即为净收益`dp_boat[i]-price[i]`。
+
+然后考虑生产地的物品。船舶不关心运载的物品是否经过打包，只要装满就能获得最多的利润。因此我们不必考虑物品合并了。问题转化为：给定10种无限量供应的船只，其代价分别为`i`，价值为`dp_boat-price[i]`，背包容量为`n`，请选择合适的船只组合方案，使得船只的代价之和小于等于为`n`（不是恰好为`n`，因为石头可以不卖出去，避免卖了还亏本），并让总价值最大化。
+
+```c++
+const long long int n = 10, COUNT_MAX = 1e5;
+long long int count, boat_cost[n + 1] = {0, 1, 3, 5, 7, 9, 10, 11, 14, 15, 17}, benefit[n + 1];
+long long int dp_boat[n + 1], dp[COUNT_MAX + 1];
+int main(){
+    std::cin >> count;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> benefit[i];
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        for(long long int j = 0 ; j <= n ; ++j){
+            if(j >= i){
+                dp_boat[j] = std::max(dp_boat[j], dp_boat[j - i] + benefit[i]);
+            }
+        }
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        dp_boat[i] -= boat_cost[i];
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        for(long long int j = i ; j <= count ; ++j){
+            dp[j] = std::max(dp[j], dp[j - i] + dp_boat[i]);
+        }
+    }
+    std::cout << dp[count];
+}
+```
+
+> [洛谷P2725](https://www.luogu.com.cn/problem/solution/P2725)：给定`n`种无限供应的、面值`value[i]`不同的硬币。从中最多选择`k`枚硬币，要求输出不能组合出的正整数面值的最小值。
+
+令`dp[i][j]`表示给定前`i`种硬币，能组合出面值恰好为`j`所需的最少硬币数。
+
+```c++
+const long long int N_MAX = 50, BUDGET_MAX = 200, VALUE_MAX = 1e4;
+long long int n, budget, value, value_sum;
+int dp[2000000]; // 本题空间成谜，出的不好
+int main(){
+    std::cin >> budget >> n;
+    std::fill(dp, dp + 2000000, BUDGET_MAX + 1);
+    dp[0] = 0;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> value; value_sum += value; 
+        long long int right_bound = value_sum * budget;
+        for(long long int j = value ; j <= 2000000 ; ++j){
+             dp[j] = std::min(dp[j], (dp[j - value] + 1));
+        }
+    }
+    for(long long int i = 1 ; i <= BUDGET_MAX * VALUE_MAX; ++i){
+        if(dp[i] > budget){
+            std::cout << i - 1;
+            return 0;
+        }
+    }
+}
+```
+
+> [洛谷P4158](https://www.luogu.com.cn/problem/P4158)：现有`n`条木板需要粉刷，每条木板含有`m`个格子。第`i`条木板的第`j`个格子原先含有颜色`color[i][j]`（本题中只有`0`和`1`两种颜色）。现允许`t`次粉刷操作，每次操作都选取某条木板`i`上的$[l,r]$区间覆盖成同一种颜色。若格子原来的颜色与覆盖后的颜色一致，则该格子粉刷正确。求粉刷正确的格子数的最大值。
+
+令`dp[i][j][k][l]`表示将`k`次粉刷机会全部用于第`i`条木板的$[1,j]$区间中，且第`j`个格子的粉刷颜色为`l`，能正确粉刷的格子数最大值。针对`dp[i][j][k][l]`分成如下情况讨论：
+
+- 直接从前一个格子刷过来，节省一次粉刷机会。对于前`j-1`个格子而言，它们能使用的粉刷次数仍然为`k`。
+  $$
+  \begin{align}
+      &\text{dp}[i][j][k][\text{color}[i][j]] = \max\left(
+          \text{dp}[i][j][k][\text{color}[i][j]], \text{dp}[i][j-1][k][\text{color}[i][j]] + \textcolor{red}{1}
+      \right)
+      \\
+      &\text{dp}[i][j][k][\text{其它颜色}] = \max\left(
+          \text{dp}[i][j][k][\text{其它颜色}], \text{dp}[i][j-1][k][\text{其它颜色}]
+      \right)
+  \end{align}
+  $$
+
+- 从本格开始使用一次新的粉刷机会。对于前`j-1`个格子而言，它们能使用的粉刷次数被第`j`个格子占用了一次，因此变为`j-1`。
+  $$
+  \begin{align}
+  	& \text{dp}[i][j][k][\text{color}[i][j]] = \max\left(\begin{cases}
+  		\text{dp}[i][j][k][\text{color}[i][j]]\\
+  		\text{dp}[i][j-1][k-1][\text{任意颜色}]+1
+  	\end{cases}\right) \\
+  	& \text{dp}[i][j][k][\text{其它颜色}] = \max\left(\begin{cases}
+  		\text{dp}[i][j][k][\text{其它颜色}]\\
+  		\text{dp}[i][j-1][k-1][\text{任意颜色}]
+  	\end{cases}\right) \\
+  \end{align}
+  $$
+
+两种方案取最大值即可。
+
+接下来讨论将`t`次机会分配给全部木板的情况。令`dp_final[i][j]`表示给前`i`个木板分配`j 		`次粉刷机会，能正确粉刷的格子数最大值。于是有状态转移方程：
+$$
+\text{dp\_final}[i][j] = \max\left(\begin{cases}
+	\text{dp\_final}[i-1][j] + 0 \\
+	\text{dp\_final}[i-1][j-1] + \text{dp}[i][m][1][任意颜色] \\
+	\text{dp\_final}[i-1][j-2] + \text{dp}[i][m][2][任意颜色] \\
+	\cdots \\
+	\text{dp\_final}[i-1][j-j] + \text{dp}[i][m][j][任意颜色] \\
+\end{cases}\right)
+$$
+
+```c++
+const long long int N_MAX = 50, M_MAX = 50, T_MAX = 2500, COLOR_MAX = 2;
+long long int n, m, t, color_count = 2, dp[M_MAX + 1][T_MAX + 1][COLOR_MAX], dp_final[T_MAX + 1];
+int main(){
+    std::cin >> n >> m >> t;
+    for(long long int i = 1 ; i <= n ; ++i){ // 木板数量
+        memset(dp, 0, sizeof(dp)); // 常数较大，可以只memset本题中需要的空间
+        for(long long int j = 1 ; j <= m ; ++j){ // 格子数量
+            long long int color;
+            while((color = getchar()) < '0' || color > '9'){;}
+            color -= '0';
+            for(long long int k = 1 ; k <= t ; ++k){ // 粉刷次数
+                dp[j][k][color] = std::max(dp[j][k][color], dp[j - 1][k][color] + 1);
+                dp[j][k][!color] = std::max(dp[j][k][!color], dp[j - 1][k][!color]);
+                dp[j][k][color] = std::max(dp[j][k][color], std::max(dp[j - 1][k - 1][color] + 1, dp[j - 1][k - 1][!color] + 1));
+                dp[j][k][!color] = std::max(dp[j][k][!color], std::max(dp[j - 1][k - 1][color], dp[j - 1][k - 1][!color]));
+            }
+        }
+        for(long long int j = t ; j >= 0 ; --j){
+            for(long long int k = 0 ; k <= j ; ++k){
+                dp_final[j] = std::max(dp_final[j], dp_final[j - k] + std::max(dp[m][k][0], dp[m][k][1]));
+            }
+        }
+    }
+    std::cout << dp_final[t];
+}
+```
+
+## §2.x 子序列DP
+
+给定一个数字序列，从中抽出一部分元素后，剩下的元素构成了一个新的子序列。
+
+### §2.x.1 最长子序列
+
+> [洛谷P1020](https://www.luogu.com.cn/problem/P1020)：给定一个长度为`n`的数字序列`a[i]`，求：（1）最长单调不升子序列的长度。（2）将`n`个元素按前后顺序划分成`k`个单调不升子序列，求`k`的最小值。
+
+令`dp[i]`表示在前`i`个数中，在选择第`i`个数的前提下，最长单调不升子序列的长度。于是对于`dp[i]`进行分类讨论：
+
+- `a[i]`与`dp[i-1]`指示的序列相接。至于和谁相接，需要进行枚举。此时$\text{dp}[i]=\max(\text{dp}[i], \displaystyle\max_{j<i,a[j]\ge a[i]}(\text{dp}[j] +1))$。
+- `a[i]`独成一派。此时$\text{dp}[i]=\max(\text{dp}[i],1)$。
+
+最后求出`dp`数组中的最大值即可。这种做法的时间复杂度是$O(n^2)$。要找出所有满足$j<i$和$a[j]\ge a[i]$的`j`，还要找到符合最优化目标的解`j_max`，只能对`j`按照区间$[1,i]$的范围穷举。我们的最终目标是找到`dp[j_max]`，而不是`j_max`本身。
+
+基于这种想法，我们可以进一步优化，不再将`a[*]`排成一列待查找符合条件$j<i$和$a[j]\ge a[i]$的`j`集合，而是将这些`dp[j]`直接排成一行待查找。这使得我们需要重新考虑`dp`的含义。我们重新令`dp[i][j]`表示在前`i`个数中，长度恰好为`j`的单调不升子序列的最后一个元素的最大值。之所以是最大值，是因为我们希望末尾元素越大越好，从而在后续的`i+1`层中提供更多的选择余地。
+
+注意到`dp[i][*]`非严格单调递减。这是显然的，因为给定的元素固定，那么序列长度`j`越大，越有可能使得`dp[i][j]`变小。这使得我们可以使用二分查找的技巧。
+
+现在考虑状态转移方程。由于第`i`个元素`a[i]`在`dp[i][]`指示的序列中排在最后，所以它有希望成为某个`dp[i][*]`的新的最大值，但到底是哪个`dp[i][*]`呢？
+
+- 当`j`比较小，使得`dp[i-1][j]>a[i]`时，由于子序列长度`j`是固定的，所以对于`dp[i-1][j]`对应的序列来说，为`dp[i][j]`保留更大的`dp[i-1][j]`能留下更多空间，因此使用滚动数组时无需计算，直接继承自上一轮的值即可。
+- 当`j`比较大，使得`dp[i][j]<=a[i]`首次成立时（记此时的`j`为`j_max`），我们希望`dp[i][j]`越大越好，于是完全可以抛弃`dp[i-1][j]`指向的那个元素（记为第`k`个元素，且`k<i`），而是替换为更大的第`i`个元素`a[i]`。这个过程舍弃了原本的`a[k]`，换上了现在的`a[i]`，因此子序列长度仍然为`j`， 不变。
+- 当`j`非常大，使得`dp[i-1][j]<=a[i]`第二次及以上成立时，由于`j_max`的存在，如果要换上现在的`a[i]`，则一定会导致舍弃至少两个及以上的`a[k]`，不能保证子序列长度不变。因此不会从`dp[i-1][j]`转移到`dp[i][j]`，`a[i]`的存在不会对，于是`dp[i][j]`保持不变，使用滚动数组时无需计算，直接继承自上一轮的值即可。
+
+综上所述，列出状态转移方程：
+$$
+\text{dp}[i][j] = \begin{cases}
+	a[i] & ,j=j\\\
+	\text{dp}[i-1][j] & ,j\ne j\_max\\
+\end{cases}
+$$
+以这组样例输入`5 8 6 3 7 1 4 1 6 2`为例，下表展示了动态规划的计算过程：
+
+|            | `[1]`    | `[2]`    | `[3]`    | `[4]`    | `[5]`    | `[6]` | `[7]` | `[8]` | `[9]` | `[10]` |
+| ---------- | -------- | -------- | -------- | -------- | -------- | ----- | ----- | ----- | ----- | ------ |
+| `dp[1][]`  | <u>5</u> |          |          |          |          |       |       |       |       |        |
+| `dp[2][]`  | <u>8</u> |          |          |          |          |       |       |       |       |        |
+| `dp[3][]`  | 8        | <u>6</u> |          |          |          |       |       |       |       |        |
+| `dp[4][]`  | 8        | 6        | <u>3</u> |          |          |       |       |       |       |        |
+| `dp[5][]`  | 8        | <u>7</u> | 3        |          |          |       |       |       |       |        |
+| `dp[6][]`  | 8        | 7        | 3        | <u>1</u> |          |       |       |       |       |        |
+| `dp[7][]`  | 8        | 7        | <u>4</u> | 1        |          |       |       |       |       |        |
+| `dp[8][]`  | 8        | 7        | 4        | 1        | <u>1</u> |       |       |       |       |        |
+| `dp[9][]`  | 8        | 7        | <u>6</u> | 1        | 1        |       |       |       |       |        |
+| `dp[10][]` | 8        | 7        | 6        | <u>2</u> | 1        |       |       |       |       |        |
+
+
+
+## §2.x 棋盘DP
+
+> [洛谷P1004](https://www.luogu.com.cn/problem/P1004)：给定一个$n\times n$的二维棋盘，每个格子都有`bonus[i][j]`个食物。每次从左上角出发，到右下角结束，总共允许走两次，食物不能重复领取，求能够最多食物数量。
+
+令`dp[i][j][k][l]`表示第一遍从$(1,1)$走到$(i,j)$、第二遍从$(1,1)$走到$(k,l)$能得到的最多食物数量。因为食物不能重复领取，所以两个右下角重叠时（即`i==k&&j==l`），应该只加一份`bonus[i][j]`（即`bonus[k][l]`）。于是有状态转移方程：
+$$
+\text{dp}[i][j][k][l]=\begin{cases}
+	\textcolor{red}{\text{bonus}[i][j] + \text{bonus}[k][l]} + \max\Big(
+		\text{dp}[i][j][k][l],
+		\text{dp}[i - 1][j][k - 1][l],
+		\text{dp}[i - 1][j][k][l - 1],
+		\text{dp}[i][j - 1][k - 1][l],
+		\text{dp}[i][j - 1][k][l - 1]
+	\Big) & ,(i,j)\neq(k,l) \\
+	\textcolor{red}{\text{bonus}[i][j]} + \max\Big(
+		\text{dp}[i][j][k][l],
+		\text{dp}[i - 1][j][k - 1][l],
+		\text{dp}[i - 1][j][k][l - 1],
+		\text{dp}[i][j - 1][k - 1][l],
+		\text{dp}[i][j - 1][k][l - 1]
+	\Big) & ,(i,j)=(k,l)
+\end{cases}
+$$
+
+```c++
+const long long int N_MAX = 9;
+long long int n, bonus[N_MAX + 1][N_MAX + 1], dp[N_MAX + 1][N_MAX + 1][N_MAX + 1][N_MAX + 1];
+int main(){
+    std::cin >> n;
+    while(true){
+        long long int x, y, value; std::cin >> x >> y >> value;
+        if(x == 0 & y == 0){
+            break;
+        }
+        bonus[x][y] = value;
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        for(long long int j = 1 ; j <= n ; ++j){
+            for(long long int k = 1 ; k <= n ; ++k){
+                for(long long int l = 1 ; l <= n ; ++l){
+                    dp[i][j][k][l] = multi_max({
+                        dp[i][j][k][l],
+                        dp[i - 1][j][k - 1][l],
+                        dp[i - 1][j][k][l - 1],
+                        dp[i][j - 1][k - 1][l],
+                        dp[i][j - 1][k][l - 1]
+                    }) + bonus[i][j] + bonus[k][l];
+                    if(i == k && j == l){ // 如果路径重复就要减去重叠部分
+                        dp[i][j][k][l] -= bonus[i][j];
+                    }
+                }
+            }
+        }
+    }
+    std::cout << dp[n][n][n][n];
+}
+```
+
+为了压缩把时间和空间复杂度从四维压缩到三维，我们可以认为第一遍和第二遍同时进行，用`dp[i][j][k]`表示走了`i`步时（初始值为`2`），第一遍从$(1,1)$走到$(j,i-j)$，第二遍从$(1,1)$走到$(k,i-k)$能得到的最多食物数量。于是有状态转移方程：
+$$
+\text{dp}[i][j][k]=\begin{cases}
+	\textcolor{red}{\text{bonus}[j][i-j] + \text{bonus}[k][i-k]} + \max\Big(
+		\text{dp}[i][j][k],
+		\text{dp}[i - 1][j][k],
+		\text{dp}[i - 1][j][k - 1],
+		\text{dp}[i - 1][j - 1][k],
+		\text{dp}[i - 1][j - 1][k - 1]
+	\Big) & ,(j,i-j)\neq(k,i-k),即j\neq k \\
+	\textcolor{red}{\text{bonus}[j][i-j]} + \max\Big(
+		\text{dp}[i][j][k],
+		\text{dp}[i - 1][j][k],
+		\text{dp}[i - 1][j][k - 1],
+		\text{dp}[i - 1][j - 1][k],
+		\text{dp}[i - 1][j - 1][k - 1]
+	\Big) & ,(j,i-j)=(k,i-k),即j=k
+\end{cases}
+$$
+
+- 对于`dp[i][][]`的第一维，显然要从左上角的`1+1=2`遍历到右下角的`n+n=2n`，一共计算`2n-1`条副对角线。因此第一维的遍历范围为$[2, 2n]$。
+- 对于`dp[][j][k]`的第二维和第三维，首先要确保`j`和`k`在$[1,n]$范围之内，其次要保证$(j,i-j)$、$(k,i-k)$这两个点的四个坐标都落在区间$[1,n]$内。解不等式组可得第二维要满足$j\le n$和$j<i$，可以简写为$j\le\min(n, i+1)$，第三维同理。
+
+```c++
+const long long int N_MAX = 9;
+long long int n, bonus[N_MAX + 1][N_MAX + 1], dp[2 * N_MAX + 1][N_MAX + 1][N_MAX + 1];
+int main(){
+    std::cin >> n;
+    while(true){
+        long long int x, y, value; std::cin >> x >> y >> value;
+        if(x == 0 & y == 0){
+            break;
+        }
+        bonus[x][y] = value;
+    }
+    for(long long int i = 2 ; i <= 2 * n ; ++i){ // 从(1,1)开始，因此路径长度初始值为1+1=2
+        // 两条路线的终点坐标分别为(j, i-j)和(k, i-k)，要保证四个数都大于等于1，小于等于n
+        for(long long int j = 1 ; j <= n && j < i ; ++j){
+            for(long long int k = 1 ; k <= n && k < i ; ++k){
+                dp[i][j][k] = multi_max({
+                    dp[i][j][k],
+                    (dp[i - 1][j][k]         >= 0 ? dp[i - 1][j][k]         : 0),
+                    (dp[i - 1][j][k - 1]     >= 0 ? dp[i - 1][j][k - 1]     : 0),
+                    (dp[i - 1][j - 1][k]     >= 0 ? dp[i - 1][j - 1][k]     : 0),
+                    (dp[i - 1][j - 1][k - 1] >= 0 ? dp[i - 1][j - 1][k - 1] : 0),
+                }) + bonus[j][i - j] + bonus[k][i - k];
+                if(j == k){ // 如果路径重复就要减去重叠部分
+                    dp[i][j][k] -= bonus[j][i - j];
+                }
+            }
+        }
+    }
+    std::cout << dp[2 * n][n][n];
 }
 ```
 
