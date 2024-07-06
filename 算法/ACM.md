@@ -22,51 +22,57 @@ cout << fixed << setprecision(位数) << 值;
 
 `std::sort(Iterator begin, Iterator end)`默认从小到大排序。
 
-### §1.2.2 `std::lower_bound()`
+### §1.2.2 `std::lower_bound()`/`std::upper_bound()`
 
-`std::lower_bound(Iterator begin, Iterator end, T value)`要求迭代器必须从小到大排列，找到第一个大于等于`value`的位置，并返回这个位置的迭代器，
+> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound(Iterator begin, Iterator end, T value)`返回容器从`begin`到`end`遍历，找到第一个大于等于`value`的位置，并返回这个位置的迭代器。
+>
+> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/upper_bound)：`std::upper_bound(Iterator begin, Itertor end, T value)`返回容器从`begin`到`end`遍历，找到第一个大于`value`的位置，并返回这个位置的迭代器。
 
-
-
-BFS板子：
+这个最简单的定义没有涉及到STL实现这两个二分查找函数的本质。我们给出它们的完整签名：
 
 ```c++
-    long long int x, y; std::cin >> x >> y;
-    bool visited[50][50]; std::fill(visited[0], visited[0] + 50 * 50, false);
-    std::queue<std::pair<long long int, long long int>> queue; queue.push({x, y});
-    long long int distance = 0;
+template<class ForwardIt, class T, class Compare>
+std::lower_bound(
+    class ForwardIt first, 
+    class ForwardIt last, 
+    const T& value, 
+    [](const T& iter_value, const T& value)->bool{};
+);
 
-    while(!queue.empty()){
-        long long int size = queue.size();
-        while(size--){
-            std::pair<long long int, long long int> current = queue.front(); queue.pop();
-            if(isInRange(...)){ // 如果数组下标越界就退出
-            	continue;
-            }
-            if(visited[current.first][current.second]){ // 如果已经访问过就退出
-                continue;
-            }
-            visited[current.first][current.second] = true;
-            if(current.first == 1 && current.second == 1){ // 如果找到目标点(1,1)
-                std::cout << distance << '\n';
-                return;
-            }
-
-			queue.push({current.first + 2, current.second + 1});
-			// ......
-			queue.push({current.first + 2, current.second + 1});
-        }
-        distance++;
-    }
+template<Class ForwardIt, class T, class Compare>
+std::upper_bound(
+	class ForwardIt first,
+    class ForwardIt last,
+    const T& value,
+    [](const T& value, const T& iter_value)->bool{};
+)
 ```
 
+`std::lower_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(forth_value, value)`时返回`true`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(back_value, value)`时返回`false`，则返回从`first`到`last`的第一个使得函数或Lambda表达式返回`false`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
+
+`std::upper_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(value, forth_value)`时返回`false`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(value, back_value)`时返回`true`，则返回从`first`到`last`的最第一个使得函数或Lambda表达式返回`true`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
+
+STL提供了以下预置的比较函数：
+
+- `std::less<T>`：`return a < b`
+- `std::greater<T>`：`return a > b`
+- `std::less_equal<T>`：`return a <= b`
+- `std::greater_equal<T>`：`return a >= b`
+
+根据以上定义，我们来分析以下实例：
+
+- 给定递增容器`int a[5] = {0, 1, 2, 3, 4}`，使用`std::lower_bound(a, a + 5, 2)`的效果。首先函数或Lambda表达式没有指定，因此缺省为`std::less<int>()`。序列的首部元素值能满足`iter_value < 2`，末尾元素值不能满足`iter_value < 2`，因此符合`std::lower_bound()`对容器的元素排序要求。容易发现，第一个能让`iter_value < 2`为`false`的元素就是`a[2]`本身，因此返回`(int*)(a+2)`。
+- 给定递减容器`int a[5] = {4, 3, 2, 1, 0}`，使用`std::upper_bound(a, a + 5, 2, std::greater<int>())`的效果。序列的首部元素`iter_value`较大，能使得`2 > iter_value`返回`false`；末尾元素的`2 > iter_value`为`true`，因此符合`std::upper_bound()`对容器的元素排序要求。容易发现，最后一个能让`iter_value > 2`为`true`的元素是`a[3]`，因此返回`(int*)(a+3)`。
+
 # §2 动态规划
+
+## §2.1 背包DP
 
 - 同时用到先后两次的`dp[n][]`和`dp[n-1][]`，且背包容量`j`与体积代价`cost[i]`满足严格偏序关系，才能使用一行滚动数组`dp[j]=...dp[j-cost[i]]`
 - 只用到`dp[n][]`单层的递推式，使用一行滚动数组存储完毕后必须再次初始化，防止干扰下一层。
 - 不满足严格偏序关系，必须使用两行滚动数组`dp[(n++)&1][j]`，且使用新行之前必须初始化为新值，否则本次在该行未经更新的数值就是两轮之前 的`dp[n-2][j]`
 
-## §2.1 0/1背包
+### §2.1.1 0/1背包
 
 > [洛谷P1048](https://www.luogu.com.cn/problem/P1048)：给定容量为`capacity`的背包，`n`个体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -175,7 +181,7 @@ int main(){
 
 该优化在$\text{capacity}$特别大时非常有效。
 
-### §2.1.1 时间最优做法
+#### §2.1.1.1 时间最优做法
 
 为了进一步优化时间，我们考虑上述常数优化的枚举范围。其左端点极度依赖于$\sum_{j=p}^{n}\text{volume}[j]$，我们希望这个值越大越好，这依赖于`volumn`数组的顺序。于是，当$\text{volume}[i]$非常大时，先处理代价（本题为体积）较大的物品能更缩小枚举范围。只需付出一点很小的排序时间开销，就能抵消大$\text{volume}[i]$造成的劣势。
 
@@ -205,7 +211,7 @@ int main(){
 }
 ```
 
-### §2.1.2 空间最优做法
+#### §2.1.1.2 空间最优做法
 
 注意到在最外层循环中，遍历到第`p`个物品时，只有该物品的代价和价值参与了计算。因此我们可以不用一次性保存所有石子的全部数据，而是按需读入，即用即扔。空间复杂度$O(\text{capacity}\cdot n)$仍未改变，只是缩小了$O(n)$的常数而已。
 
@@ -233,7 +239,7 @@ int main(){
 }
 ```
 
-## §2.2 完全背包
+### §2.1.2 完全背包
 
 > 给定容量为`capacity`的背包，`n`种供应量无穷大的，体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -291,7 +297,7 @@ TODO？？？？？？？？？？？完全背包也有类似的常数优化
 
 
 
-## §2.3 分组背包
+### §2.1.3 分组背包
 
 > [洛谷P1757](https://www.luogu.com.cn/problem/P1757)：给定容量为`capacity`的背包，`n`个供应量无穷大的，体积、价值、类别分别为`volume[i]`、`value[i]`和`type[i]`的物品，每个类别中最多只能挑出一个物品装入背包，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -334,7 +340,7 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n)$。
 
-## §2.4 多重背包
+### §2.1.4 多重背包
 
 > [洛谷P1776](https://www.luogu.com.cn/problem/P1776)：给定容量为`capacity`的背包，`n`种数量为`count[i]`的，体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -376,7 +382,7 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n\cdot\log_2(\text{count}[i])$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n\cdot\log_2(\text{count}[i]))$。
 
-## §2.5 费用背包
+### §2.1.5 费用背包
 
 > [洛谷P1510](https://www.luogu.com.cn/problem/P1510)：给定一个体积为`v`的坑洞，需要用石子填满（允许体积溢出）。石子的体积和代价（附属值）分别为`v[i]`和`c[i]`，求完成该任务的代价最小值。
 
@@ -454,20 +460,67 @@ int main(){
   }
   ```
 
-## §2.6 恰满背包
+> [洛谷P2340](https://www.luogu.com.cn/problem/P2340)：给定`n`个物品，每种物品都有两种代价`cost_1[i]`、`cost_2[i]`，代价可正可负。在物品的两种总代价均大于等于0的情况下，求这两种总代价之和的最大值。
+
+令`dp[i][j]`表示前`i`个物品的第一种代价之和恰好为`j`时，第二种代价之和的最大值。于是有状态转移方程：
+$$
+\text{dp}[i][j] = \max(
+	\text{dp}[i-1][j],
+	\text{dp}[i-1][j-\text{cost\_1}[i]] + \text{cost\_2}[i]
+)
+$$
+由于`cost_1[i]`可正可负，所以第二层遍历的顺序要随着其正负号而变化。
+
+```c++
+const long long int N_MAX = 400, COST_MAX = 1000, OFFSET = N_MAX * COST_MAX;
+long long int n, dp[2 * OFFSET + 1];
+int main(){
+    std::cin >> n;
+    std::fill(dp, dp + 2 * OFFSET + 1, INT32_MIN); dp[OFFSET] = 0;
+    long long int left_bound = 0, right_bound = 0;
+    for(int i = 1 ; i <= n ; ++i){
+        long long int cost_1, cost_2; std::cin >> cost_1 >> cost_2;
+        if(cost_1 < 0){
+            left_bound += cost_1;
+        }
+        if(cost_1 > 0){
+            right_bound += cost_1;
+        }
+        if(cost_1 >= 0){
+            for(long long int j = right_bound ; j >= left_bound ; --j){
+                dp[j + OFFSET] = std::max(dp[j + OFFSET], dp[j - cost_1 + OFFSET] + cost_2);
+            }
+        }else{
+            for(long long int j = left_bound ; j <= right_bound ; ++j){
+                dp[j + OFFSET] = std::max(dp[j + OFFSET], dp[j - cost_1 + OFFSET] + cost_2);
+            }
+        }
+    }
+    long long int result = INT32_MIN;
+    for(long long int i = 0 ; i <= right_bound ; ++i){
+        if(dp[i + OFFSET] < 0){
+            continue;
+        }
+        result = std::max(result, dp[i + OFFSET] + i);
+    }
+    std::cout << result;
+}
+```
+
+### §2.1.6 恰满背包
 
 之前我们接触的背包题型往往带有$\sum\text{volume}_i\le \text{capacity}$的约束条件。本节讨论的是$\sum\text{volume}_i= \text{capacity}$。
 
 - 以价值最大化问题为例，我们希望不合法的状态全为负无穷大，这样在$\max(\cdot)$的各参数大小竞争中，非法状态就会不起作用，等价于不存在。于是`dp[0][0]`为0，而`dp[0][1->n]`均为负无穷大。
 - 以统计方案数问题为例，我们希望不合法的状态不对应任何方案，也就是0。于是`dp[0][0]`反而是一种合法的方案，因为什么都不选也能填满容量为0的背包，而`dp[0][1->n]`均为0。
 
-## §2.7 依赖背包
+### §2.1.7 依赖背包
 
 > [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定$n$个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个此物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$m$的约束条件下，求物品价值之和的最大值。
 
 ？？？？？？？？？？？？？？？？？？？TODO
 
-## §2.8 混合背包
+### §2.1.8 混合背包
 
 混合背包指的是上述背包问题中提到的物品特性混合起来。针对此类问题，我们只需对不同问题的物品分别套用不同的转移方程即可。
 
@@ -481,7 +534,7 @@ for i=1..N
         // ...
 ```
 
-## §2.9 多维背包
+### §2.1.9 多维代价背包
 
 > [洛谷P1855](https://www.luogu.com.cn/problem/P1855)：在0/1背包的基础上，总共引入了两个约束条件。
 
@@ -520,7 +573,113 @@ int main(){
 }
 ```
 
-## §2.10 二维费用背包
+> [洛谷P1541](https://www.luogu.com.cn/problem/P1541)：给定一个`1×n`的棋盘，起点和终点在棋盘两侧。每个格子都有分数，每回合选择一个前进1步、2步、3步、4步的机会，这四种机会的上线分别为`card[1]`、`card[2]`、`card[3]`、`card[4]`。求分数最大值。
+
+令`dp[a][b][c][d]`表示这四种机会分别使用了`a`、`b`、`c`、`d`次，达到第`1+1×a+2×b+3×c+4×d`个格子时，能达到的最大值。
+
+```c++
+const long long int N_MAX = 350, M_MAX = 120, CARD_MAX = 40;
+long long int n, m, card[5], score[N_MAX + 1], dp[CARD_MAX + 1][CARD_MAX + 1][CARD_MAX + 1][CARD_MAX + 1];
+int main(){
+    std::cin >> n >> m;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> score[i];
+    }
+    for(long long int i = 1 ; i <= m ; ++i){
+        long long int temp; std::cin >> temp;
+        card[temp]++;
+    }
+    dp[0][0][0][0] = score[1];
+    for(long long int a = 0 ; a <= card[1] ; ++a){
+        for(long long int b = 0 ; b <= card[2] ; ++b){
+            for(long long int c = 0 ; c <= card[3] ; ++c){
+                for(long long int d = 0 ; d <= card[4] ; ++d){
+                    long long int distance = a + 2 * b + 3 * c + 4 * d;
+                    if(a >= 1){
+                        dp[a][b][c][d] = std::max(dp[a][b][c][d], dp[a - 1][b][c][d] + score[1 + distance]);
+                    }
+                    if(b >= 1){
+                        dp[a][b][c][d] = std::max(dp[a][b][c][d], dp[a][b - 1][c][d] + score[1 + distance]);
+                    }
+                    if(c >= 1){
+                        dp[a][b][c][d] = std::max(dp[a][b][c][d], dp[a][b][c - 1][d] + score[1 + distance]);
+                    }
+                    if(d >= 1){
+                        dp[a][b][c][d] = std::max(dp[a][b][c][d], dp[a][b][c][d - 1] + score[1 + distance]);
+                    }
+                    ;
+                }
+            }
+        }
+    }
+    std::cout << dp[card[1]][card[2]][card[3]][card[4]];
+}
+```
+
+> [洛谷P2732](https://www.luogu.com.cn/problem/P2732)：商店中售卖`n`种物品（$n\le 5$），原本单价为`price[i]`。现在商店提供`s`种无限使用的捆绑销售优惠策略，第`i`种策略将这`n`种物品分别取`s_product[i][j]`个打包，总计的优惠价格为`s_price[i]`。现在要求每种物品`i`分别恰好买`buy[i]`（$\text{buy}[i]\le 5$）个，求费用最小值。
+
+令`dp[a][b][c][d][e]`表示5种商品恰好购买`a`、`b`、`c`、`d`、`e`个的费用最小值，既可以使用优惠策略，也可以单价购买。
+
+```c++
+const long long int S_MAX = 99, N_MAX = 5;
+long long int product_count;
+long long int s_product[S_MAX + 1][N_MAX + 1], s_price[S_MAX + 1], buy[N_MAX + 1], price[N_MAX + 1];
+long long int dp[N_MAX + 1][N_MAX + 1][N_MAX + 1][N_MAX + 1][N_MAX + 1];
+std::map<long long int , long long int> product_id_map;
+int main(){
+    long long int s; std::cin >> s;
+    for(long long int i = 1 ; i <= s ; ++i){
+        long long int s_product_type_count; std::cin >> s_product_type_count;
+        for(long long int j = 1 ; j <= s_product_type_count ; ++j){
+            long long int product_id, sale_product_count; std::cin >> product_id >> sale_product_count;
+            if(product_id_map.count(product_id) == 0){
+                product_id_map[product_id] = ++product_count;
+            }
+            product_id = product_id_map[product_id];
+            s_product[i][product_id] = sale_product_count;
+        }
+        std::cin >> s_price[i];
+    }
+    long long int buy_count; std::cin >> buy_count;
+    for(long long int i = 1 ; i <= buy_count ; ++i){
+        long long int buy_product_id, buy_product_count, buy_price; std::cin >> buy_product_id >> buy_product_count >> buy_price;
+        if(product_id_map.count(buy_product_id) == 0){
+            product_id_map[buy_product_id] = ++product_count;
+        }
+        buy_product_id = product_id_map[buy_product_id];
+        buy[buy_product_id] = buy_product_count;
+        price[buy_product_id] = buy_price;
+    }
+    std::fill_n(dp[0][0][0][0], (N_MAX + 1) * (N_MAX + 1) * (N_MAX + 1) * (N_MAX + 1) * (N_MAX + 1), INT32_MAX);
+    dp[0][0][0][0][0] = 0;
+    for(long long int a = 0 ; a <= buy[1] ; ++a){
+        for(long long int b = 0 ; b <= buy[2] ; ++b){
+            for(long long int c = 0 ; c <= buy[3] ; ++c){
+                for(long long int d = 0 ; d <= buy[4] ; ++d){
+                    for(long long int e = 0 ; e <= buy[5] ; ++e){
+                        if(a >= 1){dp[a][b][c][d][e] = std::min(dp[a][b][c][d][e], dp[a - 1][b][c][d][e] + price[1]);}
+                        if(b >= 1){dp[a][b][c][d][e] = std::min(dp[a][b][c][d][e], dp[a][b - 1][c][d][e] + price[2]);}
+                        if(c >= 1){dp[a][b][c][d][e] = std::min(dp[a][b][c][d][e], dp[a][b][c - 1][d][e] + price[3]);}
+                        if(d >= 1){dp[a][b][c][d][e] = std::min(dp[a][b][c][d][e], dp[a][b][c][d - 1][e] + price[4]);}
+                        if(e >= 1){dp[a][b][c][d][e] = std::min(dp[a][b][c][d][e], dp[a][b][c][d][e - 1] + price[5]);}
+                        for(long long int i = 1 ; i <= s; ++i){
+                            if(a >= s_product[i][1] && b >= s_product[i][2] && c >= s_product[i][3] && d >= s_product[i][4] && e >= s_product[i][5]){
+                                dp[a][b][c][d][e] = std::min(
+                                    dp[a][b][c][d][e],
+                                    dp[a - s_product[i][1]][b - s_product[i][2]][c - s_product[i][3]][d - s_product[i][4]][e - s_product[i][5]] + s_price[i]
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::cout << dp[buy[1]][buy[2]][buy[3]][buy[4]][buy[5]];
+}
+```
+
+### §2.1.10 二维费用背包
 
 > [洛谷P1509](https://www.luogu.com.cn/problem/P1509)：给定`n`个物品，第`i`个物品含有金钱代价`money[i]`、幸运代价`luck[i]`、时间代价`time[i]`和价值`value[i]`（本题恒为1）。现在金钱预算只有`money_budget`，幸运运算只有`luck_budget`。请求出一种方案，使得物品总价值最大化。如果有多种方式均能使得物品总价值到达最大值，则选取时间总代价最小的方案，并输出该方案所需的时间总代价。
 
@@ -557,11 +716,85 @@ int main(){
 }
 ```
 
-## §2.11 泛化预算背包
+### §2.1.11 泛化物品背包
 
+在泛化物品背包问题中，物品的价值不再是一个定值，而是关于物品代价的函数。
 
+> [洛谷P1336](https://www.luogu.com.cn/problem/P1336)：给定`n`种不限量供应的物品，某种物品选择`i`个时，这`i`个同类物品加起来的价值是`a[i]×i^b[i]`。在恰好选择`m`个物品的情况下，求总价值的最小值。
 
-## §2.12 剔除物品背包
+令`dp[i][j]`表示给定前`i`种物品，要求恰好选`j`个物品时的价值最小值，于是有状态转移方程：
+$$
+\text{dp}[i][j] = \min\begin{cases}
+	\text{dp}[i-1][j] \\
+	\text{dp}[i-1][j-1] + a[i]\times 1^{b[i]} \\
+	\cdots \\
+	\text{dp}[i-1][j-j] + a[i]\times j^{b[i]} \\
+\end{cases}
+$$
+本题的陷阱在于：在第二层循环中，遍历顺序是从小到大还是从大到小。乍看本题，我们可能会认为每种物品无限供应，所以是完全背包，遍历顺序从小到大。但是观察上面的状态转移方程，我们发现得使用从大到小的顺序。
+
+```c++
+const long long int N_MAX = 20, PAPER_BUDGET_MAX = 200;
+long long int n, paper_budget, a[N_MAX + 1], b[N_MAX + 1];
+long long int dp[PAPER_BUDGET_MAX + 1]; // dp[i][j] 前i种物品分配j个指标
+int main(){
+    std::cin >> paper_budget >> n;
+    std::fill(dp + 1, dp + 1 + paper_budget, 1e9);
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> a[i] >> b[i];
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        for(long long int j = paper_budget ; j >= 0 ; --j){
+            for(long long int k = 0 ; k <= j ; ++k){
+                dp[j] = std::min(dp[j], dp[j - k] + a[i] * fast_power(k, b[i]));
+            }
+        }
+    }
+    std::cout << dp[paper_budget];
+}
+```
+
+> [洛谷P1417](https://www.luogu.com.cn/problem/P1417)：给定`n`个物品，每个物品需要时间代价`c[i]`才能装入背包。当该物品装入背包时，记背包中的物品时间代价之和记为`t`（即已经过去了`t`个时间单位），则这个物品的价值为`a[i]-t×b[i]`。已知背包的时间预算为`t_budget`，求背包价值最大值。
+
+在传统的背包问题中，物品的顺序不会影响最终答案。然而在本题中不是这样。考虑最简单的情况——只有两种物品，则两者的先后选择顺序对应的背包总价值分别为：
+$$
+\text{value}_{1,2} = (a[1] - c[1] \times b[1]) + (a[2] - (c[1] + c[2]) \times b[2]) \\
+\text{value}_{2,1} = (a[2] - c[2] \times b[2]) + (a[1] - (c[1] + c[2]) \times b[1]) \\
+$$
+我们不禁思考——到底哪种排列方式才是最优的呢？解不等式$\text{value}_{1,2}>\text{value}_{2,1}$可知$c[1]b[2]<c[2]b[1]$，即$\frac{c[1]}{b[1]}<\frac{c[2]}{b[2]}$。更进一步，给定含有`n`个物品的序列，对于其中任意的两个物品，将$\frac{c[i]}{b[i]}$更小的放在前面，总是能获得更大的价值。这提示我们尽可能将$\frac{c[i]}{b[i]}$更小的物品放在前面进行挑选，使用一轮排序即可。
+
+```c++
+const long long int N_MAX = 50, T_MAX = 1e5;
+long long int t, n, dp[T_MAX + 1];
+struct Object{
+    long long int a, b, c;
+};
+Object object[N_MAX + 1];
+
+int main(){
+    std::cin >> t >> n;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> object[i].a;
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> object[i].b;
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> object[i].c;
+    }
+    std::sort(object + 1, object + n + 1, [](const auto &lhs, const auto &rhs){
+        return lhs.c * rhs.b  < rhs.c * lhs.b;
+    });
+    for(long long int i = 1; i <= n ; ++i){
+        for(long long int j = t ; j >= object[i].c ; --j){
+            dp[j] = std::max(dp[j], dp[j - object[i].c] + object[i].a - object[i].b * j);
+        }
+    }
+    std::cout << *(std::max_element(dp + 1, dp + t + 1));
+}
+```
+
+### §2.1.12 剔除物品背包
 
 剔除物品背包在普通背包已经求解完毕的前提下，在可选择的物品列表中剔除某些物品，随后提问最优值。
 
@@ -625,7 +858,96 @@ $$
 
 剩余步骤完全相同。
 
-## §2.x 转化为背包问题
+### §2.1.13 次优解/第`k`优解
+
+> [洛谷P1858](https://www.luogu.com.cn/problem/P1858)：求0/1背包的前`k`个最优解之和。不同的解法之间的选择的物品组合禁止相同。
+
+原先`dp[i][j]`表示背包容量为`j`时，给定前`i`种物品时的代价最大值。本题的思路是扩充`dp[i][j]`的含义，使其指向一个长度为`k`的数组，分别存储最优解、次优解、...、第k优解。显然`dp[i][j]`是递减的。为了得到`dp[i][j]`，我们将`dp[i-1][j]`和`dp[i-1][j-cost]+value`这两个长度均为`k`的数组合并起来，并维持递减的排序。
+
+编程要注意细节：由于使用滚动数组优化，所以`dp[i][j]`和`dp[i-1][j]`共同使用了同一块空间，因此必须借助外部数组`merge_temp`暂时储存合并结果，然后复制到`dp[i][j]`的空间中。否则`dp[i-1][j]`一边读取同一块内存空间，`dp[i][j]`一边写入同一块内存空间，会覆盖掉`dp[i-1][j]`的内容，导致输出错误。
+
+```c++
+const long long int K_MAX = 50, V_MAX = 5000, N_MAX = 200;
+long long int dp[V_MAX + 1][K_MAX + 1], merge_temp[K_MAX + 1];
+long long int k, v, n;
+int main(){
+    std::cin >> k >> v >> n;
+    for(long long int i = 0 ; i <= v ; ++i){
+        for(long long int j = 0 ; j <= k ; ++j){
+            dp[i][j] = INT32_MIN;
+        }
+    }
+    dp[0][1] = 0;
+    for(long long int i = 1 ; i <= n ; ++i){
+        long long int cost, value; std::cin >> cost >> value;
+        for(long long int j = v ; j >= cost ; --j){
+            // 给定两个队列dp[j][*]和dp[j - cost][*], 从前向后遍历并合并
+            long long int queue_head_index_1 = 1, queue_head_index_2 = 1;
+            for(long long int a = 1 ; a <= k ; ++a){
+                if(dp[j][queue_head_index_1] <= dp[j - cost][queue_head_index_2] + value){
+                    merge_temp[a] = dp[j - cost][queue_head_index_2] + value;
+                    queue_head_index_2++;
+                }else{
+                    merge_temp[a] = dp[j][queue_head_index_1];
+                    queue_head_index_1++;
+                }
+            }
+            std::copy(merge_temp + 1, merge_temp + k + 1, dp[j] + 1);
+        }
+    }
+    std::cout << std::accumulate(dp[v] + 1, dp[v] + k + 1, 0ll);
+}
+```
+
+### §2.1.14 面值背包
+
+> [洛谷P2725](https://www.luogu.com.cn/problem/solution/P2725)：给定`n`种无限供应的、面值`value[i]`不同的硬币。从中最多选择`k`枚硬币，要求输出不能组合出的正整数面值的最小值。
+
+令`dp[i][j]`表示给定前`i`种硬币，能组合出面值恰好为`j`所需的最少硬币数。
+
+```c++
+const long long int N_MAX = 50, BUDGET_MAX = 200, VALUE_MAX = 1e4;
+long long int n, budget, value, value_sum;
+int dp[2000000]; // 本题空间成谜，出的不好
+int main(){
+    std::cin >> budget >> n;
+    std::fill(dp, dp + 2000000, BUDGET_MAX + 1);
+    dp[0] = 0;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> value; value_sum += value; 
+        long long int right_bound = value_sum * budget;
+        for(long long int j = value ; j <= 2000000 ; ++j){
+             dp[j] = std::min(dp[j], (dp[j - value] + 1));
+        }
+    }
+    for(long long int i = 1 ; i <= BUDGET_MAX * VALUE_MAX; ++i){
+        if(dp[i] > budget){
+            std::cout << i - 1;
+            return 0;
+        }
+    }
+}
+```
+
+> [洛谷P2851](https://www.luogu.com.cn/problem/P2851)：现在有`n`种面额分别为`value[i]`的硬币，给定要购买的商品价格`t`。买方对于每种硬币只有`buyer_count[i]`枚，而卖方有无穷多硬币。定义找零金额`k`等于支付金额`k+t`减商品价格`t`。令`dp_buyer[i]`和`dp_sellor[i]`分别表示买方和卖方恰好凑出`i`元所需硬币的最少数量，求$\forall k\in[0,+\infin)$，`dp_buyer[k+t]+dp_seller[k]`的最小值。
+
+本题的买方`dp_buyer`数组是二进制优化的多重背包，卖方`dp_sellor`数组是完全背包。分别求出即可。
+
+本题的难点在于$\forall k\in[0,+\infin)$，我们肯定无法真正的求出$k\rightarrow+\infin$的情况，这样的话数组空间和计算耗时都撑不住，所以我们要给`k`的遍历指定一个上界。问题是上界怎么求？
+
+在求解之前，我们先介绍以下引理：
+
+1. 找零`k`元时，卖方使用的面值非最大的硬币总数`dp[k+t]-面值最大的硬币个数`一定小于等于$\displaystyle\max_{1\le i\le n}(\text{value}[i])$。
+
+   使用反证法：考虑根据抽屉原理
+
+
+
+- 上界为$\displaystyle\max_{1\le i\le n}(\text{value}[i])^2$
+
+  将`value[i]`从小到大排序，单枚硬币的最大面额为`value[n]`。于是考虑卖方找回$k=\text{value}[n]^2$元的情况，此时卖方可以使用`value[n]`枚最大面额的硬币，而且显然这是花费最少的情况,也就是说$\text{dp\_seller}[\text{value}[n]^2]=\text{value}[n]$为定值。
+
+### §2.1.x 转化为背包问题
 
 > [洛谷P1853](https://www.luogu.com.cn/problem/P1853)：给定`n`种无限供应的定期理财方案，每种定期理财方案的单位投入和单位纯收益分别为`price[i]`和`benefit[i]`，均耗时1个单位时间。现在总时间预算有`time_budget`个单位时间，初始资金为`money`，要求选择一种投资策略，使得最终资金最大化。（额外给定数据约束条件：`price[i]`必为1000的倍数，且`benefit[i]`不大于`price[i]`的10%，便于压缩状态。）
 
@@ -771,34 +1093,6 @@ int main(){
 }
 ```
 
-> [洛谷P2725](https://www.luogu.com.cn/problem/solution/P2725)：给定`n`种无限供应的、面值`value[i]`不同的硬币。从中最多选择`k`枚硬币，要求输出不能组合出的正整数面值的最小值。
-
-令`dp[i][j]`表示给定前`i`种硬币，能组合出面值恰好为`j`所需的最少硬币数。
-
-```c++
-const long long int N_MAX = 50, BUDGET_MAX = 200, VALUE_MAX = 1e4;
-long long int n, budget, value, value_sum;
-int dp[2000000]; // 本题空间成谜，出的不好
-int main(){
-    std::cin >> budget >> n;
-    std::fill(dp, dp + 2000000, BUDGET_MAX + 1);
-    dp[0] = 0;
-    for(long long int i = 1 ; i <= n ; ++i){
-        std::cin >> value; value_sum += value; 
-        long long int right_bound = value_sum * budget;
-        for(long long int j = value ; j <= 2000000 ; ++j){
-             dp[j] = std::min(dp[j], (dp[j - value] + 1));
-        }
-    }
-    for(long long int i = 1 ; i <= BUDGET_MAX * VALUE_MAX; ++i){
-        if(dp[i] > budget){
-            std::cout << i - 1;
-            return 0;
-        }
-    }
-}
-```
-
 > [洛谷P4158](https://www.luogu.com.cn/problem/P4158)：现有`n`条木板需要粉刷，每条木板含有`m`个格子。第`i`条木板的第`j`个格子原先含有颜色`color[i][j]`（本题中只有`0`和`1`两种颜色）。现允许`t`次粉刷操作，每次操作都选取某条木板`i`上的$[l,r]$区间覆盖成同一种颜色。若格子原来的颜色与覆盖后的颜色一致，则该格子粉刷正确。求粉刷正确的格子数的最大值。
 
 令`dp[i][j][k][l]`表示将`k`次粉刷机会全部用于第`i`条木板的$[1,j]$区间中，且第`j`个格子的粉刷颜色为`l`，能正确粉刷的格子数最大值。针对`dp[i][j][k][l]`分成如下情况讨论：
@@ -871,20 +1165,22 @@ int main(){
 }
 ```
 
-## §2.x 子序列DP
+## §2.2 子序列DP
 
 给定一个数字序列，从中抽出一部分元素后，剩下的元素构成了一个新的子序列。
 
-### §2.x.1 最长子序列
+### §2.2.1 最长子序列长度
 
-> [洛谷P1020](https://www.luogu.com.cn/problem/P1020)：给定一个长度为`n`的数字序列`a[i]`，求：（1）最长单调不升子序列的长度。（2）将`n`个元素按前后顺序划分成`k`个单调不升子序列，求`k`的最小值。
+> [洛谷P1020](https://www.luogu.com.cn/problem/P1020)：给定一个长度为`n`的数字序列`a[i]`，求：（1）最长单调不升子序列的长度。
 
 令`dp[i]`表示在前`i`个数中，在选择第`i`个数的前提下，最长单调不升子序列的长度。于是对于`dp[i]`进行分类讨论：
 
 - `a[i]`与`dp[i-1]`指示的序列相接。至于和谁相接，需要进行枚举。此时$\text{dp}[i]=\max(\text{dp}[i], \displaystyle\max_{j<i,a[j]\ge a[i]}(\text{dp}[j] +1))$。
-- `a[i]`独成一派。此时$\text{dp}[i]=\max(\text{dp}[i],1)$。
+- `a[i]`独成一派。此时$\text{dp}[i]=1$。
 
-最后求出`dp`数组中的最大值即可。这种做法的时间复杂度是$O(n^2)$。要找出所有满足$j<i$和$a[j]\ge a[i]$的`j`，还要找到符合最优化目标的解`j_max`，只能对`j`按照区间$[1,i]$的范围穷举。我们的最终目标是找到`dp[j_max]`，而不是`j_max`本身。
+最后求出`dp`数组中的最大值即可。这种做法的时间复杂度是$O(n^2)$。
+
+之所以该解法的时间复杂度这么大，是因为要找出所有满足$j<i$和$a[j]\ge a[i]$的`j`，还要找到符合最优化目标的解`j_max`，只能对`j`按照区间$[1,i]$的范围穷举。我们的最终目标是找到`dp[j_max]`，而不是`j_max`本身。
 
 基于这种想法，我们可以进一步优化，不再将`a[*]`排成一列待查找符合条件$j<i$和$a[j]\ge a[i]$的`j`集合，而是将这些`dp[j]`直接排成一行待查找。这使得我们需要重新考虑`dp`的含义。我们重新令`dp[i][j]`表示在前`i`个数中，长度恰好为`j`的单调不升子序列的最后一个元素的最大值。之所以是最大值，是因为我们希望末尾元素越大越好，从而在后续的`i+1`层中提供更多的选择余地。
 
@@ -896,7 +1192,7 @@ int main(){
 - 当`j`比较大，使得`dp[i][j]<=a[i]`首次成立时（记此时的`j`为`j_max`），我们希望`dp[i][j]`越大越好，于是完全可以抛弃`dp[i-1][j]`指向的那个元素（记为第`k`个元素，且`k<i`），而是替换为更大的第`i`个元素`a[i]`。这个过程舍弃了原本的`a[k]`，换上了现在的`a[i]`，因此子序列长度仍然为`j`，保证不变。
 - 当`j`非常大，使得`dp[i-1][j]<=a[i]`第二次及以上成立时，由于`j_max`的存在，如果要换上现在的`a[i]`，则一定会导致舍弃至少两个及以上的`a[k]`，不能保证子序列长度不变。因此不会从`dp[i-1][j]`转移到`dp[i][j]`，`a[i]`的存在不会对从`dp[i-1][j]`到`dp[i][j]`的决策造成任何影响，第`i`个元素`a[i]`一定不会出现在`dp[i][j]`对应的子序列中。于是`dp[i][j]`保持不变，使用滚动数组时无需计算，直接继承自上一轮的值即可。
 
-综上所述，列出状态转移方程：
+综上所述，列出状态转移方程。该方法的时间复杂度是$O(n\log n)$：
 $$
 \text{dp}[i][j] = \begin{cases}
 	a[i] & ,j=j\_max\\
@@ -918,11 +1214,205 @@ $$
 | `dp[9][]`  | 8        | 7        | <u>6</u> | 1        | 1        |       |       |       |       |        |
 | `dp[10][]` | 8        | 7        | 6        | <u>2</u> | 1        |       |       |       |       |        |
 
+```c++
+const long long int N_MAX = 1e5;
+long long int n, a[N_MAX + 1], dp[N_MAX + 1];
+int main(){
+    while(std::cin >> a[++n]); --n;
+    long long int right_bound = 1; // dp的闭区间右端点，初始为1，表示此时的递减子序列只有一个元素，为负无穷大
+    for(long long int i = 1 ; i <= n ; ++i){
+        if(a[i] <= dp[right_bound]){
+            right_bound++;
+            dp[right_bound] = a[i];
+        }else{
+            long long int j_max = std::upper_bound(dp + 1, dp + 1 + right_bound, a[i], std::greater<long long int>()) - dp;
+            dp[j_max] = a[i];
+        }
+    }
+    std::cout << right_bound << '\n';
+}
+```
 
+### §2.2.2 最少子序列划分
 
-## §2.x 棋盘DP
+> [洛谷P1020](https://www.luogu.com.cn/problem/P1020)：给定一个长度为`n`的数字序列`a[i]`，求：（2）将`n`个元素按前后顺序划分成`k`个单调不升子序列，求`k`的最小值。
 
-> [洛谷P1004](https://www.luogu.com.cn/problem/P1004)：给定一个$n\times n$的二维棋盘，每个格子都有`bonus[i][j]`个食物。每次从左上角出发，到右下角结束，总共允许走两次，食物不能重复领取，求能够最多食物数量。
+令`dp[i][j]`表示前`i`个数的最少不升子序列划分中第`j`个不升子序列的末尾元素的最大值。
+
+考虑贪心。以这组样例输入`5 8 6 3 7 1 4 1 6 2`为例，下表展示了动态规划的计算过程：
+
+|            | `[1]` | `[2]` | `[3]` | `[4]` | `[5]` | `[6]` | `[7]` | `[8]` | `[9]` | `[10]` |
+| ---------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ------ |
+| `dp[1][]`  | 5     |       |       |       |       |       |       |       |       |        |
+| `dp[2][]`  | 5     | 8     |       |       |       |       |       |       |       |        |
+| `dp[3][]`  | 5     | 6     |       |       |       |       |       |       |       |        |
+| `dp[4][]`  | 3     | 6     |       |       |       |       |       |       |       |        |
+| `dp[5][]`  | 3     | 6     | 7     |       |       |       |       |       |       |        |
+| `dp[6][]`  | 1     | 6     | 7     |       |       |       |       |       |       |        |
+| `dp[7][]`  | 1     | 4     | 7     |       |       |       |       |       |       |        |
+| `dp[8][]`  | 1     | 4     | 7     |       |       |       |       |       |       |        |
+| `dp[9][]`  | 1     | 4     | 6     |       |       |       |       |       |       |        |
+| `dp[10][]` | 1     | 2     | 6     |       |       |       |       |       |       |        |
+
+```c++
+const long long int N_MAX = 1e5;
+long long int n, a[N_MAX + 1], dp_1[N_MAX + 1], dp_2[N_MAX + 1];
+int main(){
+    while(std::cin >> a[++n]); --n;
+    long long int right_bound = 1; // dp的闭区间右端点，初始为1，表示此时的递减子序列只有一个元素，为负无穷大
+    for(long long int i = 1 ; i <= n ; ++i){
+        if(a[i] <= dp_1[right_bound]){
+            right_bound++;
+            dp_1[right_bound] = a[i];
+        }else{
+            long long int j_max = std::upper_bound(dp_1 + 1, dp_1 + 1 + right_bound, a[i], std::greater<long long int>()) - dp_1;
+            dp_1[j_max] = a[i];
+        }
+    }
+    std::cout << right_bound << '\n';
+    right_bound = 0; // dp的闭区间右端点，初始为0，表示此时不需要构建递增子序列，数量为0
+    for(long long int i = 1 ; i <= n ; ++i){
+        if(a[i] > dp_2[right_bound]){
+            right_bound++;
+            dp_2[right_bound] = a[i];
+        }else{
+            long long int j_max = std::lower_bound(dp_2 + 1, dp_2 + 1 + right_bound, a[i]) - dp_2;
+            dp_2[j_max] = a[i];
+        }
+    }
+    std::cout << right_bound;
+}
+```
+
+### §2.2.3 最长子序列方案数
+
+> [洛谷P1108](https://www.luogu.com.cn/problem/P1108)：给定一个长度为`n`的数字序列`a[i]`。
+>
+> （1）求最长严格递减子序列的长度。
+> （2）求符合第一小问条件的所有选法的数量。
+> （3）如果两个序列选择元素不同，但是元素的值相同，导致序列的值相同，则认为是同一种序列，不参与重复计数。求符合第一小问条件的所有选法的数量。
+
+本题的第一问在[§2.2.1 最长子序列长度](###§2.2.1 最长子序列长度)一节中有所介绍。难点在于第二问，它需要用到往轮的计算信息。如果在第一问中使用$O(n\log n)$算法，就会发现这种算法的`dp`信息根本不能用于第二问的计算。因此我们退而求其次，使用$O(n^2)$算法。
+
+考虑第二问。令`dp_n2[i]`表示在选择第`i`个数的前提下，前`i`个数能形成的最长子序列长度。该数组的求解过程详见[§2.2.1 最长子序列长度](###§2.2.1 最长子序列长度)。接下来我们令`f[i]`表示在选择第`i`个数的前提下，前`i`个数形成的最长子序列的选法总数。在动态规划中，我们已知`f[1]`、`f[2]`、`f[i-1]`的答案，那么新添的这个`a[i]`如果接在前文中`i-1`个数构成的最长子序列后面，导致形成的新序列长度恰好为`dp_n2[n]`，那么`f[i]`就能加上`f[j]`($j<i$)。具体来说，`f[i]`的状态转移方程为：
+$$
+f[i]=\begin{cases}
+	1 & ,\text{dp}[i] = 1 \\
+	\sum_{j=1}^{i-1}\left(
+		\begin{cases}
+			f[j] &, \text{dp}[j] + 1 =dp[i] \and a[j] > a[i]\\
+			0      &, \text{otherwise}
+		\end{cases}
+	\right) & ,\text{dp}[i] \ge 2
+\end{cases}
+$$
+
+```c++
+for(int i = 1 ; i <= n; i++) {
+    if(dp_n2[i] == 1){  // 选中了第i个数，导致最长子序列长度为1，因此只有1种方案（即只选第i个数）
+        f[i] = 1;
+    }else{
+        for(int j = 1; j < i; j++){
+            if(dp_n2[i] == dp_n2[j] + 1 && a[i] < a[j]){
+                f[i] += f[j];
+            }else if(dp_n2[i] == dp_n2[j] && a[i] == a[j]){
+                f[i] = 0;
+            }
+        }
+    }
+}
+```
+
+```mermaid
+graph LR
+	subgraph a_array
+		direction LR
+		a0[5] --> a1[1] --> a2[3] --> a3[3] --> a4[1] --> a5[4] --> a6[1]
+	end
+	subgraph duplicated_sequence
+		direction LR
+		d0[5] --> d11[3] & d12[3] --> d21[1] & d22[1]
+	end
+```
+
+考虑第三问。以上图中给出的`a[7]={5,1,3,3,1,4,1}`为例，考虑两个重复的子序列，假设这个子序列的前`i=1`个值只映射到唯一一个元素，而`a[j=2]`和`a[k=3]`发生了值重复（$i<j<k$且$j\neq k$），也即是说同样的值对应着两个不同位置的元素，那么这种情况一定满足：
+$$
+\begin{cases}
+	\text{dp}[i]+1 = \text{dp}[j] \\
+	\text{dp}[i]+1 = \text{dp}[k] \\
+	a[j] = a[k]
+\end{cases}
+\Rightarrow
+\begin{cases}
+	\text{dp}[j] = \text{dp}[k] \\
+	a[j] = a[k]
+\end{cases}
+$$
+第三问的坑就在于如何设计重置规则。假如这种情况真的发生了，那么在第二问中`f[j]`和`f[k]`蕴含的方案一定有所重复。由于要去重，所以要把后面的`f[k]`重置为0。问题是：**`f[k]`难道就永远是0了吗？`f[j]`和`f[k]`的方案完全重合吗？**答案是否定的。以`a[4]={3,1,4,1}`为例，虽然`a[2]=1`的出现断绝了`a[4]=1`与`a[1]=3`的拼接，但是并不妨碍与`a[3]=4`拼接。
+
+一种错误的想法是：能不能对原始数组`a[n]`去除相邻重复值，然后套用第二问的代码。以`a[4]={3,1,4,1}`为例，这四个数没有任何的相邻重复值，但是依然会出现重复序列`(a[1],a[2])->(3,1)`和`(a[1],a[4])->(3,1)`。
+
+下面是第三问的核心代码：
+
+```c++
+for(int i = 1 ; i <= n; i++) {
+    if(dp_n2[i] == 1){
+        f[i] = 1; // ①
+    }
+    for(int j = 1; j < i; j++){
+        if(dp_n2[i] == dp_n2[j] + 1 && a[i] < a[j]){
+            f[i] += f[j]; // ②
+        }else if(dp_n2[i] == dp_n2[j] && a[i] == a[j]){
+            f[i] = 0; // ③
+        }
+    }
+}
+```
+
+在上面的逻辑中，①和②是互斥的。当`dp[i]==1`时，只会执行①③；当`dp[i]>=2`时，只会执行①③。
+
+```c++
+const long long int N_MAX = 5000;
+long long int n, a[N_MAX + 1], dp_n2[N_MAX + 1], f[N_MAX + 1];
+int main(){
+    std::cin >> n;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::cin >> a[i];
+    }
+    for(long long int i = 1 ; i <= n ; ++i){
+        dp_n2[i] = std::max(dp_n2[i], 1ll);
+        for(long long int j = i - 1 ; j >= 1 ; --j){
+            if(a[j] > a[i]){
+                dp_n2[i] = std::max(dp_n2[i], dp_n2[j] + 1);
+            }
+        }
+    }
+    long long int longest_length = *std::max_element(dp_n2 + 1, dp_n2 + n + 1);
+    for(int i = 1 ; i <= n; i++) {
+        if(dp_n2[i] == 1) {
+            f[i] = 1; // 选中了第i个数，导致最长子序列长度为1，因此只有1种方案（即只选第i个数）
+        }
+        for(int j = 1; j < i; j++){
+            if(dp_n2[i] == dp_n2[j] + 1 && a[i] < a[j]){
+                f[i] += f[j];
+            }else if(dp_n2[i] == dp_n2[j] && a[i] == a[j]){
+                f[i] = 0;
+            }
+        }
+    }
+    long long int count = 0;
+    for(int i = 1 ; i <= n ; ++i){
+        if(dp_n2[i] == longest_length){
+            count += f[i];
+        }
+    }
+    std::cout << longest_length << ' ' << count;
+}
+```
+
+## §2.3 棋盘DP
+
+> [洛谷P1004](https://www.luogu.com.cn/problem/P1004)：给定一个$n\times n$的二维棋盘，每个格子都有`bonus[i][j]`个食物。每次从左上角出发，到右下角结束，总共允许走两次，同一格的食物不能重复领取，求能够最多食物数量。
 
 令`dp[i][j][k][l]`表示第一遍从$(1,1)$走到$(i,j)$、第二遍从$(1,1)$走到$(k,l)$能得到的最多食物数量。因为食物不能重复领取，所以两个右下角重叠时（即`i==k&&j==l`），应该只加一份`bonus[i][j]`（即`bonus[k][l]`）。于是有状态转移方程：
 $$
@@ -945,6 +1435,11 @@ $$
 $$
 
 ```c++
+template<typename T>
+T multi_max(std::initializer_list<T> list){
+    return *std::max_element(list.begin(), list.end());
+}
+
 const long long int N_MAX = 9;
 long long int n, bonus[N_MAX + 1][N_MAX + 1], dp[N_MAX + 1][N_MAX + 1][N_MAX + 1][N_MAX + 1];
 int main(){
@@ -1034,3 +1529,104 @@ int main(){
 }
 ```
 
+## §2.4 数位DP
+
+> ？？？？？？？？？？
+
+令`dp[i]`表示所有长度为`i`、带有前导零填充的十进制数$\displaystyle[\underset{i个}{\underbrace{00\cdots0}},\underset{i个}{\underbrace{99\cdots9}}]$的这$10^i$个数中，各个数位出现的次数。由于每个数位出现的次数相等，所以我们只需记任意一个即可。接下来考虑`dp[i]`的递推式，我们将数位分成以下两类：
+
+- 在`1`位出现的数位。固定好第`1`位的数位后，剩余的后`i-1`个位可以随意变化，总共能创造出$10^{i-1}$个不同的数字，因此这部分的出现次数为$10^{i-1}$。
+- 在后`i-1`个位中出现的数位。由于第`1`个数位有10种可能，因此由`dp`数组定义知，这部分的出现次数为`10×dp[i-1]`。
+
+综上所述，`dp[i]`的状态转移方程如下：
+$$
+\begin{cases}
+	\text{dp}[1] = 1 \\
+	\text{dp}[i] = 10 \times \text{dp}[i-1] + 10^{i-1}
+\end{cases}
+\Rightarrow\begin{cases}
+\text{dp}[i] = i \times 10^{i-1}
+\end{cases}
+$$
+
+给定任意无前导零填充的十进制数字`x`，假设它的长度为`l`，各位的数位为`x[i]`。
+
+**以下是一种错误的做法：**
+
+1. 在`l`个数位的后`l-1`个数位中的情况
+   - 能填满$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},\underset{l-1个}{\underbrace{99\cdots9}}]$区间的`l-1`个数位,对应着第`1`个数位的数值一定小于`x[1]`。之前我们已经能推出$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},\underset{l-1个}{\underbrace{99\cdots9}}]$对应的`dp[l-1]`的值，而`x`一共能凑出`x[1]`个完整的`dp[l-1]`对应的区间，分别是第`1`位恰好是`0`、`1`、...、`x[1]-1`的情况。这一部分的出现次数为`x[1]×dp[l-1]`。
+   - 不能填满$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},\underset{l-1个}{\underbrace{99\cdots9}}]$区间的`l-1`个数位,对应着第`1`个数位的数值一定等于`x[1]`。问题转化为后`l-1`个数字构成的**含有前导0**的十进制数。<u>这导致求解受阻。</u>
+2. 在`l`个数位的在第`1`位出现的情况
+   - 对于数字`0`，由于不能有前导零，所以这一部分的出现次数为0。除非`x`就是个位数，导致`dp[1]==0`不能被视为前导零，对应的出现次数为1，这里需要做特判。
+   - 对于小于`x[1]`且不为0的数字，`dp[i-1]`的每个情况都会让这个数字出现一次，因此这一部分的出现次数为`dp[i-1]`次。
+   - 对于等于`x[1]`的数字，我们将`x`第一位砍去，记为`y`，它只对应着$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},y]$的区间，因此这一部分的出现次数为`y+1`次。
+
+下面给出正确的做法：
+
+1. 
+
+
+
+# §3 搜索
+
+
+
+## §3.2 BFS
+
+广度优先搜素板子：
+
+```c++
+const long long int N_MAX = 1e3, M_MAX = 1e5;
+char map[N_MAX][N_MAX];
+long long int n, m;
+bool visited[N_MAX][N_MAX];
+const long long int direction[4][2] = {
+    {1, 0}, {-1, 0}, {0, 1}, {0, -1}
+};
+
+void bfs_floodfill(long long int i, long long int j){
+    if(visited[i][j]){
+        return;
+    }
+    std::queue<std::pair<long long int, long long int>> queue;
+    queue.push({i, j});
+    while(!queue.empty()){
+        const auto point = queue.front(); queue.pop();
+        if(visited[point.first][point.second]){
+            continue;
+        }
+        visited[point.first][point.second] = true;
+        for(long long int k = 0 ; k < 4 ; ++k){
+            if(!isInRange(point.first + direction[k][0], point.second + direction[k][1], n, n)){
+                continue;
+            }
+            queue.emplace(point.first + direction[k][0], point.second + direction[k][1]);
+        }      
+    }
+}
+```
+
+## §3.x 剪枝
+
+
+
+
+
+# §A 警钟长鸣
+
+## §A.1 Segment Fault
+
+### §A.1.1 内联函数返回值
+
+```c++
+inline long long int fast_read(){
+	// ...
+	return x;
+}
+inline long long int fast_read(long long int &x){
+	x = fast_read();
+    // 没有返回值！
+}
+```
+
+若内联函数的声明包含返回值，但是实际的返回值是`void`，则在Linux平台上导致`signal 11: Segmentation fault with invalid memory reference`，但是Windows平台没有这种问题。
