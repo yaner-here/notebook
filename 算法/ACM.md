@@ -24,9 +24,9 @@ cout << fixed << setprecision(位数) << 值;
 
 ### §1.2.2 `std::lower_bound()`/`std::upper_bound()`
 
-> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound(Iterator begin, Iterator end, T value)`返回容器从`begin`到`end`遍历，找到第一个大于等于`value`的位置，并返回这个位置的迭代器。
+> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound(Iterator begin, Iterator end, T value)`返回非严格单调递增容器从`begin`到`end`遍历，找到第一个大于等于`value`的位置，并返回这个位置的迭代器。
 >
-> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/upper_bound)：`std::upper_bound(Iterator begin, Itertor end, T value)`返回容器从`begin`到`end`遍历，找到第一个大于`value`的位置，并返回这个位置的迭代器。
+> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/upper_bound)：`std::upper_bound(Iterator begin, Itertor end, T value)`返回非严格单调递增容器从`begin`到`end`遍历，找到第一个大于`value`的位置，并返回这个位置的迭代器。
 
 这个最简单的定义没有涉及到STL实现这两个二分查找函数的本质。我们给出它们的完整签名：
 
@@ -929,23 +929,145 @@ int main(){
 }
 ```
 
-> [洛谷P2851](https://www.luogu.com.cn/problem/P2851)：现在有`n`种面额分别为`value[i]`的硬币，给定要购买的商品价格`t`。买方对于每种硬币只有`buyer_count[i]`枚，而卖方有无穷多硬币。定义找零金额`k`等于支付金额`k+t`减商品价格`t`。令`dp_buyer[i]`和`dp_sellor[i]`分别表示买方和卖方恰好凑出`i`元所需硬币的最少数量，求$\forall k\in[0,+\infin)$，`dp_buyer[k+t]+dp_seller[k]`的最小值。
+> [洛谷P2851](https://www.luogu.com.cn/problem/P2851)：现在有`n`种面额分别为`value[i]`的硬币，给定要购买的商品价格`t`。买方对于每种硬币只有`buyer_count[i]`枚，而卖方有无穷多硬币。定义找零金额`k`等于支付金额`k+t`减商品价格`t`。令`dp_buyer[i]`和`dp_sellor[i]`分别表示买方和卖方恰好凑出`i`元所需硬币的最少数量，求$\forall k\in[0,+\infin)$，`dp_buyer[k+t]+dp_seller[k]`的最小值。如果无解则输出-1。
 
 本题的买方`dp_buyer`数组是二进制优化的多重背包，卖方`dp_sellor`数组是完全背包。分别求出即可。
 
-本题的难点在于$\forall k\in[0,+\infin)$，我们肯定无法真正的求出$k\rightarrow+\infin$的情况，这样的话数组空间和计算耗时都撑不住，所以我们要给`k`的遍历指定一个上界。问题是上界怎么求？
+本题的难点在于$\forall k\in[0,+\infin)$，我们肯定无法真正的求出$k\rightarrow+\infin$的情况，这样的话数组空间和计算耗时都撑不住，所以我们要给`k`的遍历指定一个上界。问题是：上界怎么求？
 
 在求解之前，我们先介绍以下引理：
 
-1. 找零`k`元时，卖方使用的面值非最大的硬币总数`dp[k+t]-面值最大的硬币个数`一定小于等于$\displaystyle\max_{1\le i\le n}(\text{value}[i])$。
+1. 如果支付方案和找零方案都包含某个面值相同的硬币，那么这个支付方案和找零方案一定都不是最优方案。因为此时这两个方案都可以移除这枚重复的硬币，从而减少硬币数。
 
-   使用反证法：考虑根据抽屉原理
+2. 在最优的找零方案中，所有面值非最大面值的硬币总数一定小于等于最大面值`value_max`。
+
+   使用反证法：假设大于`value_max`，那么此时找零金额大于$\text{value\_max}^2$。将这些面值严格小于`value_max`的、总数量大于`value_max`的硬币随意排成一行，第`i`枚硬币的面值记为`v'[i]`，我们可以为其生成一个长度大于`value_max`的面值前缀和`value_prefixsum[*]`数组。我们知道，一组整数对`value_max`取模至多会产生`value_max`个不同的结果，然而前缀和数组的长度大于`value_max`，因此根据抽屉原理，必定存在两个前缀和`value_prefixsum[i]`和`value_prefixsum[j]`对`value_max`同余。这两个数相减，可以得到$\sum_{k=i+1}^{j}v'[i]=k\cdot\text{value\_max}$，其中$k\ge 1$。将这$j-i$枚面值小于`value_max`的硬币换成`k`枚面值为`value_max`的硬币，可以进一步减少硬币数量。于是原找零方案不是最优的策略，与假设矛盾，证毕。
+
+3. 在找零方案中，$\text{dp\_seller}[\text{value\_max}^2+k]$一定严格大于$\text{dp\_seller}[\text{value\_max}^2]$。首先，显然$\text{dp\_seller}[\text{value\_max}^2]=\text{value\_max}$本身，即所有硬币都是面值最大的硬币。使用反证法，假设两者之间是小于等于的关系，那么数量较少或持平的硬币显然无法凑出比$\text{value\_max}^2$还大`k`元的总金额，证毕。
+
+接下来我们介绍几种上界及其证明方法：
+
+- `k`的上界为$2\cdot\displaystyle\max_{1\le i\le n}(\text{value}[i])^2$（无法取等）
+
+  这里我们对面值最大的硬币进行分类讨论。
+  
+  如果最优找零方案中含有面值最大的硬币，那么根据引理1，最优支付方案中不能含有面值最大的硬币。此时最优支付方案的硬币数量一定小于等于$\text{value\_max}$，这是因为如果最优支付方案的硬币数大于`value_max`，那么参照引理2的证明，这堆硬币中一定存在一小组硬币，它们的值相加等于$k\cdot\text{value\_max}$（$k\ge 1$），从而能抵消最优找零方案中的面值最大的硬币，因此这种情况不存在。因此硬币数量小于等于`value_max`，能取等；硬币最大面值小于`value_max`，不能取等，于是最优支付金额等于两者相乘，必定小于$\text{value\_max}^2$。设想找零方案中的面值最大硬币无限增加，这会导致支付价格增加，导致支付方案中的面值较小的硬币数量增加。而我们直到支付方案中的硬币数量是有上界的，这个上界就是我们之前推算得到的`value_max`。设找零方案中的面值最大的硬币数为$x$，则根据支付金额大于找零金额的不等式，我们有$\text{value\_max}^2>最优支付金额> 最优找零金额\ge x\cdot\text{value\_max}$，其中最右边的等号当且仅当最优找零金额只有最大面值硬币的参与，没有较小面值硬币参与时取得等号。解该不等式，我们得到$x<\text{value\_max}$。
+  
+  如果最优找零方案中没有面值最大的硬币，那么最优找零金额全部由面值较小的硬币贡献，而面值较小的硬币数量最大为`value_max`，每枚硬币的面值小于`value_max`，于是最优找零金额小于$\text{value\_max}^2$。
+  
+  综上所述，考虑最优找零方案：由引理2可知面值非最大的硬币数量小于等于`value_max`，面值非最大的硬币面值小于`value_max`，面值最大的硬币数量小于`value_max`，面值最大的硬币面额等于`value_max`，于是面额一定小于$2\cdot\text{value\_max}^2$，证毕。
+  
+- `k`的上界为$\displaystyle\max_{1\le i\le n}(\text{value}[i])^2$（可以取等）
+
+  当找零金额小于$\text{value\_max}^2$时，结论成立。
+
+  当找零金额等于$\text{value\_max}^2$时，显然最优找零方案的硬币数量恰好等于`value_max`，即只用最大面额的硬币。结论成立。
+
+  当找零金额大于$\text{value\_max}^2$时，根据引理3，显然最优找零方案的硬币数量$x$一定大于`value_max`。那么最优支付金额只会更多，再根据引理3：最优支付方案所需的硬币也会大于`value_max`。于是根据抽屉原理，最优追回方案和最优支付方案都会存在一段连续的硬币，使得它们的面值之和为`value_max`的倍数，可以直接抵消掉，因此这不是最优方案，产生矛盾，这种情况不存在。
+
+  综上所述，证毕。
+
+本题的另一个陷阱在于：满足什么条件才能判定无解？
+
+1. 买方的总金额买不起商品。
+2. 可用的硬币面值十分刁钻，以至于不可能恰好凑出所需的面额。例如只有面值为2的硬币，商品价格为3，买卖双方都有充足多的硬币，显然不存在一个找零金额`k`，使得`k`和`k+3`同时被2整除，总有一个金额不能恰好找零。为了解决这一问题，我们利用`dp`初始化时指定的无穷大作为判断依据。
+
+```c++
+const long long int N_MAX = 100, PRICE_MAX = 10000, VALUE_MAX = 120, COIN_COUNT_MAX = 1e4;
+long long int n, price, value[N_MAX + 1], coin_count[N_MAX + 1], coin_sum;
+long long int dp_buyer[PRICE_MAX + 1 + VALUE_MAX * VALUE_MAX], dp_seller[VALUE_MAX * VALUE_MAX + 1];
+int main(){
+    std::cin >> n >> price;
+    for(long long int i = 1; i <= n; ++i){
+        std::cin >> value[i];
+    }
+    for(long long int i = 1; i <= n ; ++i){
+        std::cin >> coin_count[i];
+        coin_sum += coin_count[i] * value[i];
+    }
+
+    if(coin_sum < price){
+        std::cout << -1;
+        return 0;
+    }
+
+    long long int value_max = *std::max_element(value + 1, value + n + 1);
+    std::fill(dp_seller + 1, dp_seller + value_max * value_max + 1, INT32_MAX);
+    std::fill(dp_buyer + 1, dp_buyer + 1 + price + value_max * value_max, INT32_MAX);
+    
+    for(long long int i = 1 ; i <= n ; ++i){ // 计算dp_buyer
+        if(coin_count[i] == 0){
+            continue;
+        }
+        for(long long int j = value_max * value_max + price ; j >= 0 ; --j){
+            long long k_bound = std::min(coin_count[i], j / value[i]);
+            for(long long int k = 0 ; k <= k_bound ; ++k){
+                dp_buyer[j] = std::min(dp_buyer[j], dp_buyer[j - k * value[i]] + k);
+            }
+        }
+    }
+
+    for(long long int i = 1 ; i <= n ; ++i){ // 计算dp_seller
+        for(long long int j = value[i] ; j <= value_max * value_max ; ++j){
+            dp_seller[j] = std::min(dp_seller[j], dp_seller[j - value[i]] + 1);
+        }
+    }
+
+    long long int result = INT32_MAX;
+    for(long long int i = 0 ; i <= value_max * value_max ; ++i){
+        result = std::min(result, dp_buyer[price + i] + dp_seller[i]);
+    }
+    if(result == INT32_MAX){
+        std::cout << -1;
+    }else{
+        std::cout << result;
+    }
+}
+```
 
 
 
-- 上界为$\displaystyle\max_{1\le i\le n}(\text{value}[i])^2$
+### §2.1.15 树上背包
 
-  将`value[i]`从小到大排序，单枚硬币的最大面额为`value[n]`。于是考虑卖方找回$k=\text{value}[n]^2$元的情况，此时卖方可以使用`value[n]`枚最大面额的硬币，而且显然这是花费最少的情况,也就是说$\text{dp\_seller}[\text{value}[n]^2]=\text{value}[n]$为定值。
+> [洛谷P2014](https://www.luogu.com.cn/problem/P2014)：给定`n`门有依赖顺序的课程，每门课程只有一个先修课，第`i`门课程的价值为`value[i]`，其先修课序号为`master[i]`（无祖先则置为0）。如果要学一门课程，则需要先学完它的先修课、先修课的先修课、...，即学完所有祖先。从中最多选择`m`门课程学习，求价值最大值。
+
+一种显然的暴力解法是：将每门课程对应的节点视为泛化物品，`dp[i][j]`表示将第`i`门课程所在的节点视为其子树的根，将`j`门课程的选择名额分给这个根节点能获得的最大价值。一次背包的时间复杂度为$O(m^2)$，每个物品都要进行一次背包运算，因此暴力解法的时间复杂度是$O(nm^2)$。这里我们使用DFS与记忆化搜索。令`son_count[i]`表示第`i`个节点的子节点总数，`son_index[i]`表示序号。
+
+- 由于可能存在多门基础课程，这些基础课程的先修课序号为0，所以我们以虚拟的0号节点作为根节点，**由于也要选择根节点，因此课程数量限额`m`要加1**。
+- 考虑每个根节点`i`的`dp[i]`初始值。初始时没有选择任何一门子课程，因此需要给`dp[i][>=cost=1]`的部分置为`value[i]`，表示只选择根节点时的价值。
+
+```c++
+const long long int N_MAX = 300, M_MAX = 300;
+long long int n, m, visited[N_MAX + 1], value[N_MAX + 1], son_count[N_MAX + 1], son_index[N_MAX + 1][N_MAX + 1];
+long long int dp[N_MAX + 1][M_MAX + 1];
+void dfs(long long int root){
+    std::fill(dp[root] + 1, dp[root] + m + 1, value[root]); // 只选择root的价值
+    for(long long int i = 1 ; i <= son_count[root] ; ++i){
+        long long int son = son_index[root][i];
+        if(!visited[son]){ 
+            dfs(son); 
+        }
+        visited[son] = true;
+        for(long long int j = m ; j >= 1 ; --j){
+            for(long long int k = 0 ; k <= j - 1 ; ++k){ // 必须给dp[root][至少为1]
+                dp[root][j] = std::max(dp[root][j], dp[root][j - k] + dp[son][k]);
+            }
+        }
+    }
+}
+int main(){
+    std::cin >> n >> m; m += 1;
+    for(long long int i = 1; i <= n; i++){
+        long long int father; std::cin >> father >> value[i];
+        son_count[father]++;
+        son_index[father][son_count[father]] = i;
+    }
+    dfs(0);
+    std::cout << dp[0][m] << '\n';
+}
+```
+
+接下来介绍一种优化方案。令`dp[i][j][k]`表示将第`i`个节点视为根节点，只考虑前`j-1`个子节点构成的泛化物品组，分配`k`个单位的限额（包括根节点的代价）所能达到的最大价值，令`dp'[i][j][k]`表示将第`i`个节点视为根节点，只考虑前`j`个子节点构成的泛化物品组，且必选第`j`个子节点，分配`k`个单位的限额（包括根节点的代价）所能达到的最大价值。由于第`j`个子节点只有选和不选两种情况，所以`dp[i][j][k]`与`dp'[i][j][k]`实际上
 
 ### §2.1.x 转化为背包问题
 
@@ -1564,6 +1686,39 @@ $$
 下面给出正确的做法：
 
 1. 
+
+## §2.5 计数DP
+
+> [洛谷P1077](https://www.luogu.com.cn/problem/P1077)：给定`n`种编号从`1`到`n`数量分别为`a[i]`的物品，要用这些物品的其中`m`个物品排成一队，要求队列中物品的编号非严格单调递增。求有多少种互异的排队方式？（若两个元素属于同种物品则视为完全相同）
+
+本题需要抽象建模。由于给定了各个物品选择的数量后，就能确定唯一的队列，因此问题转化为：给定一个长度为`n`的数列$a[i]$，求满足$b_i\ge0,\sum{b_i}=m$的数列$b[i]$的所有选法。
+
+记`dp[i][j]`表示前`i`种物品凑出长度为`j`的符合要求的队列数量，于是易得状态转移方程：
+$$
+\text{dp}[i][j] = \sum_{k=1}^{\min(j,a[i])}\text{dp}[i-1][j-k]
+$$
+经滚动数组压缩后，容易发现可维护一个前缀和来快速计算求和，本题略。
+
+```c++
+const long long int N_MAX = 100, M_MAX = 100, MOD = 1e6 + 7;
+long long int n, m, a[N_MAX + 1], dp[M_MAX + 1];
+int main(){
+    std::cin >> n >> m;
+    for(long long int i = 1; i <= n; i++){
+        std::cin >> a[i];
+    }
+    dp[0] = 1;
+    for(long long int i = 1; i <= n; ++i){
+        for(long long int j = m ; j >= 0 ; --j){
+            for(long long int k = 1 ; k <= std::min(j, a[i]) ; ++k){
+                dp[j] += dp[j - k];
+                dp[j] %= MOD;
+            }
+        }
+    }
+    std::cout << dp[m];
+}
+```
 
 
 
