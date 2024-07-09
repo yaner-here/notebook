@@ -1025,13 +1025,11 @@ int main(){
 }
 ```
 
-
-
 ### §2.1.15 树上背包
 
-> [洛谷P2014](https://www.luogu.com.cn/problem/P2014)：给定`n`门有依赖顺序的课程，每门课程只有一个先修课，第`i`门课程的价值为`value[i]`，其先修课序号为`master[i]`（无祖先则置为0）。如果要学一门课程，则需要先学完它的先修课、先修课的先修课、...，即学完所有祖先。从中最多选择`m`门课程学习，求价值最大值。
+> [洛谷P2014](https://www.luogu.com.cn/problem/P2014)/[洛谷U53204](https://www.luogu.com.cn/problem/U53204)：给定`n`门有依赖顺序的课程，每门课程只有一个先修课，第`i`门课程的价值为`value[i]`，其先修课序号为`master[i]`（无祖先则置为0）。如果要学一门课程，则需要先学完它的先修课、先修课的先修课、...，即学完所有祖先。从中最多选择`m`门课程学习，求价值最大值。
 
-一种显然的暴力解法是：将每门课程对应的节点视为泛化物品，`dp[i][j]`表示将第`i`门课程所在的节点视为其子树的根，将`j`门课程的选择名额分给这个根节点能获得的最大价值。一次背包的时间复杂度为$O(m^2)$，每个物品都要进行一次背包运算，因此暴力解法的时间复杂度是$O(nm^2)$。这里我们使用DFS与记忆化搜索。令`son_count[i]`表示第`i`个节点的子节点总数，`son_index[i]`表示序号。
+一种显然的暴力解法是：将每门课程对应的节点视为泛化物品，`dp[i][j]`表示将第`i`门课程所在的节点视为其子树的根，将`j`门课程的选择名额分给这个根节点能获得的最大价值。一次背包的时间复杂度为$O(m^2)$，每个物品都要进行一次背包运算，因此暴力解法的时间复杂度是$O(nm^2)$。这里我们使用DFS与记忆化搜索（其实树形结构不需要记忆化，因为其拓扑图不成环，不会出现重复操作）。令`son_count[i]`表示第`i`个节点的子节点总数，`son_index[i]`表示序号。
 
 - 由于可能存在多门基础课程，这些基础课程的先修课序号为0，所以我们以虚拟的0号节点作为根节点，**由于也要选择根节点，因此课程数量限额`m`要加1**。
 - 考虑每个根节点`i`的`dp[i]`初始值。初始时没有选择任何一门子课程，因此需要给`dp[i][>=cost=1]`的部分置为`value[i]`，表示只选择根节点时的价值。
@@ -1067,7 +1065,162 @@ int main(){
 }
 ```
 
-接下来介绍一种优化方案。令`dp[i][j][k]`表示将第`i`个节点视为根节点，只考虑前`j-1`个子节点构成的泛化物品组，分配`k`个单位的限额（包括根节点的代价）所能达到的最大价值，令`dp'[i][j][k]`表示将第`i`个节点视为根节点，只考虑前`j`个子节点构成的泛化物品组，且必选第`j`个子节点，分配`k`个单位的限额（包括根节点的代价）所能达到的最大价值。由于第`j`个子节点只有选和不选两种情况，所以`dp[i][j][k]`与`dp'[i][j][k]`实际上
+#### §2.1.15.1 伪常数优化
+
+接下来介绍一种的伪常数优化方案。之所以将其称为伪常数，是因为它实际上将时间复杂度从$O(nm^2)$降低到了$O(nm)$。令`dp[x][i][j]`表示将第`x`个节点视为根节点，只考虑根节点与前`i-1`个子节点构成的泛化物品组，**恰好**分配`j`个单位的限额所能达到的最大价值。令`f[i][j]`表示给第`i`个节点及其子树分配`j`个单位的限额能达到的最大价值。于是显然有状态转移方程：
+$$
+\text{dp}[x][i][j] = \max\begin{cases}
+	\text{dp}[x][i-1][j-0] + f[i][0] \\
+	\text{dp}[x][i-1][j-1] + f[i][1] \\
+	\text{dp}[x][i-1][j-2] + f[i][2] \\
+	\cdots \\
+	\text{dp}[x][i-1][1] + f[i][j-1] \\
+	\text{dp}[x][i-1][0] + f[i][j]
+\end{cases} = \max_{0\le k\le j}\text{dp}[x][i-1][j-k] + f[i][k]
+$$
+由于新的`dp`表示**恰好**消耗完代价限额，所以分配代价太多并不是一件好事，即使选择全部节点也容纳不下，导致`dp`的值仍然为0，相当于没有计算过一样。在上面的公式中，我们每次给根节点与前`i-1`棵子树分配`j-k`个代价限额，给第`i`棵子树分配`k`个代价限额。基于此分析各变量的遍历边界，我们可以得出一些优化条件：
+
+1. 在单次状态转移时，总共分配的代价`k`最多不能超过总代价`m`，即$k\le m+1$恒成立。**这里的`m`加一是因为要选择0号虚拟节点**。
+2. 在单次状态转移时，总共分配的代价`k`最多不能超过第`x`个节点本身、与其所属的前`j`棵子树的节点代价之和，否则分配的太多，即使全部选择也容纳不下。令`cost_part[x][i]`表示第`x`个节点形成的子树中，根节点与前`i-1`个子节点构成的子树中的所有节点代价之和。令`cost[i]`表示第`i`个节点及其子树的所有节点代价之和。即$k\le \text{cost\_part}[x][i]+\text{cost}[i]$。
+3. 在单次状态转移时，我们每次给根节点与前`i-1`棵子树分配`j-k`个代价限额，这个数必须大于等于0（其实不能取等，参照第6条优化条件），小于等于`cost_part[x][i]`；给第`i`棵子树分配`k`个代价限额，这个数必须大于等于0，小于等于`cost[i]`。
+4. 注意到`j==0`时没有任何代价限额可用，因此`dp`值必定为零，计算后不改变`dp`原先的值，因此遍历时可以忽略这种情况。
+5. 注意到`k==0`时不会产生任何影响，所以可以遍历时可以忽略这种情况。
+6. 注意到`k==j`时，每次给根节点与前`i-1`棵子树分配`0`个代价限额，而这是不可能的，**因为我们已知根节点的代价不为0**，又选了根节点`x`的第`i`棵子树，所以根节点`x`是必选的，这种情况把根节点也忽略了。因此需要排除这种情况。
+
+解以上不等式组，我们得到了`j`和`k`的遍历边界：
+$$
+\begin{cases}
+	j\in[
+		1 ,
+		\max(m+1, \text{cost\_part}[x][i]+\text{cost}[i])
+	]\\
+	k\in[
+		\max(1,j-\text{cost\_part}[x][i]) ,
+		\min(\text{cost}[i], j-1)
+	]
+\end{cases}
+$$
+现在考虑滚滚动数组优化。
+
+- 注意到`cost_part[x][i]`就是`cost[x]`的一部分，于是我们可以将左边的`cost_part[x][i]`视为还没计算完毕的`cost[x]`，随着`i`逐渐增加而趋近于`cost[x]`，这样就干掉了`cost_part`数组。
+- 注意到`dp[x][x的子树数量+1][j]`就是`f[x][j]`本身，也就是说`f[x][j]`本身就是由众多`f[i][j]`转移而来的，于是我们可以认为`dp[x][i][j]`通过`i`的遍历而更新，逐渐趋近于`f[x][j]`。我们用``f[x][j]`这块空间暂存计算中的`dp[x][i][j]`，这就干掉了`dp`数组。
+
+```c++
+const long long int N_MAX = 1000, M_MAX = 1000 + 1; // 因为有虚拟节点，所以要+1
+long long int edge_count, edge_first[N_MAX + 1], edge_next[N_MAX + 1], edge_to[N_MAX + 1], cost_subtree[N_MAX + 1];
+
+void add_edge(long long int root, long long int child){ // 用前向链表给树建图
+    edge_count++; // 分配新的边序号
+    edge_next[edge_count] = edge_first[root]; // 这条新的边的下一条边指向原先root邻接边列表的第一条边
+    edge_first[root] = edge_count; // 这条新的边称为root的第一条邻接边
+    edge_to[edge_count] = child; // 这条边指向的节点
+}
+
+long long int n, m, value[N_MAX + 1];
+long long int f[N_MAX + 1][M_MAX + 1];
+void dfs(long long int root){
+    cost_subtree[root] = 1; // 根节点本身占用一个名额，代价为1
+    f[root][1] = value[root]; // 什么子树也不选时，初始化f[root][0]=0, f[root][1]=value[root]，表示只能选根节点
+    for(long long int i = edge_first[root] ; i != 0 ; i = edge_next[i]){ // 遍历所有与子节点相邻的边
+        long long int child = edge_to[i];
+        dfs(child); // 更新child的f[child]和cost_subtree[child]
+        for(long long int j = std::min(m, cost_subtree[root] + cost_subtree[child]) ; j >= 1 ; --j){ // 这里不是m+1，因为main()已经加1了
+            for(long long int k = std::max(1ll, j - cost_subtree[root]) ; k <= std::min(cost_subtree[child], j - 1) ; ++k){
+                f[root][j] = std::max(f[root][j], f[root][j - k] + f[child][k]);
+            }
+        }
+        cost_subtree[root] += cost_subtree[child];
+    }
+}
+int main(){
+    #ifndef _DISABLE_IOSTREAM_SYNC
+    std::cin.tie(0);
+    std::cout.tie(0);
+    std::ios::sync_with_stdio(false);
+    #endif
+
+    fast_read(n); fast_read(m); m++; // m提前加1，表示还要选择虚拟零点
+    for(long long int i = 1 ; i <= n ; ++i){
+        long long int root; fast_read(root); fast_read(value[i]);
+        add_edge(root, i);
+    }
+
+    dfs(0);
+    std::cout << f[0][m];
+
+    return 0;
+}
+```
+
+在本题的[数据加强版](https://www.luogu.com.cn/problem/U53204)中，由于空间的严格限制，我们需要使用一些压空间的技巧，详见[§A.2.1 二维数组转一维数组](###§A.2.1 二维数组转一维数组)和[§A.2.2 把`long long`换成`int`](###§A.2.2 把`long long`换成`int`)两节，代码在[§A.2.2 把`long long`换成`int`](###§A.2.2 把`long long`换成`int`)末尾。
+
+表面上单层`dfs()`函数仍然涉及三重循环，看似这是减小了常数的$O(nm^2)$。其实不然，实际上这种伪常数优化的时间复杂度是$O(nm)$。由于各个节点的内层遍历范围被`cost[x]`数组所钳制，因此单个节点的遍历复杂度至多为$O(m)$，一共有`n`个节点，于是总的时间复杂度为$O(nm)$。
+
+#### §2.1.15.2 二重循环优化
+
+令`dp[x][i][j]`表示对于根节点`x`的第`i`个子节点，在必须选择根节点`x`及其所有祖先节点、可以选择根节点`x`的前`i`个子节点及其子树的前提下，分配`j`个单位的代价限额（不必全部花完）能获得的最大价值。令`f[i][j]`表示`dp[x][i-1][j]`的基础上，在选择节点`i`及其所有祖先节点的情况下（可以不选择`i`节点下属的子树），分配`j`个代价限额能取得的价值最大值。
+
+本节的优化用到了一个小技巧。假设`dp[x][i][j]`已经求出，则计算`dp[x][i+1][j]`时，我们注意到`f[i][*]`的初始值就是`dp[x][i][*]+cost[i]`本身，此时第`i`个节点及其子树节点什么都没选，但是已经选了其父节点`x`等所有祖先节点。
+
+根据以上定义，我们可以迅速地给出状态转移方程：
+$$
+\begin{cases}
+	\text{dp}[x][i][j] = \max\begin{cases}
+		\text{dp}[x][i-1][j] \\
+		f[i][j]
+	\end{cases} 
+	\\
+	f[x][j] = \text{dp}[x][节点x的子节点数][j]
+\end{cases}
+$$
+现在考虑滚动数组优化与边界常数优化。注意到随着`i`的增加，`dp[x][i][j]`会主键趋向于`f[i][j]`，于是可以用`f[i][j]`暂存`dp[x][i][j]`的运算结果，通过逐步更新半成品的`f[i][j]`使其趋近于真正的`f[i][j]`。对于`f[i][j]`而言，令`depth[i]`表示如果要选择第`i`个节点，则需要选择多少个祖先节点。如果`j<=depth[i]`的话，说明只能刚刚好选到第`i`个节点的父节点`x`，无法选中第`i`个节点本身。而根据`f[]`数组的定义，必须选中第`i`个节点，因此此时的价值就是0，不用参与计算。同理，当`j<=depth[i]`时，第`i`个节点及其子树不能被选中，所以不会对结果产生任何影响，所以状态更新之前的`f[x][j]`（即`dp[x][i-1][j]`）就能直接复制到状态更新之后的`f[x][j]`（即`dp[x][i][j]`），等价于不更新。这导致对于任意节点`x`，`dp[x][j<=depth[x]]`必定为0。
+
+按照定义，虚拟根节点`0`的`depth[0]`为0。你可能会认为`dp[0][0]`原先由全零填充，但是这是错误的，因为确切的说，应该是`dp[0][-1]`全为0，我们为这个虚拟节点提供一个虚拟的代价份额，于是`dp[0][0][0]`仍为0，其它`dp[0][0][j>=1]`全为`value[0]`，本质还是0。就这样，我们通过调整`dp[0][0]`的初始值，隐形地增加了一个代价份额，然后将其立刻消耗掉，于是虚拟根节点占用的代价份额等价于0。因此`f[0][m+1]`就不必加1了，直接访问`f[0][m]`即可；输入的`m`也不必加1。
+
+```c++
+const long long int N_MAX = 1e4, M_MAX = 1e4 + 1; // 因为有虚拟节点，所以要+1
+long long int edge_count, edge_first[N_MAX + 1], edge_next[N_MAX + 1], edge_to[N_MAX + 1], cost_subtree[N_MAX + 1];
+
+void add_edge(long long int root, long long int child){ // 用前向链表给树建图
+    edge_count++; // 分配新的边序号
+    edge_next[edge_count] = edge_first[root]; // 这条新的边的下一条边指向原先root邻接边列表的第一条边
+    edge_first[root] = edge_count; // 这条新的边称为root的第一条邻接边
+    edge_to[edge_count] = child; // 这条边指向的节点
+}
+
+long long int n, m, value[N_MAX + 1], f[N_MAX + 1][M_MAX + 1];
+void dfs(long long int root, long long int depth){
+    for(long long int i = edge_first[root] ; i != 0 ; i = edge_next[i]){
+        long long int child = edge_to[i];
+        for(long long int j = depth + 1 ; j <= m ; ++j){ // 这个depth是root的，而不是子节点child的，因此要+1
+            f[child][j] = f[root][j - 1] + value[child];
+        }
+        dfs(child, depth + 1);
+        for(long long int j = depth + 1 ; j <= m ; ++j){ // 这个depth是root的，而不是子节点child的，因此要+1
+            f[root][j] = std::max(f[root][j], f[child][j]);
+        }
+    }
+}
+int main(){
+    #ifndef _DISABLE_IOSTREAM_SYNC
+    std::cin.tie(0);
+    std::cout.tie(0);
+    std::ios::sync_with_stdio(false);
+    #endif
+    fast_read(n); fast_read(m); 
+    for(long long int i = 1 ; i <= n ; ++i){
+        long long int root; fast_read(root); fast_read(value[i]);
+        add_edge(root, i);
+    }
+    dfs(0, 0);
+    std::cout << f[0][m];
+    return 0;
+}
+```
+
+在这种优化方案中，单层`dfs()`函数只有二重循环，因此我们可以自信地断言总的时间复杂度是$O(nm)$。
+
+
 
 ### §2.1.x 转化为背包问题
 
@@ -1784,4 +1937,69 @@ inline long long int fast_read(long long int &x){
 }
 ```
 
-若内联函数的声明包含返回值，但是实际的返回值是`void`，则在Linux平台上导致`signal 11: Segmentation fault with invalid memory reference`，但是Windows平台没有这种问题。
+若内联函数的声明包含返回值，但是实际的返回值是`void`，则在Linux平台上导致`signal 11: Segmentation fault with invalid memory reference`，然而Windows平台没有这种问题。
+
+## §A.2 压空间
+
+### §A.2.1 二维数组转一维数组
+
+> [洛谷U53204](https://www.luogu.com.cn/problem/U53204)：设计一个数据结构，前端传入长`m`和宽`n`，以及若干下标`i`和`j`二元组，能对第`i`行、第`j`列的数据进行读写。数据范围满足$1\le m,n\le 10^5$，且$i\cdot j\le 10^8$。
+
+这道题如果直接开一个`int a[1e5][1e5]`的二维数组，则会占用`1e10×4byte≈37.25GB`的空间。注意到$i\cdot j\le 10^8$，因此前端理论上只能访问`1e8`个数字，只需要`381.46MB`内存就能存下。
+
+基于此，我们开辟一个长为`1e8`的一维数组`b`，将`a[i][j]`映射到`b[m*i+j]`即可。
+
+### §A.2.2 把`long long`换成`int`
+
+> [洛谷U53204](https://www.luogu.com.cn/problem/U53204)：设计一个数据结构，前端传入长`m`和宽`n`，以及若干下标`i`和`j`二元组，能对第`i`行、第`j`列的数据进行读写。数据范围满足$1\le m,n\le 10^5$，且$i\cdot j\le 10^8$。
+
+继续上一节的分析。如果使用`long long int`储存，则导致内存占用翻一倍，超过`512MB`的限制。
+
+```c++
+const long long int N_MAX = 1e6, M_MAX = 1e6 + 1; // 因为有虚拟节点，所以要+1
+long long int edge_count, edge_first[N_MAX + 1], edge_next[N_MAX + 1], edge_to[N_MAX + 1], cost_subtree[N_MAX + 1];
+
+void add_edge(long long int root, long long int child){ // 用前向链表给树建图
+    edge_count++; // 分配新的边序号
+    edge_next[edge_count] = edge_first[root]; // 这条新的边的下一条边指向原先root邻接边列表的第一条边
+    edge_first[root] = edge_count; // 这条新的边称为root的第一条邻接边
+    edge_to[edge_count] = child; // 这条边指向的节点
+}
+
+long long int n, m, value[N_MAX + 1];
+int f[100000000 + 10]; // 不用long long int，省空间
+#define f(i, j) f[i*(m+1)+j]
+void dfs(long long int root){
+    cost_subtree[root] = 1; // 根节点本身占用一个名额，代价为1
+    f(root, 1) = value[root]; // 什么子树也不选时，初始化f(root, 0)=0, f(root, 1)=value[root]，表示只能选根节点
+    for(long long int i = edge_first[root] ; i != 0 ; i = edge_next[i]){ // 遍历所有与子节点相邻的边
+        long long int child = edge_to[i];
+        dfs(child); // 更新child的f[child]和cost_subtree[child]
+        for(long long int j = std::min(m, cost_subtree[root] + cost_subtree[child]) ; j >= 1 ; --j){ // 这里不是m+1，因为main()已经加1了
+            for(long long int k = std::max(1ll, j - cost_subtree[root]) ; k <= std::min(cost_subtree[child], j - 1) ; ++k){
+                f(root, j) = std::max(f(root, j), f(root, j - k) + f(child, k));
+            }
+        }
+        cost_subtree[root] += cost_subtree[child];
+    }
+}
+int main(){
+    #ifndef _DISABLE_IOSTREAM_SYNC
+    std::cin.tie(0);
+    std::cout.tie(0);
+    std::ios::sync_with_stdio(false);
+    #endif
+
+    fast_read(n); fast_read(m); m++; // m提前加1，表示还要选择虚拟零点
+    for(long long int i = 1 ; i <= n ; ++i){
+        long long int root; fast_read(root); fast_read(value[i]);
+        add_edge(root, i);
+    }
+
+    dfs(0);
+    std::cout << f(0, m);
+
+    return 0;
+}
+```
+
