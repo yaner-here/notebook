@@ -516,7 +516,7 @@ int main(){
 
 ### §2.1.7 依赖背包
 
-> [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定$n$个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个此物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$m$的约束条件下，求物品价值之和的最大值。
+> [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定`m`个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个子物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$n$的约束条件下，求物品价值之和的最大值。
 
 ？？？？？？？？？？？？？？？？？？？TODO
 
@@ -1025,7 +1025,46 @@ int main(){
 }
 ```
 
+> [洛谷P5020](https://www.luogu.com.cn/problem/P5020)：规定一种货币系统由`n`种不同面值的硬币构成，硬币的面值分别为`a[i]`，该货币系统记为$(n, \mathbf{a})$。如果对于任意非负金额`x`，货币系统$(n,\mathbf{a})$和$(m,\mathbf{b})$要么都同时都能表示，要么都不能表示，则认为这两种货币系统等价。给定货币系统$(n,\mathbf{a})$，求所有与其等价的货币系统$(m,\mathbf{b})$中的`m`最小值。
+
+不妨设想$(m,\mathbf{b})$已经给定，我们思考所有符合条件的$(n,\mathbf{a})$。当$m=n$时，这种情况过于平凡，直接输出`n`即可；当$m< n$时，根据抽屉原理，数组`a`中一定存在一种面额`x`，它在数组`b`中不存在。由于两种货币系统等价，而`x`一定能在$(n,\mathbf{a})$中表示出来，所以也一定能在$(m,\mathbf{b})$中表示。这说明`x`不是构成该货币系统的“基本面额”。
+
+基于此，如果在$(n,\mathbf{a})$中存在面额`x`，能被数组`a`中的其它的面额表示出来，那么就删除这种面额。统计有多少面额符合以上删除的条件即可。
+
+```c++
+const long long int T_MAX = 20, N_MAX = 100, A_MAX = 25000;
+long long int t, n, a[N_MAX + 1], dp[A_MAX + 1];
+
+int main() {
+    std::cin >> t;
+    while(t--) {
+        memset(a, 0, sizeof(a));
+        memset(dp, 0, sizeof(dp));
+        std::cin >> n;
+        for(long long int i = 1; i <= n; ++i) {
+            std::cin >> a[i];
+            dp[a[i]] = 2; // 能被单个面额表示
+        }
+        std::sort(a + 1, a + n + 1);
+        for(long long int i = 1; i <= a[n]; ++i) {
+            if(dp[i] == 0) { // 不能被任何面额表示
+                continue;
+            }
+            for(long long int j = 1; j <= n; ++j) { // 类似于素数筛与完全背包
+                if(i + a[j] > a[n]) { // 防止越界
+                    break;
+                }
+                dp[i + a[j]] = 1; // 能被其它面额表示，覆盖掉原来的2
+            }
+        }
+        std::cout << std::count_if(a + 1, a + n + 1, [&](const long long int &x) { return dp[x] == 2; }) << '\n';
+    }
+}
+```
+
 ### §2.1.15 树上背包
+
+树上背包本质上完全等价于依赖背包，因为任何依赖关系都可以用树来表示。
 
 > [洛谷P2014](https://www.luogu.com.cn/problem/P2014)/[洛谷U53204](https://www.luogu.com.cn/problem/U53204)：给定`n`门有依赖顺序的课程，每门课程只有一个先修课，第`i`门课程的价值为`value[i]`，其先修课序号为`master[i]`（无祖先则置为0）。如果要学一门课程，则需要先学完它的先修课、先修课的先修课、...，即学完所有祖先。从中最多选择`m`门课程学习，求价值最大值。
 
@@ -1220,7 +1259,114 @@ int main(){
 
 在这种优化方案中，单层`dfs()`函数只有二重循环，因此我们可以自信地断言总的时间复杂度是$O(nm)$。
 
+> [洛谷P1273](https://www.luogu.com.cn/problem/P1273)：给定`n`个节点构成的二叉树，每个点都有价值`node_value[i]`、每条边都有代价`edge_cost[i]`。如果要选中某个节点，则必须同时选择其所有祖先节点。在总价值大于等于总代价的前提下，求选择的叶子节点的数量最大值。（本题中只有叶子节点才是正价值，其余节点价值为0）
 
+令`dp[i][j]`表示第i个节点恰好服务j个用户的最大收益（即总价值减去总代价）。使用`node_leaf_sum()`数组统计当前节点线序遍历搜集到的叶子节点个数，进行常数优化即可。`dp[i][*]`初始时没有选择任何叶子节点，因此`dp[i][0]`就是0；`dp[i][1]`表示只选择本节点，于是`dp[i][1]`就是`node_value[i]`本身；由于状态转移方程涉及最大值，因此`dp[i][j>=2]`全部设为负无穷大。
+
+```c++
+const long long int N_MAX = 3000;
+long long int edge_count, edge_first[N_MAX + 1], edge_next[N_MAX + 1], edge_to[N_MAX + 1], edge_cost[N_MAX + 1];
+long long int n, m;
+long long int node_value[N_MAX + 1], node_leaf_sum[N_MAX + 1], dp[N_MAX + 1][N_MAX + 1];
+void add_edge(long long int root, long long int child, long long int cost){
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+    edge_cost[edge_count] = cost;
+}
+void dfs(long long int root){
+    if(node_value[root] > 0){ // 是叶子节点
+        ++node_leaf_sum[root];
+        dp[root][1] = node_value[root];
+    }
+    for(long long int i = edge_first[root]; i != 0; i = edge_next[i]){
+        long long int child = edge_to[i];
+        dfs(child);
+        node_leaf_sum[root] += node_leaf_sum[child];
+        for(long long int j = std::min(m, node_leaf_sum[root]); j >= 0 ; --j){
+            for(long long int k = 1 ; k <= std::min(j, node_leaf_sum[child]); ++k){
+                dp[root][j] = std::max(dp[root][j], dp[root][j - k] + dp[child][k] - edge_cost[i] + node_value[root]);
+            }
+        }
+    }
+}
+int main(){
+    std::cin >> n >> m;
+    for(long long int i = 1 ; i <= n ; ++i){
+        std::fill_n(&(dp[i][0]) + 1, m, INT32_MIN);
+    }
+    for(long long int i = 1 ; i <= n - m; ++i){
+        long long int subnode_count; std::cin >> subnode_count;
+        while(subnode_count--){
+            long long int child, cost; std::cin >> child >> cost;
+            add_edge(i, child, cost);
+        }
+    }
+    for(long long int i = n - m + 1; i <= n; ++i){
+        std::cin >> node_value[i];
+    }
+    dfs(1);
+    for(long long int i = m ; i >= 0 ; --i){
+        if(dp[1][i] >= 0){
+            std::cout << i;
+            return 0;
+        }
+    }
+}
+```
+
+#### §2.1.15.3 空间最优做法
+
+> [洛谷P2967](https://www.luogu.com.cn/problem/P2967)：给定`n`组物品，第`i`组物品中含有一个主物品和`game_count[i]`个副物品，它们的代价和价值分别为`host_cost[i]`和`0`、`game_cost[i][j]`和`game_value[i][j]`。如果选择副物品，则必须选择该组中的主物品。已给定代价预算`budget`，求价值最大值。
+
+令`dp[i][j]`表示给定前`i-1`组物品与第`i`组主物品及其前`k`个子物品，且必须选择第`i`组主物品的情况下，给第`i`组的前`k`个子物品分配代价预算`j`时，能获得的价值最大值（这里的`dp[i][j]`已经经过了一次滚动数组压缩，即不显式声明地选取第`i`组的主物品与前`k`个子物品）；令`dp_final[i][j]`表示给定前`i`组物品与代价预算`j`的情况下，能获得的价值最大值。先看`dp_final[i]`数组，它从`dp_final[i-1]`转移过来时只有两种选择：要么不选择第`i`组物品（即直接继承），要么选择第`i`组物品（即必须先承受`host_cost[i]`的代价，然后考虑最大收益）。而`dp[i]`就是一个普通的0/1背包问题。于是得出状态转移方程：
+
+$$
+\begin{cases}
+    \text{dp}[i][j] = \displaystyle\max_{1\le k\le \text{game\_count}[i]}(
+        \text{dp}[i-1][j],
+        \text{dp}[i-1][j-\text{game\_cost}[i][k]] + \text{game\_value}[i][k]
+    ) \\
+    \text{dp\_final}[i][j] = \max(
+        \text{dp\_final}[i-1][j],
+        \text{dp}[i][j-\text{host\_cost}[i]] + \text{host\_value}[i]
+    )
+\end{cases}
+$$
+
+考虑滚动数组优化。注意到`dp[i]`与`dp_final[i-1]`合并成`dp_final[i]`后，就再也没有使用过`dp[i-1]`，因此可以砍掉`dp[i][j]`的第一维。同理，注意到`dp_final[i-1]`与`dp[i]`合并成`dp_final[i]`后，就再也没有使用过`dp_final[i-1]`，因此也可以砍掉`dp_final[i][j]`的第一维。
+
+考虑数组的初始值。先考察`dp_final[i][j]`的初始值，此时`dp_final[i-1][*]`已知，而`dp[i][j]`初始时在其基础上没有选择第`i`组中的任何子物品。如果初始时`dp[i][j]`达到最优，那么它一定不包括只有代价，价值为0的第`i`组主节点。因此`dp_final[i-1][j]`与初始化的`dp[i][j]`表示的是相同的物品选择情况，都是将j个代价预算全部用于前`i-1`组物品。这提示我们需要把`dp_final[i-1]`复制一份到`dp[i]`作为初始值。
+
+考虑循环边界的常数优化。
+- 如果`dp[i][j]`有意义，那么留给第`i`组子物品的代价预算为`j`，留给第`i`组物品的代价预算为`j+host_cost[i]`，这个值必须小于等于`budget`。于是我们得到了`j`的一个上界`budget-host_cost[i]`。
+- 给定第`i`组的第`k`个新的子物品，根据状态转移方程`dp[i][j]=max(dp[i][j], dp[i][j-game_cost[i][k]]+game_value[i][k])`，显然当`j>=game_cost[i][k]`时才能有代价预算来选择此子物品，同时防止数组越界。
+
+```c++
+const long long int N_MAX = 50, BUDGET_MAX = 100000, GAME_MAX = 10;
+long long int n, budget;
+long long int dp[BUDGET_MAX + 1], dp_final[BUDGET_MAX + 1];
+int main() {
+    std::cin >> n >> budget;
+    while(n--) {
+        long long int host_cost, game_count;
+        std::cin >> host_cost >> game_count;
+        std::copy(dp_final, dp_final + budget - host_cost, dp);
+        while(game_count--) {
+            long long int game_cost, game_value;
+            std::cin >> game_cost >> game_value;
+            for(long long int j = budget - host_cost; j >= game_cost; --j) {
+                dp[j] = std::max(dp[j], dp[j - game_cost] + game_value);
+            }
+        }
+        for(long long int j = budget; j >= host_cost; --j) {
+            dp_final[j] = std::max(dp_final[j], dp[j - host_cost]);
+        }
+    }
+    std::cout << dp_final[budget];
+}
+```
 
 ### §2.1.x 转化为背包问题
 
@@ -1310,7 +1456,7 @@ int main(){
 
 > [洛谷P2946](https://www.luogu.com.cn/problem/P2946)：给定`n`个物品，每种物品的价值为`value[i]`。现要求选择的物品价值总和恰好为`f`的倍数（不包括`0`），求有多少种不同的选法（输出结果对`1e8`取模）。
 
-`dp[i][j]`表示在前`i`组物品中总价值模`f`恰为`j`的选择方法数量，初值`dp[0][0]`为1。由于`j-value`可正可负，所以也不能用滚动数组优化。
+`dp[i][j]`表示在前`i`组物品中总价值模`f`恰为`j`的选择方法数量，初值`dp[0][0]`为1。由于`j-value`可正可负，所以也不能用一行滚动数组优化。
 
 ```c++
 const long long int N_MAX = 2000, F_MAX = 1000, MOD = 1e8;
@@ -1804,6 +1950,10 @@ int main(){
 }
 ```
 
+> [洛谷P1373](https://www.luogu.com.cn/problem/P1373)：给定`n×m`个格子，每个格子上都有价值为`map[i][j]`的物品。现在允许从任意一个格子出发，每个回合只能向下或向右，经过偶数个格子($\ge 2$)后在任意格子结束。在行进的过程中，依次把物品交替放入甲背包和乙背包中（在起点把物品装入甲背包）。若两个背包中的总价值对`k+1`取模后恰好相同，求满足该条件的路径个数。
+
+
+
 ## §2.4 数位DP
 
 > ？？？？？？？？？？
@@ -1877,7 +2027,56 @@ int main(){
 
 # §3 搜索
 
+## §3.1 DFS
 
+深度优先搜索板子：
+
+```c++
+char map[150][150];
+bool visited[150][150];
+long long int count = 0;
+void dfs(char map[150][150], bool visited[150][150], long long int x, long long int y, long long int n, long long int m, bool is_new){
+    if(!isInRange(x, y, n, m)){
+        return;
+    }
+    if(visited[x][y]){
+        return;
+    }
+    visited[x][y] = true;
+    if(map[x][y] == '.'){
+        return;
+    }
+    if(map[x][y] == 'W' && is_new){
+        count++;
+    }
+    dfs(map, visited, x + 1, y, n, m, false);
+    dfs(map, visited, x - 1, y, n, m, false);
+    dfs(map, visited, x, y + 1, n, m, false);
+    dfs(map, visited, x, y - 1, n, m, false);
+    dfs(map, visited, x + 1, y + 1, n, m, false);
+    dfs(map, visited, x - 1, y - 1, n, m, false);
+    dfs(map, visited, x - 1, y + 1, n, m, false);
+    dfs(map, visited, x + 1, y - 1, n, m, false);
+}
+int main(){    
+    long long int n, m; std::cin >> n >> m;
+    for(long long int i = 0 ; i < n ; ++i){
+        for(long long int j = 0 ; j < m ; ++j){
+            std::cin >> map[i][j];
+        }
+    }
+    for(long long int i = 0 ; i < n ; ++i){
+        for(long long int j = 0 ; j < m ; ++j){
+            if(map[i][j] == 'W'){
+                dfs(map, visited, i, j, n, m, true);
+            }
+        }
+    }
+    std::cout << count << std::endl;
+    std::cout << std::flush;
+    return 0;
+}
+```
 
 ## §3.2 BFS
 
@@ -1914,11 +2113,53 @@ void bfs_floodfill(long long int i, long long int j){
 }
 ```
 
-## §3.x 剪枝
+## §3.3 棋盘搜索
 
+> [洛谷P1123](https://www.luogu.com.cn/problem/P1123)：给定`n×m`个数字，要求上下左右斜向不相邻地选出若干个数字，使其之和最大。
 
+本题我们按照从左到右、从上到下的顺序遍历每一个格子。若选择当前格子，就要给周围`3×3`范围内的所有`visited[i][j]`加一，作为是否能被选择的依据。
 
+```c++
+const long long int N_MAX = 6, M_MAX = 6;
+const long long int direction[8][2] = {{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+long long int t, n, m, sum, answer, map[N_MAX + 2][M_MAX + 2], visited[N_MAX + 2][M_MAX + 2];
+void dfs(long long int i, long long int j) {
+    if(i > n){ // 数组越界，说明本轮DFS已搜索完毕
+        answer = std::max(answer, sum);
+        return;
+    }
+    long long int next_i = i, next_j = j + 1;
+    if(next_j > m){
+        ++next_i;
+        next_j = 1;
+    } // 获取从左往右、从上到下要搜索的下一个格子
+    if(visited[i][j] == 0){ // 可以尝试取这个格子的值
+        ++visited[i][j]; for(long long int k = 0; k < 8; k++) { ++visited[i + direction[k][0]][j + direction[k][1]]; } sum += map[i][j];
+        dfs(next_i, next_j);
+        --visited[i][j]; for(long long int k = 0; k < 8; k++) { --visited[i + direction[k][0]][j + direction[k][1]]; } sum -= map[i][j];
+    }
+    dfs(next_i, next_j); // 不选这个格子
+}
+int main() {
+    std::cin >> t;
+    while(t--){
+        memset(map, 0, sizeof(map));
+        memset(visited, 0, sizeof(visited));
+        sum = 0; answer = 0;
+        std::cin >> n >> m;
+        for(long long int i = 1; i <= n; i++) {
+            for(long long int j = 1; j <= m; j++) {
+                std::cin >> map[i][j];
+            }
+        }
+        dfs(1, 1);
+        std::cout << answer << '\n';
+    }
+    return 0;
+}
+```
 
+除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
 
 # §A 警钟长鸣
 
