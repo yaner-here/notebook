@@ -1952,7 +1952,49 @@ int main(){
 
 > [洛谷P1373](https://www.luogu.com.cn/problem/P1373)：给定`n×m`个格子，每个格子上都有价值为`map[i][j]`的物品。现在允许从任意一个格子出发，每个回合只能向下或向右，经过偶数个格子($\ge 2$)后在任意格子结束。在行进的过程中，依次把物品交替放入甲背包和乙背包中（在起点把物品装入甲背包）。若两个背包中的总价值对`k+1`取模后恰好相同，求满足该条件的路径个数。
 
+本题的第一个难点在于设计状态。本题的方案是令`dp[i][j][l][t]`表示走到`(i,j)`处，A背包减B背包为`l`，当前格子轮到`A/B`背包时的方法数。基于此容易推出状态转移方程：
 
+$$
+\text{dp}[i][j][l][0] = \text{dp}[i-1][j][(l-map[i][j])\%(k + 1)][1] + \text{dp}[i][j-1][(l-map[i][j])\%(k + 1)][1] \\
+\text{dp}[i][j][l][1] = \text{dp}[i-1][j][(l-map[i][j])\%(k + 1)][0] + \text{dp}[i][j-1][(l-map[i][j])\%(k + 1)][0]
+$$
+
+本题的第二个难点在于确定`dp`数组的初始值。这里的初始指的是只选中了格子，但没有移动过。因此`dp[i][j][map[i][j]][0]=1`。
+
+```c++
+const long long int N_MAX = 800, M_MAX = 800, K_MAX = 15, MOD = 1000000007;
+int n, m, k, map[N_MAX + 2][M_MAX + 2], dp[N_MAX + 2][M_MAX + 2][K_MAX + 1][2];
+int main(){
+    std::cin >> n >> m >> k;
+    for(long long int i = 1; i <= n; i++){
+        for(long long int j = 1; j <= m; j++){
+            std::cin >> map[i][j];
+            dp[i][j][map[i][j] % (k + 1)][0] = 1;
+        }
+    }
+    for(long long int i = 1; i <= n; i++){
+        for(long long int j = 1; j <= m; j++){
+            for(long long int l = 0; l <= k; l++){
+                // 从上侧走来，向下到达该格子
+                dp[i][j][l][0] += dp[i - 1][j][(l - map[i][j] + k + 1) % (k + 1)][1]; dp[i][j][l][0] %= MOD; // 本格子轮到A背包
+                dp[i][j][l][1] += dp[i - 1][j][(l + map[i][j] + k + 1) % (k + 1)][0]; dp[i][j][l][1] %= MOD; // 本格子轮到B背包
+                // 从左侧走来，向右到达该格子
+                dp[i][j][l][0] += dp[i][j - 1][(l - map[i][j] + k + 1) % (k + 1)][1]; dp[i][j][l][0] %= MOD; // 本格子轮到A背包
+                dp[i][j][l][1] += dp[i][j - 1][(l + map[i][j] + k + 1) % (k + 1)][0]; dp[i][j][l][1] %= MOD; // 本格子轮到B背包
+            }
+        }
+    }
+    long long int result = 0;
+    for(long long int i = 1 ; i <= n; i++){
+        for(long long int j = 1; j <= m; j++){
+            result += dp[i][j][0][1];
+            result %= MOD;
+        }
+    }
+    std::cout << result << std::endl;
+    return 0;
+}
+```
 
 ## §2.4 数位DP
 
@@ -2160,6 +2202,94 @@ int main() {
 ```
 
 除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
+
+# §4 字符串
+
+## §4.2 Manacher算法
+
+> [洛谷P3805](https://www.luogu.com.cn/problem/P3805)：给定一个字符串`s`，求其回文子串的长度最大值。
+
+一个容易想到的暴力解法是“中心扩展法”：从左到右遍历每个字符，将其暂时视为最长回文子串的中心，然后向两边扩展，直到两侧遇到不相等的字符，导致回文中断，此时记录其长度。由于回文子串的长度有奇数和偶数两种情况，因此回文子串的中心位置不一定对应一个实际存在的字符，这使得我们在遍历字符串时需要分类讨论。该暴力算法的时间复杂度为$O(n^2)$。
+
+Manacher算法使用了动态规划的思想，将时间复杂度压到$O(n)$。首先为了解决奇偶长度回文子串的分类讨论情况，我们为字符串`s`中的每个字符的两侧都添加一个少见的占位字符，例如`#`、`$`等。例如字符串`aba`转化成了`#a#b#a#`，在之后的算法中我们都使用这个处理后的新字符串`s`。然后使用数组`r[i]`维护以`s[i]`为中心的回文子串最大半径（最小为1，即`s[i]`这个字符本身就是一个回文子串）。于是，以`s[i]`为中心的最长回文子串区间可表示为$\big[s[i-(r[i]-1)], s[i+(r[i]-1)]\big]$。令`m`、`l_min[i]`和`r_max[i]`分别表示在前`i-1`个字符中，形成的最长回文子串区间的中心字符下标、左闭断点最小值和右闭端点最大值。显然以上数组存在恒等关系：$\text{l\_min}[i]+\text{r\_max}[i]=2\cdot m$。
+
+接下来讨论状态转移方程：
+
+- 如果`i<=r_max[i]`，那么`s[i]`一定已经在之前扫描出的某个最长回文子串中，这个最长回文子串的中心是`s[m]`，其区间为$\big[s[m-(r[m]-1)], s[m+(r[m]-1)]\big]$，也就是$\big[\text{l\_min}[i], \text{r\_max}[i]\big]$。我们考虑`s[i]`关于`s[m]`的对称位置，即`s[2m-i]`。`s[2m-i]`对应半径为`r[2m-i]`的最长回文子串。
+  - 如果`s[2m-i]`对应的回文区间在$\big(s[m-(r[m]-1)], s[m+(r[m]-1)]\big)$之内（不包括边界），解如下不等式：
+    $$
+        \begin{cases}
+            左端点不等式：m-r[m]+1 < 2m-i-r[2m-i]+1 \\
+            右端点不等式：2m-i+r[2m-i]-1 < m+r[m]-1 \\
+            i与m的关系：i>m
+        \end{cases}\Rightarrow\begin{cases}
+            r[m]-r[2m-i] > i-m
+        \end{cases}
+    $$
+    则根据`s[i]`最长回文子串的对称性，一定有$r[i]=r[2m-i]$。
+  - 如果`s[2m-i]`对应的回文区间不在$\big(s[m-(r[m]-1)], s[m+(r[m]-1)]\big)$之内（即包括边界甚至边界之外的值），那么同理可解得不等式$r[m]-r[2m-i] \le i-m$。满足该条件时出现了越界现象，因此只能先将`r[i]`暂且为$\text{r\_max}[i]-i+1$，然后再对边界之外的字符两侧扩展。
+- 如果`i>r_max[i]`，那么此时的`s[i]`尚未被探索过，只能暴力向两侧扩展。
+
+综上所述，为了简化程序的逻辑，我们可以使用如下算法：
+- 当`i>r_max[i]`时，令`p[i]=1`并向两侧扩展。
+- 当`i<=r_max[i]`时，令`p[i]=min(p[2*m-i], r_max[i]-i+1)`，并向两侧扩展。为了简化程序逻辑，不能保证上面的直接赋值情况，而是要至少向外扩展一个字符。这会引入额外的常数，但是总体是用时间换编码简便的。
+- 我们实际上并不关心转化后的字符串的首尾字符，因为两者都是没有实际意义的占位符。
+
+该算法得出的`r[i]`需要减1后，才是真正的原字符串的回文子串长度。证明如下：如果原字符串的回文子串长度为偶数，那么除去处理后字符串的中心占位符，一个字符对应一个占位符，所以处理后回文子串的半径恰好等于处理前回文子串的直径，即`r[i]-1`；如果是奇数，那么处理后回文子串中心及其左侧的占位符，都对应着原字符串的回文子串中心及其右侧的一个真实字符，证毕。
+
+```c++
+/**
+ * @brief Manacher算法
+ * @param *str 需要处理的字符串首指针，至少预留2×length+2的空间
+ * @param result 长度数组
+ * @return 处理后的字符串长度
+ */
+unsigned long long int manacher(char *str, long long int *result) {
+    unsigned long long int length = std::strlen(str);
+    str[2 * length] = '#';
+    for(long long int i = length - 1; i >= 0; --i) {
+        str[2 * i + 1] = str[i];
+        str[2 * i] = '#';
+    }
+    length = 2 * length + 1;
+    long long int m = 0;
+    for(long long int i = 0; i < length; ++i) {
+        if(result[m] - result[2 * m - i] > i - m) { // i > r_max[i]
+            result[i] = 1;
+        } else {
+            result[i] = std::min(result[2 * m - i], m - i + result[m]);
+        }
+        while(i >= result[i] &&                           // s[i]左边界还能往左扩张, i - (r[i] - 1) >= 1
+              i + result[i] <= length &&                  // s[i]右边界还能往右扩张, i + (r[i] - 1) < length - 1
+              str[i - result[i]] == str[i + result[i]]) { // 两侧字符相同
+            ++result[i];                                  // 向外扩张
+        }
+        if(i + result[i] > m + result[m]) {
+            m = i;
+        }
+        result[i]--;
+    }
+    return length;
+}
+char str[100000];
+long long int r[100000];
+int main() {
+    std::cin >> str;
+    unsigned long long int length = manacher(str, r);
+    std::cout << *std::max_element(r, r + length) << std::endl;
+    return 0;
+}
+```
+
+> [洛谷]()：
+
+# §5 
+
+> [洛谷P1659](https://www.luogu.com.cn/problem/P1659)：请设计满足以下条件的高效数据结构。
+> - 给定一个正整数`i`，给区间$[1,2i-1]$之内的奇数索引对应的值全部加1。
+> - 给定一个正奇数整数`i`，输出编号为`i`的索引对应的值。
+
+本题的关键在于排除偶数索引的影响。稍加思考就能发现，偶数索引不会对答案造成任何干扰，就算增加$[i,2i-1]$中的所有索引，也只是让偶数索引也增加，而我们的查询操作不涉及任何偶数，因此当成普通的前缀和即可。令`p`为前缀和数组，添加操作让`p[1]`加1，让`p[2*i]`减1。
 
 # §A 警钟长鸣
 
