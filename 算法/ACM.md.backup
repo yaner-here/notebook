@@ -1406,6 +1406,40 @@ int main(){
 }
 ```
 
+> [洛谷P5662](https://www.luogu.com.cn/problem/P5662)：给定`n`种无限供应的纪念品，及其`t`天内每一天的价格`price[i][j]`（$1\le i\le t, 1\le j\le n$）。
+
+```c++
+const long long int TIME_MAX = 100, N_MAX = 100, MONEY_BUDGET_MAX = 10000;
+long long int t, n, money_budget, price[TIME_MAX + 1][N_MAX + 1];
+long long int dp[MONEY_BUDGET_MAX + 1];
+// dp[i][j][k] = 第i时刻选择前j件物品，预算为k时的最大纯利润
+// dp[i][j][k] = dp[i][j][k-cost[j]] + value[i+1][j] - value[i][j]
+int main() {
+    std::cin >> t >> n >> money_budget;
+    for(long long int i = 1; i <= t; ++i) {
+        for(long long int j = 1; j <= n; ++j) {
+            std::cin >> price[i][j];
+        }
+    }
+    for(long long int i = 1; i <= t - 1; ++i) { // 给定t个时刻的价格，只有中间的t-1个间隔才有赚取差价的机会
+        for(long long int j = 1; j <= n; ++j) {
+            if(price[i + 1][j] <= price[i][j]) { // 根据贪心思想，亏本交易不能做
+                continue;
+            }
+            for(long long int k = price[i][j]; k <= money_budget; ++k) {
+                dp[k] = std::max(
+                    dp[k],
+                    dp[k - price[i][j]] + price[i + 1][j] - price[i][j]
+                );
+            }
+        }
+        money_budget += dp[money_budget]; // 最终资金=原始资金+纯利润
+        std::fill_n(dp, money_budget + 1, 0);
+    }
+    std::cout << money_budget;
+}
+```
+
 > [洛谷P4832](https://www.luogu.com.cn/problem/solution/P4832)：给定`n`组物品，每组物品均包含`a[i]`个A物品和`b[i]`个B物品。有一些特殊的物品组选择方案，使得这几组物品中的A物品数量之和等于B物品数量之和，在此基础上求A物品数量之和的最大值。
 
 本题的关键在于将`a[i]-b[i]`视为代价`cost[i]`，`a[i]`视为价值`value[i]`，`dp[i][j]`定义为前`i`组物品恰好花费`j`的物品A数量最大值，于是`dp[n][0]`即为本题所求。对应的状态转移方程为：
@@ -2497,6 +2531,140 @@ int main() {
     }
     std::cout << result << std::endl;
     return 0;
+}
+```
+
+> [洛谷P5446](https://www.luogu.com.cn/problem/P5446)：将字符串以最后一个字符为中心镜像翻转，原字符串和镜像字符串拼成一个新的字符串，称为翻转操作。例如`abc`经过一次翻转操作后变成`abcba`，`aa`经过两次镜像翻转后变成`aaaaa`。字符串R经过多次镜像翻转后变成字符串S。现在给定S的某个前缀T，求R的所有可能长度（输出小于等于`r.length()`的值即可）。
+
+显然题目所求的R一定也是T的前缀。注意到从愿原字符串到处理后字符串的下标映射关系为$i\rightarrow 2i+2$。如果只经历一次翻转，那么判定条件显然为“字符回文串半径触顶”，即`i+r[i]==l_new`（在处理后的字符串），或等价的`2*i+2+r[2*i+2]==2*l+2`（在原字符串）。容易发现，该情况的R经过一次翻转后的长度一定大于等于T的长度，因此长度至少为T的一半，且一定触及的是字符串右边界的顶。
+
+真正棘手的是多次镜像翻转的R。由于至少经过两次翻转，因此R的长度一定小于T的一半。考虑其最后一次镜像翻转，一定能被上述只经历一次翻转的情况捕获（令其镜像中心下标为`i`）。于是问题转变成：在原字符串的下标体系中，是否存在镜像中心下标$j<i$，使得对`str.substr(0, j)`做镜像操作后能变成`str.substr(0, i)`？容易发现需要满足以下两种情况：
+
+- `str.substr(0, i)`本身就是回文串，而且`j`为对称中心，因此我们希望以`j`为中心、`r[j]`为半径的回文子串能触及字符串最左侧的`str[0]`，即`j==r[i]/2`。
+- 要确保其对应的`i`存在。注意到`substr(0, i)`的长度为奇数，而且`j`恰为其对称中心。由对称关系可知`i=2*j`，因此我们希望`str[i]=str[2*j]`是可行的对称中心。
+
+使用`visited[]`数组记录该点是否为可行的对称中心。将以上的原字符串的下标变成处理后字符串的下标，我们就得到了最终的代码：
+
+```c++
+const long long int STRING_LENGTH_MAX = 1000005;
+char str[STRING_LENGTH_MAX * 2 + 3];
+int r[STRING_LENGTH_MAX * 2 + 3];
+bool qualified[STRING_LENGTH_MAX * 2 + 1];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    long long int n;
+    std::cin >> n;
+    while(n--) {
+        std::cin >> str;
+        int l = std::strlen(str);
+        int l_new = 2 * l + 2;
+        str[l_new] = '\0';
+        str[l_new - 1] = '#';
+        for(int i = l - 1; i >= 0; --i) {
+            str[2 * i + 2] = str[i];
+            str[2 * i + 1] = '#';
+        }
+        str[0] = '$';
+
+        int m = 0, r_max = 0;
+        for(int i = 1; i < l_new; ++i) { // 该枚举范围不包含终止符(开头$与末尾\0)
+            if(i >= r_max) {
+                r[i] = 1;
+            } else {
+                r[i] = std::min(r[2 * m - i], r_max - i);
+            }
+            while(str[i - r[i]] == str[i + r[i]]) {
+                ++r[i]; // 向外扩张
+            }
+            if(i + r[i] > r_max) {
+                m = i;
+                r_max = i + r[i];
+            }
+        }
+        for(int i = l_new - 2; i >= 2; i -= 2) { // 枚举所有普通字符
+            // 这两部分不能用逻辑或合成一行，因为第二行的qualified[i+r[i]-2]可能就是qualified[i]本身
+            // 如果上一个字符串让qualified[i]==true，本次为false，则本次的qualified[i+r[i]-2]没能及时更新为qualified[i]，导致i==r[i]时多计数
+            qualified[i] = (i + r[i] == l_new); // 触及字符串最右侧
+            qualified[i] |= (i == r[i] && qualified[i + r[i] - 2]); // 触及字符串最左侧，且存在对应的i
+        }
+        for(int i = 0; i <= l - 1; ++i) {
+            if(qualified[2 * i + 2]) {
+                std::cout << i + 1 << ' ';
+            }
+        }
+        std::cout << '\n';
+    }
+}
+```
+
+> [洛谷P4287](https://www.luogu.com.cn/problem/P4287)：给定任意非空字符串S，及其逆序字符串T，称`S+T+S+T`为双倍回文串。给定字符串R，求其最长双倍回文子串的长度。
+
+我们将处理后的字符串R中的最长双倍回文子串表示为`S a T b S c T`，其中`a`、`b`、`c`分别表示三个位置的下标，称为左四分位点、中心点、右四分位点，它们都在处理后的字符串中指向一个`#`占位符。
+
+如果已知S或T的长度`r_temp`，我们就能利用对称关系，从`a`推出`b`和`c`的序号，分别是`b=a+(r_temp-1)`和`c=a+(r_temp-1)*2`。
+
+这里需要我们敏锐地观察到，只需要让`a`的覆盖范围`r[a]`在`b`的覆盖范围`r[b]`中即可。也就是说，由于`a`的存在，我们确定了`ST??`；由于`b`的覆盖范围足够广，就可以放心地再次进行翻转复制，变成`STST`。于是我们枚举每个`#`占位符，加一点越界检测的常数优化、禁止S和T为空字符串的常数优化即可。
+
+注意：不能仅凭`a`的覆盖范围`r[a]`长度小于等于`c`的覆盖范围`r[c]`长度，就判断是`STST`。这只能保证是`ST S'T'`，无法保证左右两侧的`ST`完全相同。例如给定输入`aabb`，程序会错误的判定为这也是双倍回文串。
+
+```c++
+const long long int STRING_LENGTH_MAX = 5e5;
+char str[STRING_LENGTH_MAX * 2 + 3];
+int r[STRING_LENGTH_MAX * 2 + 3];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    int n; std::cin >> n;
+    std::cin >> str;
+    int l = std::strlen(str);
+    int l_new = 2 * l + 2;
+    str[l_new] = '\0';
+    str[l_new - 1] = '#';
+    for(int i = l - 1; i >= 0; --i) {
+        str[2 * i + 2] = str[i];
+        str[2 * i + 1] = '#';
+    }
+    str[0] = '$';
+
+    int m = 0, r_max = 0;
+    for(int i = 1; i < l_new; ++i) {
+        if(i >= r_max) {
+            r[i] = 1;
+        } else {
+            r[i] = std::min(r[2 * m - i], r_max - i);
+        }
+        while(str[i - r[i]] == str[i + r[i]]) {
+            ++r[i];
+        }
+        if(i + r[i] > r_max) {
+            m = i;
+            r_max = i + r[i];
+        }
+    }
+    int max = 0;
+    for(int i = 3; i <= l_new - 3; i += 2) { // 保证STST的最左侧S至少有一个字符
+        int r_temp = r[i];
+        while(r_temp > (l_new + 2 - i) / 3) { // 此处常数优化防止STST最右侧越界，即i+3*(r[i]-1) <= l_new-1
+            r_temp -= 2;
+        }
+        for(; r_temp >= 3; r_temp -= 2) { // 保证STST的S或T至少有一个字符
+            // if(r_temp <= r[i + 2 * r_temp - 2]) {
+            //     max = std::max(max, 4 * (r_temp / 2));
+            //     break;
+            // }
+            /* 不以两个四分位点为依据，而是使用左四分位点和中心点为例 */
+            if(r[i + r_temp - 1] >= 2 * r_temp - 1) {
+                max = std::max(max, 4 * (r_temp / 2));
+                break;
+            }
+        }
+    }
+    std::cout << max;
 }
 ```
 
