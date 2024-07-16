@@ -1368,6 +1368,8 @@ int main() {
 }
 ```
 
+> [洛谷P4516](https://www.luogu.com.cn/problem/P4516)：
+
 ### §2.1.x 转化为背包问题
 
 > [洛谷P1853](https://www.luogu.com.cn/problem/P1853)：给定`n`种无限供应的定期理财方案，每种定期理财方案的单位投入和单位纯收益分别为`price[i]`和`benefit[i]`，均耗时1个单位时间。现在总时间预算有`time_budget`个单位时间，初始资金为`money`，要求选择一种投资策略，使得最终资金最大化。（额外给定数据约束条件：`price[i]`必为1000的倍数，且`benefit[i]`不大于`price[i]`的10%，便于压缩状态。）
@@ -1406,6 +1408,42 @@ int main(){
 }
 ```
 
+> [洛谷P5662](https://www.luogu.com.cn/problem/P5662)：给定`n`种无限供应的纪念品，及其`t`天内每一天的价格`price[i][j]`（$1\le i\le t, 1\le j\le n$）。给定初始资金`money_budget`，通过倒卖纪念品赚取差价，求最终的本息之和最大值。
+
+一开始容易想到令`dp[n_1][n_2]...[n_n]`分别表示手头持有纪念品的数量，但是这样做会导致状态空间爆炸。不妨这样想：由于可以瞬间买入和卖出，所以可以将手里的纪念品全部抛出，认为只有一种状态，也就是手头的资金数量。
+
+```c++
+const long long int TIME_MAX = 100, N_MAX = 100, MONEY_BUDGET_MAX = 10000;
+long long int t, n, money_budget, price[TIME_MAX + 1][N_MAX + 1];
+long long int dp[MONEY_BUDGET_MAX + 1];
+// dp[i][j][k] = 第i时刻选择前j件物品，预算为k时的最大纯利润
+// dp[i][j][k] = dp[i][j][k-cost[j]] + value[i+1][j] - value[i][j]
+int main() {
+    std::cin >> t >> n >> money_budget;
+    for(long long int i = 1; i <= t; ++i) {
+        for(long long int j = 1; j <= n; ++j) {
+            std::cin >> price[i][j];
+        }
+    }
+    for(long long int i = 1; i <= t - 1; ++i) { // 给定t个时刻的价格，只有中间的t-1个间隔才有赚取差价的机会
+        for(long long int j = 1; j <= n; ++j) {
+            if(price[i + 1][j] <= price[i][j]) { // 根据贪心思想，亏本交易不能做
+                continue;
+            }
+            for(long long int k = price[i][j]; k <= money_budget; ++k) {
+                dp[k] = std::max(
+                    dp[k],
+                    dp[k - price[i][j]] + price[i + 1][j] - price[i][j]
+                );
+            }
+        }
+        money_budget += dp[money_budget]; // 最终资金=原始资金+纯利润
+        std::fill_n(dp, money_budget + 1, 0);
+    }
+    std::cout << money_budget;
+}
+```
+
 > [洛谷P4832](https://www.luogu.com.cn/problem/solution/P4832)：给定`n`组物品，每组物品均包含`a[i]`个A物品和`b[i]`个B物品。有一些特殊的物品组选择方案，使得这几组物品中的A物品数量之和等于B物品数量之和，在此基础上求A物品数量之和的最大值。
 
 本题的关键在于将`a[i]-b[i]`视为代价`cost[i]`，`a[i]`视为价值`value[i]`，`dp[i][j]`定义为前`i`组物品恰好花费`j`的物品A数量最大值，于是`dp[n][0]`即为本题所求。对应的状态转移方程为：
@@ -1417,7 +1455,7 @@ $$
 $$
 本题相比于传统模板题的区别有以下三点：
 
-1. 由于`cost[i]`可以为负值，取值范围为$[-\text{capacity\_max},+\text{capacity\_max}]$，所以在索引`dp`数组时需要手动增加偏移量`offset`，其值就是`CAPACITY_MAX`。这类似于《计算机组成原理》中的补码逻辑，将左右对称的正负区间映射到全为正数的区间。
+1. 由于`cost[i]`可以为负值，取值范围为$[-\text{capacity\_max},+\text{capacity\_max}]$，所以在索引`dp`数组时需要手动增加偏移量`offset`，其值就是`CAPACITY_MAX`。这类似于《计算机组成原理》中的移码逻辑，将左右对称的正负区间映射到全为零或正数的区间。
 
 2. 滚动数组的优化有所区别。在0/1背包和完全背包中，我们将`dp`数组的第一维从`n`压缩为1，是秉承着防止变量覆盖的原则的。然而在本题中，由于`cost[i]`可以为正，也可以为负，因此`j-cost[i]`即可能索引前面的值，也可能索引后面的值。在第二轮循环中，无论选择从小到大，还是从大到小的顺序，都有可能违背上述原则。因此本题只能将`dp`数组的第一维从`n`压缩为**2**。
 
@@ -2205,6 +2243,66 @@ int main() {
 
 # §4 字符串
 
+## §4.1 KMP算法
+
+> [洛谷P3375](https://www.luogu.com.cn/problem/P3375)：给定字符串`a`和`b`，找出所有`b`在`a`中出现的位置（输出以`a`中从1开始数的下标）。
+
+一种显然的暴力做法是二重循环，第一层循环枚举`a`中的每个字符作为开始，第二层循环枚举`b`中的每个字符是否匹配。该算法最坏情况下的时间复杂度为$O(ab)$。
+
+KMP算法是一种高效的字符串匹配算法。该算法预处理待查找字符串`b`的时间复杂度为$O(2b)$（具体的范围是`[b, 2*b]`），推理时的时间复杂度为$O(a+b)$（具体的范围是`[a, a+b]`）。
+
+这里引入最长公共前后缀的概念。如果某个子串同时是原字符串的前缀和后缀，则称其为公共前后缀。特殊的，我们规定公共前后缀禁止是原字符串本身，但长度可以为0。我们维护一个表示字符串`b.substr(a, i)`最长公共前后缀的长度数组`next[i]`。设想这样一个匹配过程：如果`b`的长度为`j-1`的前缀`b.substr(0, j-1)`内的字符全部匹配成功，但是在`b[j]`处匹配失败，那么我们将`b.substr(0, j)`拆成四部分：`(b1 b2 b1) b[j]`，将`a`中匹配失败字符及其之间的字符串表示为`a0 (b1 b2 b1) a[i+j]`，其中`b[j] != a[i+j]`表示匹配失败，括号内表示之前匹配成功的字符。注意到前面重叠的`b1`部分一定相同，因此问题转化为判断`b2[0]`是否等于`a[i+j]`。如果是的话，我们直接从`b2[0]`（也就是`b[next[j-1]]`）开始往后判断即可；如果不是，问题转化为`b.substr(0, next[j-1]-1)`匹配成功，但是在`b[next[j-1]]`处匹配失败，重复上述操作即可。
+
+现在讨论如何求解`next[i]`数组。我们将`b.substr(0, i-1)`拆分为`b1 b2 b1`三部分，其中首尾的两个`b1`表示`b.substr(0, i-1)`的最长公共前后缀。由`next[]`数组定义可知`b1`的长度为`next[i-1]`。现在考虑向后推导，在此基础上将`b.substr(0, i)`拆分为`b1 b2 b1 b[i]`四部分，其中`b[i]`只表示单个字符。
+
+- 如果`b2[0] == b[i]`，那么我们就有了一个更长的公共前后缀。于是最长公共前后缀的长度顺利加1，即`next[i] = next[i-1] + 1`。
+- 如果`b2[0] != b[i]`，那么`next[i]`只有变小，才有可能找到新的公共前后缀。注意到根据下标关系，有`b2[0] == b[next[i-1]]`。我们继续细分`b1`为`b11 b12 b11`，其中`b11`为`b1`的最长公共前后缀长度（也就是`next[next[i-1]-1]`），将`b1 b2 b1 b[i]`变成`b11 b12 b11 b2 b11 b12 b11 b[i]`。这时开头的`b11 b12[0]`和末尾的`b11 b[i]`有希望构成公共前后缀，这全由`b12[0]`和`b[i]`是否相等所决定。于是又回到了以上两种分类讨论情况的开头。
+
+```c++
+const long long int STRING_LENGTH_MAX = 1e6;
+char a[STRING_LENGTH_MAX + 1], b[STRING_LENGTH_MAX + 1];
+int next[STRING_LENGTH_MAX + 1];
+void kmp_next_init(const char *str, const int length, int *next) {
+    int j = 0; // 存储最长公共前后缀的长度
+    next[0] = 0;
+    for(int i = 1; i < length; ++i) {
+        // 此时j未经处理，表示上一轮的next[i-1]
+        while(j > 0 && str[i] != str[j]) { // j==0时说明公共前后缀根本不可能存在，直接退出
+            j = next[j - 1];
+        }
+        if(str[i] == str[j]) {
+            ++j;
+        }
+        next[i] = j; // 此时j已经处理，表示这一轮的next[i]
+    }
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> a >> b;
+
+    int a_length = std::strlen(a), b_length = std::strlen(b);
+    kmp_next_init(b, std::strlen(b), next);
+    int i = 0, j = 0;
+    while(i < a_length) {
+        if(a[i] == b[j]) { // 当前字符匹配成功
+            ++i; ++j;
+        } else if(j > 0) { // 当前字符匹配失败，但是之前已经有匹配成功的字符
+            j = next[j - 1];
+        } else { // 从第一个字符开始就匹配失败了
+            ++i;
+        }
+        if(j == b_length) { // 全部匹配成功
+            std::cout << i - j + 1 << '\n'; // 输出从1开始数的字符下标
+        }
+    }
+    for(int i = 0; i < b_length; ++i) {
+        std::cout << next[i] << ' ';
+    }
+}
+```
+
 ## §4.2 Manacher算法
 
 > [洛谷P3805](https://www.luogu.com.cn/problem/P3805)：给定一个字符串`s`，求其回文子串的长度最大值。
@@ -2497,6 +2595,140 @@ int main() {
     }
     std::cout << result << std::endl;
     return 0;
+}
+```
+
+> [洛谷P5446](https://www.luogu.com.cn/problem/P5446)：将字符串以最后一个字符为中心镜像翻转，原字符串和镜像字符串拼成一个新的字符串，称为翻转操作。例如`abc`经过一次翻转操作后变成`abcba`，`aa`经过两次镜像翻转后变成`aaaaa`。字符串R经过多次镜像翻转后变成字符串S。现在给定S的某个前缀T，求R的所有可能长度（输出小于等于`r.length()`的值即可）。
+
+显然题目所求的R一定也是T的前缀。注意到从愿原字符串到处理后字符串的下标映射关系为$i\rightarrow 2i+2$。如果只经历一次翻转，那么判定条件显然为“字符回文串半径触顶”，即`i+r[i]==l_new`（在处理后的字符串），或等价的`2*i+2+r[2*i+2]==2*l+2`（在原字符串）。容易发现，该情况的R经过一次翻转后的长度一定大于等于T的长度，因此长度至少为T的一半，且一定触及的是字符串右边界的顶。
+
+真正棘手的是多次镜像翻转的R。由于至少经过两次翻转，因此R的长度一定小于T的一半。考虑其最后一次镜像翻转，一定能被上述只经历一次翻转的情况捕获（令其镜像中心下标为`i`）。于是问题转变成：在原字符串的下标体系中，是否存在镜像中心下标$j<i$，使得对`str.substr(0, j)`做镜像操作后能变成`str.substr(0, i)`？容易发现需要满足以下两种情况：
+
+- `str.substr(0, i)`本身就是回文串，而且`j`为对称中心，因此我们希望以`j`为中心、`r[j]`为半径的回文子串能触及字符串最左侧的`str[0]`，即`j==r[i]/2`。
+- 要确保其对应的`i`存在。注意到`substr(0, i)`的长度为奇数，而且`j`恰为其对称中心。由对称关系可知`i=2*j`，因此我们希望`str[i]=str[2*j]`是可行的对称中心。
+
+使用`visited[]`数组记录该点是否为可行的对称中心。将以上的原字符串的下标变成处理后字符串的下标，我们就得到了最终的代码：
+
+```c++
+const long long int STRING_LENGTH_MAX = 1000005;
+char str[STRING_LENGTH_MAX * 2 + 3];
+int r[STRING_LENGTH_MAX * 2 + 3];
+bool qualified[STRING_LENGTH_MAX * 2 + 1];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    long long int n;
+    std::cin >> n;
+    while(n--) {
+        std::cin >> str;
+        int l = std::strlen(str);
+        int l_new = 2 * l + 2;
+        str[l_new] = '\0';
+        str[l_new - 1] = '#';
+        for(int i = l - 1; i >= 0; --i) {
+            str[2 * i + 2] = str[i];
+            str[2 * i + 1] = '#';
+        }
+        str[0] = '$';
+
+        int m = 0, r_max = 0;
+        for(int i = 1; i < l_new; ++i) { // 该枚举范围不包含终止符(开头$与末尾\0)
+            if(i >= r_max) {
+                r[i] = 1;
+            } else {
+                r[i] = std::min(r[2 * m - i], r_max - i);
+            }
+            while(str[i - r[i]] == str[i + r[i]]) {
+                ++r[i]; // 向外扩张
+            }
+            if(i + r[i] > r_max) {
+                m = i;
+                r_max = i + r[i];
+            }
+        }
+        for(int i = l_new - 2; i >= 2; i -= 2) { // 枚举所有普通字符
+            // 这两部分不能用逻辑或合成一行，因为第二行的qualified[i+r[i]-2]可能就是qualified[i]本身
+            // 如果上一个字符串让qualified[i]==true，本次为false，则本次的qualified[i+r[i]-2]没能及时更新为qualified[i]，导致i==r[i]时多计数
+            qualified[i] = (i + r[i] == l_new); // 触及字符串最右侧
+            qualified[i] |= (i == r[i] && qualified[i + r[i] - 2]); // 触及字符串最左侧，且存在对应的i
+        }
+        for(int i = 0; i <= l - 1; ++i) {
+            if(qualified[2 * i + 2]) {
+                std::cout << i + 1 << ' ';
+            }
+        }
+        std::cout << '\n';
+    }
+}
+```
+
+> [洛谷P4287](https://www.luogu.com.cn/problem/P4287)：给定任意非空字符串S，及其逆序字符串T，称`S+T+S+T`为双倍回文串。给定字符串R，求其最长双倍回文子串的长度。
+
+我们将处理后的字符串R中的最长双倍回文子串表示为`S a T b S c T`，其中`a`、`b`、`c`分别表示三个位置的下标，称为左四分位点、中心点、右四分位点，它们都在处理后的字符串中指向一个`#`占位符。
+
+如果已知S或T的长度`r_temp`，我们就能利用对称关系，从`a`推出`b`和`c`的序号，分别是`b=a+(r_temp-1)`和`c=a+(r_temp-1)*2`。
+
+这里需要我们敏锐地观察到，只需要让`a`的覆盖范围`r[a]`在`b`的覆盖范围`r[b]`中即可。也就是说，由于`a`的存在，我们确定了`ST??`；由于`b`的覆盖范围足够广，就可以放心地再次进行翻转复制，变成`STST`。于是我们枚举每个`#`占位符，加一点越界检测的常数优化、禁止S和T为空字符串的常数优化即可。
+
+注意：不能仅凭`a`的覆盖范围`r[a]`长度小于等于`c`的覆盖范围`r[c]`长度，就判断是`STST`。这只能保证是`ST S'T'`，无法保证左右两侧的`ST`完全相同。例如给定输入`aabb`，程序会错误的判定为这也是双倍回文串。
+
+```c++
+const long long int STRING_LENGTH_MAX = 5e5;
+char str[STRING_LENGTH_MAX * 2 + 3];
+int r[STRING_LENGTH_MAX * 2 + 3];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    int n; std::cin >> n;
+    std::cin >> str;
+    int l = std::strlen(str);
+    int l_new = 2 * l + 2;
+    str[l_new] = '\0';
+    str[l_new - 1] = '#';
+    for(int i = l - 1; i >= 0; --i) {
+        str[2 * i + 2] = str[i];
+        str[2 * i + 1] = '#';
+    }
+    str[0] = '$';
+
+    int m = 0, r_max = 0;
+    for(int i = 1; i < l_new; ++i) {
+        if(i >= r_max) {
+            r[i] = 1;
+        } else {
+            r[i] = std::min(r[2 * m - i], r_max - i);
+        }
+        while(str[i - r[i]] == str[i + r[i]]) {
+            ++r[i];
+        }
+        if(i + r[i] > r_max) {
+            m = i;
+            r_max = i + r[i];
+        }
+    }
+    int max = 0;
+    for(int i = 3; i <= l_new - 3; i += 2) { // 保证STST的最左侧S至少有一个字符
+        int r_temp = r[i];
+        while(r_temp > (l_new + 2 - i) / 3) { // 此处常数优化防止STST最右侧越界，即i+3*(r[i]-1) <= l_new-1
+            r_temp -= 2;
+        }
+        for(; r_temp >= 3; r_temp -= 2) { // 保证STST的S或T至少有一个字符
+            // if(r_temp <= r[i + 2 * r_temp - 2]) {
+            //     max = std::max(max, 4 * (r_temp / 2));
+            //     break;
+            // }
+            /* 不以两个四分位点为依据，而是使用左四分位点和中心点为例 */
+            if(r[i + r_temp - 1] >= 2 * r_temp - 1) {
+                max = std::max(max, 4 * (r_temp / 2));
+                break;
+            }
+        }
+    }
+    std::cout << max;
 }
 ```
 
