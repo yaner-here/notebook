@@ -2288,18 +2288,121 @@ int main() {
     while(i < a_length) {
         if(a[i] == b[j]) { // 当前字符匹配成功
             ++i; ++j;
+            if(j == b_length) { // 全部匹配成功
+                std::cout << i - j + 1 << '\n'; // 输出从1开始数的字符下标
+            }
         } else if(j > 0) { // 当前字符匹配失败，但是之前已经有匹配成功的字符
             j = next[j - 1];
         } else { // 从第一个字符开始就匹配失败了
             ++i;
         }
-        if(j == b_length) { // 全部匹配成功
-            std::cout << i - j + 1 << '\n'; // 输出从1开始数的字符下标
-        }
     }
     for(int i = 0; i < b_length; ++i) {
         std::cout << next[i] << ' ';
     }
+}
+```
+
+### §4.1.1 最短循环节
+
+> [洛谷P4391](https://www.luogu.com.cn/problem/P4391)：字符串`b`重复自己至少两次后构成了新的字符串，已知其前缀`a`，求`b`的最短长度（即`a`的最短循环节）。例如`abcab`是由`abc`重复自己产生的前缀，可以证明不可能更短。
+
+令`a_len`、`b_len`分别表示字符串`a`、`b`的长度。
+
+- 如果`a`由`k`个完整的`b`复制而成，则显然`a`的最后一个字符`a[a_len - 1]`对应的`next[a_len - 1] == (k-1) * b_len`。于是`a_len - next[(a_len - 1)]`即为所求的`b_len`。
+- 如果`a`由`k`个完整的`b`和一个不完整的`b`复制而成，设不完整部分的长度为`x`，则可以认为是在`k`个完整的`b`上多拼接了一部分字符。由上文知`next[k * b_len - 1] = (k-1) * b_len`。于是多拼接的字符自然能继续构成最长相同前后缀，于是`a`的最后一个字符`str[a_len - 1]`的`next[a_len - 1] = next[k * b_len - 1] + x == (k-1) * b_len + x`。于是`a_len - next[a_len - 1]`即为所求的`b_len`。
+
+综上所述：`b_len`可以由`a_len - next[a_len - 1]`算出。有些资料中提及`a_len - next[a_len]`（或简记为`n - next[n]`），是因为它们将`next[]`数组整体后移了一位，让下标从1开始数。
+
+```c++
+const long long int STRING_LENGTH_MAX = 1e6;
+char str[STRING_LENGTH_MAX + 1];
+int next[STRING_LENGTH_MAX + 1];
+void kmp_next_init(const char *str, const int len, int *next) {
+    int j = 0;
+    next[0] = 0;
+    for(int i = 1; i < len; ++i) {
+        while(j > 0 && str[i] != str[j]) {
+            j = next[j - 1];
+        }
+        if(str[i] == str[j]) {
+            ++j;
+        }
+        next[i] = j;
+    }
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    int length; std::cin >> length >> str;
+    kmp_next_init(str, std::strlen(str), next);
+    std::cout << length - next[length - 1];
+}
+```
+
+### §4.1.2 二维最短循环节
+
+> [洛谷P10475](https://www.luogu.com.cn/problem/solution/P10475)：给定一个由字母拼成的`R`行`C`列字符矩阵`map[i][j]`，从中取出一小片连续的矩形，使其能沿X轴和Y轴密铺后，能覆盖该字符矩阵。求这片小矩形的最小面积。例如$\left[\begin{matrix}a&b&a\\b&a&b\\a&b&a\end{matrix}\right]$最小可由$\left[\begin{matrix}a&b\\b&a\end{matrix}\right]$密铺而成。
+
+注意到对于符合条件的最小连续矩形，如果它在`map`中的主对角线顶点坐标分别是`(x1, y1)`和`(x2, y2)`，将其在X轴或Y轴上选一个方向拉伸到最大，直到该方向两侧都撑到顶，这依然是符合条件的矩形，只不过不是最小。这提示我们：只要分别求出X轴和Y轴的最短循环节，然后分别作为矩形在两条边上的边长，那么无论位置如何，这一定是符合条件的二维最短循环节。我们将每一行、每一列都用字符串哈希指代，分别计算其最短循环节，然后将两个长度相乘即可。
+
+```c++
+class StringHash {
+      public:
+    static const unsigned long long int BASE = 131;
+    static unsigned long long int get_hash(const char *str, int stride = 1) {
+        unsigned long long int hash = 0;
+        while(*str != '\0') {
+            hash = hash * BASE + *str;
+            str += stride;
+        }
+        return hash;
+    }
+    static unsigned long long int get_hash(const std::string &str) {
+        unsigned long long int hash = 0;
+        for(const char &c: str) {
+            hash = hash * BASE + c;
+        }
+        return hash;
+    }
+    long long int length;
+    std::vector<unsigned long long int> hash;
+};
+
+const long long int ROW_MAX = 10000, COLUMN_MAX = 75;
+char matrix[ROW_MAX + 1][COLUMN_MAX + 1]; // 保留\0，让行列都能单独称为字符串
+int row_count, column_count;
+unsigned long long int row_hash[ROW_MAX], column_hash[COLUMN_MAX];
+int row_next[ROW_MAX], column_next[COLUMN_MAX];
+template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+    int j = 0;
+    next[0] = 0;
+    for(int i = 1; i < len; ++i) {
+        while(j > 0 && str[i] != str[j]) {
+            j = next[j - 1];
+        }
+        if(str[i] == str[j]) { ++j; }
+        next[i] = j;
+    }
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    std::cin >> row_count >> column_count;
+    for(int i = 0; i < row_count; ++i) {
+        std::cin >> matrix[i];
+        row_hash[i] = StringHash::get_hash(matrix[i]);
+    }
+    for(int i = 0; i < column_count; ++i) {
+        column_hash[i] = StringHash::get_hash(matrix[0] + i, COLUMN_MAX + 1);
+    }
+    kmp_next_init<unsigned long long int>(row_hash, row_count, row_next);
+    kmp_next_init<unsigned long long int>(column_hash, column_count, column_next);
+    std::cout << (row_count - row_next[row_count - 1]) * (column_count - column_next[column_count - 1]);
 }
 ```
 
