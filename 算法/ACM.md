@@ -2350,7 +2350,7 @@ int main() {
 
 ```c++
 class StringHash {
-      public:
+    public:
     static const unsigned long long int BASE = 131;
     static unsigned long long int get_hash(const char *str, int stride = 1) {
         unsigned long long int hash = 0;
@@ -2406,11 +2406,178 @@ int main() {
 }
 ```
 
+### §4.1.3 最长循环节
+
+> [洛谷P3435](https://www.luogu.com.cn/problem/P3435)：给定字符串`a`，如果其真子集前缀`p`（即`p!=a`）重复两次后，形成的`p+p`能让`a`成为其前缀，则将`a`称为`s`的周期。给定`a`的所有非空前缀，求这些前缀各自的最长周期长度之和。
+
+令`s1`为`s`的某个公共前后缀，将`s`拆分成`s1 s2 s1`。显然`s1+s2`是一个循环节。我们想让这个循环节`s1+s2`最长，而`s=s1+s2+s1`的长度是固定的，因此我们想让`s1`最短。然而KMP算法是用来求`s1`的最长长度，而非最短，这该怎么办？
+
+将`s1`进一步拆分成`s11 s12 s11`，于是原字符串变成了`s11 s12 s11 s2 s11 s12 s11`，显然`s11`是一个更短的公共前后缀，它形成的循环节`s11 s12 s11 s2 s11 s12`长度比之前的`s1+s2`更长。按这种方法，我们不断地取`next[j-1]`、`next[next[j-1]-1]`、...，直到长度最后一次大于等于1为止，得到的就是最短公共前后缀长度，即使用递推公式`j=next[j-1]`。
+
+$$
+\begin{cases}
+    j_1 = i + 1 \\
+    j_n = \begin{cases}
+        j_{n-1} &, \text{next}[j_{n-1}-1] = 0 \\
+        \text{next}[j_{n-1}-1] &, \text{next}[j_{n-1}-1] \ge 1
+    \end{cases}
+\end{cases}\Rightarrow\begin{cases}
+    \text{next\_short}[i]=\displaystyle\lim_{j\rightarrow+\infin}\{j_n\}
+\end{cases}
+$$
+
+将最后得到的最短公共前后缀长度`j`记为`next_short[i]`，则用前缀的长度`i+1`减去`next_short[i]`即为答案。
+
+最后的问题是：对于前缀`a[0~i]`而言，起初的公共前后缀长度`j`是什么？有了这个条件，我们才能代入到上述的递推公式中。这里很容易错认为是`next[i]`，也就是起手就求出KMP计算的最长公共前后缀，其实正确答案是`j=i+1`，也就是`a[0~i]`这个前缀本身的长度。这是因为本题限制了“周期”只能是真子集前缀，也就是说周期不能等同于原始字符串。以求解字符串`abc`在`i=2`处的周期为例，显然它不存在任何周期，因此它的周期长度应该被等价地视为0。
+
+- 如果`j`的初值是`i + 1`，那么`next_short[i]`就是`i + 1 = 3`，代入到上面的公式`i + 1 - next_short[i] = 2 + 1 - 3 == 0`，周期长度确实为0。
+- 如果`j`的初值是`next[i] = 0`，那么`next_short[i]`就是0，代入到上面的公式计算出周期长度为3，而这显然是荒谬的。
+
+由此看出，在本题中我们认为最短公共前后缀可以是字符串本身，这样算出的最长循环节长度才有可能是0。然而KMP算法得到的公共前后缀一定比原字符串短，因此我们直接一开始就认为最短公共前后缀就是字符串本身，如果有比它更小的，再使用递推公式进行更新。
+
+```c++
+const long long int STRING_LENGTH_MAX = 1e6;
+char str[STRING_LENGTH_MAX + 1]; // 存储\0;
+int next[STRING_LENGTH_MAX], next_short[STRING_LENGTH_MAX];
+template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+    int j = 0;
+    next[0] = 0;
+    for(int i = 1; i < len; ++i) {
+        while(j > 0 && str[i] != str[j]) {
+            j = next[j - 1];
+        }
+        if(str[i] == str[j]) { ++j; }
+        next[i] = j;
+    }
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    int length;
+    std::cin >> length >> str;
+    kmp_next_init(str, length, next);
+
+    next_short[0] = 0;
+    for(int i = 0; i < length; ++i) {
+        int j = i + 1;
+        while(next[j - 1] > 0) {
+            j = next[j - 1];
+        }
+        next_short[i] = j;
+    }
+
+    long long int result = 0;
+    for(int i = 0; i < length; ++i) {
+        result += i + 1 - next_short[i];
+    }
+    std::cout << result;
+}
+```
+
+至此仍然无法通过本题，还可以使用以下两种优化：
+
+- 时间优化：记忆化搜索
+  
+  由于对原字符串中的每个下标`i`（$0\le i<n$）都要遍历，代入上述的递推公式中。统计`j`在遍历过程中的所有取值出现情况，容易发现：如果某个数曾经出现过，记为$j_t$，那么随后的$j_{\infin}$必为同样地值。这提示我们可以保留为每个$j_t$建立起一张映射到其$j_\infin$的关系表`next_visited[]`。
+  ```c++
+  const long long int STRING_LENGTH_MAX = 1e6;
+  char str[STRING_LENGTH_MAX + 1]; // 存储\0;
+  int next[STRING_LENGTH_MAX], next_short[STRING_LENGTH_MAX];
+  int next_visited[STRING_LENGTH_MAX];
+  template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+      int j = 0;
+      next[0] = 0;
+      for(int i = 1; i < len; ++i) {
+          while(j > 0 && str[i] != str[j]) {
+              j = next[j - 1];
+          }
+          if(str[i] == str[j]) { ++j; }
+          next[i] = j;
+      }
+  }
+  int main() {
+      std::ios::sync_with_stdio(false);
+      std::cin.tie(nullptr);
+      std::cout.tie(nullptr);
+      int length;
+      std::cin >> length >> str;
+      kmp_next_init(str, length, next);
+      next_short[0] = 0;
+      for(int i = 0; i < length; ++i) {
+          int j = i + 1;
+          while(true) {
+              if(next_visited[j - 1] != 0) { // 有缓存，直接用
+                  j = next_visited[j - 1];
+                  break;
+              }
+              if(next[j - 1] > 0) { // 没缓存，就索引原数组
+                  j = next[j - 1];
+              } else { // 直到触到下界1
+                  break;
+              }
+          }
+          next_visited[i] = j; // 写入缓存
+          next_short[i] = j;
+      }
+      long long int result = 0;
+      for(int i = 0; i < length; ++i) {
+          result += i + 1 - next_short[i];
+      }
+      std::cout << result;
+  }
+  ```
+- 空间优化（可选）：三个数组合并成一个
+  
+  注意到在上面的代码中，`next_short[]`和`next_visited[]`存储的值完全一样，所以我们可以合并这两个数组为一个。另外，注意到`next[]`就是没有经过任何优化的`next_visited[]`，所以我们可以将这两个数组合并成一起，让`next[]`数组本身成为不断更新的缓存数组`next_visited[]`。
+  
+  之前我们在程序最后使用`next_short[i]`对`result`进行累加。然而`next_short[]`和`next_visited[]`合并后，缓存更新会破坏原`next_short[]`的完整性。因此我们需要在更新`next[i]`缓存后立刻对`result`进行累加。
+
+  ```c++
+  const long long int STRING_LENGTH_MAX = 1e6;
+  char str[STRING_LENGTH_MAX + 1]; // 存储\0;
+  int next[STRING_LENGTH_MAX];
+  template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+      int j = 0;
+      next[0] = 0;
+      for(int i = 1; i < len; ++i) {
+          while(j > 0 && str[i] != str[j]) {
+              j = next[j - 1];
+          }
+          if(str[i] == str[j]) { ++j; }
+          next[i] = j;
+      }
+  }
+  int main() {
+      std::ios::sync_with_stdio(false);
+      std::cin.tie(nullptr);
+      std::cout.tie(nullptr);
+      int length;
+      std::cin >> length >> str;
+      kmp_next_init(str, length, next);
+      long long int result = 0;
+      for(int i = 0; i < length; ++i) {
+          int j = i + 1;
+          while(next[j - 1] > 0) {
+              j = next[j - 1];
+          }
+          if(next[i] != 0) { next[i] = j; }
+          result += i + 1 - j;
+      }
+      std::cout << result;
+  }
+  ```
+
+### §4.1.4 最长不重叠公共前后缀
+
+> [洛谷P2375](https://www.luogu.com.cn/problem/P2375)：给定一个长度为`l`的字符串`s`，如果存在一个长度为`l_p`的公共前后缀`p`，则显然当$2\times l_p \ge l$时，会导致前后缀发生重叠。求`s`的最长不重叠公共前后缀长度。
+
 ## §4.2 Manacher算法
 
 > [洛谷P3805](https://www.luogu.com.cn/problem/P3805)：给定一个字符串`s`，求其回文子串的长度最大值。
 
-一个容易想到的暴力解法是“中心扩展法”：从左到右遍历每个字符，将其暂时视为最长回文子串的中心，然后向两边扩展，直到两侧遇到不相等的字符，导致回文中断，此时记录其长度。由于回文子串的长度有奇数和偶数两种情况，因此回文子串的中心位置不一定对应一个实际存在的字符，这使得我们在遍历字符串时需要分类讨论。该暴力算法的时间复杂度为$O(n^2)$。
+一种容易想到的暴力解法是“中心扩展法”：从左到右遍历每个字符，将其暂时视为最长回文子串的中心，然后向两边扩展，直到两侧遇到不相等的字符，导致回文中断，此时记录其长度。由于回文子串的长度有奇数和偶数两种情况，因此回文子串的中心位置不一定对应一个实际存在的字符，这使得我们在遍历字符串时需要分类讨论。该暴力算法的时间复杂度为$O(n^2)$。
 
 Manacher算法使用了动态规划的思想，将时间复杂度压到$O(n)$。首先为了解决奇偶长度回文子串的分类讨论情况，我们为字符串`s`中的每个字符的两侧都添加一个少见的占位字符，例如`#`、`$`等。例如字符串`aba`转化成了`#a#b#a#`，在之后的算法中我们都使用这个处理后的新字符串`s`。然后使用数组`r[i]`维护以`s[i]`为中心的回文子串最大半径（最小为1，即`s[i]`这个字符本身就是一个回文子串）。于是，以`s[i]`为中心的最长回文子串区间可表示为$\big[s[i-(r[i]-1)], s[i+(r[i]-1)]\big]$。令`m`、`l_min[i]`和`r_max[i]`分别表示在前`i-1`个字符中，形成的最长回文子串区间的中心字符下标、左闭断点最小值和右闭端点最大值。显然以上数组存在恒等关系：$\text{l\_min}[i]+\text{r\_max}[i]=2\cdot m$。
 
