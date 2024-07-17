@@ -71,7 +71,7 @@ typedef struct Trie{
         return tree[pointer].is_full_word > 0;
     }
 
-    bool find_full_word(char *str, long long int length){
+    bool find_full_word(const char *str, long long int length){
         long long int pointer = 0;
         for(long long int i = 0 ; i < (long long int)length ; ++i){
             if(tree[pointer].next.find(str[i]) == tree[pointer].next.end()){
@@ -101,7 +101,7 @@ typedef struct Trie{
         if(tree[pointer].is_full_word > 0){
             counter++;
         }
-        return counter++;
+        return counter;
     }
 
     /**
