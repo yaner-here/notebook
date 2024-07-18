@@ -2571,7 +2571,282 @@ int main() {
 
 ### §4.1.4 最长不重叠公共前后缀
 
-> [洛谷P2375](https://www.luogu.com.cn/problem/P2375)：给定一个长度为`l`的字符串`s`，如果存在一个长度为`l_p`的公共前后缀`p`，则显然当$2\times l_p \ge l$时，会导致前后缀发生重叠。求`s`的最长不重叠公共前后缀长度。
+> [洛谷P2375](https://www.luogu.com.cn/problem/P2375)：给定一个长度为`l`的字符串`s`，如果存在一个长度为`l_p`的公共前后缀`p`，则显然当$2\times l_p \ge l$时，会导致前后缀发生重叠。令`next_nonoverlap[i]`表示`s`的长度为`i+1`的前缀的不重叠公共前后缀的数量，求$\left(\displaystyle\prod_{i=0}^{l-1}{\text{(next\_nonoverlap}[i]+1)}\right) \% (10^9+7)$。
+
+在上一节中，我们已经知道了长度为`i+1`字符串`s`前缀`s[0~i]`的各个公共前后缀长度构成的有穷数列$J_i=\{j_1,j_2,...j_k\}$满足如下递推关系，该数列严格递减：
+
+$$
+\begin{cases}
+    j_1 = i + 1 \\
+    j_n = \begin{cases}
+        不存在，终止递推 &, \text{next}[j_{n-1}-1] = 0 \\
+        \text{next}[j_{n-1}-1] &, \text{next}[j_{n-1}-1] \ge 1
+    \end{cases}
+\end{cases}
+$$
+
+显然`next_nonoverlap[i]`就是数列$J_i$中满足$2j\le i+1$的元素个数（首项除外，因为狭义上的公共前后缀不能是原字符串本身）。显然暴力算法对`i`遍历的时间复杂度为$O(n^2)$，因此我们还需要找到`next_nonoverlap[i]`的递推关系，或使用记忆化搜索。
+
+先尝试记忆化搜索：我们模拟查找数列$J_i$的过程：假设先使用暴力方法从$j_1$跳转至首个满足$2j\le i+1$的元素，记为$j_t$，现在只需记录从$j_t$跳到末尾$j_k$之间还有多少元素，不妨记为$\text{next\_count}[j_t]$，这就是我们要找的`next_nonoverlap[i]`，该步骤实现了记忆化查找。将第一阶段和暴力跳转次数和第二阶段的记忆化查找值相加，就是从开始$j_1$跳转至末尾$j_k$的元素数量（不包括$j_1$本身，因为公共前后缀不能等于原字符串），写入到$\text{next\_count}[j_1]$的缓存中，该步骤实现了记忆化存储。但是该方法在第一阶段仍然是$O(n)$的复杂度，所以总体而言仍然是常数较小的$O(n^2)$，依然会超时。压缩`next[]`路径是行不通的，因为每个$J_i$对应的$j_t$受$i+1$影响，因此路径并不统一。
+
+```c++
+const long long int STRING_LENGTH_MAX = 1e6, MOD = 1e9 + 7;
+char str[STRING_LENGTH_MAX + 1]; // 存储\0;
+int next[STRING_LENGTH_MAX], next_count[STRING_LENGTH_MAX];
+template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+    int j = 0;
+    next[0] = 0;
+    for(int i = 1; i < len; ++i) {
+        while(j > 0 && str[i] != str[j]) {
+            j = next[j - 1];
+        }
+        if(str[i] == str[j]) { ++j; }
+        next[i] = j;
+    }
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    int n;
+    std::cin >> n;
+    while(n--) {
+        std::cin >> str;
+        int length = std::strlen(str);
+        kmp_next_init<char>(str, std::strlen(str), next);
+        long long int result = 1;
+        for(int i = 0; i < length; ++i) {
+            int fail_count = 0, j = i + 1;
+            while(j > 0 && j * 2 > (i + 1)) {
+                j = next[j - 1];
+                ++fail_count;
+            }
+            next_count[i + 1] = fail_count + next_count[j];
+            result = result * (next_count[j] + 1) % MOD;
+        }
+        std::cout << result << '\n';
+    }
+}
+```
+
+令$J_i$的分界点$j_k$的下标为$k_i$（在代码中记为`j`）。既然问题出在第一阶段的暴力跳转上，我们不妨思考$k_i$与$k_{i-1}$的递推关系：
+
+```c++
+/* 伪代码 */
+int j = 上一轮的j; ++i; // 此时j是上一轮的$k_{i-1}$
+
+// i+1之后查找最长公共前后缀
+while(j > 0 && str[i] != str[j + 1]){ j = next[j - 1]; }
+if(s[i] == s[j + 1]) { ++j; }
+
+// 当场向前查找非重叠公共前后缀
+while(j * 2 > i) { j = next[j - 1]; }
+
+goto 程序开头; // 此时j为这一轮的$k_i$
+```
+
+由于$k_i$动态更新，因此我们无法获取到真实的`fail_count`，因此需要找到另一种方法维护`next_count[]`数组。注意到在初始化`next[]`数组时，从原字符串跳转到最长公共前后缀需要付出一次代价，于是存在以下递推关系：
+
+$$
+\begin{cases}
+    j = \text{next}[i] \\
+    \text{next\_count}[i + 1] = \text{next\_count}[j] + 1
+\end{cases}
+$$
+
+注意：禁止将上面的递推式放在下面的常数优化`kmp_next_init()`中，否则会导致该递推式缺少`i==0`的情况！
+```c++
+template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+    // ......
+    for(int i = 1; i < len; ++i) { // 常数优化，没有从0开始枚举！
+        // ......
+        next_count[i + 1] = next_count[j] + 1; // 所以这里确实i==0的情况，是错误写法！
+    }
+}
+```
+
+综上，得到最终代码：
+
+```c++
+const long long int STRING_LENGTH_MAX = 1e6, MOD = 1e9 + 7;
+char str[STRING_LENGTH_MAX + 1]; // 存储\0;
+int next[STRING_LENGTH_MAX], next_count[STRING_LENGTH_MAX + 1]; // 防止next_count[i + 1]越界
+template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+    int j = 0;
+    next[0] = 0;
+    for(int i = 1; i < len; ++i) {
+        while(j > 0 && str[i] != str[j]) {
+            j = next[j - 1];
+        }
+        if(str[i] == str[j]) { ++j; }
+        next[i] = j;
+    }
+}
+int main() {
+    int n;
+    std::cin >> n;
+    while(n--) {
+        std::cin >> str;
+        int length = std::strlen(str);
+        kmp_next_init(str, length, next);
+        long long int result = 1;
+        for(int i = 0; i < length; ++i) {
+            next_count[i + 1] = next_count[next[i]] + 1;
+        }
+        for(int i = 0, j = 0; i < length; ++i) {
+            while(j && str[i] != str[j])
+                j = next[j - 1];
+            if(str[i] == str[j]) { ++j; }
+            while((j << 1) > i + 1)
+                j = next[j - 1];
+            result = (result * (long long) (next_count[j] + 1)) % MOD;
+        }
+        std::cout << result << '\n';
+    }
+}
+```
+
+### §4.1.5 等价偏序关系字符串
+
+> [洛谷P8085](https://www.luogu.com.cn/problem/P8085)：给定两个字符串`uint64_t a[a_len], b[b_len];`，原本的单个字符类型`char`被它的单字符哈希`uint64_t`代替。两个字符串用的是不同的哈希函数，求`b_len`可能在`a_len`中第一次出现的位置。例如`xyy`就可能第一次出现在`abbc`的前三个字母中，将该位置记为`3`。再例如`111,1231`可以认为是`教教教,教你妈教`的子串。
+
+本题不能像KMP算法那样直接使用`a[i+j]==b[j]`直接判断字符是否相等，因此我们需要找到一个新的评判依据。这个评判依据必须与具体的哈希映射规则无关，只与自身的偏序关系有关。
+
+注意到`next[]`数组恰好满足以上要求——例如`abca`和`xyzx`生成的`next[]`数组完全一致。于是容易想到当`next_a[i+j]==next_b[j]`对于所有`j`全部成立时，肯定能断定两者存在等价的偏序关系。然而`next[]`具有记忆性，前面的`str_a[i]`之前的字符会干扰`next_a[i+j]`的具体值。例如`abc`同时对`dabc`和`aabc`的子串在偏序关系上等价，但是`next[]`数组会将两者最后一个`a`映射到不同的`next`值，从而无法判断。因此，为了排除前面字符串`str_a[0~i]`的干扰，如果`str_a[next[i]-1]`对应的字符在`str[i]`之前，超出了`str_a`比对的范围，且该字符在`str_b[j]`中第一次出现，则也可以认为等价。于是我们分类讨论得出了两条判断规则，满足其一即可。
+
+```c++
+if(
+    (last_index_a[i] != -1 && last_index_b[j] != -1 && i - last_index_a[i] == j - last_index_b[j]) || // 正常情况
+   (last_index_b[j] == -1 && last_index_a[i] < i - j)) { // a前面字符干扰
+    // ......
+}
+```
+
+然后考虑跳转的问题。你可能会认为直接像KMP算法那样，直接用`j=next_b[j-1]`即可。然而细想就会发现，我们要找的是在偏序关系中等价的字符。所以你可能又会认为直接用`j=last_index_b[i]`即可，其中`last_index_b[i]`表示字符`str_b[i]`上一次在`str_b`中出现的下标。然而这也不对，我们真正要找的其实是`str_b`中与`str_a[i+j]`字符等价的上一个字符。以`aaabc`与`aabc`为例，到了`str_a[2]`和`str_b[2]`时未匹配，我们肯定希望`str_b`的指针`j`向前跳一格到`str_b[1]`上，这时`str_b[2]`才会与`str_a[3]`等价。如果使用`j=last_index_b[i]`，则会跳到`str_b[0]`上，导致后续找不到等价偏序关系子串。
+
+经过以上的例子，我们发现这个`j=?[j-1]`的跳转表很难看出来规律。我们维护一个真正的跳转表`next_b[]`数组。计算这个数组也需要用到Next数组的递推思想。考虑将`i-1`向后移动一位，想要计算`next_b[i]`应该怎么办。如果`next_b[i-1]`反映的公共前后缀后接一个字符，能与`str_b[i]`继续保持一致，那么公共前后缀的长度就会加1；如果不一致，那么就不断`j=next_b[j]`缩小公共前后缀长度。此处使用的取等判定条件不是`str_b[j]==str_b[i]`，因为这样只能保证字符的相等，而不能保证字符偏序关系也相同。因此我们使用上述的判定指标，只不过从两个字符串`str_a`、`str_b`之间的偏序等价转换成了自己和自己`str_b`之间的偏序等价。具体实现时，我们为`str_b`分别指定两个错开的双指针`i=1, j=0`。如果`i=j=0`，则等价于对空串求偏序等价关系。
+
+```c++
+if(
+    (last_index_b[i] != -1 && last_index_b[j] != -1 && i - last_index_b[i] == j - last_index_b[j]) ||
+    (last_index_b[j] == -1 && last_index_b[i] < i - j)
+) {
+    // ......
+}
+```
+
+最终代码如下所示：
+```c++
+template<typename CharType> class StringHash {
+  public:
+    static const unsigned long long int BASE = 131;
+    static unsigned long long int get_hash(const CharType *str, int stride = 1) {
+        unsigned long long int hash = 0;
+        while(*str != '\0') {
+            hash = hash * BASE + *str;
+            str += stride;
+        }
+        return hash;
+    }
+    static unsigned long long int get_hash(const std::string &str) {
+        unsigned long long int hash = 0;
+        for(const char &c: str) { hash = hash * BASE + c; }
+        return hash;
+    }
+    long long int length;
+    std::vector<unsigned long long int> hash;
+};
+
+const long long int STRING_LENGTH_MAX = 1e6 + 10;
+char word_temp[STRING_LENGTH_MAX + 1];
+unsigned long long int str_a[STRING_LENGTH_MAX + 1], str_b[STRING_LENGTH_MAX + 1];
+int next_b[STRING_LENGTH_MAX], last_index_a[STRING_LENGTH_MAX], last_index_b[STRING_LENGTH_MAX];
+
+std::unordered_map<unsigned long long int, int> last_index_map_a, last_index_map_b;
+template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+    int j = 0;
+    next[0] = 0;
+    for(int i = 1; i < len; ++i) {
+        while(j > 0 && str[i] != str[j]) { j = next[j - 1]; }
+        if(str[i] == str[j]) { ++j; }
+        next[i] = j;
+    }
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    int str_a_length = 0, str_b_length = 0;
+    while(true) {
+        std::cin >> word_temp;
+        if(word_temp[0] == '$') { break; }
+        str_a[str_a_length++] = StringHash<char>::get_hash(word_temp);
+    }
+    while(true) {
+        std::cin >> word_temp;
+        if(word_temp[0] == '$') { break; }
+        str_b[str_b_length++] = StringHash<char>::get_hash(word_temp);
+    }
+    for(int i = 0; i < str_a_length; ++i) {
+        if(last_index_map_a.count(str_a[i]) == 1) {
+            last_index_a[i] = last_index_map_a[str_a[i]];
+        } else {
+            last_index_a[i] = -1;
+        }
+        last_index_map_a[str_a[i]] = i;
+    }
+    for(int i = 0; i < str_b_length; ++i) {
+        if(last_index_map_b.count(str_b[i]) == 1) {
+            last_index_b[i] = last_index_map_b[str_b[i]];
+        } else {
+            last_index_b[i] = -1;
+        }
+        last_index_map_b[str_b[i]] = i;
+    }
+
+    int i = 1, j = 0;
+    while(i < str_b_length) { // 维护next_b当作真正使用的跳转表
+        if((last_index_b[i] != -1 && last_index_b[j] != -1 && i - last_index_b[i] == j - last_index_b[j]) ||
+           (last_index_b[j] == -1 && last_index_b[i] < i - j)) {
+            ++i;
+            ++j;
+            next_b[i] = j;
+        } else if(j > 0) {
+            j = next_b[j];
+        } else {
+            ++i;
+        }
+    }
+    i = 0, j = 0;
+    while(i < str_a_length) {
+        if((last_index_a[i] != -1 && last_index_b[j] != -1 && i - last_index_a[i] == j - last_index_b[j]) ||
+           (last_index_b[j] == -1 && last_index_a[i] < i - j)) {
+            ++i;
+            ++j;
+            if(j + 1 > str_b_length) {
+                std::cout << i + 1 - str_b_length;
+                return 0;
+            }
+        } else if(j > 0) {
+            j = next_b[j];
+        } else {
+            ++i;
+        }
+    }
+    return 0;
+}
+```
+
+经过本题的折磨，我们意识到读入字符串时，保留首尾用作终止符，可以极大地简化程序的编写。因此大多数题解使用的都是如下的代码：
+
+```c++
+std::cin >> str; // 不推荐
+std::cin >> str + 1; // 非常推荐
+
+void kmp_init_next(..., int *next){} // 写入至next[0~n-1]，不推荐
+void kmp_init_next(..., int *next){} // 写入至next[1~n]，非常推荐
+```
 
 ## §4.2 Manacher算法
 
