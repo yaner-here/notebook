@@ -2193,7 +2193,36 @@ void bfs_floodfill(long long int i, long long int j){
 }
 ```
 
-## §3.3 棋盘搜索
+## §3.3 剪枝
+
+剪枝是DFS中常用的一种技术。当DFS进入到一种不可能触及目标的状态时，就可以舍弃掉该状态下的子树代表的状态空间。
+
+> [洛谷2383](https://www.luogu.com.cn/problem/P2383)：给定`n`个长度分别为`l[i]`的木棍，要求全部利用完这些木棍，拼成四个长度相同的长木棍。请判断这`n`个木棍能否实现该目标。
+
+本题适用DFS来保存中间状态。容易写出以下代码：
+
+```c++
+/* 伪代码 */
+int l[N];
+bool dfs(int i, int l1, int l2, int l3, int l4){
+    if(i >= n){
+        return l1 == l2 && l2 == l3 && l3 == l4;
+    }else{
+        dfs(i + 1, l1 + l[i], l2, l3, l4);
+        dfs(i + 1, l1, l2 + l[i], l3, l4);
+        dfs(i + 1, l1, l2, l3 + l[i], l4);
+        dfs(i + 1, l1, l2, l3, l4 + l[i]);
+    }
+}
+```
+
+这样做的时间复杂度是$O(4^n)$，显然是无法接受的。为此，我们可以根据以下原则进行剪枝：
+
+1. 将所有木棍的长度加起来，记为`sum`。如果`sum % 4 != 0`，那么从一开始就不可能构成四个长度相同的长木棍，不必启动搜索过程。
+2. 如果某个长木棍（`l1`、`l2`、`l1`、`l4`）的长度大于`sum / 4`，则该木棍的长度不可能与其它木棍长度相同，即“一山不容二虎”。
+3. 为了让第二条更快地触及“一山不容二虎”，我们想一开始就让各个长木棍的长度冲破`sum / 4`这个上线。为此可以将`n`个木棍长度降序排序。
+
+## §3.4 棋盘搜索
 
 > [洛谷P1123](https://www.luogu.com.cn/problem/P1123)：给定`n×m`个数字，要求上下左右斜向不相邻地选出若干个数字，使其之和最大。
 
@@ -2903,6 +2932,61 @@ int main() {
 }
 ```
 
+### §4.1.7 祖玛式匹配
+
+祖玛是一款经典的Flash小游戏。在游戏中，多种颜色各异的球排成一串，当存在连续子串满足预设的`pattern`时（一般是几个颜色相同的球相邻），就可以消除这个子串。子串消失后，前后的小球又会被捏合在一起，如果又能匹配`pattern`，则可以继续消除，从而打出连击。
+
+> [洛谷P4824](https://www.luogu.com.cn/problem/P4824)：给定字符串`str`和`pattern`，要求从`str`中删除`pattern`第一次出现的字符区间，删除后从`str`的开始扫描，继续删除`pattern`第一次出现的字符区间，重复上述步骤，直到删无可删为止。例如对于字符串`str="ababccd"`和`pattern="abc"`，第一次删除后变为`str="abcd"`，第二次删除后变成`str="d"`，删无可删，因此输出`"d"`。
+
+相较于传统的KMP算法，本题中的`j`除了要在尝试匹配时进行`j=next[j]`的回溯，还要保证与`pattern`匹配成功时`j`不能直接退为`next[j]`，否则`i`永远在向字符串末尾匹配，不会关注“祖玛消除后”在`i`之前的字符串有可能构成新的`pattern`。因此，我们将两个不同的字符串`s1`、`s2`分别复制两份，变成`s11`/`s12`、`s21`/`s22`，在给定`str="s11 s12 s21 s22"`、`pattern="s1 s2"`的匹配过程中，我们希望在匹配完中间的`s12 s21`后，回到中间的`s12 s21`仿佛从来没存在过的情况，也就是让`j`回到`s11[末尾]`尝试匹配结束时的`j`。于是我们需要一个额外的数组`j_last[]`保存历史的`j`。
+
+接下来的问题是如何获取`s11[末尾]`的位置。你可能会想：既然在`str[i]`处删除了`len_pattern`个字符，那么`s11[末尾]`所在的位置就是`str[i - len_pattern]`。这种想法的错误之处在于：有可能`str[i-len_pattern]`已经被删掉了。例如`str="aaabbbc"`和`pattern="ab"`，遍历到第三个`b`时，按照错误的`str[i-len_pattern]`会访问`str[4]`，然而这个位置对应的第一个`b`已经被删掉了，应该访问的是第一个`a`。因此，我们使用一个栈`str_trim[]`保存当前字符串中的各字符序号，当`pattern`完全匹配时从栈顶移出`len_pattern`个字符，移出之后的栈顶表示的序号就是我们要找的位置。这个栈之所以要保存序号下标，而不是字符本身，是因为我们要根据序号，到`last_j[]`中查询历史的`j`。
+
+```c++
+const long long int STRING_LENGTH_MAX = 1e6;
+char str[STRING_LENGTH_MAX + 2], pattern[STRING_LENGTH_MAX + 2];
+int next[STRING_LENGTH_MAX + 1];
+int str_trim_pointer, last_j[STRING_LENGTH_MAX + 1];
+int str_trim[STRING_LENGTH_MAX + 2];
+template<typename CharType> void kmp_next_init(const CharType *str, int len, int *next) {
+    assert(str[0] == '\0'); // 确保str从str[1]开始记录
+    next[0] = -1;
+    next[1] = 0;
+    for(int i = 2, j = next[1]; i <= len; ++i) {
+        while(j != -1 && str[i] != str[j + 1]) { j = next[j]; }
+        next[i] = ++j;
+    }
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    std::cin >> (str + 1) >> (pattern + 1);
+    int str_len = std::strlen(str + 1), pattern_len = std::strlen(pattern + 1);
+    kmp_next_init(pattern, pattern_len, next);
+
+    for(int i = 1, j = 0; i <= str_len; ++i) {
+        str_trim[++str_trim_pointer] = i; // 栈位第0个空间用于保留空串的情况，j直接跳转到0。也就是这个for循环中j的初始值
+        while(j > 0 && str[i] != pattern[j + 1]) { j = next[j]; }
+        if(str[i] == pattern[j + 1]) { ++j; }
+        last_j[i] = j;
+        if(j == pattern_len) {
+            str_trim_pointer -= j;
+            j = last_j[str_trim[str_trim_pointer]];
+        }
+    }
+    std::for_each(str_trim + 1, str_trim + 1 + str_trim_pointer, [](const int &index) {
+        std::cout << str[index];
+    });
+    return 0;
+}
+```
+
+> [洛谷P3121](https://www.luogu.com.cn/problem/P3121)：给定字符串`str`和**多个**`pattern[i]`，要求对这些`pattern`们都进行祖玛式删除。数据保证不存在一个`pattern`是另一个`pattern`的子串。
+
+#TODO:？？？？？？？？？
+
 ## §4.2 Manacher算法
 
 > [洛谷P3805](https://www.luogu.com.cn/problem/P3805)：给定一个字符串`s`，求其回文子串的长度最大值。
@@ -3332,7 +3416,71 @@ int main() {
 }
 ```
 
-# §5 
+# §5 树
+
+## §5.1 树的重心
+
+给定一颗无根树（即树上的任意节点都可以作为根节点）。任取一个节点作为根节点，可以得到与其相邻的各个子节点及其子树。这些子树有着各自的节点总数。当这些节点总数的最大值达到理论下界时，称所选的这个根节点为数的中心。显然一棵无根树只可能有一个或两个重心。
+
+> [洛谷P6591](https://www.luogu.com.cn/problem/P6591)：给定一颗无根树（即树上的任意节点都可以作为根节点）。任取一个节点作为根节点，它的各个子节点构成的子树的节点数量可能都相等。求这样的根节点数量。
+
+对于静态边权的无根树问题，不需要分别以每个节点为根节点，遍历整棵树。而是随便选一个节点作为根节点遍历整棵树，将统计的结果记忆化。在本题中，我们以1号节点为根节点，统计旗下各个子节点对应子树的节点数量（包括子节点本身），将子树节点总数与其父亲节点下标记录下来。随后遍历每个节点的所有直接相邻节点，如果是子节点，那么对应无根树的子树节点总数就是`subtree_value[子节点]`本身；如果是根节点，则其对应的子树节点总数就是`subtree_value[父亲节点]-subtree_value[根节点]`。判断这些数字是否相等即可。
+
+**警惕Corner Case：当`n==1`时，不存在任何子树，因此这些数字的数量可能为0，导致用`std::set<>`统计数字种类个数时，`set.size()`不仅可能会返回其它条件的1，还有可能返回本例的0。**
+
+```c++
+const long long int N_MAX = 1e6;
+int edge_count, edge_first[2 * N_MAX], edge_next[2 * N_MAX], edge_to[2 * N_MAX];
+int n, subtree_value[N_MAX + 1], node_father[N_MAX + 1];
+inline void add_edge(int root, int child) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+}
+int dfs(int root, int father) {
+    node_father[root] = father;
+    int sum = 1;
+    for(int i = edge_first[root]; i != 0; i = edge_next[i]) {
+        int child = edge_to[i];
+        if(child == father) {
+            continue;
+        }
+        subtree_value[child] = dfs(child, root);
+        sum += subtree_value[child];
+    }
+    return sum;
+}
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i < n; ++i) {
+        int root, child; std::cin >> root >> child;
+        add_edge(root, child);
+        add_edge(child, root);
+    }
+    dfs(1, 0);
+    for(int i = 1; i <= n; ++i) {
+        std::set<int> set;
+        for(int j = edge_first[i]; j != 0; j = edge_next[j]) {
+            int child = edge_to[j];
+            if(child == node_father[i]) {
+                set.insert(n - subtree_value[i]);
+            } else {
+                set.insert(subtree_value[child]);
+            }
+        }
+        if(set.size() <= 1) {
+            std::cout << i << ' ';
+        }
+    }
+    return 0;
+}
+```
+
+# ？
 
 > [洛谷P1659](https://www.luogu.com.cn/problem/P1659)：请设计满足以下条件的高效数据结构。
 > - 给定一个正整数`i`，给区间$[1,2i-1]$之内的奇数索引对应的值全部加1。
