@@ -2068,7 +2068,7 @@ $$
 
 下面给出正确的做法：
 
-1. 
+1. #TODO:？？？？？？？？
 
 ## §2.5 计数DP
 
@@ -2103,7 +2103,67 @@ int main(){
 }
 ```
 
+## §2.6 状压DP
 
+状压DP的核心是用`bitset`描述表示一个用整数表示的集合状态。
+
+> [洛谷P1433（旅行商问题）](https://www.luogu.com.cn/problem/P1433)：给定`n`个点的坐标，其中第一个点坐标必为`(0,0)`。要求从`(0,0)`出发，节点不重复地遍历其它`n-1`个节点，使得路径的欧氏距离最小。输出该最小距离。
+
+用`dp[s][i]`表示遍历完集合`s`中的所有节点，最终停在节点`i`所需的最小距离，其中集合`s`中包含哪些元素用二进制表示。令节点序号从0开始数，则`s >> i & 1`表示集合`s`中是否存在第`i`个节点。易得出状态转移方程：
+
+$$
+\begin{cases}
+    数学描述：\text{dp}[s][j] = \displaystyle\min_{\forall k\in (s-\{j\})}(
+        \text{dp}[s][j], dp[s-\{j\}][k] + \text{distance}[k][j]
+    )
+    \\
+    位运算描述：\text{dp}[s][j] = \displaystyle\min_{\forall k, s\oplus(1 \ll j) \gg k \& 1}(
+        \text{dp}[s][j], \text{dp}[s\oplus (1 \ll j)][k] + \text{distance}[k][j]
+    )
+\end{cases}
+$$
+
+对于初始值，`dp[1][0]`表示从原点出发，只经过原点，又回到原点，因此路径长度为0。其它距离初始时均设为无穷大。
+
+因为要遍历集合`s`的总共$2^n$中状态，每种状态都需要遍历两层的$n$，因此总的时间复杂度为$O(2^nn^2)$。
+
+```c++
+const long long int N_MAX = 16;
+std::pair<double, double> point[N_MAX];
+double distance[N_MAX][N_MAX], dp[1 << N_MAX][N_MAX];
+int n;
+int main() {
+    std::cin >> n; ++n;
+    for(int i = 1; i < n; ++i) {
+        std::cin >> point[i].first >> point[i].second;
+    }
+    for(int i = 0; i < n; ++i) {
+        for(int j = 0; j <= i; ++j) {
+            distance[i][j] = std::sqrt(
+                (point[i].first - point[j].first) * (point[i].first - point[j].first) +
+                (point[i].second - point[j].second) * (point[i].second - point[j].second)
+            );
+            distance[j][i] = distance[i][j];
+        }
+    }
+    std::fill(dp[0], dp[0] + (1 << N_MAX) * N_MAX, 1e18);
+    dp[1][0] = 0; // 设定初始值
+    for(int s = 1; s < (1 << n); ++s) {
+        for(int j = 0; j < n; ++j) {
+            if((s >> j) & 1) { // 从0开始数，第j个点是否在集合s中
+                for(int k = 0; k < n; ++k) {
+                    if(s ^ (1 << j) >> k & 1) { // 从0开始数，第k个点是否在集合s-{j}中
+                        dp[s][j] = std::min(dp[s][j], dp[s ^ (1 << j)][k] + distance[k][j]);
+                    }
+                }
+            }
+        }
+    }
+    double ans = 1e18;
+    for(int i = 1; i < n; ++i) { ans = std::min(ans, dp[(1 << n) - 1][i]); }
+    std::cout << std::fixed << std::setprecision(2) << ans;
+}
+```
 
 # §3 搜索
 
@@ -2269,6 +2329,16 @@ int main() {
 ```
 
 除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
+
+## §3.5 表达式插入运算符
+
+> [洛谷P1874]()：给定一个十进制数字字符串`s`，可以在任意字符之间添加`+`号，使最后的表达式计算结果恰好为`n`。请输出需要添加`+`号的最少数量，如果不存在这样的添加方法，则输出`-1`。本题中的所有数字均可以携带任意个前导零。
+
+
+
+> [洛谷P1473](https://www.luogu.com.cn/problem/P1473)：给定一个从首字符`1`起向后数字逐渐递增至`n`的字符串（即`"1234...n"`），其中$3\le n\le 9$。每两个数字之间可以添加`+`或`-`号，添加空格表示相邻两个数字构成一个更大的十进制数。按字典序输出最后构造的所有表达式，使其运算结果恰为0。
+
+
 
 # §4 字符串
 
