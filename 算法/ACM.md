@@ -2165,13 +2165,149 @@ int main() {
 }
 ```
 
-## §2.7 轮廓线DP
-
-轮廓线DP是状压DP的一种特殊情况。
-
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定`n`行`m`列的布尔矩阵`map`，只有`map[i][j] == true`时才能占用这个格子，同时会导致它的上下左右四个方向、向外延伸两格之内的区域都无法选中。求最多能占用多少格子（不计入波及周围而无法选中的格子）。
 
-考虑沿行从上到下遍历。显然第`i`行会收到第`i-1`、`i-2`行的波及，因此我们令状态w为`d[i][]`
+考虑沿行从上到下遍历。显然第`i`行会收到第`i-1`、`i-2`行的波及，因此我们令状态`d[i][s1][s2]`表示遍历到第`i`行时，本行状态为`s1`，上一行状态为`s2`时能占用的最多格子。显然状态转移方程为：
+
+$$
+\forall s1, s2, \text{满足}\begin{cases}
+    s1本身不横向重叠 \\
+    s2本身不横向重叠 \\
+    s1与s2不纵向重叠
+\end{cases},
+\text{dp}[i][s1][s2] = \max_{\forall s3, \text{满足}s3与s1,s2不纵向重叠}(
+    \text{dp}[i-1][s2][s3] + \text{line\_count}(s1)
+)
+$$
+
+```c++
+const long long int N_MAX = 100, M_MAX = 10;
+const long long int LINE_VALID_COUNT_MAX = 60; // 预处理得到
+char map[N_MAX][M_MAX + 1]; // 存储\0
+int n, m, line[N_MAX], line_valid[LINE_VALID_COUNT_MAX], line_valid_count;
+int dp[N_MAX][LINE_VALID_COUNT_MAX][LINE_VALID_COUNT_MAX];
+
+inline int line_count(int i, int s1) { // 统计考虑map时，第i行处于s1状态时有多少选中的格子
+    int sum = 0;
+    for(int j = 0; j < m; ++j) {
+        if(s1 & (1 << j) && map[i][j] == 'P') { sum++; }
+    }
+    return sum;
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 0; i < n; ++i) {
+        std::cin >> map[i];
+        for(int j = 0; j < m; ++j) { line[i] = (line[i] << 1) + (map[i][j] == 'P'); }
+    }
+
+    for(int i = 0; i < 1 << m; ++i) { // 在不考虑地形、只考虑单行内格子影响范围是否重叠的情况下，一行有多少合法状态
+        if((i & (i << 1)) || (i & (i >> 1)) || (i & (i << 2)) || (i & (i >> 2))) { continue; }
+        line_valid[line_valid_count++] = i;
+    }
+
+    for(int i = 0; i < n; ++i) {
+        for(int j = 0; j < line_valid_count; ++j) { // 枚举第i行合法状态
+            const int &s1 = line_valid[j];
+            for(int k = 0; k < line_valid_count; ++k) { // 枚举第i-1行合法状态
+                const int &s2 = line_valid[k];
+                if(i == 0) {
+                    dp[i][j][k] = line_count(i, s1);
+                } else {
+                    if(s1 & s2) { continue; } // 第i行与第i-1行同一列发生重叠
+                    for(int l = 0; l < line_valid_count; ++l) { // 枚举第i-2行合法状态
+                        const int &s3 = line_valid[l];
+                        if((s1 & s3) || (s2 & s3)) { continue; } // 第i-2行与第i行/第i-1行在同一列发生重叠
+                        dp[i][j][k] = std::max(dp[i][j][k], dp[i - 1][k][l] + line_count(i, s1));
+                    }
+                }
+            }
+        }
+    }
+
+    int max = 0;
+    for(int s1 = 0; s1 < line_valid_count; ++s1) {
+        for(int s2 = 0; s2 < line_valid_count; ++s2) {
+            max = std::max(max, dp[n - 1][s1][s2]);
+        }
+    }
+    std::cout << max;
+
+    return 0;
+}
+```
+
+> [洛谷P1879](https://www.luogu.com.cn/problem/P1879)：给定一个`m`行`n`列的地图`map`，只有当`map[i][j]==true`时才能选择`(i,j)`处的格子。某格子一旦选中，会导致上下左右四个相邻的格子也不能选择。求选择格子的方案总数，输出结果对`1e8`取模。
+
+思路与上题一致。由于本题的格子影响范围都在上下相邻一行之内，所以令`dp[i][s1]`表示第`i`行的状态为`s1`时的选择格子方案总数。易得状态转移方程：
+
+$$
+\forall s1, \text{满足}\begin{cases}
+    s1本身不横向重叠 \\
+    s1与地形不冲突
+\end{cases},
+\text{dp}[i][s1] = \sum_{\forall s2, \begin{cases}s2本身不横向重叠 \\ s2与s1不纵向重叠 \\ s2与地形不冲突\end{cases}}{}(
+    \text{dp}[i-1][s2]
+)
+$$
+
+```c++
+const long long int M_MAX = 12, N_MAX = 12, MOD = 100000000;
+const long long int LINE_VALID_COUNT_MAX = 377; // 预处理得到
+unsigned int map[M_MAX], line_valid[LINE_VALID_COUNT_MAX], line_valid_count;
+int dp[M_MAX][LINE_VALID_COUNT_MAX];
+int m, n;
+
+int main() {
+    std::cin >> m >> n;
+    for(int i = 0; i < m; ++i) {
+        for(int j = 0; j < n; ++j) {
+            int temp; std::cin >> temp;
+            map[i] = (map[i] << 1) + temp;
+        }
+    }
+
+    for(int s1 = 0; s1 < (1 << n); ++s1) {
+        if((s1 & (s1 << 1)) || (s1 & (s1 >> 1))) { continue; }
+        line_valid[line_valid_count++] = s1;
+    }
+
+    for(int i = 0; i < m; ++i) {
+        for(int j = 0; j < line_valid_count; ++j) { // 遍历第i行的行内合法状态
+            const unsigned int &s1 = line_valid[j];
+            if(s1 & (~map[i])) { continue; } // 禁止第i行与地形冲突
+            if(i == 0) {
+                dp[i][j] = 1;
+            } else {
+                for(int k = 0; k < line_valid_count; ++k) { // 遍历第i-1行的行内合法状态
+                    const unsigned int &s2 = line_valid[k];
+                    if(s1 & s2) { // 禁止第i行和第i-1行存在列交集
+                        continue;
+                    }
+                    if(i == 0) {
+                        dp[i][j] = 1;
+                    } else {
+                        if(s2 & (~map[i - 1])) { continue; } // 禁止第i-1行与地形冲突
+                        dp[i][j] = (dp[i][j] + dp[i - 1][k]) % MOD;
+                    }
+                }
+            }
+        }
+    }
+    int result = 0;
+    for(int i = 0; i < line_valid_count; ++i) {
+        result = (result + dp[m - 1][i]) % MOD;
+    }
+    std::cout << result;
+    return 0;
+}
+```
+
+## §2.7 插头DP/轮廓线DP
+
+轮廓线DP是对于二维网格上状压DP问题的一种优化方法。在未经优化的二维网格状压DP中，每一行要遍历$(2^m)^2$个状态，因此时间复杂度为$O(n4^{m})$。在前面的二维网格状压DP中，我们通常从`1<<m`种状态中筛选符合条件的状态进行优化，从数学上易证合法状态数量$N$就是服从$a_1=2,a_2=3$的斐波纳挈数列，通项公式为$N(m)=\frac{1}{\sqrt{5}}\left(\left(\frac{1+\sqrt{5}}{2}\right)^m-\left(\frac{1-\sqrt{5}}{2}\right)^m\right)$，于是经过优化后的状压DP的时间复杂度约为$O(\frac{1}{5}n\cdot2.618^m)$。本节介绍的轮廓线DP能将时间复杂度压缩至$O(nm2^m)$，当$m\ge17$时明显优于预处理优化的状压DP，即使数据规模较小，也不会造成太大差距——最坏情况为$m=16$，会多出大约$70000$次运算，但是当$m=17$时能节省$320000$次运算。时间复杂度比较详见[Desmos图表](https://www.desmos.com/calculator/dlzytwpzu8)。
+
 
 # §3 搜索
 
@@ -3572,7 +3708,7 @@ int main() {
 
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定一个数字`n`及其二进制字符串`s`，如果`s`中存在两个索引不同的字符`1`，其下标分别记为`s[i]`、`s[j]`，使得`i`和`j`之间的距离（即`std::abs(i-j)`）恰好`k`，则输出`true`；反之输出`false`。
 
-如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：
+如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？#TODO：
 
 # §A 警钟长鸣
 
@@ -3668,7 +3804,7 @@ std::vector<int> vector_static(1e8, 114514); // 392.668MiB
 
 int main(){
     /* 动态分配 */
-    std::vector<int> vector_dynamic(1e7); // 527.668MiB
+    std::vector<int> vector_dynamic(1e8); // 527.668MiB
     for(int i = 0; i < 1e8; ++i) vector_dynamic.push_back(114514);
 
     std::stack<int> stack_dynamic; // 429.504MiB
