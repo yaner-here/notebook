@@ -1369,6 +1369,247 @@ int main() {
 ```
 
 > [洛谷P4516](https://www.luogu.com.cn/problem/P4516)：
+#TODO：？？？？？
+
+### §2.1.16 数量最少背包
+
+> [洛谷P1687](https://www.luogu.com.cn/problem/P1687)：给定`n`个价值均为`1`、代价分别为`cost[i]`的物品。现有无限供应的背包，单个背包的代价容量最大值为`cost_budget`。要装载总价值恰好为`k`的物品，求至少使用的背包数量。与此同时，选择物品的编号`i`与背包编号`j`严格满足：不存在这样的$i_1,i_2$，使得$i_1$排在$i_2$的左边（即$i_1<i_2$），但是所在的背包编号反而$j_1>j_2$。
+
+本题需要两个DP数组：`dp_count[][]`和`dp_occupy[][]`。其中`dp_count[i][j]`表示给定前`i`个物品、选中总价值恰为`j`的物品所需的背包最少数量；你可能会错误地认为`dp_occupy[i][j]`表示当`dp_count[i][j]`做出最优的物品选择决策时，这`dp_count[i][j]`个背包中的物品总代价的最小值，然而这样的物品选取方法不满足物品的编号`i`与背包编号`j`的关系，因此`dp_occupy[i][j]`应该指的是最右的一个背包（即编号最大的背包）中的物品总代价最小值。
+
+接下来考虑状态转移方程。对于第`i`个物品：
+
+- 选择第`i`个物品：
+  
+  这个物品会被优先放在剩余代价容量最大的背包中，如果连这个背包也放不下，那么才会拿一个新背包。这个判断条件可以用代码表示：`dp_occupy[i-1][j-value[i]] + cost[i] <= cost_budget`。
+
+- 不选择第`i`个物品
+
+  直接维持原状即可。
+
+综上所述，状态转移方程为：
+
+```c++
+if(dp_occupy[i - 1][j - value[i]] + cost[i] > cost_budget) { // 如果要选第i个物品，则只能多用一个新背包
+    if(dp_count[i - 1][j - value[i]] + 1 < dp_count[i - 1][j]) { // ①选择第i个物品为最佳方案
+        dp_count[i][j] = dp_count[i - 1][j - value[i]] + 1;
+        dp_occupy[i][j] = cost[i]; // 第i个物品独占新背包，这个背包成了编号最大的背包
+    } else if (dp_count[i - 1][j - value[i]] + 1 == dp_count[i - 1][j]) { // ②无论是否选择第i个物品，都能使得背包最少
+        dp_count[i][j] = dp_count[i - 1][j]; // 两个值都相等，填哪个都一样
+        dp_occupy[i][j] = std::min(dp_occupy[i - 1][j], cost[i]); // 在第i件物品的选与不选之间，选择使得dp_occupy[i][j]最小的方案
+    } else if (dp_count[i - 1][j - value[i]] + 1 > dp_count[i - 1][j]) { // ③不选第i个物品为最佳方案
+        dp_count[i][j] = dp_count[i - 1][j];
+        dp_occupy[i][j] = dp_occupy[i - 1][j]; // 维持原状，就像第i个物品从未存在过一样
+    }
+} else { // 可以用已有的背包装下第i个物品
+    if(dp_count[i - 1][j - value[i]] < dp_count[i - 1][j]) { // ④选择第i个物品为最佳方案
+        dp_count[i][j] = dp_count[i - 1][j - value[i]];
+        dp_occupy[i][j] = dp_occupy[i - 1][j - value[i]] + cost[i]; // 由于最后一个背包已经有物品，所以第i个物品不能放在前面的背包里，而是只能放在最后一个背包里
+    } else if(dp_count[i - 1][j - value[i]] == dp_count[i - 1][j]) { // ⑤
+        dp_count[i][j] = dp_count[i - 1][j]; // 两个值都相等，填哪个都一样
+        dp_occupy[i][j] = std::min(dp_occupy[i - 1][j], dp_occupy[i - 1][j - value[i]] + cost[i]); // 在第i件物品的选与不选之间，选择使得dp_occupy[i][j]最小的方案
+    } else if(dp_count[i - 1][j - value[i]] > dp_count[i - 1][j]) { // ⑥
+        dp_count[i][j] = dp_count[i - 1][j];
+        dp_occupy[i][j] = dp_occupy[i - 1][j]; // 维持原状，就像第i个物品从未存在过一样
+    }
+}
+```
+
+需要注意的是，`dp_count[*][0]`虽然不需要选择任何物品就能满足条件，但是仍然需要一个背包，因此初始化的值应该为1，而不是0。
+
+```c++
+const long long int N_MAX = 3000, K_MAX = 3000;
+int n, k, cost[N_MAX + 1], cost_budget = 119;
+int dp_count[N_MAX + 1][K_MAX + 1], dp_occupy[N_MAX + 1][K_MAX + 1];
+int main() {
+    std::cin >> n >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> cost[i]; }
+    // 对于初始状态，dp_count[*][0]不选择任何物品就能实现目标，所以必为1
+    //             dp_count[0][1->k]无法实现目标，所以必为+∞，使得在std::min()竞争中失败
+    //             dp_occupy[*][0]不选择任何物品就能实现目标，所以必为0，在栈上无需显示初始化
+    //             dp_occupy[0][1->k]无法实现目标，所以必为+∞，使得在std::min()竞争中失败
+    for(int i = 0; i <= n; ++i) { dp_count[i][0] = 1; }
+    std::fill(dp_count[0] + 1, dp_count[0] + k + 1, 1e9);
+    std::fill(dp_occupy[0] + 1, dp_occupy[0] + k + 1, 1e9);
+    for(int i = 1; i <= n; ++i) {
+        for(int j = k; j >= 1; --j) { // j>=1防止j-1下标越界
+            if(dp_occupy[i - 1][j - 1] + cost[i] > cost_budget) { // 如果要选第i个物品，则只能多用一个新背包
+                if(dp_count[i - 1][j - 1] + 1 < dp_count[i - 1][j]) { // ①选择第i个物品为最佳方案
+                    dp_count[i][j] = dp_count[i - 1][j - 1] + 1;
+                    dp_occupy[i][j] = cost[i]; // 第i个物品独占新背包，这个背包成了编号最大的背包
+                } else if (dp_count[i - 1][j - 1] + 1 == dp_count[i - 1][j]) { // ②无论是否选择第i个物品，都能使得背包最少
+                    dp_count[i][j] = dp_count[i - 1][j]; // 两个值都相等，填哪个都一样
+                    dp_occupy[i][j] = std::min(dp_occupy[i - 1][j], cost[i]); // 在第i件物品的选与不选之间，选择使得dp_occupy[i][j]最小的方案
+                } else if (dp_count[i - 1][j - 1] + 1 > dp_count[i - 1][j]) { // ③不选第i个物品为最佳方案
+                    dp_count[i][j] = dp_count[i - 1][j];
+                    dp_occupy[i][j] = dp_occupy[i - 1][j]; // 维持原状，就像第i个物品从未存在过一样
+                }
+            } else { // 可以用已有的背包装下第i个物品
+                if(dp_count[i - 1][j - 1] < dp_count[i - 1][j]) { // ④选择第i个物品为最佳方案
+                    dp_count[i][j] = dp_count[i - 1][j - 1];
+                    dp_occupy[i][j] = dp_occupy[i - 1][j - 1] + cost[i]; // 由于最后一个背包已经有物品，所以第i个物品不能放在前面的背包里，而是只能放在最后一个背包里
+                } else if(dp_count[i - 1][j - 1] == dp_count[i - 1][j]) { // ⑤
+                    dp_count[i][j] = dp_count[i - 1][j]; // 两个值都相等，填哪个都一样
+                    dp_occupy[i][j] = std::min(dp_occupy[i - 1][j], dp_occupy[i - 1][j - 1] + cost[i]); // 在第i件物品的选与不选之间，选择使得dp_occupy[i][j]最小的方案
+                } else if(dp_count[i - 1][j - 1] > dp_count[i - 1][j]) { // ⑥
+                    dp_count[i][j] = dp_count[i - 1][j];
+                    dp_occupy[i][j] = dp_occupy[i - 1][j]; // 维持原状，就像第i个物品从未存在过一样
+                }
+            }
+        }
+    }
+    if(dp_count[n][k] == 1e9) {
+        std::cout << "You can't do it.";
+    } else {
+        std::cout << dp_count[n][k];
+    }
+    return 0;
+}
+```
+
+上面的分类讨论清晰易懂，但是编码较为复杂。注意到③⑥完全相同，因此我们可以等价地将其转化为下列代码：
+
+```c++
+// 先计算共同的③和⑥
+dp_count[i][j] = dp_count[i - 1][j];
+dp_occupy[i][j] = dp_occupy[i - 1][j];
+if(dp_occupy[i - 1][j - 1] + cost[i] > cost_budget) {
+    if(dp_count[i - 1][j - 1] + 1 < dp_count[i - 1][j]) { // 用①的结果覆盖③⑥
+        dp_count[i][j] = dp_count[i - 1][j - 1] + 1;
+        dp_occupy[i][j] = cost[i];
+    } else if(dp_count[i - 1][j - 1] + 1 == dp_count[i - 1][j]) { // 用②的结果覆盖③⑥
+        dp_count[i][j] = dp_count[i - 1][j];
+        dp_occupy[i][j] = std::min(dp_occupy[i - 1][j], cost[i]);
+    }
+    // ③⑥已被计算，无需再次计算③
+} else {
+    if(dp_count[i - 1][j - 1] < dp_count[i - 1][j]) { // 用④的结果覆盖③⑥
+        dp_count[i][j] = dp_count[i - 1][j - 1];
+        dp_occupy[i][j] = dp_occupy[i - 1][j - 1] + cost[i];
+    } else if(dp_count[i - 1][j - 1] == dp_count[i - 1][j]) { // 用⑤的结果覆盖③⑥
+        dp_count[i][j] = dp_count[i - 1][j];
+        dp_occupy[i][j] = std::min(dp_occupy[i - 1][j], dp_occupy[i - 1][j - 1] + cost[i]);
+    }
+    // ③⑥已被计算，无需再次计算⑥
+}
+```
+
+最后注意到更新`dp_*[i][*]`时只用到了`dp[i-1][*]`的数据，因此可以用滚动数组压缩成两行，使用`i&1`而非`i%2`来切换滚动数组。再关闭流同步，`3000`内的数据范围把`int`改`short`。
+
+```c++
+const long long int N_MAX = 3000, K_MAX = 3000;
+int n, k, cost, cost_budget = 119;
+int dp_count[2][K_MAX + 1], dp_occupy[2][K_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> k;
+    // 对于初始状态，dp_count[*][0]不选择任何物品就能实现目标，所以必为1
+    //             dp_count[0][1->k]无法实现目标，所以必为+∞，使得在std::min()竞争中失败
+    //             dp_occupy[*][0]不选择任何物品就能实现目标，所以必为0，在栈上无需显示初始化
+    //             dp_occupy[0][1->k]无法实现目标，所以必为+∞，使得在std::min()竞争中失败
+    dp_count[0][0] = 1; dp_count[1][0] = 1; // 两个值都必须初始化!
+    std::fill(dp_count[0] + 1, dp_count[0] + k + 1, 1e9);
+    std::fill(dp_occupy[0] + 1, dp_occupy[0] + k + 1, 1e9);
+    for(int i = 1; i <= n; ++i) {
+        /*  由于本题中的value[i]=1，因此能保证每一层i的更新都能覆盖所有的j，于是不会出现dp[i][j]是dp[i-2][j]的情况
+            可以省下下面两行的清空初始化 */
+        // std::fill(dp_count[i % 2] + 1, dp_count[i % 2] + k + 1, 0);
+        // std::fill(dp_occupy[i % 2] + 1, dp_occupy[i % 2] + k + 1, 0);
+
+        /*  由于j>=1，所以dp_count[i][0]和dp_occupy[i][0]经过初始化后都不会被覆盖
+            可以省下下面两行的初始化 */
+        // dp_count[i % 2][0] = 1;
+        // dp_occupy[i % 2][0] = 0;
+        std::cin >> cost;
+        for(int j = k; j >= 1; --j) { // j>=1防止j-1下标越界
+            // 先计算共同的③和⑥
+            dp_count[i % 2][j] = dp_count[(i - 1) % 2][j];
+            dp_occupy[i % 2][j] = dp_occupy[(i - 1) % 2][j];
+            if(dp_occupy[(i - 1) % 2][j - 1] + cost > cost_budget) { // 用①的结果覆盖③⑥
+                if(dp_count[(i - 1) % 2][j - 1] + 1 < dp_count[(i - 1) % 2][j]) {
+                    dp_count[i % 2][j] = dp_count[(i - 1) % 2][j - 1] + 1;
+                    dp_occupy[i % 2][j] = cost;
+                } else if(dp_count[(i - 1) % 2][j - 1] + 1 == dp_count[(i - 1) % 2][j]) { // 用②的结果覆盖③⑥
+                    dp_count[i % 2][j] = dp_count[(i - 1) % 2][j];
+                    dp_occupy[i % 2][j] = std::min(dp_occupy[(i - 1) % 2][j], cost);
+                }
+                // ③⑥已被计算，无需再次计算③
+            } else {
+                if(dp_count[(i - 1) % 2][j - 1] < dp_count[(i - 1) % 2][j]) { // 用④的结果覆盖③⑥
+                    dp_count[i % 2][j] = dp_count[(i - 1) % 2][j - 1];
+                    dp_occupy[i % 2][j] = dp_occupy[(i - 1) % 2][j - 1] + cost;
+                } else if(dp_count[(i - 1) % 2][j - 1] == dp_count[(i - 1) % 2][j]) { // 用⑤的结果覆盖③⑥
+                    dp_count[i % 2][j] = dp_count[(i - 1) % 2][j];
+                    dp_occupy[i % 2][j] = std::min(dp_occupy[(i - 1) % 2][j], dp_occupy[(i - 1) % 2][j - 1] + cost);
+                }
+                // ③⑥已被计算，无需再次计算⑥
+            }
+        }
+    }
+    if(dp_count[n % 2][k] == 1e9) {
+        std::cout << "You can't do it.";
+    } else {
+        std::cout << dp_count[n % 2][k];
+    }
+    return 0;
+}
+```
+
+最后甚至像背包一样令`j`的便利顺序改成从大到小后，直接把滚动数组压成一行。开`-O2`能能在时间和内存上与洛谷前第一名持平，关`-O2`顺利拿下内存占用第一名。
+
+```c++
+const long long int N_MAX = 3000, K_MAX = 3000;
+short n, k, cost, cost_budget = 119;
+short dp_count[K_MAX + 1], dp_occupy[K_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> k;
+    // 对于初始状态，dp_count[*][0]不选择任何物品就能实现目标，所以必为1
+    //             dp_count[0][1->k]无法实现目标，所以必为+∞，使得在std::min()竞争中失败
+    //             dp_occupy[*][0]不选择任何物品就能实现目标，所以必为0，在栈上无需显示初始化
+    //             dp_occupy[0][1->k]无法实现目标，所以必为+∞，使得在std::min()竞争中失败
+    dp_count[0] = 1;
+    memset(dp_count + 1, 0x3f, sizeof(dp_count) - 1 * sizeof(short));
+    memset(dp_occupy + 1, 0x3f, sizeof(dp_occupy) - 1 * sizeof(short));
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> cost;
+        for(int j = k; j >= 1; --j) { // j>=1防止j-1下标越界
+            // 先计算共同的③和⑥
+            dp_count[j] = dp_count[j];
+            dp_occupy[j] = dp_occupy[j];
+            if(dp_occupy[j - 1] + cost > cost_budget) { // 用①的结果覆盖③⑥
+                if(dp_count[j - 1] + 1 < dp_count[j]) {
+                    dp_count[j] = dp_count[j - 1] + 1;
+                    dp_occupy[j] = cost;
+                } else if(dp_count[j - 1] + 1 == dp_count[j]) { // 用②的结果覆盖③⑥
+                    dp_count[j] = dp_count[j];
+                    dp_occupy[j] = std::min(dp_occupy[j], cost);
+                }
+                // ③⑥已被计算，无需再次计算③
+            } else {
+                if(dp_count[j - 1] < dp_count[j]) { // 用④的结果覆盖③⑥
+                    dp_count[j] = dp_count[j - 1];
+                    dp_occupy[j] = dp_occupy[j - 1] + cost;
+                } else if(dp_count[j - 1] == dp_count[j]) { // 用⑤的结果覆盖③⑥
+                    dp_count[j] = dp_count[j];
+                    dp_occupy[j] = std::min(dp_occupy[j], static_cast<short>(dp_occupy[j - 1] + cost));
+                }
+                // ③⑥已被计算，无需再次计算⑥
+            }
+        }
+    }
+    if(dp_count[k] == 1e9) {
+        std::cout << "You can't do it.";
+    } else {
+        std::cout << dp_count[k];
+    }
+    return 0;
+}
+```
 
 ### §2.1.x 转化为背包问题
 
@@ -2308,6 +2549,34 @@ int main() {
 
 轮廓线DP是对于二维网格上状压DP问题的一种优化方法。在未经优化的二维网格状压DP中，每一行要遍历$(2^m)^2$个状态，因此时间复杂度为$O(n4^{m})$。在前面的二维网格状压DP中，我们通常从`1<<m`种状态中筛选符合条件的状态进行优化，从数学上易证合法状态数量$N$就是服从$a_1=2,a_2=3$的斐波纳挈数列，通项公式为$N(m)=\frac{1}{\sqrt{5}}\left(\left(\frac{1+\sqrt{5}}{2}\right)^m-\left(\frac{1-\sqrt{5}}{2}\right)^m\right)$，于是经过优化后的状压DP的时间复杂度约为$O(\frac{1}{5}n\cdot2.618^m)$。本节介绍的轮廓线DP能将时间复杂度压缩至$O(nm2^m)$，当$m\ge17$时明显优于预处理优化的状压DP，即使数据规模较小，也不会造成太大差距——最坏情况为$m=16$，会多出大约$70000$次运算，但是当$m=17$时能节省$320000$次运算。时间复杂度比较详见[Desmos图表](https://www.desmos.com/calculator/dlzytwpzu8)。
 
+> [洛谷P1879](https://www.luogu.com.cn/problem/P1879)：给定一个`m`行`n`列的地图`map`，只有当`map[i][j]==true`时才能选择`(i,j)`处的格子。某格子一旦选中，会导致上下左右四个相邻的格子也不能选择。求选择格子的方案总数，输出结果对`1e8`取模。
+
+
+
+定义动态规划数组为`dp[i][j][s]`，表示将地图视野从上到下，从左到右地逐个扩张，扩张至第`i`行第`j`列时，轮廓线状态恰好为`s`的方案总数。其中轮廓线状态`s`也是一个`n`比特的二进制数字，它的前`j-1`位表示第`i`行的前`j-1`个格子是否被选择，后`m-j+1`位表示第`i-1`行的后`m-j+1`个格子是否被选择。
+
+```asciiart
+            ┏━━━┓        ┏━┓        ┏━┓
+Line i-1    ┃0│1┃       0┃1┃       0┃1┃
+          ┏━┛─ ─┃ -> ┏━━━┛─┃ or ┏━━━┛─┃
+Line  i   ┃0│?│ ┃    ┃0│1│ ┃    ┃0│0│ ┃
+          ┗━━━━━┛    ┗━━━━━┛    ┗━━━━━┛
+```
+
+以上图为例，我们先考虑忽略地形的影响（即认为所有格子均能选），并观察它的状态转移方程。显然图中的这三个状态分别为`dp[i][1][0b001]`、`dp[i][2][0b011]`、`dp[i][2][0b001]`。显然当`(i,j)`格子可以选择时（地形适宜且无相邻冲突），状态转移方程为：
+
+```c++
+if(j < n - 1) { // 防止列坐标j+1撞墙越界
+    dp[i][j+1][s] += dp[i][j][s]; // 不选择格子(i,j)
+    dp[i][j+1][s|(1<<j)] += dp[i][j][s] // 选择格子(i,j)
+}
+```
+
+如果当`(i,j)`格子不能被选择时（地形限制或有相邻冲突），那么我们只能走“不选择格子(i,j)”这条路。特殊的，当格子在第一行或第一列时，对应的上侧或左侧格子不构成冲突。
+
+
+
+然后考虑滚动数组优化。我们的状态转移方程需要用到
 
 # §3 搜索
 
