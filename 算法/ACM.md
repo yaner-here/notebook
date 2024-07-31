@@ -1644,7 +1644,7 @@ int main() {
 }
 ```
 
-### §2.1.17 输出背包物品选择策略
+### §2.1.17 物品选择策略
 
 要输出最优策略下的物品选择策略，我们只需定义一个新的布尔数组`is_selected[i][j]`，表示给定前`i`个物品、代价预算为`j`的最优决策是否会选择第`i`个物品，在状态转移的时候更新这个数组，最后在输出方案时依照下列逻辑读取：
 
@@ -1705,8 +1705,44 @@ for(int i = n; i >= 1; --i){
   - 在判断未结束的情况下，如果存在一个已选`l`号物品（即$\exist l\in[1, i$），使得`!is_selected[l][j][k] && is_selected[l][j-weight[i]][k-friction[i]]`成立，则选择第`i`个物品会使得第`l`个物品被选中，这符合引理2的情况。因此需要选择第`i`个物品，至此判断完成。
   - 以上两种情况分别总结了前`i-1`个物品中某些“从不选到选”和“从选到不选”的过程。对于另外两种情况“一直选”和“一直不选”的情况，直接忽略即可。注意枚举顺序必须是从1到`i-1`，方向不能相反，因为我们的重心放在寻找最小字典序身上，而字典序由序号最小的物品决定。根据引理2可证：在这段枚举范围中，一定存在某个物品满足以上两种情况之一。
 
-
-
+```c++
+const int WEIGHT_BUDGET_MAX = 200, FRICTION_BUDGET_MAX = 200, N_MAX = 100;
+int weight_budget, friction_budget, n;
+int dp[WEIGHT_BUDGET_MAX + 1][FRICTION_BUDGET_MAX + 1];
+int weight[N_MAX + 1], friction[N_MAX + 1], value[N_MAX + 1];
+bool is_selected[N_MAX + 1][WEIGHT_BUDGET_MAX + 1][FRICTION_BUDGET_MAX + 1];
+int main() {
+    std::cin >> weight_budget >> friction_budget >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> weight[i] >> friction[i] >> value[i];
+        for(int j = weight_budget; j >= weight[i]; --j) {
+            for(int k = friction_budget; k >= friction[i]; --k) {
+                if(dp[j][k] < dp[j - weight[i]][k - friction[i]] + value[i]) {
+                    dp[j][k] = dp[j - weight[i]][k - friction[i]] + value[i];
+                    for(int l = 1; l < i; ++l) { is_selected[l][j][k] = is_selected[l][j - weight[i]][k - friction[i]]; }
+                    is_selected[i][j][k] = true;
+                } else if(dp[j][k] == dp[j - weight[i]][k - friction[i]] + value[i]) {
+                    for(int l = 1; l < i; ++l) {
+                        if(is_selected[l][j][k] && !is_selected[l][j - weight[i]][k - friction[i]]) {
+                            break;
+                        }else if(!is_selected[l][j][k] && is_selected[l][j - weight[i]][k - friction[i]]) {
+                            for(int m = 1; m < i; ++m) { is_selected[m][j][k] = is_selected[m][j - weight[i]][k - friction[i]]; }
+                            is_selected[i][j][k] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::cout << dp[weight_budget][friction_budget] << '\n';
+    for(int i = 1; i <= n; ++i) {
+        if(is_selected[i][weight_budget][friction_budget]) {
+            std::cout << i << ' ';
+        }
+    }
+}
+```
 
 ### §2.1.x 转化为背包问题
 
@@ -2442,6 +2478,12 @@ int main(){
 }
 ```
 
+> [洛谷P3205](https://www.luogu.com.cn/problem/P3205)：给定一个长度为`n`、元素狐疑的数组`a[]`，对其中的元素从`a[0]`到`a[i-1]`，依次通过以下操作转换成数组`b[]`：对于`a[0]`，直接插入到空白的数组`b`中；对于后面的数`a[i]`，如果它小于插入的前一个数`a[i-1]`，就插入到数组`b`的最左边，如果大于就插入到最右边。现在已给定数组`b[]`，求有多少个数组`a[]`经过上述操作后可以转换为数组`b[]`。最终答案模`MOD`后输出。
+
+本题应用到了区间DP的思想——将区间的两个端点视为一种状态。令`dp_left[i][j]`表示在`b[]`对应的区间中，`b[i]`从最左边进入的方案数；`dp[]][`
+
+
+
 ### §2.5.1 环上计数DP
 
 > [洛谷P2233](https://www.luogu.com.cn/problem/P2233)：环上有`n=8`个节点，起始位置为第0个节点，结束节点为第4个节点，每回合只能传送到当前位置左右两侧的相邻节点。如果经过`k`个回合后，恰好能从起始节点移动到结束节点，并且除了最后一回合，从未路经结束节点，求移动方案总数。（结果模1000后输出）
@@ -2713,7 +2755,196 @@ int main() {
 }
 ```
 
-## §2.7 插头DP/轮廓线DP
+## §2.7 表达式DP
+
+> 洛谷P6509(https://www.luogu.com.cn/problem/P6509)：给定一个只由数字和`=`构成的不成立的恒等式`A=B`，可以通过给`A`添加`+`的方式使等式成立。求使得等式成立需要添加的最少加号。例如`5025=30`可以只添加一个`+`变成`5+025=30`使等式成立。数据范围规定$A\le 10^{1000}, B\le 5000$。
+
+将输入的字符串视为`A=B`两部分。令`dp[i][j]`表示`A`的前`i`位数字经处理后相加之和恰好为`j`至少使用了多少个`+`。考虑第`i`个数字最多与之前多少个数字构成一个完整的十进制数，就能列出状态转移方程：
+
+$$
+\text{dp}[i][j] = \min_{k\in[1,i-1]}(\text{dp}[k][j-\text{stoi}(k+1,i)] + 1)
+$$
+
+其中`stoi(i,j)`表示从字符串`A`中截取闭区间`[i,j]`的子串转换成整数。在本题中由于受到`B`的取值范围限制，所以计算一次`stoi(i, j)`的时间复杂度不会超过$O(5)$，完全可以现场计算，而不必打表。
+
+这样的时间复杂度是$O(n^3)$，还可以通过下面的方式进行常数优化：
+
+- 如果`stoi(k+1,i)`没有前导零，那么显然`k`每减少一位都会使`stoi(k+1,i)`以十倍的速度增长，很快就能突破`B`的上界，使得状态转移方程中的`j-stoi(k+1,j)`溢出为负数。因此在没有前导零的情况下，对于任意$j\in[0,5000]$，`k`的遍历范围只能是`[i-4,i-1]`。
+- 如果`stoi(k+1,j)`存在前导零，那么当$k\in[i-4,i-1]$时，与上面的情况一致。如果`k`更小，那么也可以保证`j-stoi(k+1,j)>=0`。然而就怕`k`继续减小到一定程度后，`stoi(k+1,i)`的开头突然冒出来一个非零数字，不但会破坏`j-stoi(k+1,j)>=0`，甚至可能会干出`long long int`的表示范围。以`100001=2`为例，我们发现当`stoi(k+1,j)`存在前导零时，`stoi(k+1,j)`是完全不变的。于是`1+0000+1`肯定不是最优解，因为中间的`0`不必单独拆成一段。我们将`A`的前`i`位拆成`A1 a 000...000 a[i]`三部分，其中`A1`表示任意数字，`a`为非零数字，`a[i]`表示第`i`位数字。由于`a`的存在，我们还需要保证`a 000...000`构成的数字小于`B`的上界，因此只需要枚举`a`后面的`4`个连续`0`即可。如果`a`不存在，即从`A`开头就有一堆前导零（例如`000123=123`），那么直接忽略即可，将`A`指针移动到前导零的末尾后一位。
+
+综上所述，令`last[i]`表示使得`a.substr(i+1)`全部为0的最小`i`值（即上文中`a`的下标）
+
+#TODO:
+
+## §2.8 体力DP
+
+> [洛谷P1353](https://www.luogu.com.cn/problem/P1353)：给定一段无穷长的直线跑道。选手如果在第`i`分钟选择前进，则这一分钟可以前进`distance[i]`米，同时疲劳值加一；如果在第`i`分钟选择休息，或疲劳值达到上线`fatigure_budget`而必须休息，则每分钟降低一个单位的疲劳值，且必须等到疲劳值恢复至0才能选择前进。给定`n`分钟的时间限制，还需保证时间耗尽时疲劳值恰好为0，求能前进的最大距离、
+
+本题容易想到的一种状态设计方案是：令`dp[i][j]`表示经过前`i`分钟，疲劳值恰好为`j`时能前进的最大距离。在本题所给的数据范围中，这种方案会占用约`1e7`个`int`，相当于`38.1MB`空间，所以在可以接受的范围之内。由题意可知`dp[i][j]`可由三种情况转移而来：
+
+1. 一直休息到疲劳值归零：`dp[i][0] = dp[i-j][j], j=1->i`
+2. 即使疲劳值归零也休息：`dp[i][0] = dp[i-1][0]`
+3. 提高疲劳值并前进：`dp[i][j] = dp[i-1][j-1]`
+
+```c++
+const int N_MAX = 1e4, FATIGURE_BUDGET_MAX = 500;
+int n, fatigure_budget, distance[N_MAX + 1];
+int dp[N_MAX + 1][FATIGURE_BUDGET_MAX + 1];
+int main() {
+    std::cin >> n >> fatigure_budget;
+    for(int i = 1; i <= n; ++i) { std::cin >> distance[i]; }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= std::min(i, fatigure_budget); ++j) {
+            dp[i][0] = std::max(dp[i][0], dp[i - j][j]);
+        }
+        dp[i][0] = std::max(dp[i][0], dp[i - 1][0]);
+        for(int j = 1; j <= fatigure_budget; ++j) {
+            dp[i][j] = std::max(dp[i][j], dp[i - 1][j - 1] + distance[i]);
+        }
+    }
+    std::cout << dp[n][0];
+}
+```
+
+然而这并不是空间最优解。仔细思考前进的过程，疲劳值的初始值为0，结束值还是0。因此令`dp[i]`表示在经过`i`分钟后且疲劳值为0的情况下，能前进的最长距离。我们只须关注从0疲劳值到0疲劳值的状态转移方程即可：
+
+1. 如果第`i-1`分钟的疲劳值已经归零，那么第`i`分钟可以选择继续休息。即`dp[i]=dp[i-1]`。
+2. 如果第`i-1`分钟的疲劳值已经归零，那么从第`i`分钟起，可以选择先跑`j`分钟，然后休息`j`分钟，回到疲劳值恰好为0的状态。即`dp[i+2*j-1]=dp[i-1]+sum(distance+i, distance+i+j-1)`。这段连续求和使用前缀和预处理即可。
+
+```c++
+const int N_MAX = 1e4, FATIGURE_BUDGET_MAX = 500;
+int n, fatigure_budget, distance_prefixsum[N_MAX + 1];
+int dp[N_MAX + 1];
+int main() {
+    std::cin >> n >> fatigure_budget;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> distance_prefixsum[i];
+        distance_prefixsum[i] += distance_prefixsum[i - 1];
+    }
+    for(int i = 1; i <= n; ++i) {
+        dp[i] = std::max(dp[i], dp[i - 1]);
+        for(int j = 1; j <= std::min(fatigure_budget, (N_MAX + 1 - i) / 2); ++j) { // 防止dp[i + 2 * j - 1]越界
+            dp[i + 2 * j - 1] = std::max(dp[i + 2 * j - 1], dp[i - 1] + distance_prefixsum[i + j - 1] - distance_prefixsum[i - 1]);
+        }
+    }
+    std::cout << dp[n];
+}
+```
+
+## §2.9 区间DP
+
+区间DP使用一段区间的左右端点表示一个状态。
+
+### §2.9.1 $O(n^3)$做法
+
+> [洛谷P1775](https://www.luogu.com.cn/problem/P1775)：给定`n`堆沿直线排成一**行**的石子，每堆石子的数字分别为`a[i]`。现在要求任意选择两堆相邻的石子进行合并，合并一次的代价规定为两堆石子数量之和。显然经过`n-1`次合并操作后只剩一堆石子，求总代价最小值。
+
+抛弃`i==0`空间不用，令`dp[i][j]`表示合并第`i`堆至第`j`堆（共`j-i+1`堆）石子的总代价最小值，显然我们最终求的是`dp[1][n]`。考虑最后一次合并的两堆石子，记左边石子对应区间的右端点为`k`，则显然有状态转移方程：
+
+$$
+\text{dp}[i][j] = \min_{k\in[i.j)}\left(
+    \text{dp}[i][k] + \text{dp}[k+1][j] + \sum_{k=i}^{j}(a[i])
+\right)
+$$
+
+观察上面的状态转移方程，不难看出需要**先计算小区间的**`dp`值。这对我们的枚举顺序提出了要求：为了枚举区间`[i,j]`，首先令`j`的枚举顺序为从小到大，然后**令`i`的枚举顺序为从大到小**，`k`的枚举顺序随意，这样才能保证枚举的区间范围是逐渐从小到大的。
+
+最后考虑初始化。显然`dp[i][i]=0`表示仅一堆石子不需要任何代价，其余`dp[i][j]`均设为无穷大即可。$\sum_{k=i}^{j}(a[i])$用前缀和计算即可。
+
+```c++
+const int N_MAX = 300;
+int n, a_prefixsum[N_MAX + 1], dp[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> a_prefixsum[i];
+        a_prefixsum[i] += a_prefixsum[i - 1];
+    }
+    memset(dp, 0x3f, sizeof(dp));
+    for(int i = 1; i <= n; ++i) { dp[i][i] = 0; }
+    for(int j = 2; j <= n; ++j) {
+        for(int i = j - 1; i >= 1; --i) {
+            for(int k = i; k < j; ++k) {
+                dp[i][j] = std::min(dp[i][j], dp[i][k] + dp[k + 1][j] + a_prefixsum[j] - a_prefixsum[i - 1]);
+            }
+        }
+    }
+    std::cout << dp[1][n];
+}
+```
+
+除此以外还有另一种遍历方法。由于状态转移方程是从小区间转移到大区间，因此我们只需先求出所有长度为`len-1`的区间，然后就能自然地转移到所有长度为`len`的区间。基于这种思路，我们令`len`从小到大遍历，区间断点`i`和`j`一起从小到大遍历，`k`的遍历顺序任意选择即可。
+
+```c++
+const int N_MAX = 300;
+int n, a_prefixsum[N_MAX + 1], dp[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> a_prefixsum[i];
+        a_prefixsum[i] += a_prefixsum[i - 1];
+    }
+    memset(dp, 0x3f, sizeof(dp));
+    for(int i = 1; i <= n; ++i) { dp[i][i] = 0; }
+    for(int len = 2; len <= n; ++len) {
+        for(int i = 1, j = i + len - 1; j <= n; ++i, ++j) {
+            for(int k = i; k < j; ++k) {
+                dp[i][j] = std::min(dp[i][j], dp[i][k] + dp[k + 1][j] + a_prefixsum[j] - a_prefixsum[i - 1]);
+            }
+        }
+    }
+    std::cout << dp[1][n];
+}
+```
+
+> [洛谷P1880](https://www.luogu.com.cn/problem/P1880)：给定`n`堆沿直线排成一**圈**的石子，每堆石子的数字分别为`a[i]`。现在要求任意选择两堆相邻的石子进行合并，合并一次的代价规定为两堆石子数量之和。显然经过`n-1`次合并操作后只剩一堆石子，求总代价最小值和最大值。
+
+本题的场景从直线变成了环，我们不妨思考变成环之后会产生哪些影响。首先最关键的就是首尾两组石头变成了相邻的关系，因此两组石头可以合并。考虑对链上的石头堆进行循环左移或右移的操作，那么环上的最优方案一定对应着链上某次循环左移或右移形成的新的链。于是我们考虑保持链上的最后一个元素`a[n]`不变，将前`n-1`个元素按顺序复制一遍，粘贴到链的最后，形成一个长度为`2*n-1`的新链，则这条新链的所有长度为`n`的连续子序列一定一一对应着原链的某次循环左移或右移操作。于是我们只需要计算哪个长度为`n`的连续子序列能达到最大值$\displaystyle\max_{i\in[1, n)}\text{dp}[i][i+n-1]$即可。
+
+```c++
+const int N_MAX = 100 * 2;
+int n, a_prefixsum[N_MAX + 1], dp_min[N_MAX + 1][N_MAX + 1], dp_max[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> a_prefixsum[i];
+        a_prefixsum[i] += a_prefixsum[i - 1];
+    }
+    for(int i = 1; i <= n; ++i) {
+        a_prefixsum[i + n] += a_prefixsum[i + n - 1];
+        a_prefixsum[i + n] += a_prefixsum[i] - a_prefixsum[i - 1];
+    }
+    int n_new = n * 2 - 1;
+
+    // 求最小值
+    memset(dp_min, 0x3f, sizeof(dp_min));
+    for(int i = 1; i <= n_new; ++i) { dp_min[i][i] = 0; }
+    for(int len = 2; len <= n_new; ++len) {
+        for(int i = 1, j = i + len - 1; j <= n_new; ++i, ++j) {
+            for(int k = i; k < j; ++k) {
+                dp_min[i][j] = std::min(dp_min[i][j], dp_min[i][k] + dp_min[k + 1][j] + a_prefixsum[j] - a_prefixsum[i - 1]);
+            }
+        }
+    }
+    int result = 0x3f3f3f3f;
+    for(int i = 1; i <= n; ++i) { result = std::min(result, dp_min[i][i + n - 1]); }
+    std::cout << result << '\n';
+
+    // 求最大值
+    for(int len = 2; len <= n_new; ++len) {
+        for(int i = 1, j = i + len - 1; j <= n_new; ++i, ++j) {
+            for(int k = i; k < j; ++k) {
+                dp_max[i][j] = std::max(dp_max[i][j], dp_max[i][k] + dp_max[k + 1][j] + a_prefixsum[j] - a_prefixsum[i - 1]);
+            }
+        }
+    }
+    result = 0;
+    for(int i = 1; i <= n; ++i) { result = std::max(result, dp_max[i][i + n - 1]); }
+    std::cout << result << '\n';
+}
+```
+
+## §2.x 插头DP/轮廓线DP
 
 轮廓线DP是对于二维网格上状压DP问题的一种优化方法。在未经优化的二维网格状压DP中，每一行要遍历$(2^m)^2$个状态，因此时间复杂度为$O(n4^{m})$。在前面的二维网格状压DP中，我们通常从`1<<m`种状态中筛选符合条件的状态进行优化，从数学上易证合法状态数量$N$就是服从$a_1=2,a_2=3$的斐波纳挈数列，通项公式为$N(m)=\frac{1}{\sqrt{5}}\left(\left(\frac{1+\sqrt{5}}{2}\right)^m-\left(\frac{1-\sqrt{5}}{2}\right)^m\right)$，于是经过优化后的状压DP的时间复杂度约为$O(\frac{1}{5}n\cdot2.618^m)$。本节介绍的轮廓线DP能将时间复杂度压缩至$O(nm2^m)$，当$m\ge17$时明显优于预处理优化的状压DP，即使数据规模较小，也不会造成太大差距——最坏情况为$m=16$，会多出大约$70000$次运算，但是当$m=17$时能节省$320000$次运算。时间复杂度比较详见[Desmos图表](https://www.desmos.com/calculator/dlzytwpzu8)。
 
@@ -2741,25 +2972,6 @@ if(j < n - 1) { // 防止列坐标j+1撞墙越界
 如果当`(i,j)`格子不能被选择时（地形限制或有相邻冲突），那么我们只能走“不选择格子(i,j)”这条路。特殊的，当格子在第一行或第一列时，对应的上侧或左侧格子不构成冲突。
 
 然后考虑滚动数组优化。我们的状态转移方程需要用到 #TODO:
-
-## §2.8 表达式DP
-
-> 洛谷P6509(https://www.luogu.com.cn/problem/P6509)：给定一个只由数字和`=`构成的不成立的恒等式`A=B`，可以通过给`A`添加`+`的方式使等式成立。求使得等式成立需要添加的最少加号。例如`5025=30`可以只添加一个`+`变成`5+025=30`使等式成立。数据范围规定$A\le 10^{1000}, B\le 5000$。
-
-将输入的字符串视为`A=B`两部分。令`dp[i][j]`表示`A`的前`i`位数字经处理后相加之和恰好为`j`至少使用了多少个`+`。考虑第`i`个数字最多与之前多少个数字构成一个完整的十进制数，就能列出状态转移方程：
-
-$$
-\text{dp}[i][j] = \min_{k\in[1,i-1]}(\text{dp}[k][j-\text{stoi}(k+1,i)] + 1)
-$$
-
-其中`stoi(i,j)`表示从字符串`A`中截取闭区间`[i,j]`的子串转换成整数。这样的时间复杂度是$O(n^3)$，还需要进行优化。
-
-- 如果`stoi(k+1,i)`没有前导零，那么显然`k`每减少一位都会使`stoi(k+1,i)`以十倍的速度增长，很快就能突破`B`的上界，使得状态转移方程中的`j-stoi(k+1,j)`溢出为负数。因此在没有前导零的情况下，对于任意$j\in[0,5000]$，`k`的遍历范围只能是`[i-4,i-1]`。
-- 如果`stoi(k+1,j)`存在前导零，那么当$k\in[i-4,i-1]$时，与上面的情况一致。如果`k`更小，那么也可以保证`j-stoi(k+1,j)>=0`。然而就怕`k`继续减小到一定程度后，`stoi(k+1,i)`的开头突然冒出来一个非零数字，不但会破坏`j-stoi(k+1,j)>=0`，甚至可能会干出`long long int`的表示范围。以`100001=2`为例，我们发现当`stoi(k+1,j)`存在前导零时，`stoi(k+1,j)`是完全不变的。于是`1+0000+1`肯定不是最优解，因为中间的`0`不必单独拆成一段。我们将`A`的前`i`位拆成`A1 a 000...000 a[i]`三部分，其中`A1`表示任意数字，`a`为非零数字，`a[i]`表示第`i`位数字。由于`a`的存在，我们还需要保证`a 000...000`构成的数字小于`B`的上界，因此只需要枚举`a`后面的`4`个连续`0`即可。如果`a`不存在，即从`A`开头就有一堆前导零（例如`000123=123`），那么直接忽略即可，将`A`指针移动到前导零的末尾后一位。
-
-综上所述，令`last[i]`表示使得`a.substr(i+1)`全部为0的最小`i`值（即上文中`a`的下标）
-
-#TODO:
 
 # §3 搜索
 
