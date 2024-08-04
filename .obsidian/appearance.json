@@ -1,9 +1,9 @@
 {
   "baseFontSize": 16,
   "translucency": false,
-  "monospaceFontFamily": "Cascadia Mono",
+  "monospaceFontFamily": "CaskaydiaCove Nerd Font Mono",
   "cssTheme": "Catppuccin",
   "accentColor": "",
-  "textFontFamily": "HYZhengYuan,Consolas",
+  "textFontFamily": "CaskaydiaCove Nerd Font Mono,HYZhengYuan",
   "baseFontSizeAction": true
 }
