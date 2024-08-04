@@ -2455,37 +2455,6 @@ $$
 
 ## §2.5 计数DP
 
-> [洛谷P1077](https://www.luogu.com.cn/problem/P1077)：给定`n`种编号从`1`到`n`数量分别为`a[i]`的物品，要用这些物品的其中`m`个物品排成一队，要求队列中物品的编号非严格单调递增。求有多少种互异的排队方式？（若两个元素属于同种物品则视为完全相同）
-
-本题需要抽象建模。由于给定了各个物品选择的数量后，就能确定唯一的队列，因此问题转化为：给定一个长度为`n`的数列$a[i]$，求满足$b_i\ge0,\sum{b_i}=m$的数列$b[i]$的所有选法。
-
-记`dp[i][j]`表示前`i`种物品凑出长度为`j`的符合要求的队列数量，于是易得状态转移方程：
-$$
-\text{dp}[i][j] = \sum_{k=1}^{\min(j,a[i])}\text{dp}[i-1][j-k]
-$$
-经滚动数组压缩后，容易发现可维护一个前缀和来快速计算求和，本题略。
-
-```c++
-const long long int N_MAX = 100, M_MAX = 100, MOD = 1e6 + 7;
-long long int n, m, a[N_MAX + 1], dp[M_MAX + 1];
-int main(){
-    std::cin >> n >> m;
-    for(long long int i = 1; i <= n; i++){
-        std::cin >> a[i];
-    }
-    dp[0] = 1;
-    for(long long int i = 1; i <= n; ++i){
-        for(long long int j = m ; j >= 0 ; --j){
-            for(long long int k = 1 ; k <= std::min(j, a[i]) ; ++k){
-                dp[j] += dp[j - k];
-                dp[j] %= MOD;
-            }
-        }
-    }
-    std::cout << dp[m];
-}
-```
-
 ### §2.5.1 环上计数DP
 
 > [洛谷P2233](https://www.luogu.com.cn/problem/P2233)：环上有`n=8`个节点，起始位置为第0个节点，结束节点为第4个节点，每回合只能传送到当前位置左右两侧的相邻节点。如果经过`k`个回合后，恰好能从起始节点移动到结束节点，并且除了最后一回合，从未路经结束节点，求移动方案总数。（结果模1000后输出）
@@ -2749,6 +2718,75 @@ int main() {
 ```
 
 本题还可以使用滚动数组压成两行。本题略。
+
+### §2.5.5 序列计数DP
+
+> [洛谷P1077](https://www.luogu.com.cn/problem/P1077)：给定`n`种编号从`1`到`n`数量分别为`a[i]`的物品，要用这些物品的其中`m`个物品排成一队，要求队列中物品的编号非严格单调递增。求有多少种互异的排队方式？（若两个元素属于同种物品则视为完全相同）
+
+本题需要抽象建模。由于给定了各个物品选择的数量后，就能确定唯一的队列，因此问题转化为：给定一个长度为`n`的数列$a[i]$，求满足$b_i\ge0,\sum{b_i}=m$的数列$b[i]$的所有选法。
+
+记`dp[i][j]`表示前`i`种物品凑出长度为`j`的符合要求的队列数量，于是易得状态转移方程：
+$$
+\text{dp}[i][j] = \sum_{k=1}^{\min(j,a[i])}\text{dp}[i-1][j-k]
+$$
+经滚动数组压缩后，容易发现可维护一个前缀和来快速计算求和，本题略。
+
+```c++
+const long long int N_MAX = 100, M_MAX = 100, MOD = 1e6 + 7;
+long long int n, m, a[N_MAX + 1], dp[M_MAX + 1];
+int main(){
+    std::cin >> n >> m;
+    for(long long int i = 1; i <= n; i++){
+        std::cin >> a[i];
+    }
+    dp[0] = 1;
+    for(long long int i = 1; i <= n; ++i){
+        for(long long int j = m ; j >= 0 ; --j){
+            for(long long int k = 1 ; k <= std::min(j, a[i]) ; ++k){
+                dp[j] += dp[j - k];
+                dp[j] %= MOD;
+            }
+        }
+    }
+    std::cout << dp[m];
+}
+```
+
+> [洛谷P2193](https://www.luogu.com.cn/problem/P2193)：给定一种长度为`p`的正整数数列，这种数列的后一个数是前一个数的正整数倍，而且所有的数都小于等于`n`。求符合以上条件的数列种类总数，答案对`MOD`取模。
+
+本题的难点在于设计状态。这里我们直接给出答案：`dp[i][j]`表示长度为`i`、**最后一个元素`x[i]==j`**、各个元素均小于等于`n`的数列种类总数。于是立即有状态转移方程：
+
+$$
+\forall k, s.t. j\times k \le n,\begin{cases}
+    \text{dp}[i][j\times k] \text{+=} \text{dp}[i-1][j] 
+\end{cases}
+$$
+
+初始值`dp[1][1->n]`全部置为1，然后用滚动数组压缩成两行即可。
+
+```c++
+const int N_MAX = 2e3, P_MAX = 2e3, MOD = 1e9 + 7;
+int n, p, dp[2][N_MAX + 1];
+int main() {
+    std::cin >> n >> p;
+    std::fill(&(dp[1][0]) + 1, &(dp[1][0]) + 1 + n, 1);
+    for(int i = 2; i <= p; ++i) {
+        std::fill(&(dp[i & 1][0]) + 1, &(dp[i & 1][0]) + 1 + n, 0);
+        for(int j = 1; j <= n; ++j) {
+            for(int k = j; k <= n; k += j) {
+                dp[i & 1][k] = (dp[i & 1][k] + dp[(i - 1) & 1][j]) % MOD;
+            }
+        }
+    }
+    int reuslt = 0;
+    for(int i = 1; i <= n; ++i) { reuslt = (reuslt + dp[p & 1][i]) % MOD; }
+    std::cout << reuslt;
+}
+```
+
+> [洛谷P6434](https://www.luogu.com.cn/problem/P6434)：给定`n<=2e6`个价值分别为`a[i]`的物品，从中挑选出`k`个组，重新排列后形成长度为`k`的、任意相邻元素满足$\frac{\text{dp}[i+1]}{\text{dp}[i]}\in[l,r]$的新数组`b[i]`。试求：（1）符合条件的数组`b[i]`的种类总数；（2）数组`b[]`的总价值最大值。答案均对`MOD`取模后输出。
+
+
 
 ## §2.6 状压DP
 
@@ -3247,7 +3285,73 @@ int main() {
 
 事实上本题有时间更优的$O(40n\log{n})$DP做法，使用了倍增的思想，但这种做法太过特殊，不具有普适性。本节略，详见[洛谷题解](https://www.luogu.com.cn/article/3zhrb4e5)。
 
-### §2.9.2 其它区间DP
+### §2.9.2 不重叠区间优化DP
+
+有许多区间DP题满足下面的特征：这类问题需要你找到一种最佳策略，将整个大区间分割成若干**不相交**的小区间，对每个小区间使用一种或多种策略，各个小区间使用的策略产生的局部影响之间是**独立的**，最后求解关于某个变量的最优化问题。
+
+> [洛谷P2426](https://www.luogu.com.cn/problem/P2426)：给定一个长度为`n`的整数数组`x[i]`。现在允许每次操作从最左边或最右边连续地取出$k$个数，记这段连续的区间为`[x[i], x[j]]`，并且会产生`f(x[i], x[j], i, j)`的价值。重复若干遍这样的操作，直到数组中的数字被全部取出，求总价值的最大值。
+
+显然令`dp[i][j]`表示给定`[x[i], x[j]]`中的数为数组`x[]`，将其中的数全部取出能产生的最大价值。易得状态转移方程：
+
+$$
+\text{dp}[i][j] = \max\begin{cases}
+	f(x[i], x[j], i ,j) \\
+	\forall k\in[i,j), \text{dp}[i][k] + \text{dp}[k+1][j]
+\end{cases}
+$$
+
+```c++
+const int N_MAX = 100;
+int n, x[N_MAX + 1], dp[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i]; }
+    for(int len = 1; len <= n; ++len) {
+        for(int i = 0, j = len - 1; j <= n; ++i, ++j) {
+            dp[i][j] = (i != j ? std::abs(x[j] - x[i]) * len : x[i]);
+            for(int k = i; k < j; ++k) {
+                dp[i][j] = std::max(dp[i][j], dp[i][k] + dp[k + 1][j]);
+            }
+        }
+    }
+    std::cout << dp[1][n];
+}
+```
+
+仔细考虑本题的条件，会发现这道区间DP题符合本节指出的条件：每次取出的一段连续数字构成了**不相交**的小区间。每段小区间要么是从数组最左边取出，要么是从数组最右边取出。又因为每段小区间产生的价值`f(x[i], x[j], i, j)`是**独立的**，所以可以认为小区间一律从数组最左边取出，这样也不会影响最终的最优化问题求解。
+
+至此，我们重新令`dp[i]`表示给定数组中位于区间`[x[1], x[i]]`内的数字，取出这段数字能获得的最大价值。状态转移方程为：
+
+$$
+\text{dp}[i] = \max_{k\in[0,i)} \left(
+    \text{dp}[k] + f(x[k+1], x[i], k+1, x)
+\right)
+$$
+
+```c++
+const int N_MAX = 100;
+int n, x[N_MAX + 1], dp[N_MAX + 1];
+inline int f(int i, int j) {
+    if(i == j) {
+        return x[i];
+    } else {
+        return std::abs(x[i] - x[j]) * (j - i + 1);
+    }
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i]; }
+    for(int i = 1; i <= n; ++i) {
+        dp[i] = f(1, i);
+        for(int j = 0; j < i; ++j) {
+            dp[i] = std::max(dp[i], dp[j] + f(j + 1, i));
+        }
+    }
+    std::cout << dp[n];
+}
+```
+
+经过优化后，空间复杂度从$O(\frac{1}{2}n^2)$下降至$O(n)$，时间复杂度从$O(\frac{1}{2}n^3)$下降至$O(\frac{1}{2}n^2)$。
 
 > [洛谷P4677](https://www.luogu.com.cn/problem/P4677)：现有`n`个村庄排成一线，第`i`个村庄与第`i+1`个村庄的距离记为`d[i]`，显然`n`个村庄会产生`n-1`个距离。现在要选`m`个村庄分别在当地建立一所小学，其它村庄会选择距离最近的小学。求各村庄到其最近的小学距离之和的最小值。
 
