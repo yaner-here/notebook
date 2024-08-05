@@ -3596,17 +3596,28 @@ $$
 \end{align}
 $$
 
-在上面的状态转移方程中，对于任意给定的`i`都存在对应的`j`取值范围区间$[L(i), R(i)]$，而若干这样的区间存在重叠部分，这就给我们的优化创造了前提条件。于是我们将重叠的、只与`j`有关的部分$\underset{j\in[L(i),R(i)]}{\min/\max}\left(\text{dp}[j]+b[j]\right)$提取出来，记为`ds[i]`。在计算`ds[i]`的过程中，我们只关心最`min`/`max`的一批`j`，因此使用单调队列就是顺利成章的事情。每个$\forall j\in[1,n]$只会入队并出队一次，因此计算一整批`ds[*]`的时间复杂度是$O(n)$。而每个`ds[i]`转移到`dp[i]`的时间复杂度是$O(1)$，两者相乘，得到整体时间复杂度为$O(n)$。
+在上面的状态转移方程中，对于任意给定的`i`都存在对应的`j`取值范围区间$[L(i), R(i)]$，而若干这样的区间存在重叠部分，这就给我们的优化创造了前提条件。于是我们将重叠的、只与`j`有关的部分$\underset{j\in[L(i),R(i)]}{\min/\max}\left(\text{dp}[j]+b[j]\right)$提取出来，记为`ds[i]`。在计算`ds[i]`的过程中，我们只关心最`min`/`max`的一批`j`，因此使用单调队列就是顺理成章的事情。每个$\forall j\in[1,n]$只会入队并出队一次，因此计算一整批`ds[*]`的时间复杂度是$O(n)$。而每个`ds[i]`转移到`dp[i]`的时间复杂度是$O(1)$，两者相乘，得到整体时间复杂度为$O(n)$。
 
-**由于STL提供的双端队列`std::deque`效率十分低下，所以实际编程时通常使用自己打的板子**。具体在本题中，`b[*]`已经是一个现成的队列存储空间了，我们只需维护队列的首尾指针即可。
+**由于STL提供的双端队列`std::deque`效率十分低下，所以实际编程时通常使用自己打的板子**。
 
 > [洛谷P2627](https://www.luogu.com.cn/problem/P2627)：给定一个长度为`n`数组`a[]`，从中选出某个子序列（可以不连续地选），要求子序列中的数字在原数组中连续相同部分的长度最大为`k`。在所有符合条件的子序列中，求子序列各元素之和的最大值。
 
 令`dp[i]`表示给定前`i`个元素时，符合条件的子序列的各元素之和最大值。由于引入了第`i`个元素，所以我们要考虑第`i`个元素是否参与构成了连续相同部分。如果构成了，则构成的连续部分的长度至多为`k`，且与前面的连续部分之间至少要间隔一个元素；如果没构成，则直接从`dp[j-1]`转移而来。因此可以得出状态转移方程：
 
 $$
-\text{dp}[i] = 
-
+\begin{align}
+	\text{dp}[i] & = \max_{\forall j\in[1,k]} \begin{cases}
+		\text{dp}[i - 1] \\
+		\text{dp}[i-j-1] + \displaystyle\sum_{k=i-j+1}^{i}a[i]
+	\end{cases} \\
+	& = \max_{\forall j\in[i-k,i]}\left(
+		\text{dp}[j-1] + \text{a\_prefixsum}[i] - \text{a\_prefixsum}[j]
+	\right) \\
+	& = \textcolor{red}{\max_{\forall j\in[i-k,i]}\left(
+		\text{dp}[j-1] - \text{a\_prefixsum}[j]
+	\right)} + \text{a\_prefixsum}[i] \\
+	& = \textcolor{red}{\text{ds}[i]} + \text{a\_prefixsum}[i]
+\end{align}
 $$
 
 # §3 搜索
@@ -5000,7 +5011,9 @@ int main() {
 }
 ```
 
-# ？
+# §6 高级数据结构
+
+## §6.1 前缀和
 
 > [洛谷P1659](https://www.luogu.com.cn/problem/P1659)：请设计满足以下条件的高效数据结构。
 > - 给定一个正整数`i`，给区间$[1,2i-1]$之内的奇数索引对应的值全部加1。
@@ -5008,7 +5021,159 @@ int main() {
 
 本题的关键在于排除偶数索引的影响。稍加思考就能发现，偶数索引不会对答案造成任何干扰，就算增加$[i,2i-1]$中的所有索引，也只是让偶数索引也增加，而我们的查询操作不涉及任何偶数，因此当成普通的前缀和即可。令`p`为前缀和数组，添加操作让`p[1]`加1，让`p[2*i]`减1。
 
-# §6 位运算
+## §6.2 双端队列
+
+```c++
+/**
+ * 连续数组空间上的循环双端队列
+ */
+template<typename T, std::size_t MAX_SIZE> class Deque {
+  public:
+    static const std::size_t capacity = MAX_SIZE + 1;
+    T data[capacity]; // 为保证首尾指针偏序关系,总有一个空间不能用，因此MAX_SIZE+1
+    int top, rear;
+    inline bool is_empty() const { return top == rear; }
+    inline bool is_full() { return (this->rear + 1) % capacity == this->top; }
+    inline void unsafe_push_front(T &x) {
+        this->top = (this->top - 1 + capacity) % capacity;
+        this->data[this->top] = x;
+    }
+    inline void safe_push_front(T &x) {
+        if(is_full()) { throw std::out_of_range("Out of Range"); }
+        unsafe_push_front(x);
+    }
+    inline void safe_push_back(T &x) {
+        this->data[this->rear] = x;
+        this->rear = (this->rear + 1) % capacity;
+    }
+    inline void unsafe_pop_front() { this->top = (this->top + 1) % capacity; }
+    inline void safe_pop_front() {
+        if(is_empty()) { throw std::out_of_range("Out of Range"); }
+        unsafe_pop_front();
+    }
+    inline void unsafe_pop_back() { this->rear = (this->rear - 1 + capacity) % capacity; }
+    inline void safe_pop_back() {
+        if(is_empty()) { throw std::out_of_range("Out of Range"); }
+        unsafe_pop_back();
+    }
+    inline std::size_t size() const { return (this->rear - this->top + capacity) % capacity; }
+    inline T front() { return this->data[this->top]; }
+    inline T back() { return this->data[(this->rear - 1 + capacity) % capacity]; }
+    inline void clear() { this->top = this->rear = 0; }
+};
+
+/**
+ * 双向链表上的双端队列，时空常数都较大，不推荐使用
+*/
+template<typename T> class LinkedDeque {
+  private:
+    struct LinkedNode {
+        T data;
+        LinkedNode *prev, *next;
+    };
+    inline LinkedNode *malloc_node(const T &data) {
+        LinkedNode *new_node = (LinkedNode *) malloc(sizeof(LinkedNode));
+        new_node->data = data;
+        new_node->prev = new_node->next = nullptr;
+        return new_node;
+    }
+
+  public:
+    std::size_t len = 0;
+    LinkedNode *head, *rear;
+    LinkedDeque() { this->head = this->rear = nullptr; }
+    inline bool is_empty() { return this->head == nullptr || this->rear == nullptr; }
+    void push_front(const T &x) {
+        LinkedNode *new_node = this->malloc_node(x);
+        if(is_empty()) {
+            this->head = new_node;
+            this->rear = new_node;
+        } else {
+            new_node->next = this->head;
+            this->head->prev = new_node;
+            this->head = new_node;
+        }
+        ++len;
+    }
+    void push_back(const T &x) {
+        LinkedNode *new_node = this->malloc_node(x);
+        if(is_empty()) {
+            this->head = new_node;
+            this->rear = new_node;
+        } else {
+            new_node->prev = this->rear;
+            this->rear->next = new_node;
+            this->rear = new_node;
+        }
+        ++len;
+    }
+    void unsafe_pop_front() {
+        if(this->head == this->rear) {
+            free(this->head);
+            this->head = this->rear = nullptr;
+        } else {
+            LinkedNode *temp = this->head;
+            this->head = this->head->next;
+            free(temp);
+            this->head->prev = nullptr;
+        }
+        --len;
+    }
+    void safe_pop_front() {
+        if(is_empty()) { throw std::out_of_range("Out of Range"); }
+        unsafe_pop_front();
+    }
+    void unsafe_pop_back() {
+        if(this->head == this->rear) {
+            free(this->head);
+            this->head = this->rear = nullptr;
+        } else {
+            LinkedNode *temp = this->rear;
+            this->rear = this->rear->prev;
+            free(temp);
+            this->rear->next = nullptr;
+        }
+        --len;
+    }
+    void safe_pop_back() {
+        if(is_empty()) { throw std::out_of_range("Out of Range"); }
+        unsafe_pop_back();
+    }
+    inline T unsafe_front() {
+        return this->head->data;
+    }
+    inline T safe_front() {
+        if(is_empty()) {
+            throw std::out_of_range("Out of Range");
+            return 0;
+        }
+        return unsafe_front();
+    }
+    inline T unsafe_back() {
+        return this->rear->data;
+    }
+    inline T safe_back() {
+        if(is_empty()) {
+            throw std::out_of_range("Out of Range");
+            return 0;
+        }
+        return unsafe_back();
+    }
+    inline std::size_t size() const { return this->len; }
+    inline void unsafe_clear() { this->head = this->rear = nullptr; }
+    void safe_clear() {
+        LinkedNode *current = this->head;
+        unsafe_clear();
+        while(current != nullptr) {
+            LinkedNode *next = current->next;
+            free(current);
+            current = next;
+        }
+    }
+};
+```
+
+# §7 位运算
 
 ## §6.1 相邻的`1`
 
