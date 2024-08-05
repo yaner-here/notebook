@@ -3596,7 +3596,7 @@ $$
 \end{align}
 $$
 
-在上面的状态转移方程中，对于任意给定的`i`都存在对应的`j`取值范围区间$[L(i), R(i)]$，而若干这样的区间存在重叠部分，这就给我们的优化创造了前提条件。于是我们将重叠的、只与`j`有关的部分$\underset{j\in[L(i),R(i)]}{\min/\max}\left(\text{dp}[j]+b[j]\right)$提取出来，记为`ds[i]`。在计算`ds[i]`的过程中，我们只关心最`min`/`max`的一批`j`，因此使用单调队列就是顺理成章的事情。每个$\forall j\in[1,n]$只会入队并出队一次，因此计算一整批`ds[*]`的时间复杂度是$O(n)$。而每个`ds[i]`转移到`dp[i]`的时间复杂度是$O(1)$，两者相乘，得到整体时间复杂度为$O(n)$。
+在上面的状态转移方程中，对于任意给定的`i`都存在对应的`j`取值范围区间$[L(i), R(i)]$，而若干这样的区间存在重叠部分，这就给我们的优化创造了前提条件。于是我们将重叠的、只与`j`有关的部分$\text{dp}[j]+b[j]$提取出来，记为`ds[i]`。在计算`ds[i]`的过程中，我们只关心最`min`/`max`的一批`j`，因此使用单调队列就是顺理成章的事情。每个$\forall j\in[1,n]$只会入队并出队一次，因此计算一整批`ds[*]`的时间复杂度是$O(n)$。而每个单调队列转移到`dp[i]`的时间复杂度是$O(1)$，两者相乘，得到整体时间复杂度为$O(n)$。
 
 **由于STL提供的双端队列`std::deque`效率十分低下，所以实际编程时通常使用自己打的板子**。
 
@@ -3610,15 +3610,60 @@ $$
 		\text{dp}[i - 1] \\
 		\text{dp}[i-j-1] + \displaystyle\sum_{k=i-j+1}^{i}a[i]
 	\end{cases} \\
-	& = \max_{\forall j\in[i-k,i]}\left(
+	& = \max_{\forall j\in[i-k,i], j\ge 1}\left(
 		\text{dp}[j-1] + \text{a\_prefixsum}[i] - \text{a\_prefixsum}[j]
 	\right) \\
-	& = \textcolor{red}{\max_{\forall j\in[i-k,i]}\left(
+	& = \textcolor{red}{\max_{\forall j\in[i-k,i], j\ge 1}\left(
 		\text{dp}[j-1] - \text{a\_prefixsum}[j]
 	\right)} + \text{a\_prefixsum}[i] \\
-	& = \textcolor{red}{\text{ds}[i]} + \text{a\_prefixsum}[i]
+	& = \textcolor{red}{\max_{\forall j\in[i-k,i], j\ge 1}\left(
+		\text{ds}[j]
+	\right)} + \text{a\_prefixsum}[i] \\
+	& = \textcolor{red}{\text{ds\_max}[i]} + \text{a\_prefixsum}[i]
 \end{align}
 $$
+
+其中`ds_max[i]`从单调队列头指针直接获得。在具体的代码实现中，双端队列的排列依据虽然是`ds[j]`，但是为了维护`j`的所属区间，队列中实际储存的是下标`j`，而不是`ds[j]`，只有在比较时才根据`j`现场查找`ds[j]`。
+
+`ds[]`的初始值藏着很大的坑。如果初始时队列为空，那么`dp[1]=dp[0]-a_prefixsum[1]+a_prefixsum[1]`，计算得到`dp[i]==0`。然而显然正确答案是`dp[1]==x[i]`。问题出在哪儿呢？观察转移方程最初的形态：
+
+$$
+\text{dp}[i] = \max_{\forall j\in[1,k]} \begin{cases}
+	\text{dp}[i - 1] \\
+	\text{dp}[i-j-1] + \displaystyle\sum_{k=i-j+1}^{i}a[i]
+\end{cases} \overset{\text{代入}i=j=1}{\Longrightarrow} 
+	\text{dp}[-1] + a[1]
+$$
+
+只要我们广义地认为`dp[-1]==0`就没问题，这对应着不选第`i`种物品的情况。在后续的变形中，当$j=0$时也复现了上面的情况。然而为了防止`dp[j-1]->dp[-1]`越界，导致`ds[j]->ds[0]`也发生越界，$j\in[i-k,i], j\ge 1$在无形之中排除了这种情况。因此我们迫切想要让`dp[-1]`（也代表着`ds[0]`）成为一个有意义的概念来参与到决策中。
+
+原先只有`ds[1->i]`有资格进出双端队列，现在`ds[0]`也可以了，扩充定义后显然`ds[0]=dp[-1]-a_prefixsum[0]=0`。于是在对`i:[1->n]`遍历前，我们在初始化阶段就让`ds[0]`入队。
+
+```c++
+const int N_MAX = 1e5;
+long long int n, k, a_prefixsum[N_MAX + 1], ds[N_MAX + 1], dp[N_MAX + 1];
+int deque[N_MAX + 1], deque_head = 0, deque_tail = 1;
+int main() {
+    std::cin >> n >> k;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> a_prefixsum[i];
+        a_prefixsum[i] += a_prefixsum[i - 1];
+    }
+    // ds[0] = 1e18;
+    for(int i = 1; i <= n; ++i) {
+        ds[i] = dp[i - 1] - a_prefixsum[i];
+        while(deque_head < deque_tail && ds[deque[deque_tail - 1]] < ds[i]) {
+            deque_tail--;
+        }
+        deque[deque_tail++] = i;
+        while(deque_head < deque_tail && deque[deque_head] < i - k) {
+            deque_head++;
+        }
+        dp[i] = ds[deque[deque_head]] + a_prefixsum[i];
+    }
+    std::cout << dp[n];
+}
+```
 
 # §3 搜索
 
