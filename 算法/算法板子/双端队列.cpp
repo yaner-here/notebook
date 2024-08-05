@@ -1,4 +1,4 @@
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 
 /**
  * 连续数组空间上的循环双端队列
@@ -40,7 +40,7 @@ template<typename T, std::size_t MAX_SIZE> class Deque {
 
 /**
  * 双向链表上的双端队列，时空常数都较大，不推荐使用
-*/
+ */
 template<typename T> class LinkedDeque {
   private:
     struct LinkedNode {
@@ -115,9 +115,7 @@ template<typename T> class LinkedDeque {
         if(is_empty()) { throw std::out_of_range("Out of Range"); }
         unsafe_pop_back();
     }
-    inline T unsafe_front() {
-        return this->head->data;
-    }
+    inline T unsafe_front() { return this->head->data; }
     inline T safe_front() {
         if(is_empty()) {
             throw std::out_of_range("Out of Range");
@@ -125,9 +123,7 @@ template<typename T> class LinkedDeque {
         }
         return unsafe_front();
     }
-    inline T unsafe_back() {
-        return this->rear->data;
-    }
+    inline T unsafe_back() { return this->rear->data; }
     inline T safe_back() {
         if(is_empty()) {
             throw std::out_of_range("Out of Range");
@@ -150,14 +146,14 @@ template<typename T> class LinkedDeque {
 
 const int M_MAX = 1e6;
 LinkedDeque<int> deque[M_MAX + 1];
-int q, x, y;
+int deque, x, y;
 char str[100];
 int main() {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
     std::cout.tie(nullptr);
-    std::cin >> q;
-    while(q--) {
+    std::cin >> deque;
+    while(deque--) {
         std::cin >> str >> x;
         if(std::strcmp(str, "push_back") == 0) {
             std::cin >> y;
