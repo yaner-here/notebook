@@ -145,32 +145,32 @@ template<typename T> class LinkedDeque {
 };
 
 const int M_MAX = 1e6;
-LinkedDeque<int> deque[M_MAX + 1];
-int deque, x, y;
+LinkedDeque<int> deque_ds[M_MAX + 1];
+int deque_ds, x, y;
 char str[100];
 int main() {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
     std::cout.tie(nullptr);
-    std::cin >> deque;
-    while(deque--) {
+    std::cin >> deque_ds;
+    while(deque_ds--) {
         std::cin >> str >> x;
         if(std::strcmp(str, "push_back") == 0) {
             std::cin >> y;
-            deque[x].push_back(y);
+            deque_ds[x].push_back(y);
         } else if(std::strcmp(str, "pop_back") == 0) {
-            if(!deque[x].is_empty()) { deque[x].unsafe_pop_back(); }
+            if(!deque_ds[x].is_empty()) { deque_ds[x].unsafe_pop_back(); }
         } else if(std::strcmp(str, "push_front") == 0) {
             std::cin >> y;
-            deque[x].push_front(y);
+            deque_ds[x].push_front(y);
         } else if(std::strcmp(str, "pop_front") == 0) {
-            if(!deque[x].is_empty()) { deque[x].unsafe_pop_front(); }
+            if(!deque_ds[x].is_empty()) { deque_ds[x].unsafe_pop_front(); }
         } else if(std::strcmp(str, "size") == 0) {
-            std::cout << deque[x].size() << '\n';
+            std::cout << deque_ds[x].size() << '\n';
         } else if(std::strcmp(str, "front") == 0) {
-            if(!deque[x].is_empty()) { std::cout << deque[x].unsafe_front() << '\n'; }
+            if(!deque_ds[x].is_empty()) { std::cout << deque_ds[x].unsafe_front() << '\n'; }
         } else if(std::strcmp(str, "back") == 0) {
-            if(!deque[x].is_empty()) { std::cout << deque[x].unsafe_back() << '\n'; }
+            if(!deque_ds[x].is_empty()) { std::cout << deque_ds[x].unsafe_back() << '\n'; }
         }
     }
 }
