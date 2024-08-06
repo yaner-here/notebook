@@ -3600,6 +3600,20 @@ $$
 
 **由于STL提供的双端队列`std::deque`效率十分低下，所以实际编程时通常使用自己打的板子**。
 
+> [洛谷P1725](https://www.luogu.com.cn/problem/P1725)：给定无穷多个从0开始递增编号的格子，排成一行，每个格子的上都有价值`a[i]`。起始时从第零个格子出发，每回合向前移动的距离必须在闭区间`[l, r]`内，每到达一个格子就会获得对应的价值。如果所在的格子编号大于`n`，则停止拾取当前格子的价值，并结束前进过程。求总价值最大值。
+
+扩充`dp[]`的下标含义，允许为负数，对应的`dp[-?]`全部为0，则显然状态转移方程为：
+
+$$
+\begin{align}
+	\text{dp}[i] 
+	& = \max_{j\in[i-r,i-l]} \left( \text{dp}[j] + a[i] \right)
+	= \max_{j\in[i-r,i-l]} \left( \text{dp}[j] \right) + a[i] \\
+	& = \max_{j\in[i-r,i-l]} \left( \text{ds}[j] \right) + a[i]
+	= \text{ds\_max}[i] + a[i]
+\end{align}
+$$
+
 > [洛谷P2627](https://www.luogu.com.cn/problem/P2627)：给定一个长度为`n`数组`a[]`，从中选出某个子序列（可以不连续地选），要求子序列中的数字在原数组中连续相同部分的长度最大为`k`。在所有符合条件的子序列中，求子序列各元素之和的最大值。
 
 令`dp[i]`表示给定前`i`个元素时，符合条件的子序列的各元素之和最大值。由于引入了第`i`个元素，所以我们要考虑第`i`个元素是否参与构成了连续相同部分。如果构成了，则构成的连续部分的长度至多为`k`，且与前面的连续部分之间至少要间隔一个元素；如果没构成，则直接从`dp[j-1]`转移而来。因此可以得出状态转移方程：
@@ -3649,7 +3663,6 @@ int main() {
         std::cin >> a_prefixsum[i];
         a_prefixsum[i] += a_prefixsum[i - 1];
     }
-    // ds[0] = 1e18;
     for(int i = 1; i <= n; ++i) {
         ds[i] = dp[i - 1] - a_prefixsum[i];
         while(deque_head < deque_tail && ds[deque[deque_tail - 1]] < ds[i]) {
@@ -3662,6 +3675,92 @@ int main() {
         dp[i] = ds[deque[deque_head]] + a_prefixsum[i];
     }
     std::cout << dp[n];
+}
+```
+
+> [洛谷P1776](https://www.luogu.com.cn/problem/P1776)：给定容量为`capacity`的背包，`n`种数量为`count[i]`的，体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
+
+这是一道多重背包问题，我们已经知道了它的二进制拆分解法的时间复杂度为$O(\text{capacity}\times n\times \log(\text{count}[i]))$。接下来我们使用单调队列将其优化到$O(\text{capacity}\times n)$。
+
+未经二进制拆分优化的状态转移方程为：
+
+$$
+\text{dp}[j] = \max_{k\in[1,\lfloor\frac{j}{\text{cost}[i]}\rfloor]}\left(
+	\text{dp}[j], \text{dp}[j - k\times\text{cost}[i]] + k \times \text{count}[i]
+\right)
+$$
+
+乍一看该状态转移方程与单调队列优化的通用格式相差甚远。这是因为按照`j`的循环遍历顺序，`dp[j-k×cost[i]]`使用的`j-k×cost[i]`的所有可能取值构成的集合，既不是一个连续的区间，也没有发生重叠。
+
+```
+     ┏━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━┓
+j   :┃...┃j-2×cost[i]┃             ┃             ┃j-1×cost[i]┃...┃
+     ┣━━━╋━━━━━━━━━━━╋━━━━━━━━━━━━━╋━━━━━━━━━━━━━╋━━━━━━━━━━━╋━━━┫
+j+1 :┃...┃           ┃j+1-2×cost[i]┃             ┃           ┃...┃
+     ┣━━━╋━━━━━━━━━━━╋━━━━━━━━━━━━━╋━━━━━━━━━━━━━╋━━━━━━━━━━━╋━━━┫
+j+2 :┃...┫           ┃             ┃j+2-3×cost[i]┃           ┃...┃
+     ┗━━━┻━━━━━━━━━━━┻━━━━━━━━━━━━━┻━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━┛
+```
+
+这是因为我们认为`j:[capacity->1]`每次递减1。如果每次递减`cost[i]`，则又能观察到重叠现象。这提醒我们，只有`j%capacity`相同的一批`j`才能参与到单调队列的优化。具体来说，从最原始的状态转移方程可以看出，在前`i-1`种物品的基础上给定第`i`种物品，那么第`i`种物品最多能买$\text{k\_max}=\lfloor\frac{j}{\text{cost}[i]}\rfloor$个。令$\text{mod}$表示当前预算$j$与价格$\text{cost}[i]$的余数，则`k_max`就是除法结果向下取整（即$j\div\text{cost}[i]=\text{k\_max}\cdots \text{mod}$）。基于这样的思想，对于任意第`i`个物品，我们都可以将`j`拆成`k_max×cost[i]+mod`两部分相加。于是改写状态转移方程为：
+
+$$
+\begin{cases}
+\forall j\in[0, \text{capacity}], 即 \forall\text{mod}\in[0,\text{capacity}), \forall\text{k\_max}\in[0,\lfloor\frac{\text{capacity}}{\text{cost}[i]}\rfloor], \\
+\begin{align}
+	\text{dp}[\text{k\_max}\times\text{cost}[i]+\text{mod}] & =
+		\max_{\forall \textcolor{red}{k}\in[0, \min(\text{count}[i], \text{k\_max})]}\left(
+			\text{dp}[\text{k\_max}\times\text{cost}[i] + \text{mod} - \textcolor{red}{k\times\text{cost}[i]}] + \textcolor{red}{k\times\text{value}[i]}
+		\right) \\
+	& = \max_{\forall \textcolor{red}{k}\in[0, \min(\text{count}[i], \text{k\_max})]}\left(
+		\text{dp}[(\text{k\_max}\textcolor{red}{-k}) \times \text{cost}[i] + \text{mod}] + \textcolor{red}{k\times\text{value}[i]}
+	\right) \\
+	& \text{令}j = \text{k\_max} - k, \text{使得}\text{dp}[\text{k\_max}-k]以\text{k\_max}-k为自变量 \\
+	& = \max_{\forall \textcolor{red}{j}\in[
+			\text{k\_max}-\min(\text{count}[i],\text{k\_max}), \text{k\_max}
+		]}\left(
+		\text{dp}[j \times \text{cost}[i] + \text{mod}] + \textcolor{red}{(\text{k\_max} - j)\times\text{value}[i]}
+	\right) \\
+	& = \max_{\forall j\in[
+			\textcolor{yellow}{\text{k\_max}-\min(\text{count}[i],\text{k\_max})}, \text{k\_max}
+		]}\left(
+		\textcolor{green}{\text{dp}[j \times \text{cost}[i] + \text{mod}] - j \times \text{value}[i]} + \text{k\_max} \times \text{value}[i]
+	\right) \\
+	& = \max_{\forall j\in[
+			\textcolor{yellow}{\max(0, \text{k\_max} - \text{count}[i])}, \text{k\_max}
+		]}\left(
+		\textcolor{green}{\text{ds}[j]} + \text{k\_max} \times \text{value}[i]
+	\right) \\
+	& = \textcolor{green}{\text{ds\_max}[i]} + \text{k\_max} \times \text{value}[i] \\
+\end{align}
+\end{cases}
+$$
+
+这证明了我们可以使用单调队列来进行优化。这里的`j`是我们为了证明而强行构造的中间变量，在实际代码中我们还是直接使用原始的变量`k`进行遍历。
+
+```c++
+const int N_MAX = 100000;
+int n, capacity, dp[N_MAX + 1], deque_ds[N_MAX + 1], deque_j[N_MAX + 1];
+int main() {
+    std::cin >> n >> capacity;
+    for(int i = 1; i <= n; ++i) {
+        int value, cost, count;
+        std::cin >> value >> cost >> count;
+        int k_max = capacity / cost;
+        for(int mod = 0; mod < cost; ++mod) {
+            int deque_head = 0, deque_tail = 0;
+            for(int k = 0; k <= k_max; ++k) {
+                int ds_temp = dp[mod + k * cost] - k * value;
+                while(deque_head < deque_tail && deque_ds[deque_tail - 1] <= ds_temp) { --deque_tail; }
+                deque_ds[deque_tail] = ds_temp;
+                deque_j[deque_tail] = k;
+                ++deque_tail;
+                while(deque_head < deque_tail && deque_j[deque_head] < std::max(0, k - count)) { ++deque_head; }
+                dp[mod + k * cost] = deque_ds[deque_head] + k * value;
+            }
+        }
+    }
+    std::cout << dp[capacity];
 }
 ```
 
