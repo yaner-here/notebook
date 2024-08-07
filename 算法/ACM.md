@@ -3602,7 +3602,7 @@ $$
 
 > [洛谷P1725](https://www.luogu.com.cn/problem/P1725)：给定无穷多个从0开始递增编号的格子，排成一行，每个格子的上都有价值`a[i]`。起始时从第零个格子出发，每回合向前移动的距离必须在闭区间`[l, r]`内，每到达一个格子就会获得对应的价值。如果所在的格子编号大于`n`，则停止拾取当前格子的价值，并结束前进过程。求总价值最大值。
 
-扩充`dp[]`的下标含义，允许为负数，对应的`dp[-?]`全部为0，则显然状态转移方程为：
+一种思路是对`i`从前往后遍历（`i:1->n`）。令`dp[i]`表示给定前`i+1`个格子，最终恰好落在第`i`个格子并停止前进时，获得的总价值最大值。扩充`dp[]`的下标含义，允许为负数，对应的`dp[<0]`全部为0，则显然状态转移方程为：
 
 $$
 \begin{align}
@@ -3613,6 +3613,145 @@ $$
 	= \text{ds\_max}[i] + a[i]
 \end{align}
 $$
+
+我们使用单调队列来维护所求的最大值。对于一次新的回合`i`，需要把新元素`a[i-l]`放入队列中，将超出范围（即`i-r`）的元素移出队列。
+
+```c++
+while(deuqe_head < deque_tail && dp[deque[deque_tail - 1]] < dp[i - l]) { 
+    --deque_tail; 
+}
+deque[deque_tail++] = i - l;  
+while(deuqe_head < deque_tail && deque[deuqe_head] < i - r) { 
+    ++deuqe_head; 
+}
+```
+
+然后考虑初始化。当`0<i<l`时，这些格子无法到达，因此不必参与状态转移。这种思路的陷阱在于：并不是每个`i`都有资格进行转移，只有从第`0`的数字出发，能被`[i+l,i+r]`的区间覆盖的`i`才有资格进行转移。如果`dp[]`初始时全都为0，则对于`l=r=2`的输入样例，最优方案可能是从第`1`个数字出发，然而这个数字根本不可能到达，更别提从上面出发了。为了解决这一问题，`dp[0]`初始为`a[0]`，其它的`dp[1->n]`初始为负无穷大，表示都不可到达。由于`dp[0]=0`，所以只有可以转移的状态`i`才有机会摆脱负无穷大的限制，从而在`std::max()`的竞争中脱颖而出。
+
+最后，如果位置已经非常靠近终点，在这一步既可以向前再吃一个格子，也可以直接跳出`>n`结束回合，那么就假设直接跳出终点，记录此时的价值最大值。你可能认为可以再贪一个格子，但是贪完之后仍然符合上述条件，同样能记录最终的价值最大值。
+
+```c++
+const int N_MAX = 2e5;
+int n, l, r, a[N_MAX + 1], dp[N_MAX + 1];
+int deque[N_MAX + 1], deuqe_head = 0, deque_tail = 0;
+int main() {
+    std::cin >> n >> l >> r;
+    for(int i = 0; i <= n; ++i) { std::cin >> a[i]; }
+    int result = 0xcfcfcfcf;
+    memset(dp, 0xcf, sizeof(dp));
+    dp[0] = a[0];
+    for(int i = l; i <= n; ++i) {
+        while(deuqe_head < deque_tail && dp[deque[deque_tail - 1]] < dp[i - l]) { --deque_tail; }
+        deque[deque_tail++] = i - l;   
+        while(deuqe_head < deque_tail && deque[deuqe_head] < i - r) { ++deuqe_head; }
+        dp[i] = dp[deque[deuqe_head]] + a[i];
+        if(i + r > n) {
+            result = std::max(result, dp[i]);
+        }
+    }
+    std::cout << result;
+}
+```
+
+另一种思路是对`i`从后往前遍历（`i:n->1`）。令`dp[i]`表示令第`i`个数为起点，能获得的最大价值。于是有状态转移方程：
+
+$$
+\text{dp}[i] = \max_{j\in[i+l, i+r]}\left( \text{dp}[j] \right) + a[i]
+$$
+
+我们使用单调队列来维护所求的最大值。对于一次新的回合`i`，需要把新元素`a[i+l]`放入队列中，将超出范围（即`i+r`）的元素移出队列。
+
+```c++
+while(deque_head < deque_tail && a[deque[deque_tail - 1]] < a[i + l]){ 
+    --deque_tail; 
+}
+deque[deque_tail++] = i + l;
+while(deque_head < deque_tail && deque[deque_head] > i + r) {
+    ++deque_head; 
+}
+```
+
+观察状态转移方程的特点，一种空间压缩方法是让`dp[]`和`a[]`共用同一块空间，让`a[i] += ds_max[i]`，自增后的`a[i]`就实际上表示着`dp[i]`。由于`dp[>n]`时全部为0，所以当`i>n-l`时，`dp[i]`一旦前进就会超出`n`的限制，因此只能获取当前格子的价值，全部为`a[i]`。结合上面的空间压缩方法，无需对这部分`i`进行遍历，只需遍历`dp[i:[0->n-l]]`即可。
+
+初始时，队列中必须包含一个元素`j=n+1`（所以数组`deque[]`需要多开一个空间用于存储，`a[]`需要多开一个空间用于索引），这是为了防止新入队的元素`a[(n-l)+l]==a[n]`为负数，导致`ds_max[n-l]`从队首取元素时取到负数，这表示从`a[n-l]`跳到`a[n]`，然而实际上可以跳到`a[n+1->n+r]`的任意位置，因此`ds_max[n-l]`最小应该为`0`。为了解决这一问题，我们初始时给队列新加一个空元素即可。
+
+```c++
+const int N_MAX = 2e5;
+int n, l, r, a[N_MAX + 2]; // 多开一个空间，记录队列初始元素
+int deque[N_MAX + 2], deque_head = 0, deque_tail = 0; // 多开一个空间，用于a[deque[deque_head]]==a[n+1]进行索引
+int main() {
+    std::cin >> n >> l >> r;
+    for(int i = 0; i <= n; ++i) { std::cin >> a[i]; }
+    deque[deque_tail++] = n + 1;
+    for(int i = n - l; i >= 0; --i) {
+        while(deque_head < deque_tail && a[deque[deque_tail - 1]] < a[i + l]) { --deque_tail; }
+        deque[deque_tail++] = i + l;
+        while(deque_head < deque_tail && deque[deque_head] > i + r) { ++deque_head; }
+        a[i] = a[i] + a[deque[deque_head]];
+    }
+    std::cout << a[0];
+}
+```
+
+> [洛谷P3957](https://www.luogu.com.cn/problem/P3957)：给定位于数轴原点的起点，和`n`个排成一行的宝箱。每个宝箱里都有价值`a[i]`，距离起点的距离为`x[i]`。初始时从起点出发，每次都能向右移动$[\max(1,d-g),d+g]$中的任意距离，如果移动后的位置上有宝箱，则获得其中的价值。现要求总价值至少为`k`，求`g`的最小值。
+
+令`dp[i]`表示给定前`i`个宝箱，从起点出发，最终达到第`i`个宝箱，能获得的总价值最大值。易得状态转移方程：
+
+$$
+\text{dp}_{g}[i] = \min_{\textcolor{red}{x[j]}\in[i + \max(1,d-g), i + d + g]} \left(
+	\text{dp}_{g}[j]
+\right) + a[i]
+$$
+
+仿照上题，实时维护总价值最大值作为最终答案$\text{result}(g)$，显然这是一个非严格单调自增函数，题目求的是$\underset{g}{\text{argmin}}(\text{result}(g)\ge k)$，显然可用二分查找。`g`的左边界`g_left`最左显然为`0`。随着`g`的增大，区间$[i+\max(1,d-g), i+d+g]\subseteq[0,x[n]]$可能会碰到左边界`0`，也可能碰到右边界`x[n]`，因此`g_right = max(d, x[n]-d)`能保证同时触碰到这两个边界。
+
+本题的一个很大的变动在于宝箱直接不是紧挨的，而是引入了`x[i]`这个距离。于是在某些极端情况下，两个宝箱之间的距离太大，以至于超出了最远移动距离`d+g`，导致后面的宝箱都无法到达，不能参与状态转移。针对这一点，我们维护一个实时宝箱个数`n_valid`，表示从前往后数，第一个不能入队的宝箱序号（详见下图）。值得注意的是在`g`特别大的情况下，`n_valid`可能会大于`i`，这也符合状态转移方程的特点。令`n_valid`初始值为0。这里我们认为原点处有一个价值为`0`的宝箱，不造成干扰。
+
+```
+┏━━━━┯━━━━┯━━━━┯━━━━┯━━━━┯━━━━┓┄┄┄┄┄┄┄┏━━━━┓
+┃tail│    │    │    │    │head┃不能入队┃ i  ┃
+┗━━━━┷━━━━┷━━━━┷━━━━┷━━━━┷━━━━┛┄┄┄┄┄┄┄┗━━━━┛
+ 出队                      入队 
+```
+
+对`i`进行从小到大的遍历（即`dp[i:1->n]`）。考虑使用单调队列优化。令`deque[]`储存`x[j]`在目标区间内的所有`j`：
+
+- 入队元素：入队的元素`j`必须在当前`i`对应的区间中，具体来说是不能超出右边界，即`x[n_valid]`要保证恰好超出边界，也就是说`x[n_valid] + l > x[i]`。在这轮`n_valid`递增更新的过程中，每个`n_valid-1`都是合法的宝箱序号，应该入队。
+- 出队元素：如果队头元素对应的宝箱，无法直接转移到现在的第`i`个元素（即`x[deque[deque_head]] + r < x[i]`），则队头已经不能满足要求，应该出队。
+- **不可达性判定**：有些宝箱可能根本不能到达。在上题中，我们的方案是给每个`dp[1->n]`都设为负无穷，`dp[0]`初始可达设为`0`。在本题中，我们换一种思路：**如果队列为空，则说明不存在任何一个宝箱`j`能直接转移到当前宝箱`i`，因此这时的`dp[i]`就当成设置成负无穷。**
+
+```c++
+const int N_MAX = 5e5;
+int n, d, k, x[N_MAX + 1], a[N_MAX + 1], deque[N_MAX + 1];
+long long int dp[N_MAX + 1];
+int main() {
+    std::cin >> n >> d >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i] >> a[i]; }
+    int g_left = 1, g_right = std::max(x[n] - k, x[n]), ans = -1;
+    while(g_left <= g_right) { // 开始二分
+        int g_mid = (g_left + g_right) >> 1;
+        int l = std::max(1, d - g_mid), r = d + g_mid, n_valid = 0, deque_head = 0, deque_tail = 0;
+        long long int result = 0;
+        for(int i = 1; i <= n; ++i) { // 给定g(也就是mid)，进行dp转移
+            while(n_valid < n && l + x[n_valid] <= x[i]) {
+                while(deque_head < deque_tail && dp[deque[deque_tail - 1]] < dp[n_valid]) { --deque_tail; }
+                deque[deque_tail++] = n_valid;
+                ++n_valid;
+            }
+            while(deque_head < deque_tail && x[deque[deque_head]] + r < x[i]) { ++deque_head; }
+            dp[i] = (deque_head == deque_tail ? -1e18 : a[i] + dp[deque[deque_head]]);
+            result = std::max(result, dp[i]);
+        }
+        if(result >= k) { // 二分指针移动
+            ans = g_mid;
+            g_right = g_mid - 1;
+        } else {
+            g_left = g_mid + 1;
+        }
+    }
+    std::cout << ans;
+}
+```
 
 > [洛谷P2627](https://www.luogu.com.cn/problem/P2627)：给定一个长度为`n`数组`a[]`，从中选出某个子序列（可以不连续地选），要求子序列中的数字在原数组中连续相同部分的长度最大为`k`。在所有符合条件的子序列中，求子序列各元素之和的最大值。
 
