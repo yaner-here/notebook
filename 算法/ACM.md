@@ -10,7 +10,7 @@
 int a = max({9, 9, 12, 97301, 937});
 ```
 
-还有，`printf` 支持输出保留小数点位数的数，但是很多人不知道 `cout` 也可以，但是需要包含头文件 `iomanip`，代码：
+还有，`printf` 支持输出保留小数点位数的数，其实 `std::cout` 也可以，但是需要包含头文件 `iomanip`，代码：
 
 ```cpp
 cout << fixed << setprecision(位数) << 值;
@@ -18,14 +18,14 @@ cout << fixed << setprecision(位数) << 值;
 
 ## §1.2 `<algorithm>`
 
-### §1.2.1 `std::sort()`
+### §1.2.1 `std::sort`
 
 `std::sort(Iterator begin, Iterator end)`默认从小到大排序。
 
 ### §1.2.2 `std::lower_bound()`/`std::upper_bound()`
 
 > [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound(Iterator begin, Iterator end, T value)`返回非严格单调递增容器从`begin`到`end`遍历，找到第一个大于等于`value`的位置，并返回这个位置的迭代器。
->
+
 > [CppReference](https://zh.cppreference.com/w/cpp/algorithm/upper_bound)：`std::upper_bound(Iterator begin, Itertor end, T value)`返回非严格单调递增容器从`begin`到`end`遍历，找到第一个大于`value`的位置，并返回这个位置的迭代器。
 
 这个最简单的定义没有涉及到STL实现这两个二分查找函数的本质。我们给出它们的完整签名：
@@ -48,9 +48,9 @@ std::upper_bound(
 )
 ```
 
-`std::lower_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(forth_value, value)`时返回`true`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(back_value, value)`时返回`false`，则返回从`first`到`last`的第一个使得函数或Lambda表达式返回`false`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
+> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(forth_value, value)`时返回`true`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(back_value, value)`时返回`false`，则返回从`first`到`last`的第一个使得函数或Lambda表达式返回`false`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
 
-`std::upper_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(value, forth_value)`时返回`false`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(value, back_value)`时返回`true`，则返回从`first`到`last`的最第一个使得函数或Lambda表达式返回`true`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
+> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/upper_bound)：`std::upper_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(value, forth_value)`时返回`false`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(value, back_value)`时返回`true`，则返回从`first`到`last`的最第一个使得函数或Lambda表达式返回`true`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
 
 STL提供了以下预置的比较函数：
 
@@ -63,6 +63,37 @@ STL提供了以下预置的比较函数：
 
 - 给定递增容器`int a[5] = {0, 1, 2, 3, 4}`，使用`std::lower_bound(a, a + 5, 2)`的效果。首先函数或Lambda表达式没有指定，因此缺省为`std::less<int>()`。序列的首部元素值能满足`iter_value < 2`，末尾元素值不能满足`iter_value < 2`，因此符合`std::lower_bound()`对容器的元素排序要求。容易发现，第一个能让`iter_value < 2`为`false`的元素就是`a[2]`本身，因此返回`(int*)(a+2)`。
 - 给定递减容器`int a[5] = {4, 3, 2, 1, 0}`，使用`std::upper_bound(a, a + 5, 2, std::greater<int>())`的效果。序列的首部元素`iter_value`较大，能使得`2 > iter_value`返回`false`；末尾元素的`2 > iter_value`为`true`，因此符合`std::upper_bound()`对容器的元素排序要求。容易发现，最后一个能让`iter_value > 2`为`true`的元素是`a[3]`，因此返回`(int*)(a+3)`。
+
+如果要在不使用STL的情况下，或者无法使用迭代器时，为了查找二分查找的左指针和右指针，我们给出以下模版：
+
+$$
+\begin{array}{|c|c|c|c|c|c|}
+	\hline \text{true} & \text{true} & \text{true} & \text{false} & \text{false} & \text{false} \\
+	\hline & & \underset{\text{左指针}}{\uparrow} & \underset{\text{右指针}}{\uparrow} & & \\
+	\hline
+\end{array}
+$$
+
+```c++
+bool valid(int x){
+	return ...;
+}
+
+int left = 0, right = 9;
+int left_pointer = left - 1, right_pointer = right + 1;
+while(left <= right) {
+    int mid = (left + right) / 2;
+    if(valid(mid)) {
+        left_pointer = mid;
+        left = mid + 1;
+    } else {
+        right_pointer = mid;
+        right = mid - 1;
+    }
+}
+std::cout << left_pointer << '\n';
+std::cout << right_pointer << '\n';
+```
 
 # §2 动态规划
 
@@ -573,7 +604,7 @@ int main(){
 }
 ```
 
-> [洛谷P1541](https://www.luogu.com.cn/problem/P1541)：给定一个`1×n`的棋盘，起点和终点在棋盘两侧。每个格子都有分数，每回合选择一个前进1步、2步、3步、4步的机会，这四种机会的上线分别为`card[1]`、`card[2]`、`card[3]`、`card[4]`。求分数最大值。
+> [洛谷P1541](https://www.luogu.com.cn/problem/P1541)：给定一个`1×n`的棋盘，起点和终点在棋盘两侧。每个格子都有分数，每回合选择一个前进1步、2步、3步、4步的机会，这四种机会的使用次数上限分别为`card[1]`、`card[2]`、`card[3]`、`card[4]`。求分数最大值。
 
 令`dp[a][b][c][d]`表示这四种机会分别使用了`a`、`b`、`c`、`d`次，达到第`1+1×a+2×b+3×c+4×d`个格子时，能达到的最大值。
 
@@ -1709,8 +1740,8 @@ for(int i = n; i >= 1; --i){
   重量代价：1 阻力代价：1 价值：1
   ```
   容易发现`1 3`和`2`这两种物品选择方案都能让总价值最大化，但是题目要求输出字典序最小的`1 3`。这要求我们在遍历到`i=3`，也就是第3个物品时，注意到存在一个更靠前的已选1号物品。形式化地：
-  - 在判断未结束的情况下，如果存在一个已选`l`号物品（即$\exist l\in[1, i$），使得`is_selected[l][j][k] && !is_selected[l][j-weight[i]][k-friction[i]]`成立，那么说明在总价值相同的情况下，选择第`i`个物品会使得第`l`个物品不能被选择，根据引理1可知，这会使得在总价值不变的情况下增大字典序，因此不能选择第`i`个物品，至此判断完成。
-  - 在判断未结束的情况下，如果存在一个已选`l`号物品（即$\exist l\in[1, i$），使得`!is_selected[l][j][k] && is_selected[l][j-weight[i]][k-friction[i]]`成立，则选择第`i`个物品会使得第`l`个物品被选中，这符合引理2的情况。因此需要选择第`i`个物品，至此判断完成。
+  - 在判断未结束的情况下，如果存在一个已选`l`号物品（即$\exists l\in[1, i$），使得`is_selected[l][j][k] && !is_selected[l][j-weight[i]][k-friction[i]]`成立，那么说明在总价值相同的情况下，选择第`i`个物品会使得第`l`个物品不能被选择，根据引理1可知，这会使得在总价值不变的情况下增大字典序，因此不能选择第`i`个物品，至此判断完成。
+  - 在判断未结束的情况下，如果存在一个已选`l`号物品（即$\exists l\in[1, i$），使得`!is_selected[l][j][k] && is_selected[l][j-weight[i]][k-friction[i]]`成立，则选择第`i`个物品会使得第`l`个物品被选中，这符合引理2的情况。因此需要选择第`i`个物品，至此判断完成。
   - 以上两种情况分别总结了前`i-1`个物品中某些“从不选到选”和“从选到不选”的过程。对于另外两种情况“一直选”和“一直不选”的情况，直接忽略即可。注意枚举顺序必须是从1到`i-1`，方向不能相反，因为我们的重心放在寻找最小字典序身上，而字典序由序号最小的物品决定。根据引理2可证：在这段枚举范围中，一定存在某个物品满足以上两种情况之一。
 
 ```c++
@@ -1759,6 +1790,7 @@ int main() {
 本题的物品是谁呢？仍然是`n`个理财方案。但本题的特殊之处在于，这是一道重复了`time_budget`次的完全背包问题。这是因为在前`i-1`个单位时间耗尽后，我们就得到了新的“初始资金”，此时抛开前`i-1`个单位时间不看，为了求解第`i`个单位时间的决策，我们可以认为问题转化为`time_bugdet`为1的情景。这类似于《概率论与数理统计》中的指数分布，都具有无记忆性。
 
 基于此`dp[i][j]`指的是前`i`个理财方案内，初始资金为`j`的最大**总纯收益**，为了计算最终资金，可以将总纯收益与初始本金相加就能得到。基于此可以写出状态方程：
+
 $$
 \text{dp}[i][j] = \max\Big(
 	\text{dp}[i-1][j], 
@@ -1845,7 +1877,7 @@ $$
 
    除了手动设置`dp[]`和`dp_old[]`数组外，也可以批量开辟`dp[2][]`，调用时使用模运算动态决定谁新谁旧：`dp[(n++)%2][]`。
 
-3. 常数优化的边界需要重新考虑。在0/1背包中，`dp[i][-1]`是没有意义的，一律判为$-\infin$，因此第二层循环的左边界为`0`（当然可以进一步常数优化为$\max\Big(\text{capacity}-\sum_{j=p}^{n}\text{volume}[j],\text{volume}[p]\Big)$），右边界为`capacity`。但是在本题中，负数索引有了意义。在下面的代码中，我们动态地扩充枚举范围，从$[0,0]$起步，以极限思维分别扩充左右边界——当代价为负时扩充左边界，当代价为正时扩充右边界。
+3. 常数优化的边界需要重新考虑。在0/1背包中，`dp[i][-1]`是没有意义的，一律判为$-\infty$，因此第二层循环的左边界为`0`（当然可以进一步常数优化为$\max\Big(\text{capacity}-\sum_{j=p}^{n}\text{volume}[j],\text{volume}[p]\Big)$），右边界为`capacity`。但是在本题中，负数索引有了意义。在下面的代码中，我们动态地扩充枚举范围，从$[0,0]$起步，以极限思维分别扩充左右边界——当代价为负时扩充左边界，当代价为正时扩充右边界。
 
 ```c++
 const long long int N_MAX = 50, CAPACITY_MAX = 1e6, OFFSET = CAPACITY_MAX;
@@ -2003,6 +2035,102 @@ int main(){
         }
     }
     std::cout << dp_final[t];
+}
+```
+
+> [洛谷P1504](https://www.luogu.com.cn/problem/P1504)：给定`n`组物品，每组物品均由`m[i]`个不同的物品构成，每个物品都有自己的价值`value[i]`。现在为使这`n`组物品的总价值相同，需要从中删除一些物品。求相同的总价值的最大值。
+
+令`dp[i][j]`表示给定某组物品的前`i`个物品，从中删除一些物品，总价值能否恰好为`j`。则针对是否选择第`i`个物品，显然有状态转移方程：
+
+$$
+\text{dp}[i][j] = \text{dp}[i-1][j] \vee \text{dp}[i-1][j-\text{value}[i]]
+$$
+
+对每一组物品都进行这样的操作，最后从大到小遍历价值，找出能被`n`组物品同时取得的价值即可。具体在代码实现上，我们可以使用一个数组`count[]`，记录有多少组物品可以取得某个价值，则满足`count[j]==n`的最大价值`j`即为所求。
+
+```c++
+const int N_MAX = 100, M_MAX = 100, BUDGET_MAX = 10000;
+int n, m, value[M_MAX + 2], count[BUDGET_MAX + 1];
+bool dp[BUDGET_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        m = 0;
+        while(true) {
+            std::cin >> value[++m];
+            if(value[m] == -1) { --m; break; }
+        }
+        int value_sum = 0;
+        std::fill_n(dp + 1, BUDGET_MAX, false);
+        dp[0] = true;
+        for(int j = 1; j <= m; ++j) {
+            value_sum += value[j]; // 常数优化
+            for(int k = value_sum; k >= value[j]; --k) {
+                dp[k] |= dp[k - value[j]];
+            }
+        }
+        for(int j = value_sum; j >= 0; --j) {
+            if(dp[j]) { ++count[j]; }
+        }
+    }
+    for(int i = BUDGET_MAX; i >= 0; --i) {
+        if(count[i] == n) {
+            std::cout << i;
+            return 0;
+        }
+    }
+}
+```
+
+> [洛谷P1586](https://www.luogu.com.cn/problem/P1586)：数学上可以证明：任意一个正整数`n`都可以分解成不超过四个正整数的平方和。给定一个正整数`n`，求满足以上定理的分解方案。
+
+本题可视为恰满计数背包的变体。令`dp[i][j]`表示正整数`n`分解成`j`个平方数的方案总数，则答案为`dp[n][1]+dp[n][2]+dp[n][3]+dp[n][4]`。状态转移方程为：
+
+$$
+\text{dp}[i][j] = \sum_{1\le k\le\sqrt{i}} \text{dp}[i - k^2][j - 1]
+$$
+
+初始值为`dp[0][0]=1`，其它状态均为`0`。本题的难点在于设计遍历顺序，以保证方案不重复。接下来看一种错误的解法：以`dp[5][2]`为例，对`k`进行遍历，容易发现`k=1`或`k=2`，于是`dp[5][2] = dp[4][1] + dp[1][1] = 1 + 1 = 2`，表面上看起来是两种方案，但是它们分别是`1^2+2^2`和`2^2+1^2`，本质上是完全重复的两种方案。
+
+```c++
+// 错误解法
+for(int i = 1; i <= N_MAX; ++i) {
+    for(int j = 1; j <= 4; ++j) {
+        for(int k = 1; k * k <= i; ++k) {
+            dp[i][j] += dp[i - k * k][j - 1];
+        }
+    }
+}
+```
+
+本题的关键是背包思想：给定若干个无限量供应的物品，代价分别为`1^2`、`2^2`、`3^2`、...。令`dp[i][j][k]`表示选择前`i`种物品中的`k`个物品，恰好装满代价限额为`j`的背包的方案总数。这样，我们就将所有方案划分成“包含物品第`1`种物品”、“包含物品第`2`种物品”、“包含物品第`3`种物品”、...的几种分类。于是有状态转移方程：
+
+$$
+\text{dp}[i][j][k] = \max(
+	\underset{选第i种物品}{\underbrace{\text{dp}[i][j - l^2][k-1]}},
+	\underset{不选第i种物品}{\underbrace{\text{dp}[i-1][j][k]}}
+)
+$$
+
+状态转移方程决定了：如果转移前的状态没有重复方案，则转移后的状态也没有重复状态。这样就解决了方案重复的问题。用滚动数组干掉`i`即可。
+
+```c++
+const int N_MAX = 32768;
+int t, n, dp[N_MAX + 1][5];
+int main() {
+    dp[0][0] = 1;
+    for(int i = 1; i * i <= N_MAX; ++i) { // 常数优化，不需要遍历那么多物品
+        for(int j = i * i; j <= N_MAX; ++j) { // 防止越界dp[j - i * i]越界
+            for(int k = 1; k <= 4; ++k) {
+                dp[j][k] += dp[j - i * i][k - 1];
+            }
+        }
+    }
+    std::cin >> t;
+    while(t--) {
+        std::cin >> n;
+        std::cout << std::accumulate(dp[n] + 1, dp[n] + 5, 0) << '\n';
+    }
 }
 ```
 
@@ -2252,6 +2380,63 @@ int main(){
 }
 ```
 
+### §2.2.4 子序列划分
+
+> [洛谷P1564](https://www.luogu.com.cn/problem/P1564)：给定一个仅由`0`/`1`构成的、长度为`n`的序列。现在要将其分割成`k`个连续的子序列，使得这些子序列中要么只由`0`或只由`1`组成，要么`0`/`1`出现频次之差小于等于`m`。求`k`的最小值。
+
+显然令`dp[i]`表示给定原始序列中的前`i`个元素，对应的`k`最小值。本题的难点在于设计状态转移方程。考虑包含第`i`个元素的连续子序列，假设该连续子序列是原始序列中的`[j, i]`一段，则可能存在以下情况：
+
+- 该连续子系列只包含`0`，不包含`1`。即$\displaystyle\sum_{k\in[j,i]}\text{count}_{1}[k] = 0$。
+- 该连续子序列只包含`1`，不包含`0`。即$\displaystyle\sum_{k\in[j,i]}\text{count}_0[k] = 0$。
+- 该连续子序列同时包含`0`和`1`，两者出现频次之差小于等于`m`。即$\left|\displaystyle\sum_{k\in[j,i]}\text{count}_{1}[k] - \displaystyle\sum_{k\in[j,i]}\text{count}_0[k]\right|\le m$。
+
+对于第`i`个元素，我们既可以无条件地另起炉灶，也可以有条件地继承前面的连续子序列。在前文中，我们令`j`为包含第`i`个元素的连续子序列的首元素下标，则第`j`个元素一定是另起炉灶的，于是有状态转移方程：
+
+$$
+\begin{align}
+	& \text{valid}(j, i) := 
+		\left( \sum_{k\in[j,i]}\text{count}_1[k]=0 \right) \vee
+		\left( \sum_{k\in[j,i]}\text{count}_0[k]=0 \right) \vee
+		\left( \left|\sum_{k\in[j,i]}\text{count}_{1}[k] - \displaystyle\sum_{k\in[j,i]}\text{count}_0[k]\right|\le m \right)
+		\\
+	& \text{dp}[i] = \min \begin{cases}
+		\text{dp}[i-1] + 1 & , \text{valid}(i,i) \\
+		\text{dp}[i-2] + 1 & , \text{valid}(i-1,i) \\
+		\cdots \\
+		\text{dp}[1] + 1 & , \text{valid}(2,i) \\
+		\text{dp}[0] + 1 & , \text{valid}(1,i) \\
+	\end{cases} = \min_{\forall j\in[1,i], \text{valid}(j,i)}\left(
+		\text{dp}[j-1] + 1
+	\right), \text{dp}[0] = 0
+\end{align}
+$$
+
+使用前缀和优化求和查询，最终时间复杂度为$O(n^2)$。
+
+```c++
+const int N_MAX = 2500;
+int n, m, a[N_MAX + 1], count_0_prefixsum[N_MAX + 1], count_1_prefixsum[N_MAX + 1], dp[N_MAX + 1];
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) {
+        count_0_prefixsum[i] = count_0_prefixsum[i - 1] + (a[i] == 1);
+        count_1_prefixsum[i] = count_1_prefixsum[i - 1] + (a[i] == 2);
+    }
+    memset(dp, 0x3f, sizeof(dp)); dp[0] = 0; dp[1] = 1;
+    for(int i = 2; i <= n; ++i) {
+        for(int j = 1; j <= i; ++j) {
+            int sum_0 = count_0_prefixsum[i] - count_0_prefixsum[j - 1];
+            int sum_1 = count_1_prefixsum[i] - count_1_prefixsum[j - 1];
+            if(sum_0 == 0 || sum_1 == 0 || std::abs(sum_0 - sum_1) <= m) {
+                dp[i] = std::min(dp[i], dp[j - 1] + 1);
+            }
+        }
+    }
+    std::cout << dp[n];
+}
+```
+
 ## §2.3 棋盘DP
 
 ### §2.3.1 棋盘贪吃蛇DP
@@ -2259,6 +2444,7 @@ int main(){
 > [洛谷P1004](https://www.luogu.com.cn/problem/P1004)：给定一个$n\times n$的二维棋盘，每个格子都有`bonus[i][j]`个食物。每次从左上角出发，到右下角结束，总共允许走两次，同一格的食物不能重复领取，求能够最多食物数量。
 
 令`dp[i][j][k][l]`表示第一遍从$(1,1)$走到$(i,j)$、第二遍从$(1,1)$走到$(k,l)$能得到的最多食物数量。因为食物不能重复领取，所以两个右下角重叠时（即`i==k&&j==l`），应该只加一份`bonus[i][j]`（即`bonus[k][l]`）。于是有状态转移方程：
+
 $$
 \text{dp}[i][j][k][l]=\begin{cases}
 	\textcolor{red}{\text{bonus}[i][j] + \text{bonus}[k][l]} + \max\Big(
@@ -2419,6 +2605,59 @@ int main(){
 }
 ```
 
+> [洛谷P1544](https://www.luogu.com.cn/problem/P1544)：给定一个形状类似于方阵下三角的棋盘（包含对角线），每个格子上都有价值`v[i][j]`（可以为负值）。初始时从左上角`(1,1)`出发，每回合只能向右或向右下角，且不超出棋盘范围，最终到达下方的任意一点`(n,*)`就立即停止。在出发之前，可以任意选择任意`k<=1e18`个格子，使上面的价值变成`3×value[i][j]`。求获得的价值最大值。
+
+令`dp[i][j][p]`表示到达第`(i,j)`个格子后，总共使用了`p`次机会，能达到的最大价值。显然有状态转移方程：
+
+$$
+\text{dp}[i][j][p] = \begin{cases}
+	\text{dp}[i-1][j][p] + v[i][j] \\ 
+	\text{dp}[i-1][j-1][p] + v[i][j] \\ 
+	\text{dp}[i-1][j][p-1] + 3\times v[i][j] & , p \ge 1 \\ 
+	\text{dp}[i-1][j-1][p-1] 3\times v[i][j] & , p \ge 1
+\end{cases}
+$$
+
+由于`v[i][j]`可能为负值，因此初始值为`dp[0][0][0]=0`，其他状态均为负无穷大。使用滚动数组压缩成两行时要注意：我们本意是`dp[0][0][0]=0`、`dp[1->n][0][0]=-∞`。然而压缩之后，`dp[0&1][0][0]`与`dp[2&1][0][0]`被压缩到了同一个位置。所以需要在`dp[0][0][0]`使用完毕之后立即重新赋值。
+
+本题的一个陷阱是：是否需要给`p`开辟`K_MAX`个空间？这里需要我们敏锐地注意到：**就算`k`再多，路径经过的格子数固定0为`n`，所以只给`p`开辟`N_MAX`个空间即可**。
+
+
+```c++
+const int N_MAX = 100, K_MAX = 100;
+long long int n, k, v[N_MAX + 1], dp[2][N_MAX + 1][K_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> k;
+    k = std::min(k, n);
+    std::fill_n(dp[0][0], 2 * (N_MAX + 1) * (K_MAX + 1), -1e18);
+    dp[0][0][0] = 0; // 初次赋值
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= i; ++j) { std::cin >> v[j]; }
+        for(int j = 1; j <= i; ++j) {
+            dp[i & 1][j][0] = std::max(dp[(i - 1) & 1][j][0] + v[j], dp[(i - 1) & 1][j - 1][0] + v[j]);
+            for(int p = 1; p <= k; ++p) {
+                dp[i & 1][j][p] = std::max({
+                    dp[(i - 1) & 1][j][p] + v[j],
+                    dp[(i - 1) & 1][j - 1][p] + v[j],
+                    dp[(i - 1) & 1][j][p - 1] + v[j] * 3,
+                    dp[(i - 1) & 1][j - 1][p - 1] + v[j] * 3
+                });
+            }
+            dp[0][0][0] = -1e18; // 重新赋值
+        }
+    }
+    long long int result = -1e18;
+    for(int j = 1; j <= n; ++j) {
+        for(int p = 0; p <= k; ++p) {
+            result = std::max(result, dp[n & 1][j][p]); }
+        }
+    std::cout << result;
+}
+```
+
 ### §2.3.2 棋盘区域极值DP
 
 棋盘区域极值DP通常求的是符合某种条件的区域的最大值。
@@ -2509,10 +2748,65 @@ $$
 $$
 
 ```c++
-
+const int N_MAX = 1500, M_MAX = 1500;
+int n, m, dp[2][M_MAX + 1][2], dp_max;
+char map[2][M_MAX + 1];
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            std::cin >> map[i & 1][j];
+            if(map[i & 1][j] == '0') {
+                dp[i & 1][j][0] = std::min(std::min(dp[i & 1][j - 1][1], dp[(i - 1) & 1][j][1]), dp[(i - 1) & 1][j - 1][0]) + 1;
+                dp[i & 1][j][1] = 0;
+                dp_max = std::max(dp_max, dp[i & 1][j][0]);
+            } else if(map[i & 1][j] == '1') {
+                dp[i & 1][j][0] = 0;
+                dp[i & 1][j][1] = std::min(std::min(dp[i & 1][j - 1][0], dp[(i - 1) & 1][j][0]), dp[(i - 1) & 1][j - 1][1]) + 1;
+                dp_max = std::max(dp_max, dp[i & 1][j][1]);
+            }
+        }
+    }
+    std::cout << dp_max;
+}
 ```
 
 另一种节省常数空间的做法需要敏锐的注意力。由于要求矩形中的`0`和`1`交替排列，所以我们可以直接让符合`(i+j)%2==0`的格子`(i,j)`保持不变，**对`(i+j)%2==1`的格子上的数字取反**，这样就转化成了[洛谷P1387](https://www.luogu.com.cn/problem/P1387)的情景，相比上述代码能节省一个维度（即常数`2`）的状态空间。具体代码略。
+
+> [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：给定一个`n`行`n`列的0/1棋盘。如果存在边长为`i`的、只包含元素`1`的子正方形，则输出其数量。要求输出所有使得数量大于`0`的`i`及其数量。
+
+在[洛谷P1387](https://www.luogu.com.cn/problem/P1387)的基础上，我们不仅要找到正方形边长最大值，还要找到所有边长的可取值，并且统计其数量。容易发现只需要维护一个前缀和即可。
+
+```c++
+const int N_MAX = 250;
+int n, dp[N_MAX + 1][N_MAX + 1], count[N_MAX + 1];
+char map;
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= n; ++j) {
+            std::cin >> map;
+            if(map == '0') {
+                continue;
+            } else {
+                dp[i][j] = std::min(std::min(dp[i - 1][j], dp[i][j - 1]), dp[i - 1][j - 1]) + 1;
+                ++count[dp[i][j]];
+            }
+        }
+    }
+    for(int i = n; i >= 1; --i) { count[i - 1] += count[i]; }
+    for(int i = 2; i <= n; ++i) {
+        if(count[i] > 0) {
+            std::cout << i << ' ' << count[i] << '\n';
+        }    
+    }
+}
+
+```
+
 ## §2.4 数位DP
 
 > ？？？？？？？？？？
@@ -2551,7 +2845,7 @@ $$
 
 ## §2.5 计数DP
 
-### §2.5.1 环上计数DP
+### §2.5.1 环上计数
 
 > [洛谷P2233](https://www.luogu.com.cn/problem/P2233)：环上有`n=8`个节点，起始位置为第0个节点，结束节点为第4个节点，每回合只能传送到当前位置左右两侧的相邻节点。如果经过`k`个回合后，恰好能从起始节点移动到结束节点，并且除了最后一回合，从未路经结束节点，求移动方案总数。（结果模1000后输出）
 
@@ -2584,7 +2878,7 @@ int main() {
 
 本题的正解是对这`n`个节点设立一个邻接矩阵$\mathbf{A}\in\R^{n\times n}$，其中$\mathbf{A}$反映了节点在环上的无向图关系。特殊地，令终止节点的出度为0。最后使用矩阵快速幂计算$\mathbf{A}^k$即可。相比于动态规划的时间复杂度$O(nm)$，本题固定$n=8$较小，因此图论做法能快到$O(n^3\log_2{m})$。
 
-### §2.5.2 表达式计数DP
+### §2.5.2 表达式计数
 
 > [洛谷P2401](https://www.luogu.com.cn/problem/P2401)：给定$1,2,3,\cdots,n$共计`n`个自然数。对于这`n`个元素的$A_n^n$种全排列方式，任选其中的一种排列方式将数字排成一行，在相邻两个数字中插入符合大小关系的大于号或小于号。请统计小于号个数恰好为`k`的排列方式总数。
 
@@ -2620,7 +2914,7 @@ int main() {
 }
 ```
 
-### §2.5.3 区间计数DP
+### §2.5.3 区间计数
 
 > [洛谷P3205](https://www.luogu.com.cn/problem/P3205)：给定一个长度为`n`、元素狐疑的数组`a[]`，对其中的元素从`a[0]`到`a[i-1]`，依次通过以下操作转换成数组`b[]`：对于`a[0]`，直接插入到空白的数组`b`中；对于后面的数`a[i]`，如果它小于插入的前一个数`a[i-1]`，就插入到数组`b`的最左边，如果大于就插入到最右边。现在已给定数组`b[]`，求有多少个数组`a[]`经过上述操作后可以转换为数组`b[]`。最终答案模`MOD`后输出。
 
@@ -2658,7 +2952,7 @@ int main() {
 
 但这样做使用了两个`dp`数组，并不是最优的空间复杂度解法。注意到`dp_left[i][j]`和`dp_right[i][j]`都对下标有着`i<=j`的限制，因此都只使用了一半空间。我们可以将这两半空间同时挤在`dp[i][j]`中，使得`i>j`时表示`dp_left[i][j]`，`i<j`时表示`dp_right[j][i]`。代码略。
 
-### §2.5.4 染色计数DP
+### §2.5.4 染色计数
 
 > [洛谷P4019](https://www.luogu.com.cn/problem/P4019)：给定环上的`n`个节点，与`c`个互不相同的颜色（颜色编号从1到`c`）。现在要给每个节点染色，相邻节点颜色不能相同。染色过程给定以下三种限制条件：（1）第`i`个节点必须为颜色`p`；（2）第`i`个节点禁止使用颜色`p`；（3）相邻两个节点`i`、`i+1`的颜色必须相同。求可行的染色方案数量，模`MOD`输出。**本题的第三种限制不会涉及首尾两个相邻节点**。
 
@@ -2815,7 +3109,7 @@ int main() {
 
 本题还可以使用滚动数组压成两行。本题略。
 
-### §2.5.5 序列计数DP
+### §2.5.5 序列计数
 
 > [洛谷P1077](https://www.luogu.com.cn/problem/P1077)：给定`n`种编号从`1`到`n`数量分别为`a[i]`的物品，要用这些物品的其中`m`个物品排成一队，要求队列中物品的编号非严格单调递增。求有多少种互异的排队方式？（若两个元素属于同种物品则视为完全相同）
 
@@ -2908,14 +3202,154 @@ for(int i = 1; i <= n; ++i) {
 
 #TODO:？？？？？？？？？？？？
 
-### §2.5.6 卡特兰数
+### §2.5.6 集合映射计数
 
-#TODO:？？？？？？？？？？？？
+> [洛谷P3795](https://www.luogu.com.cn/problem/P3795)：给定集合$A=\lbrace 1, 2, 3, ... ,n \rbrace$，则在所有双射$f:A\rightarrow A$中，求满足$\forall a\in A, f(f(a))=a$的双射种类总数。
 
+令`dp[i]`表示`n`为`i`时的答案。本题的难点在于如何设计状态转移方程。
 
+- 如果`f(i)==i`，则`f(i)`的映射规则已定，`f(1->i-1)`的映射规则可以自由调整，因此所有`dp[i-1]`的状态都能直接转移到`dp[i]`。
+- 如果`f(i)!=i`，设`f(i)=j`，其中`j`有`i-1`种不同的取值方式。根据`f(f(i))==i`可知`f(j)==i`，导致`f(i)`和`f(j)`的映射规则已经确定，剩余的`i-2`个数可以自由调整。于是这一部分的情况总数为`(i-2)×dp[i-2]`。
 
+综上所述，状态转移方程为：
 
+$$
+\begin{cases}
+	\text{dp}[0] = 1,\text{dp}[1] = 1\\
+	\text{dp}[i] = \text{dp}[i-1] + (i-1)\text{dp}[i-2] \\
+\end{cases}
+$$
 
+用滚动数组压成三块即可。
+
+```c++
+const int N_MAX = 1e7, MOD = 14233333;
+long long int n, dp[3];
+int main() {
+    std::cin >> n;
+    dp[0] = dp[1] = 1;
+    for(int i = 2; i <= n; ++i) { dp[i % 3] = (dp[(i - 1) % 3] + dp[(i - 2) % 3] * (i - 1)) % MOD; }
+    std::cout << dp[n % 3];
+}
+```
+
+### §2.5.? 卡特兰数
+
+卡特兰数是组合数学里的一种经典数列。它的特点是：每个元素都要在A操作和B操作中只选择一种执行。如果要对某个元素进行B操作，那么必须存在一个已经进行A操作，且未被使用的元素，这个B操作会使用后者。卡特兰数表示上述操作的所有可能序列。
+
+> [洛谷P1044](https://www.luogu.com.cn/problem/P1044)：给定长度为`n`的数字序列`[1,2,3,...,n]`，将其按一定的顺序入栈并出栈，按照出栈的顺序排列可以得到新的一串数字序列。求出栈数字序列的种类总数。
+
+令`f[i]`表示给定`i`个数的方案总数。初始化令`f[0]=1`，`f[1]=1`。设第一个入栈的元素在出栈序列的第`j`个位置，于是我们将出栈序列分成三份：
+
+1. 出栈序列的闭区间`[1,j-1]`：这一部分表示在首个入栈元素出栈之前就已经出栈的元素，且这些元素必定是原数列中位于`[2,j+1]`内的元素，于是该部分共有`f[j-1]`种排列方式。
+2. 出栈序列的`[j]`：已经固定，于是该部分共有`1`种排列方式。
+3. 出站序列的闭区间`[j+1,n]`：这一部分表示在首个入栈元素出栈之后才出栈的元素，且这些元素必定是原数列中位于`[j+2,n]`内的元素，于是该部分共有`f[n-j]`种排列方式。
+
+综上所述，当给定`j`时，排列方式有`f[j-1]×f[n-j]`种。于是对于所有可能的$j\in[1,n]$，排列方式总数一共为：
+
+$$
+f[n] = \sum_{j=1}^{n}f[j-1]f[n-j] = f[0]f[n-1] + f[1]f[n-2] + \cdots + f[n-1]f[0]
+$$
+
+或者令`dp[i][j]`表示当有`i`个尚未入栈的元素，栈里已经有`j`个元素，能产生的排列总数。显然答案就是`dp[n][0]`。对于每个给定的状态，进入到下一个状态时，要么出栈，要么入栈，于是有状态转移方程：
+
+$$
+\text{dp}[i][j] = \begin{cases}
+	\text{dp}[i-1][j+1] + \text{dp}[i][j-1] & , j\ge 1\\
+	\text{dp}[i-1][j+1] & , j = 0
+\end{cases}
+$$
+
+使用生成函数，可以解得通项公式，证明过程详见[OI Wiki](https://oi-wiki.org/math/combinatorics/catalan/#%E5%B0%81%E9%97%AD%E5%BD%A2%E5%BC%8F)。这里我们直接给出通项公式即其常见等价变形：\
+
+- 生成函数直接解得：$f[n] = \displaystyle\frac{C_{2n}^{n}}{n+1}$。无法与模意义结合，除非使用高精度除法。
+- $O(1)$递推公式：$f[n]=\displaystyle\frac{f[n-1](4n-2)}{n+1}$。但是在模意义下一旦`f[n]%MOD==0`，则后续的`f[n+k]`全部为0，因此对`MOD`的选取有较高的要求。如果题目限死了`MOD`，则该公式可能失效。
+- **$O(1)$通项公式：$f[n]=C_{2n}^{n}-C_{2n}^{n-1}$。非常推荐。**
+
+为了计算组合数$C_{n}^m$，我们常用恒等式$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$递推求得。恒等式证明如下：
+
+$$
+\begin{align}
+	C_{n-1}^{m}+C_{n-1}^{m-1} & = 
+	\frac{(n-1)!}{(n-m-1)!m!} + \frac{(n-1)!}{(n-m)!(m-1)!} \\
+	& = \frac{n-m}{n}\frac{n!}{(n-m)!m!} + \frac{m}{n}\frac{n!}{(n-m)!m!} \\
+	& = (1)\cdot\frac{n!}{(n-m)!m!} = C_{n}^{m}
+\end{align}
+$$
+
+```c++
+const int N_MAX = 20;
+long long int n, c[N_MAX * 2][N_MAX];
+int main(){
+    std::cin >> n
+    for(int i = 1; i <= 2 * n; ++i) {
+    	c[i][0] = c[i][i] = 1;
+    	for(int j = 1; j < i; ++j) {
+    		c[i][j] = c[i - 1][j] + c[i - 1][j - 1];
+		}
+	}
+	std::cout << c[2 * n][n] - c[2 * n][n - 1];
+    return 0;
+}
+```
+
+> [洛谷P1754](https://www.luogu.com.cn/problem/P1754)：售票窗口只出售50元的门票，且初始时没有任何零钱。给定`n`个携带100元纸币的人、`n`个携带50元纸币的人。对这`2n`个人进行排列，求使得售票窗口永远能找零成功的排列方案总数。
+
+令`dp[i][j]`表示接待完前`i`个人后，售票厅恰好有`j`张50元纸币，则接待完这`i`个人的摆放方案总数。根据第`i`个人是否携带的是50元纸币，可以列出状态转移方程：
+
+$$
+\text{dp}[i][j] = \begin{cases}
+	\text{dp}[i-1][j-1] + \text{dp}[i-1][j+1] & , j \ge 1 \\
+	\text{dp}[i-1][j+1] & , j = 0
+\end{cases}
+$$
+
+仔细分析本题，我们发现：对于任何携带100元纸币的人，都必须进行“50元纸币找零库存减一”的操作（B操作），该操作能执行的前提是已经存在一个携带50元纸币的人，执行了“50元纸币找零库存加一”的操作（A操作），且这个人没被使用过，于是就在此时使用它。这符合卡特兰数的定义，因此这是一个卡特兰数序列。直接使用通项公式即可。
+
+```c++
+const int N_MAX = 20;
+int n;
+long long int c[N_MAX * 2][N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= 2 * n; ++i) {
+        c[i][0] = c[i][i] = 1;
+        for(int j = 1; j < i; ++j) {
+            c[i][j] = c[i - 1][j] + c[i - 1][j - 1];
+        }
+    }
+    std::cout << c[2 * n][n] - c[2 * n][n - 1];
+}
+```
+
+或者用滚动数组压成一行。
+
+```c++
+const int N_MAX = 20;
+int n;
+long long int c[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= 2 * n; ++i) {
+        c[i] = 1;
+        for(int j = i - 1; j >= 1; --j) {
+            c[j] = c[j] + c[j - 1];
+        }
+        c[0] = 1;
+    }
+    std::cout << c[n] - c[n - 1];
+}
+```
+
+> [洛谷P1375](https://www.luogu.com.cn/problem/P1375)：圆环上均匀分布着`2n`个点，以这些点为端点，绘制`n`条线段，每个点只能用一次。若线段之间互不相交，求线段绘制方案总数。
+
+TODO\：？？？？需要用到逆元！
+
+### §2.5.? 第二类斯特林数
+
+> [洛谷P2028](https://www.luogu.com.cn/problem/P2028)：将`n`个等价物品放入`k`个不同箱子中，每个箱子至少含有一个物品，求摆放方案总数，答案对`MOD`取模后输出。
+
+TODO\：？？？？
 
 ## §2.6 状压DP
 
@@ -3624,6 +4058,53 @@ int main() {
         }
     }
     std::cout << std::fixed << std::setprecision(2) << w * dp[0 & 1];
+}
+```
+
+> [洛谷P1434](https://www.luogu.com.cn/problem/solution/P1434)：给定一个`r`行`c`的数字矩阵。从中任选一个作为起点，每回合都可以从上下左右四个方向中选择一个值更小的格子作为目的地，以此类推，构成一条条严格单调下降路径。求这种路径的最大长度（即最多能经过多少个格子，从`1`开始数）。
+
+令`dp[i][j]`表示以`(i,j)`为路径终点时，严格单调下降路径的最大长度。显然有状态转移方程：
+
+$$
+\text{dp}[i][j] = 1 + \max\begin{cases}
+	\text{dp}[i][j+1] & , \text{map}[i][j] > \text{map}[i][j+1] \wedge j < n \\
+	\text{dp}[i][j-1] & , \text{map}[i][j] > \text{map}[i][j-1] \wedge j > 1 \\
+	\text{dp}[i+1][j] & , \text{map}[i][j] > \text{map}[i+1][j] \wedge i < n \\
+	\text{dp}[i-1][j] & , \text{map}[i][j] > \text{map}[i-1][j] \wedge i > 1 \\
+	缺省为0
+\end{cases}
+$$
+
+然而这是一个有后效性的状态转移方程，我们无法保证要转移的这些状态都已经被转移过。我们敏锐地察觉到：只有小值的格子才能向大值的格子转移，而反过来不行。这就让我们想到：先转移小值，再转移大值。于是我们对各个格子按值从小到大排序，然后依次调用状态转移方程。
+
+```c++
+const int R_MAX = 100, C_MAX = 100;
+int r, c, count, map[R_MAX + 2][C_MAX + 2], dp[R_MAX + 2][C_MAX + 2];
+struct Point {
+    int x, y, value;
+} point[R_MAX * C_MAX];
+int main() {
+    std::cin >> r >> c;
+    for(int i = 1; i <= r; ++i) {
+        for(int j = 1; j <= c; ++j) {
+            std::cin >> map[i][j];
+            point[count].x = i;
+            point[count].y = j;
+            point[count].value = map[i][j];
+            ++count;
+        }
+    }
+    std::sort(point, point + count, [](const Point &a, const Point &b) { return a.value < b.value; });
+    int max = 0;
+    for(int i = 0; i < count; ++i) {
+        if(map[point[i].x][point[i].y] > map[point[i].x - 1][point[i].y]) { dp[point[i].x][point[i].y] = std::max(dp[point[i].x][point[i].y], dp[point[i].x - 1][point[i].y]); }
+        if(map[point[i].x][point[i].y] > map[point[i].x + 1][point[i].y]) { dp[point[i].x][point[i].y] = std::max(dp[point[i].x][point[i].y], dp[point[i].x + 1][point[i].y]); }
+        if(map[point[i].x][point[i].y] > map[point[i].x][point[i].y - 1]) { dp[point[i].x][point[i].y] = std::max(dp[point[i].x][point[i].y], dp[point[i].x][point[i].y - 1]); }
+        if(map[point[i].x][point[i].y] > map[point[i].x][point[i].y + 1]) { dp[point[i].x][point[i].y] = std::max(dp[point[i].x][point[i].y], dp[point[i].x][point[i].y + 1]); }
+        dp[point[i].x][point[i].y] += 1;
+        max = std::max(dp[point[i].x][point[i].y], max);
+    }
+    std::cout << max;
 }
 ```
 
@@ -5451,6 +5932,104 @@ int main() {
 }
 ```
 
+## §4.3 相似度匹配
+
+> [洛谷P2758](https://www.luogu.com.cn/problem/P2758)：给定两个字符串`a`和`b`，每回合只能对`a`进行以下三种操作之一：删除一个字符，插入一个字符、更改一个字符。要让字符串`a`变成`b`，求至少需要的回合数。
+
+本题的难点在于定义DP的状态，这里我们直接给出答案：令`dp[i][j]`给定`a`的前`i`个字符、给定`b`的前`j`个字符，进行变换所需的最少回合数。
+
+考虑`dp[i][j]`对应的策略中的最后一步操作，可以分为三种情况：
+
+- 最后一步操作是`a`添加字符。如果没有这最后一步操作，则`a`的长度为`i-1`，`b`的长度为`j`。因此`dp[i-1][j] + 1`可以转移到`dp[i][j]`。
+- 最后一步操作是`a`删除字符。**注意到这种操作等价于`b`删除字符**。如果没有这最后一步操作，则`a`的长度为`i`，`b`的长度为`j-1`。因此`dp[i][j-1] + 1`可以转移到`dp[i][j]`。
+- 最后一步操作是`a`编辑字符。**注意到这种操作等价于对`a`先删除再添加，但是只需支付一个回合的代价**。**如果`a[i]==b[i]`，则无需多支付任何代价**。因此`dp[i-1][j-1] + (a[i]!=b[i])`可以转移到`dp[i][j]`。
+
+综上所述，状态转移方程为：
+
+$$
+\text{dp}[i][j] = \min \begin{cases}
+	\text{dp}[i-1][j] + 1 \\
+	\text{dp}[i][j-1] + 1 \\
+	\text{dp}[i-1][j-1] + (a[i]\neq b[i])
+\end{cases}
+$$
+
+然后考虑初始值。在上述状态转移过程中，随着`i`和`j`的减小，显然它们都会碰到下界`0`。对于`dp[0][j]`来说，显然最优的方法是给`a`添加`j`个字符，即`dp[0][j] = j`；对于`dp[i][0]`来说，显然最优的方法是删除`i`个字符，即`dp[i][0] = i`。
+
+```c++
+const int STRING_LENGTH_MAX = 2000;
+char a[STRING_LENGTH_MAX + 2], b[STRING_LENGTH_MAX + 2];
+int len_a, len_b, dp[2][STRING_LENGTH_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> (a + 1); len_a = std::strlen(a + 1);
+    std::cin >> (b + 1); len_b = std::strlen(b + 1);
+    for(int j = 0; j <= len_b; ++j) { dp[0][j] = j; }
+    for(int i = 1; i <= len_a; ++i) {
+        dp[i & 1][0] = i;
+        for(int j = 1; j <= len_b; ++j) {
+            dp[i & 1][j] = std::min(std::min(
+                dp[(i - 1) & 1][j] + 1, dp[i & 1][j - 1] + 1
+            ), dp[(i - 1) & 1][j - 1] + (a[i] != b[j]));
+        }
+    }
+    std::cout << dp[len_a & 1][len_b];
+}
+```
+
+> [洛谷P1140]：给定两个仅由`A`、`T`、`G`、`C`四种字符构成的字符串`a[]`和`b[]`。现在可以在两个字符串中插入空格，使得两个字符串长度相等，且插入空格后的字符串不存在一个位置`i`，使得`a[i]`和`b[i]`不能同时为空格。定义两个等长字符串的相似度为$\sum_{i=1}^{\text{strlen}(a)}\text{map}(a[i],b[i])$，其中`map(a[i],b[i])`的映射关系由二维数组给出。求插入空格的策略，使得相似度取得最大值。
+
+本题的难点在于定义DP的状态，这里我们直接给出答案：令`dp[i][j]`表示原始字符串`a[]`和`b[]`分别给定前`i`个字符和前`j`个字符时，能获得的最大相似度。
+
+考虑填充空格后的、长度为`n`的两个字符串。最后一组`a[n]`和`b[n]`可能为以下情况：
+
+- `a[n]`和`b[n]`都是字母，不是填充的空格。则`dp[i][j]`可从`dp[i-1][j-1] + map[a[i],b[j]]`转移而来。
+- `a[n]`是字母，`b[n]`是空格。则`dp[i][j]`可从`dp[i-1][j] + map[a[i],' ']`转移而来。
+- `a[n]`是空格，`b[n]`是字母。则`dp[i][j]`可从`dp[i][j-1] + map[' ',b[j]]`转移而来。
+- `a[n]`和`b[n]`都是空格。由于题干的限制，这种情况不存在。
+
+综上所述，状态转移方程为：
+
+$$
+\text{dp}[i][j] = \max\begin{cases}
+	\text{dp}[i-1][j-1] + \text{map}(a[i],b[j]) & , i\ge 1, j\ge 1\\
+	\text{dp}[i-1][j] + \text{map}(a[i],\sqcup) &, i\ge 1\\
+	\text{dp}[i][j-1] + \text{map}(\sqcup,b[j]) &, j\ge 1 \\
+	若以上三项均没有，则缺省为0
+\end{cases}
+$$
+
+初始值`dp[0][0]`定义为`0`。由于`dp[i][j]`可能为负数，因此要将`dp[*][*]`初始化为负无穷大。
+
+```c++
+const int STRING_LENGTH_MAX = 100;
+const int similarity[5][5] = {
+    {5,  -1, -2, -1, -3},
+    {-1, 5,  -3, -2, -4},
+    {-2, -3, 5,  -2, -2},
+    {-1, -2, -2, 5,  -1},
+    {-3, -4, -2, -1, 0}
+};
+int len_a, len_b, map[128], dp[STRING_LENGTH_MAX + 1][STRING_LENGTH_MAX + 1];
+char a[STRING_LENGTH_MAX + 2], b[STRING_LENGTH_MAX + 2];
+int main() {
+    std::cin >> len_a >> (a + 1) >> len_b >> (b + 1);
+    map['A'] = 0; map['C'] = 1; map['G'] = 2; map['T'] = 3; map[' '] = 4;
+    memset(dp, 0xcf, sizeof(dp));
+    dp[0][0] = 0;
+    for(int i = 0; i <= len_a; ++i) {
+        for(int j = 0; j <= len_b; ++j) {
+            if(i >= 1 && j >= 1) { dp[i][j] = std::max(dp[i][j], dp[i - 1][j - 1] + similarity[map[a[i]]][map[b[j]]]); }
+            if(i >= 1) { dp[i][j] = std::max(dp[i][j], dp[i - 1][j] + similarity[map[a[i]]][map[' ']]); }
+            if(j >= 1) { dp[i][j] = std::max(dp[i][j], dp[i][j - 1] + similarity[map[' ']][map[b[j]]]); }
+        }
+    }
+    std::cout << dp[len_a][len_b];
+}
+```
+
 # §5 树
 
 ## §5.1 树的重心
@@ -5524,6 +6103,151 @@ int main() {
 > - 给定一个正奇数整数`i`，输出编号为`i`的索引对应的值。
 
 本题的关键在于排除偶数索引的影响。稍加思考就能发现，偶数索引不会对答案造成任何干扰，就算增加$[i,2i-1]$中的所有索引，也只是让偶数索引也增加，而我们的查询操作不涉及任何偶数，因此当成普通的前缀和即可。令`p`为前缀和数组，添加操作让`p[1]`加1，让`p[2*i]`减1。
+
+### §6.1.1 二维前缀和
+
+给定一个编号从`1`到`n`/`m`的二维数组`a[i][j]`，则定义其二维前缀和`s[i][j]`为：
+
+$$
+s[i][j] = \displaystyle\sum_{i\in[1,i],j\in[1,j]}{a[i][j]}
+$$
+
+考虑建立二维前缀和，我们有两种方法。
+
+1. 使用容斥原理进行DP递推，状态转移方程为$s[i][j]=s[i-1][j]+s[i][j-1]-s[i-1][j-1]+a[i]$。这种方法的时间常数太大，时间复杂度为$O(4nm)$，且拓展到三维前缀和时常数呈指数级增长，因此不推荐使用。
+2. 先逐行求一维前缀和，再逐行求二维前缀和。这种方法的时间常数小，时间复杂度为$O(2nm)$，推荐使用。
+
+```c++
+/* 第一种方法：使用熔池原理进行DP递推 */
+for(int i = 1; i <= n; ++i){
+    for(int j = 1; j <= m; ++j){
+        s[i][j] = s[i-1][j] + s[i][j-1] - s[i-1][j-1] + a[i][j];
+    }
+}
+
+/* 第二种方法：多次维护一维前缀和 */
+for(int i = 1; i <= n; ++i){
+    for(int j = 1; j <= m; ++j){
+	    s[i][j] = s[i][j-1] + a[i][j];
+    }
+}
+for(int j = 1; j <= m; ++j){
+	for(int i = 1; i <= n; ++i){
+		s[i][j] += s[i-1][j];
+	}
+}
+
+/* 第二种做法，但是复用a[][]数组，节省一般空间 */
+for(int i = 1; i <= n; ++i){
+    for(int j = 1; j <= m; ++j){
+	    std::cin >> a[i][j]; // 移到循环外面也可以
+	    s[i][j] += s[i][j-1];
+    }
+}
+for(int j = 1; j <= m; ++j){
+	for(int i = 1; i <= n; ++i){
+		s[i][j] += s[i-1][j];
+	}
+}
+```
+
+> [洛谷P2280](https://www.luogu.com.cn/problem/P2280)：给定二维平面上的$1\le x,y\le \text{MAX}$的矩形，在该范围内的正整数坐标上分布着`n`个位置各异，坐标分别为`(x[i], y[i])`、价值为`v[i]`的目标。现在给定一个长宽与坐标轴平行的、边长为`m`的正方形（不包含边界），求能覆盖的目标的总价值最大值。
+
+令`s[i][j]`表示在`x<=i`、`y<=j`的区域中所有目标的价值之和。这里我们使用了常数优化：实时维护当前`x`、`y`轴坐标的最大值`x_max`、`y_max`，只需前缀和只需遍历到`(x_max, y_max)`坐标即可。然后使用滑动窗口求得区域内之和的最大值即可。**由于目标的坐标可能为`(0,0)`，这不利于构建前缀和数组，所以我们将每个坐标都加1即可。**
+
+本题虽然强调不包含边界，但是我们可以可以将正方形放在坐标为`0.5`的奇数倍的位置上，这样覆盖点的范围仍然是`m×m`。
+
+最后考虑一种特殊情况：如果所选区域边长`m`过大，使得滑动窗口根本无法移动，那么我们有两种方案：
+
+第一种方案：强行使其滑动。之前我们为了缩小常数，将遍历区域从`(X_MAX,Y_MAX)`缩小至`(x_max, y_max)`。于是我们将`m`缩小至**恰好能覆盖矩形区域`(x_max, y_max)`的程度，即`xy_max = std::max(x_max, y_max)`**（注意必须是`std::max`）。缩小之后的`m`可表示为`m = std::min(m,std::max(x_max,y_max))`。显然覆盖的矩形区域为`(xy_max,xy_max)`。为了保证`s[xy_max][xy_max]`存在，**我们需要在构建二维前缀和时就维护到该坐标。**
+
+```c++
+const int X_MAX = 5e3, Y_MAX = 5e3;
+int n, m, x_max, y_max, xy_max, s[X_MAX + 2][Y_MAX + 2];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) {
+        int x, y, v;
+        std::cin >> x >> y >> v; ++x; ++y;
+        x_max = std::max(x_max, x);
+        y_max = std::max(y_max, y);
+        s[x][y] += v;
+    }
+    xy_max = std::max(x_max, y_max);
+    m = std::min(m, xy_max);
+    for(int i = 1; i <= xy_max; ++i) {
+        for(int j = 1; j <= xy_max; ++j) {
+            s[i][j] += s[i][j - 1];
+        }
+    }
+    for(int j = 1; j <= xy_max; ++j) {
+        for(int i = 1; i <= xy_max; ++i) {
+            s[i][j] += s[i - 1][j];
+        }
+    }
+    int max = 0;
+    for(int i = m; i <= xy_max; ++i) {
+        for(int j = m; j <= xy_max; ++j) {
+            max = std::max(max, s[i][j] - s[i - m][j] - s[i][j - m] + s[i - m][j - m]);
+        }
+    }
+    std::cout << max;
+}
+```
+
+第二种方案：检测到窗口过大而无法滑动时，直接输出答案。根据`x`轴能否滑动、`y`轴能否滑动，我们可以分成以下四种情况进行分类讨论：
+
+```c++
+const int X_MAX = 5e3, Y_MAX = 5e3;
+int n, m, x_max, y_max, xy_max, s[X_MAX + 2][Y_MAX + 2];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) {
+        int x, y, v;
+        std::cin >> x >> y >> v; ++x; ++y;
+        x_max = std::max(x_max, x);
+        y_max = std::max(y_max, y);
+        s[x][y] += v;
+    }
+    xy_max = std::max(x_max, y_max);
+    for(int i = 1; i <= xy_max; ++i) {
+        for(int j = 1; j <= xy_max; ++j) {
+            s[i][j] += s[i][j - 1];
+        }
+    }
+    for(int j = 1; j <= xy_max; ++j) {
+        for(int i = 1; i <= xy_max; ++i) {
+            s[i][j] += s[i - 1][j];
+        }
+    }
+    if(m >= x_max && m >= y_max) { // x轴与y轴都不能滑动
+        std::cout << s[x_max][y_max];
+    } else if(m >= x_max && m < y_max) { // x轴不能滑动，y轴可以滑动
+        int max = 0;
+        for(int j = m; j <= y_max; ++j) { max = std::max(max, s[x_max][j] - s[0][j] - s[x_max][j - m] + s[0][j - m]); }
+        std::cout << max;
+    } else if(m < x_max && m >= y_max) { // x轴可以滑动，y轴不能滑动
+        int max = 0;
+        for(int i = m; i <= x_max; ++i) { max = std::max(max, s[i][y_max] - s[i - m][y_max] - s[i][0] + s[i - m][0]); }
+        std::cout << max;
+    } else if(m < x_max && m < y_max) { // x轴与y轴都可以滑动
+        int max = 0;
+        for(int i = m; i <= x_max; ++i) {
+            for(int j = m; j <= y_max; ++j) {
+                max = std::max(max, s[i][j] - s[i - m][j] - s[i][j - m] + s[i - m][j - m]);
+            }
+        }
+        std::cout << max;
+    }
+}
+```
+
 
 ## §6.2 双端队列
 
@@ -5677,6 +6401,21 @@ template<typename T> class LinkedDeque {
 };
 ```
 
+## §6.3 线段树
+
+> [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
+
+本题的条件十分优良，以至于我们可以不使用线段树。首先创建一个空数组`int count[]`，在批量加一时，只给`count[i]`加一。最后询问的时候，使用类似于前缀和的方式从`count[n]`开始向后累加（即`count[i-1]+=count[i]`），最终就得到了储存答案的数组。对于每个询问`i`，只需输出`count[i]`即可。
+
+```c++
+for(int i = n; i >= 1; --i) { count[i - 1] += count[i]; }
+for(int i = 2; i <= n; ++i) {
+    if(count[i] > 0) {
+        std::cout << i << ' ' << count[i] << '\n';
+    }
+}
+```
+
 # §7 位运算
 
 ## §7.1 相邻的`1`
@@ -5684,127 +6423,6 @@ template<typename T> class LinkedDeque {
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定一个数字`n`及其二进制字符串`s`，如果`s`中存在两个索引不同的字符`1`，其下标分别记为`s[i]`、`s[j]`，使得`i`和`j`之间的距离（即`std::abs(i-j)`）恰好`k`，则输出`true`；反之输出`false`。
 
 如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？#TODO：
-
-# §8 组合计数
-
-## §8.1 卡特兰数
-
-卡特兰数是组合数学里的一种经典数列。它的特点是：每个元素都要在A操作和B操作中只选择一种执行。如果要对某个元素进行B操作，那么必须存在一个已经进行A操作，且未被使用的元素，这个B操作会使用后者。卡特兰数表示上述操作的所有可能序列。
-
-> [洛谷P1044](https://www.luogu.com.cn/problem/P1044)：给定长度为`n`的数字序列`[1,2,3,...,n]`，将其按一定的顺序入栈并出栈，按照出栈的顺序排列可以得到新的一串数字序列。求出栈数字序列的种类总数。
-
-令`f[i]`表示给定`i`个数的方案总数。初始化令`f[0]=1`，`f[1]=1`。设第一个入栈的元素在出栈序列的第`j`个位置，于是我们将出栈序列分成三份：
-
-1. 出栈序列的闭区间`[1,j-1]`：这一部分表示在首个入栈元素出栈之前就已经出栈的元素，且这些元素必定是原数列中位于`[2,j+1]`内的元素，于是该部分共有`f[j-1]`种排列方式。
-2. 出栈序列的`[j]`：已经固定，于是该部分共有`1`种排列方式。
-3. 出站序列的闭区间`[j+1,n]`：这一部分表示在首个入栈元素出栈之后才出栈的元素，且这些元素必定是原数列中位于`[j+2,n]`内的元素，于是该部分共有`f[n-j]`种排列方式。
-
-综上所述，当给定`j`时，排列方式有`f[j-1]×f[n-j]`种。于是对于所有可能的$j\in[1,n]$，排列方式总数一共为：
-
-$$
-f[n] = \sum_{j=1}^{n}f[j-1]f[n-j] = f[0]f[n-1] + f[1]f[n-2] + \cdots + f[n-1]f[0]
-$$
-
-或者令`dp[i][j]`表示当有`i`个尚未入栈的元素，栈里已经有`j`个元素，能产生的排列总数。显然答案就是`dp[n][0]`。对于每个给定的状态，进入到下一个状态时，要么出栈，要么入栈，于是有状态转移方程：
-
-$$
-\text{dp}[i][j] = \begin{cases}
-	\text{dp}[i-1][j+1] + \text{dp}[i][j-1] & , j\ge 1\\
-	\text{dp}[i-1][j+1] & , j = 0
-\end{cases}
-$$
-
-使用生成函数，可以解得通项公式，证明过程详见[OI Wiki](https://oi-wiki.org/math/combinatorics/catalan/#%E5%B0%81%E9%97%AD%E5%BD%A2%E5%BC%8F)。这里我们直接给出通项公式即其常见等价变形：\
-
-- 生成函数直接解得：$f[n] = \displaystyle\frac{C_{2n}^{n}}{n+1}$。无法与模意义结合，除非使用高精度除法。
-- $O(1)$递推公式：$f[n]=\displaystyle\frac{f[n-1](4n-2)}{n+1}$。但是在模意义下一旦`f[n]%MOD==0`，则后续的`f[n+k]`全部为0，因此对`MOD`的选取有较高的要求。如果题目限死了`MOD`，则该公式可能失效。
-- **$O(1)$通项公式：$f[n]=C_{2n}^{n}-C_{2n}^{n-1}$。非常推荐。**
-
-为了计算组合数$C_{n}^m$，我们常用恒等式$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$递推求得。恒等式证明如下：
-
-$$
-\begin{align}
-	C_{n-1}^{m}+C_{n-1}^{m-1} & = 
-	\frac{(n-1)!}{(n-m-1)!m!} + \frac{(n-1)!}{(n-m)!(m-1)!} \\
-	& = \frac{n-m}{n}\frac{n!}{(n-m)!m!} + \frac{m}{n}\frac{n!}{(n-m)!m!} \\
-	& = (1)\cdot\frac{n!}{(n-m)!m!} = C_{n}^{m}
-\end{align}
-$$
-
-```c++
-const int N_MAX = 20;
-long long int n, c[N_MAX * 2][N_MAX];
-int main(){
-    std::cin >> n
-    for(int i = 1; i <= 2 * n; ++i) {
-    	c[i][0] = c[i][i] = 1;
-    	for(int j = 1; j < i; ++j) {
-    		c[i][j] = c[i - 1][j] + c[i - 1][j - 1];
-		}
-	}
-	std::cout << c[2 * n][n] - c[2 * n][n - 1];
-    return 0;
-}
-```
-
-> [洛谷P1754](https://www.luogu.com.cn/problem/P1754)：售票窗口只出售50元的门票，且初始时没有任何零钱。给定`n`个携带100元纸币的人、`n`个携带50元纸币的人。对这`2n`个人进行排列，求使得售票窗口永远能找零成功的排列方案总数。
-
-令`dp[i][j]`表示接待完前`i`个人后，售票厅恰好有`j`张50元纸币，则接待完这`i`个人的摆放方案总数。根据第`i`个人是否携带的是50元纸币，可以列出状态转移方程：
-
-$$
-\text{dp}[i][j] = \begin{cases}
-	\text{dp}[i-1][j-1] + \text{dp}[i-1][j+1] & , j \ge 1 \\
-	\text{dp}[i-1][j+1] & , j = 0
-\end{cases}
-$$
-
-仔细分析本题，我们发现：对于任何携带100元纸币的人，都必须进行“50元纸币找零库存减一”的操作（B操作），该操作能执行的前提是已经存在一个携带50元纸币的人，执行了“50元纸币找零库存加一”的操作（A操作），且这个人没被使用过，于是就在此时使用它。这符合卡特兰数的定义，因此这是一个卡特兰数序列。直接使用通项公式即可。
-
-```c++
-const int N_MAX = 20;
-int n;
-long long int c[N_MAX * 2][N_MAX + 1];
-int main() {
-    std::cin >> n;
-    for(int i = 1; i <= 2 * n; ++i) {
-        c[i][0] = c[i][i] = 1;
-        for(int j = 1; j < i; ++j) {
-            c[i][j] = c[i - 1][j] + c[i - 1][j - 1];
-        }
-    }
-    std::cout << c[2 * n][n] - c[2 * n][n - 1];
-}
-```
-
-或者用滚动数组压成一行。
-
-```c++
-const int N_MAX = 20;
-int n;
-long long int c[N_MAX + 1];
-int main() {
-    std::cin >> n;
-    for(int i = 1; i <= 2 * n; ++i) {
-        c[i] = 1;
-        for(int j = i - 1; j >= 1; --j) {
-            c[j] = c[j] + c[j - 1];
-        }
-        c[0] = 1;
-    }
-    std::cout << c[n] - c[n - 1];
-}
-```
-
-> [洛谷P1375](https://www.luogu.com.cn/problem/P1375)：圆环上均匀分布着`2n`个点，以这些点为端点，绘制`n`条线段，每个点只能用一次。若线段之间互不相交，求线段绘制方案总数。
-
-TODO\：？？？？需要用到逆元！
-
-## §8.2 第二类斯特林数
-
-> [洛谷P2028](https://www.luogu.com.cn/problem/P2028)：将`n`个等价物品放入`k`个不同箱子中，每个箱子至少含有一个物品，求摆放方案总数，答案对`MOD`取模后输出。
-
-TODO：？？？？？？？？？？？
-
 
 # §A 警钟长鸣
 
