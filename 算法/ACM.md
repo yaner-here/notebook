@@ -2038,6 +2038,102 @@ int main(){
 }
 ```
 
+> [洛谷P1504](https://www.luogu.com.cn/problem/P1504)：给定`n`组物品，每组物品均由`m[i]`个不同的物品构成，每个物品都有自己的价值`value[i]`。现在为使这`n`组物品的总价值相同，需要从中删除一些物品。求相同的总价值的最大值。
+
+令`dp[i][j]`表示给定某组物品的前`i`个物品，从中删除一些物品，总价值能否恰好为`j`。则针对是否选择第`i`个物品，显然有状态转移方程：
+
+$$
+\text{dp}[i][j] = \text{dp}[i-1][j] \vee \text{dp}[i-1][j-\text{value}[i]]
+$$
+
+对每一组物品都进行这样的操作，最后从大到小遍历价值，找出能被`n`组物品同时取得的价值即可。具体在代码实现上，我们可以使用一个数组`count[]`，记录有多少组物品可以取得某个价值，则满足`count[j]==n`的最大价值`j`即为所求。
+
+```c++
+const int N_MAX = 100, M_MAX = 100, BUDGET_MAX = 10000;
+int n, m, value[M_MAX + 2], count[BUDGET_MAX + 1];
+bool dp[BUDGET_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        m = 0;
+        while(true) {
+            std::cin >> value[++m];
+            if(value[m] == -1) { --m; break; }
+        }
+        int value_sum = 0;
+        std::fill_n(dp + 1, BUDGET_MAX, false);
+        dp[0] = true;
+        for(int j = 1; j <= m; ++j) {
+            value_sum += value[j]; // 常数优化
+            for(int k = value_sum; k >= value[j]; --k) {
+                dp[k] |= dp[k - value[j]];
+            }
+        }
+        for(int j = value_sum; j >= 0; --j) {
+            if(dp[j]) { ++count[j]; }
+        }
+    }
+    for(int i = BUDGET_MAX; i >= 0; --i) {
+        if(count[i] == n) {
+            std::cout << i;
+            return 0;
+        }
+    }
+}
+```
+
+> [洛谷P1586](https://www.luogu.com.cn/problem/P1586)：数学上可以证明：任意一个正整数`n`都可以分解成不超过四个正整数的平方和。给定一个正整数`n`，求满足以上定理的分解方案。
+
+本题可视为恰满计数背包的变体。令`dp[i][j]`表示正整数`n`分解成`j`个平方数的方案总数，则答案为`dp[n][1]+dp[n][2]+dp[n][3]+dp[n][4]`。状态转移方程为：
+
+$$
+\text{dp}[i][j] = \sum_{1\le k\le\sqrt{i}} \text{dp}[i - k^2][j - 1]
+$$
+
+初始值为`dp[0][0]=1`，其它状态均为`0`。本题的难点在于设计遍历顺序，以保证方案不重复。接下来看一种错误的解法：以`dp[5][2]`为例，对`k`进行遍历，容易发现`k=1`或`k=2`，于是`dp[5][2] = dp[4][1] + dp[1][1] = 1 + 1 = 2`，表面上看起来是两种方案，但是它们分别是`1^2+2^2`和`2^2+1^2`，本质上是完全重复的两种方案。
+
+```c++
+// 错误解法
+for(int i = 1; i <= N_MAX; ++i) {
+    for(int j = 1; j <= 4; ++j) {
+        for(int k = 1; k * k <= i; ++k) {
+            dp[i][j] += dp[i - k * k][j - 1];
+        }
+    }
+}
+```
+
+本题的关键是背包思想：给定若干个无限量供应的物品，代价分别为`1^2`、`2^2`、`3^2`、...。令`dp[i][j][k]`表示选择前`i`种物品中的`k`个物品，恰好装满代价限额为`j`的背包的方案总数。这样，我们就将所有方案划分成“包含物品第`1`种物品”、“包含物品第`2`种物品”、“包含物品第`3`种物品”、...的几种分类。于是有状态转移方程：
+
+$$
+\text{dp}[i][j][k] = \max(
+	\underset{选第i种物品}{\underbrace{\text{dp}[i][j - l^2][k-1]}},
+	\underset{不选第i种物品}{\underbrace{\text{dp}[i-1][j][k]}}
+)
+$$
+
+状态转移方程决定了：如果转移前的状态没有重复方案，则转移后的状态也没有重复状态。这样就解决了方案重复的问题。用滚动数组干掉`i`即可。
+
+```c++
+const int N_MAX = 32768;
+int t, n, dp[N_MAX + 1][5];
+int main() {
+    dp[0][0] = 1;
+    for(int i = 1; i * i <= N_MAX; ++i) { // 常数优化，不需要遍历那么多物品
+        for(int j = i * i; j <= N_MAX; ++j) { // 防止越界dp[j - i * i]越界
+            for(int k = 1; k <= 4; ++k) {
+                dp[j][k] += dp[j - i * i][k - 1];
+            }
+        }
+    }
+    std::cin >> t;
+    while(t--) {
+        std::cin >> n;
+        std::cout << std::accumulate(dp[n] + 1, dp[n] + 5, 0) << '\n';
+    }
+}
+```
+
 ## §2.2 子序列DP
 
 给定一个数字序列，从中抽出一部分元素后，剩下的元素构成了一个新的子序列。
