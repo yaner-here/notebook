@@ -50,7 +50,26 @@ std::upper_bound(
 
 > [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(forth_value, value)`时返回`true`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(back_value, value)`时返回`false`，则返回从`first`到`last`的第一个使得函数或Lambda表达式返回`false`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
 
-> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/upper_bound)：`std::upper_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(value, forth_value)`时返回`false`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(value, back_value)`时返回`true`，则返回从`first`到`last`的最第一个使得函数或Lambda表达式返回`true`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
+> [CppReference](https://zh.cppreference.com/w/cpp/algorithm/upper_bound)：`std::upper_bound`的完整作用是：给定一段容器的首尾指针或迭代器`first`、`last`，这段容器靠近头部的元素值`forth_value`使得给函数或Lambda表达式传递的实参列表为`(value, forth_value)`时返回`false`，靠近尾部的元素值`back_value`使得给函数或Lambda表达式传递的形参列表为`(value, back_value)`时返回`true`，则返回从`first`到`last`的第一个使得函数或Lambda表达式返回`true`的指针或迭代器。若函数或Lambda表达式没有指定，则缺省等价地视为`std::less<T>()`。
+
+$$
+\begin{align}
+\begin{array}{|c|c|c|c|c|c|c|}
+	\hline
+	\text{true} & \text{true} & \text{true} & \text{true} & \text{false} & \text{false} & \text{false} \\
+	\hline
+	& & & & \underset{\text{std::lower\_bound}}{\uparrow} & & \\
+	\hline
+\end{array} \\
+\begin{array}{|c|c|c|c|c|c|c|}
+	\hline
+	\text{false} & \text{false} & \text{false} & \text{true} & \text{true} & \text{true} & \text{true} \\
+	\hline
+	& & & \underset{\text{std::upper\_bound}}{\uparrow} & & \\
+	\hline
+\end{array} \\
+\end{align}
+$$
 
 STL提供了以下预置的比较函数：
 
@@ -80,7 +99,7 @@ bool valid(int x){
 }
 
 int left = 0, right = 9;
-int left_pointer = left - 1, right_pointer = right + 1;
+int left_pointer = left - 1, right_pointer = right + 1; // 若while()不满足，则直接返回区间外的数，表示查找失败
 while(left <= right) {
     int mid = (left + right) / 2;
     if(valid(mid)) {
@@ -2329,6 +2348,27 @@ int main(){
 }
 ```
 
+同理，仿照上述分析，容易给出严格单调上升子序列的最长长度。
+
+```c++
+const long long int N_MAX = 1e5;
+int n, a[N_MAX + 1], dp[N_MAX + 1];
+int main() {
+    while(std::cin >> a[++n]); --n;
+    int right_bound = 0; // 不能是1，否则结果普遍高出1
+    for(int i = 1; i <= n; ++i) {
+        if(a[i] > dp[right_bound]) {
+            ++right_bound;
+            dp[right_bound] = a[i];
+        } else {
+            int j_max = std::upper_bound(dp + 1, dp + 1 + right_bound, a[i], std::less_equal<int>()) - dp;
+            dp[j_max] = a[i];
+        }
+    }
+    std::cout << right_bound;
+}
+```
+
 ### §2.2.2 单调子序列划分
 
 > [洛谷P1020](https://www.luogu.com.cn/problem/P1020)：给定一个长度为`n`的数字序列`a[i]`，求：（2）将`n`个元素按前后顺序划分成`k`个单调不升子序列，求`k`的最小值。
@@ -2480,47 +2520,40 @@ int main() {
 
 除此以外，还存在一种炫技的写法，将上述两种情况合并为一种。我们知道`dp[i][j]`在`i`和`j`上都是单调递增的，所以必定有`dp[i][j-1] >= dp[i-1][j-1]`和`dp[i-1][j] >= dp[i-1][j-1]`恒成立。所以合并后的状态转移方程为：`dp[i][j] = std::max({dp[i-1][j], dp[i][j-1], dp[i-1][j-1] + (a[i]==b[j])})`。**这种方法引入了额外的常数级`std::max()`调用开销，不建议使用。**
 
-> [洛谷P1435](https://www.luogu.com.cn/problem/P1435)：给定一个长度为`n`的字符串`s`，至少需要插入多少字符，才能让`s`变成回文串？
-
-为DP设计状态方便起见，这里我们从`1`开始对字符串下标计数。什么情况使得字符串不是回文串？显然是存在前后两处不相等的字符`s[i]!=s[n-i+1]`。为了解决这个矛盾，我们不得不在前面多引入一个`s[n-i+1]`字符，在后面多引入一个`s[i]`字符。也就是说，两个不相等的字符，需要总计引入两个字符才能弥补。
-
-根据回文串的特性可知，回文串等于它自己的逆序串。令原串为`a`，逆序串为`b`。**我们敏锐地注意到：不在`a`和`b`的最长公共子序列的字符，就是导致`s[i]!=s[n-i+1]`的字符**。于是答案就是`s`的长度减去`a`与`b`最长公共子序列的长度。
-
-使用滚动数组压成两行即可。其实我们完全可以只用`s`这一块空间同时表示`a`和`b`，从而节省空间，本题略。这样做的时间复杂度为$O(mn)$。
-
-```c++
-const int STRING_LENGTH_MAX = 1000;
-char s[STRING_LENGTH_MAX + 2];
-int n, dp[2][STRING_LENGTH_MAX + 1];
-int main() {
-    std::cin >> (s + 1);
-    n = std::strlen(s + 1);
-    char a[STRING_LENGTH_MAX + 2], b[STRING_LENGTH_MAX + 2];
-    std::copy(s + 1, s + n + 1, a + 1);
-    std::copy(s + 1, s + n + 1, b + 1);
-    std::reverse(b + 1, b + n + 1);
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= n; ++j) {
-            if(a[i] == b[j]) {
-                dp[i & 1][j] = dp[(i - 1) & 1][j - 1] + 1;
-            } else {
-                dp[i & 1][j] = std::max(dp[(i - 1) & 1][j], dp[i & 1][j - 1]);
-            }
-        }
-    }
-    std::cout << n - dp[n & 1][n] << std::endl;
-}
-```
-
 > [洛谷P1439](https://www.luogu.com.cn/problem/P1439)：已知序列`a`、`b`是同一字符集（字符各异，类型均为`int`）的两种全排列，字符集、`a`和`b`的长度均为`n<=1e5`，求两者的最长公共子序列长度。
 
 如果仍然使用动态规划，那么$O(n^2)$的时间复杂度无法通过`1e5`的数据范围。**注意到在本题所给的两个序列中，每个字符都在这两个序列中出现过，且均只出现一次**。于是使用离散化与贪心思想优化后，转化成最长上升子序列问题，本题的最佳时间复杂度为$O(n\log n)$。
 
-具体来说，我们令字符`a[i]`的编号为`i`，以此类推可以建立一套字符集编号表（从原始字符类型`int`到编号`int`）。于是字符序列`a[]`对应的编号序列`a_encoded[]`就是一串递增的数字`1,2,3,...,n`。将这套映射规则同样应用于`b[]`，我们就得到了`b_encoded[]`。
+具体来说，我们令字符`a[i]`的编号为`i`，以此类推可以建立一套字符集编号表`encode[]`（从原始字符类型`int`到编号`int`）。于是字符序列`a[]`对应的编号序列`a_encoded[]`就是一串递增的数字`1,2,3,...,n`。将这套映射规则同样应用于`b[]`，我们就得到了`b_encoded[]`。
 
 显然`a[]`和`b[]`的最长公共子序列长度，就是`a_encoded[]`和`b_encoded[]`的最长公共子序列长度。而`a_encoded[]`是严格递增序列，所以它们的公共子序列一定也是严格递增序列。**于是问题转化为求`b_encoded[]`的最长上升子序列长度。**
 
-
+```c++
+const int N_MAX = 1e5;
+int n, temp, encode[N_MAX + 1], b_encoded[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> temp;
+        encode[temp] = i;
+    }
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> b_encoded[i];
+        b_encoded[i] = encode[b_encoded[i]];
+    }
+    int right_bound = 0;
+    for(int i = 1; i <= n; ++i) {
+        if(b_encoded[i] > b_encoded[right_bound]) {
+            ++right_bound;
+            b_encoded[right_bound] = b_encoded[i];
+        } else {
+            int j_max = std::upper_bound(b_encoded + 1, b_encoded + 1 + right_bound, b_encoded[i], std::less_equal<int>()) - b_encoded;
+            b_encoded[j_max] = b_encoded[i];
+        }
+    }
+    std::cout << right_bound;
+}
+```
 
 ## §2.3 棋盘DP
 
@@ -6116,6 +6149,97 @@ int main() {
         }
     }
     std::cout << dp[len_a][len_b];
+}
+```
+
+## §4.4 字符串最优转换
+
+### §4.4.1 回文串转换
+
+> [洛谷P1435](https://www.luogu.com.cn/problem/P1435)：给定一个长度为`n`的字符串`s`，至少需要插入多少字符，才能让`s`变成回文串？
+
+为DP设计状态方便起见，这里我们从`1`开始对字符串下标计数。什么情况使得字符串不是回文串？显然是存在前后两处不相等的字符`s[i]!=s[n-i+1]`。为了解决这个矛盾，我们不得不在前面多引入一个`s[n-i+1]`字符，在后面多引入一个`s[i]`字符。也就是说，两个不相等的字符，需要总计引入两个字符才能弥补。
+
+根据回文串的特性可知，回文串等于它自己的逆序串。令原串为`a`，逆序串为`b`。**我们敏锐地注意到：不在`a`和`b`的最长公共子序列的字符，就是导致`s[i]!=s[n-i+1]`的字符**。于是答案就是`s`的长度减去`a`与`b`最长公共子序列的长度。
+
+使用滚动数组压成两行即可。其实我们完全可以只用`s`这一块空间同时表示`a`和`b`，从而节省空间，本题略。这样做的时间复杂度为$O(mn)$。
+
+```c++
+const int STRING_LENGTH_MAX = 1000;
+char s[STRING_LENGTH_MAX + 2];
+int n, dp[2][STRING_LENGTH_MAX + 1];
+int main() {
+    std::cin >> (s + 1);
+    n = std::strlen(s + 1);
+    char a[STRING_LENGTH_MAX + 2], b[STRING_LENGTH_MAX + 2];
+    std::copy(s + 1, s + n + 1, a + 1);
+    std::copy(s + 1, s + n + 1, b + 1);
+    std::reverse(b + 1, b + n + 1);
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= n; ++j) {
+            if(a[i] == b[j]) {
+                dp[i & 1][j] = dp[(i - 1) & 1][j - 1] + 1;
+            } else {
+                dp[i & 1][j] = std::max(dp[(i - 1) & 1][j], dp[i & 1][j - 1]);
+            }
+        }
+    }
+    std::cout << n - dp[n & 1][n] << std::endl;
+}
+```
+
+> [洛谷P2890](https://www.luogu.com.cn/problem/P2890)：给定一个包含`n`种字符（`char`）的字符集，及其构成的长度为`m`的字符串`s`。现允许从中添加和删除一些字符，使其变成回文串。但是对于每种不同的字符`i`而言，添加和删除一个该字符要付出不同的代价`cost[i][0/1]`。求总代价最小值。
+
+本题在[洛谷P1435](https://www.luogu.com.cn/problem/P1435) 的基础上引入了不同操作的代价，它的解法是转换为最长公共子序列问题，使用区间DP的思想求解。这提示我们求解这道题也需要使用区间DP。
+
+令`dp[i][j]`表示给定`s`在闭区间`[i,j]`内的子串，使其变成回文串的最小总代价。按以下情况分类讨论：
+
+- 如果`s[i]==s[j]`，则按照贪心思想，直接剥去外边一层字符，即`dp[i][j] = dp[i+1][j-1]`。注意到当`i>=j`时，`dp[i][j]==0`，因此不必再对`i<j`和`i==j`进行分类讨论。
+- 如果`s[i]!=s[j]`，则可以通过`dp[i+1][j]`和`dp[i][j-1]`两种状态转移而来。
+  - 从`dp[i+1][j]`转移而来：由于`s[i]`的出现破坏了回文特性，所以要么在左边删除`s[i]`，要么在右边添加`s[i]`。
+  - 从`dp[i][j-1]`转移而来：由于`s[j]`的出现破坏了回文特性，所以要么在右边删除`s[j]`，要么在左边添加`s[j]`。
+
+综上所述，状态转移方程为：
+
+$$
+\text{dp}[i][j] = \begin{cases}
+	\text{dp}[i+1][j-1] & , s[i]=s[j] \\
+	\min\begin{cases}
+		f[i+1][j] + \min(\text{cost}[s[i]][0], \text{cost}[s[i]][1]) \\
+		f[i][j-1] + \min(\text{cost}[s[j]][0], \text{cost}[s[j]][1])
+	\end{cases} & , s[i] \neq s[j]
+\end{cases}
+$$
+
+注意到状态转移方程中只用到了`min(cost[char][0], cost[char][1])`，因此我们可以将其预处理为`cost_min[char]`，节省常数级别的时间。
+
+```c++
+const int N_MAX = 128, M_MAX = 2e3;
+int n, m, cost_add_temp, cost_minus_temp, cost_min[N_MAX], dp[M_MAX + 1][M_MAX + 1];
+char temp, s[M_MAX + 2];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> m >> (s + 1);
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> temp;
+        std::cin >> cost_add_temp >> cost_minus_temp;
+        cost_min[temp] = std::min(cost_add_temp, cost_minus_temp);
+    }
+    for(int len = 2; len <= m; ++len) {
+        for(int i = 1, j = len; j <= m; ++i, ++j) {
+            if(s[i] == s[j]) {
+                dp[i][j] = dp[i + 1][j - 1];
+            } else {
+                dp[i][j] = std::min(
+                    dp[i + 1][j] + cost_min[s[i]],
+                    dp[i][j - 1] + cost_min[s[j]]
+                );
+            }
+        }
+    }
+    std::cout << dp[1][m];
 }
 ```
 
