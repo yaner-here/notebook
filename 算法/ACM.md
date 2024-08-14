@@ -2355,14 +2355,45 @@ const long long int N_MAX = 1e5;
 int n, a[N_MAX + 1], dp[N_MAX + 1];
 int main() {
     while(std::cin >> a[++n]); --n;
-    int right_bound = 0; // 不能是1，否则结果普遍高出1
+    int right_bound = 0; // 不能是1，否则结果普遍高出1。具体原因是a[1]不会被if()第二个分支捕获，而是被第一个捕获，导师right_bound先+1
     for(int i = 1; i <= n; ++i) {
-        if(a[i] > dp[right_bound]) {
+        if(a[i] > dp[right_bound]) { // 改成>=即为非严格上升子序列
             ++right_bound;
             dp[right_bound] = a[i];
         } else {
             int j_max = std::upper_bound(dp + 1, dp + 1 + right_bound, a[i], std::less_equal<int>()) - dp;
             dp[j_max] = a[i];
+        }
+    }
+    std::cout << right_bound;
+}
+```
+
+> [洛谷P2782](https://www.luogu.com.cn/problem/P2782)：在一维数轴上给定`n`条有向线段，起点和终点坐标分别为$a_i$和$b_i$。现在要保证对于任意两条有向线段$(a_i,b_i),(a_j,b_j)$，都满足$(a_i-a_j)(b_i-b_j)\ge0$，所以需要删除一些有向线段。求最后留下的线段数量最大值。
+
+题目给出了$(a_i-a_j)(b_i-b_j)>0$条件，它的等价含义是$a_i,a_j$的大小关系等同于$b_i,b_j$的大小关系，或者起点或终点重合。**于是将这堆线段按$a_i$从小到大排序后，$b_i$也应该非严格单调递增，问题转变为求$b_i$的最长非严格上升子序列的长度。**
+
+```c++
+const long long int N_MAX = 2e5;
+struct Line {
+    int a, b;
+} l[N_MAX];
+int n, dp[N_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 0; i < n; ++i) { std::cin >> l[i].a >> l[i].b; }
+    std::sort(l, l + n, [](const Line &left, const Line &right) { return left.a < right.a; });
+    int right_bound = 0;
+    for(int i = 0; i < n; ++i) {
+        if(l[i].b >= dp[right_bound]) {
+            ++right_bound;
+            dp[right_bound] = l[i].b;
+        } else {
+            int j_max = std::upper_bound(dp + 1, dp + 1 + right_bound, l[i].b, std::less_equal<int>()) - dp;
+            dp[j_max] = l[i].b;
         }
     }
     std::cout << right_bound;
