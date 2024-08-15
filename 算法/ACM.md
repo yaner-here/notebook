@@ -2355,7 +2355,7 @@ int main() {
     while(std::cin >> a[++n]); --n;
     int right_bound = 0; // 不能是1，否则结果普遍高出1。具体原因是a[1]不会被if()第二个分支捕获，而是被第一个捕获，导师right_bound先+1
     for(int i = 1; i <= n; ++i) {
-        if(a[i] > dp[right_bound]) { // 改成>=即为非严格上升子序列
+        if(a[i] > dp[right_bound]) {
             ++right_bound;
             dp[right_bound] = a[i];
         } else {
@@ -2458,6 +2458,104 @@ int main() {
         }
         std::cout << count << '\n'; 
     }
+}
+```
+
+> [洛谷P2896](https://www.luogu.com.cn/problem/P2896)：给定一个全序关系的字符集（`int`），及其构成的长度为`n`的字符串`s`。现在要求修改其中的一些字符，使得`s`非严格单调递增或非严格单调递减。求修改字符的最少数量。
+
+显然本题要分成LIS和LDS两种情况讨论。
+
+首先证明一个引理：对于任意序列，可能存在多个等长的LIS/LDS。在修改字符最少数量的方案中，一定不会修改LIS/LDS上的字符。只要该字符位于任意一个LIS/LDS序列中，就认为这是LIS/LDS上的字符。证明如下：
+
+- 给定序列`s_1`，如果最优方案不修改LIS/LDS上的字符，则证毕，也就是说需要修改不在LIS/LDS序列上的字符，个数为`a`。
+- 给定序列`s_1`，如果最优方案修改LIS/LDS上的字符，字符数记为`b_1`，则考虑只修改这`b_1`个字符构成的新序列`s_2`。
+	- 如果`s_2`的最优方案不修改LIS/LDS上的字符，则修改的字符总数为`a`。也就是说`s1`的最优方案修改的字符总数为`a + b_1`，这大于前文中的`a`，因此不是最优方案，矛盾。
+	- 如果`s_2`的最优方案修改LIS/LDS上的字符，字符串记为`b_2`，则依次类推，由于`b_1 + b_2 + ...`存在上界`b = n - a`，所以必定存在`s_n`，它的最优方案不修改LIS/LDS上的字符，导致`a + b_1 + b_2 + ... + b_n > a`，矛盾。故证毕。
+
+```mermaid
+graph LR
+	s_1 --"不修改LIS/LDS"--> proof_1["证毕√"]
+	s_1 --"修改LIS/LDS"--> s_2
+	s_2 --"不修改LIS/LDS"--> proof_2["矛盾×"]
+	s_2 --"修改LIS/LDS"--> more["..."]
+	more --"不修改LIS/LDS"--> proof_more["矛盾"×]
+	more --"修改LIS/LDS"--> s_n
+	s_n --"修改LIS/LDS"--> wrong["上界限制×"]
+	s_n --"不修改LIS/LDS"--> proof_n["矛盾×"]
+```
+
+令最长不降子序列和最长不升子序列的长度分别为`a`、`b`，显然答案为`std::min(n - a, n - b)`。
+
+```c++
+const int N_MAX = 3e4;
+int n, lis_len, lds_len, a[N_MAX + 1], dp[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    /* LIS(非严格) */
+    lis_len = 0;
+    for(int i = 1; i <= n; ++i) {
+        if(a[i] >= dp[lis_len]) {
+            ++lis_len;
+            dp[lis_len] = a[i];
+        } else {
+            int j_max = std::upper_bound(dp + 1, dp + 1 + lis_len, a[i], std::less<int>()) - dp;
+            dp[j_max] = a[i];
+        }
+    }
+    memset(dp, 0, sizeof(dp));
+    /* LDS(非严格) */
+    lds_len = 1;
+    for(long long int i = 1 ; i <= n ; ++i){
+        if(a[i] <= dp[lds_len]){
+            lds_len++;
+            dp[lds_len] = a[i];
+        }else{
+            long long int j_max = std::upper_bound(dp + 1, dp + 1 + lds_len, a[i], std::greater<long long int>()) - dp;
+            dp[j_max] = a[i];
+        }
+    }
+    std::cout << std::min(n - lis_len, n - lds_len);
+}
+```
+
+> [洛谷P1091](https://www.luogu.com.cn/problem/P1091)：给定一个长度为`n`的序列，求其严格单峰子序列的最大长度`k`，即满足$a_1<a_2<\cdots<a_i>a_{i+1}>a_{i+2}>\cdots>a_{k}$的序列。输出`n-k`即可。
+
+对`i:1->n`进行遍历，求出要让`a[i]`作为单峰时的`k`最大值，取出最大的`k`值即可。分别从左到右、从右到左进行LIS的DP，求出$\max_{i\in[1,n]}(\text{dp\_lr\_len}[i] + \text{dp\_rl\_len}[i] - 1)$即可。
+
+```c++
+const long long int N_MAX = 100;
+int n, a[N_MAX + 1], dp_lr[N_MAX + 1], dp_lr_len[N_MAX + 1], dp_rl[N_MAX + 1], dp_rl_len[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    int dp_lr_len_bound = 0;
+    for(int i = 1; i <= n; ++i) {
+        if(a[i] > dp_lr[dp_lr_len_bound]) {
+            ++dp_lr_len_bound;
+            dp_lr[dp_lr_len_bound] = a[i];
+            dp_lr_len[i] = dp_lr_len_bound;
+        } else {
+            int j_max = std::upper_bound(dp_lr + 1, dp_lr + 1 + dp_lr_len_bound, a[i], std::less_equal<int>()) - dp_lr;
+            dp_lr[j_max] = a[i];
+            dp_lr_len[i] = j_max;
+        }
+    }
+    int dp_rl_len_bound = 0;
+    for(int i = n; i >= 1; --i) {
+        if(a[i] > dp_rl[dp_rl_len_bound]) {
+            ++dp_rl_len_bound;
+            dp_rl[dp_rl_len_bound] = a[i];
+            dp_rl_len[i] = dp_rl_len_bound;
+        } else {
+            int j_max = std::upper_bound(dp_rl + 1, dp_rl + 1 + dp_rl_len_bound, a[i], std::less_equal<int>()) - dp_rl;
+            dp_rl[j_max] = a[i];
+            dp_rl_len[i] = j_max;
+        }
+    }
+    int result = 0;
+    for(int i = 1; i <= n; ++i) { result = std::max(result, dp_lr_len[i] + dp_rl_len[i] - 1); }
+    std::cout << n - result;
 }
 ```
 
