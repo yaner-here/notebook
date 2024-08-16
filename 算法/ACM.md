@@ -2157,7 +2157,43 @@ int main() {
 
 给定一个数字序列，从中抽出一部分元素后，剩下的元素构成了一个新的子序列。
 
-### §2.2.1 最长单调子序列
+### §2.2.1 子序列极值
+
+> [洛谷P1103](https://www.luogu.com.cn/problem/P1103)：给定一个长度为`n`的子序列，从中删除`k`个元素，形成了长度为`n-k`的新序列`s`。求$\displaystyle\min_{s}\mathcal{L}(s)=\displaystyle\min_{s}\sum_{i=1}^{n-k-1}|s[i+1]-s[i]|$。
+
+令`dp[i][j]`表示给定前`i`个元素，选中其中的`j`个元素，且必定选中第`i`个元素，对应的$\displaystyle\min_{s}\mathcal{L}(s)$。对于第`i`个元素，它既可以另起炉灶，也可以与前面的元素序列拼接。即状态转移方程：
+
+$$
+\text{dp}[i][j] = \min_{k<i} \left(
+	\text{dp}[k][j-1] + \left|s[i] - s[k]\right|
+\right), i\ge j\ge 2
+$$
+
+考虑`dp[][]`的初始值。显然`j<=i`，在内层遍历时`j`会越来越小。对于`dp[*][1]`而言，序列中只有一个元素，所以`dp[*][1] = 0`。
+
+```c++
+const int N_MAX = 100;
+int n, k, dp[N_MAX + 1][N_MAX + 1];
+struct Element { int a, b; } s[N_MAX + 1];
+int main() {
+    std::cin >> n >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> s[i].a >> s[i].b; }
+    std::sort(s + 1, s + 1 + n, [](const Element &left, const Element &right)->bool { return left.a < right.a; });
+    for(int i = 2; i <= n; ++i) {
+        for(int j = 2; j <= i; ++j) {
+            dp[i][j] = 1e9;
+            for(int k = j - 1; k < i; ++k) { // k从j-1开始递增，避免访问dp[<j-1][j-1]，否则还得全局初始化dp为正无穷大
+                dp[i][j] = std::min(dp[i][j], dp[k][j - 1] + std::abs(s[i].b - s[k].b));
+            }
+        }
+    }
+    int result = 1e9;
+    for(int i = n - k; i <= n; ++i) { result = std::min(result, dp[i][n - k]); }
+    std::cout << result;
+}
+```
+
+### §2.2.2 最长单调子序列
 
 > [洛谷P1020](https://www.luogu.com.cn/problem/P1020)：给定一个长度为`n`的数字序列`a[i]`，求：（1）最长单调不升子序列的长度。
 
@@ -2559,7 +2595,7 @@ int main() {
 }
 ```
 
-### §2.2.2 单调子序列划分
+### §2.2.3 单调子序列划分
 
 > [洛谷P1020](https://www.luogu.com.cn/problem/P1020)：给定一个长度为`n`的数字序列`a[i]`，求：（2）将`n`个元素按前后顺序划分成`k`个单调不升子序列，求`k`的最小值。
 
@@ -2610,7 +2646,7 @@ int main(){
 }
 ```
 
-### §2.2.3 连续子序列划分
+### §2.2.4 连续子序列划分
 
 > [洛谷P1564](https://www.luogu.com.cn/problem/P1564)：给定一个仅由`0`/`1`构成的、长度为`n`的序列。现在要将其分割成`k`个连续的子序列，使得这些子序列中要么只由`0`或只由`1`组成，要么`0`/`1`出现频次之差小于等于`m`。求`k`的最小值。
 
@@ -2667,7 +2703,59 @@ int main() {
 }
 ```
 
-### §2.2.4 最长公共子序列（LCS）
+> [洛谷P2072](https://www.luogu.com.cn/problem/P2072)：给定字符集（`int`）及其构成的长度为`n`的序列`a`。现在要求将其连续地划分成`m`段$s_1,s_2,\cdots,s_m$，每段连续子序列$s_i$中的元素种类$\text{count}(s_i)$均小于等于`k`，求`m`的最小值与$\min\displaystyle\sum_{i=1}^{m}\text{count}(s_i)$。
+
+令`dp_m[]`和`dp_count[]`分别表示给定前`i`个物品时，两个待求解的最优化变量的值。
+
+$$
+
+$$
+
+> [洛谷P2642](https://www.luogu.com.cn/problem/P2642)：给定长度为`n`的整数序列，从中选出两段不相邻的连续子序列，求两者元素之和的最大值。
+
+首先回忆一段连续子序列的元素之和最大值。令`dp[i]`表示给定前`i`个数，且选中第`i`个数构成的子序列元素之和最大值，需要使用以下状态转移方程：
+
+$$
+\begin{align}
+	\text{dp}[i] & = \begin{cases}
+		\text{dp}[i-1] + a[i] & , a[i] \ge 0 \\
+		\max(\text{dp}[i-1] + a[i], a[i]) & , a[i] < 0
+	\end{cases} \\
+	& = \max(\text{dp}[i-1] + a[i], a[i])
+\end{align}
+$$
+
+现在需要求两段不相邻连续子序列，我们不妨枚举两者之间间隔的位置`1<i<n`，以此为界限将原序列切割成`[1, i-1]`和`[i+1, n]`这不相邻的两段，分别求两段的元素之和最大值即可。为了更快地求出$\displaystyle\max_{i\in[1,i]}\text{dp}[i]$和$\displaystyle\max_{i\in[i,n]}\text{dp}[i]$，我们将其预处理为两个数组`summax_lr[i]`和`summax_rl[i]`。
+
+```c++
+const int N_MAX = 1e6;
+long long int n, a[N_MAX + 1], dp[N_MAX + 1], summax_lr[N_MAX + 2], summax_rl[N_MAX + 2];
+long long int max_temp, result;
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { dp[i] = std::max(a[i], dp[i - 1] + a[i]); }
+    max_temp = -1e18;
+    for(int i = 1; i <= n; ++i) {
+        max_temp = std::max(max_temp, dp[i]);
+        summax_lr[i] = max_temp;
+    }
+    for(int i = n; i >= 1; --i) { dp[i] = std::max(a[i], dp[i + 1] + a[i]); }
+    max_temp = -1e18;
+    for(int i = n; i >= 1; --i) {
+        max_temp = std::max(max_temp, dp[i]);
+        summax_rl[i] = max_temp;
+    }
+    result = -1e18;
+    for(int i = 2; i < n; ++i) { result = std::max(result, summax_lr[i - 1] + summax_rl[i + 1]); }
+    std::cout << result;
+}
+```
+
+### §2.2.5 最长公共子序列（LCS）
 
 给定两个序列`a`、`b`，若序列`c`既是`a`的子序列，又是`b`的子序列，则称`c`为`a`和`b`的公共子序列。最长公共子序列（LCS, Longest Common Subsequence）的长度。
 
