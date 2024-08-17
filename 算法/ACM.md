@@ -2711,6 +2711,8 @@ $$
 
 $$
 
+#TODO：？？？？？ 
+
 > [洛谷P2642](https://www.luogu.com.cn/problem/P2642)：给定长度为`n`的整数序列，从中选出两段不相邻的连续子序列，求两者元素之和的最大值。
 
 首先回忆一段连续子序列的元素之和最大值。令`dp[i]`表示给定前`i`个数，且选中第`i`个数构成的子序列元素之和最大值，需要使用以下状态转移方程：
@@ -2752,6 +2754,58 @@ int main() {
     result = -1e18;
     for(int i = 2; i < n; ++i) { result = std::max(result, summax_lr[i - 1] + summax_rl[i + 1]); }
     std::cout << result;
+}
+```
+
+> [洛谷P9147](https://www.luogu.com.cn/problem/P9147)：给定一个长度为`n`的整数序列`a[]`，只允许修改一个元素，求修改后最长严格递增连续子序列的长度。
+
+一种朴素的想法是：修改一个元素`a[i]`后，能将前后两个相邻的严格递增连续子序列合并在一起，从而增加长度。于是我们需要知道以`a[i-1]`为结尾的、以`a[i+1]`为开头的严格递增连续子序列最长长度，分别记为`dp_end[i-1]`和`dp_start[i+1]`。
+
+显然`dp_end[]`和`dp_start[]`可以通过以下状态转移方程得到：
+
+$$
+\begin{align}
+	& \text{dp\_end}[i] = \begin{cases}
+		\text{dp\_end}[i-1] + 1 & , a[i-1] < a[i] \\
+		1 & , a[i-1] \ge a[i] \vee i=1
+	\end{cases} \\
+	& \text{dp\_start}[i] = \begin{cases}
+		\text{dp\_start}[i+1] + 1 & , a[i] < a[i+1] \\
+		1 & , a[i] \ge a[i+1] \vee i=n
+	\end{cases}
+\end{align}
+$$
+
+然后枚举要修改的元素`a[i]`，是否能将首尾两个严格递增连续子序列拼在一起，即`a[i-1] < ? < a[i+1]`，`?`可以任意更改。该判断条件等价于`a[i-1]<a[i+1]-1`。
+
+```c++
+const int N_MAX = 1e6;
+int n, a[N_MAX + 2], dp_start[N_MAX + 2], dp_end[N_MAX + 2]; // a[1->n]存储数据，a[0]=+∞，a[n+1]=-∞
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n;
+    a[0] = INT32_MAX;
+    a[n + 1] = INT32_MIN;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    dp_end[1] = 1;
+    for(int i = 2; i <= n; ++i) { dp_end[i] = (a[i] > a[i - 1] ? dp_end[i - 1] + 1 : 1); }
+    dp_start[n] = 1;
+    for(int i = n - 1; i >= 1; --i) { dp_start[i] = (a[i] < a[i + 1] ? dp_start[i + 1] + 1 : 1); }
+    int result = 0;
+    for(int i = 1; i <= n; ++i) {
+        if(a[i - 1] < a[i + 1] - 1) { // 向前后同时拼接
+            result = std::max(result, dp_end[i - 1] + dp_start[i + 1] + 1);
+        } else {
+            result = std::max({
+                result,
+                dp_end[i - 1] + 1, // 向前拼接
+                dp_start[i + 1] + 1, // 向后拼接
+            });
+        }
+    }
+    std::cout << result << std::endl;
 }
 ```
 
@@ -2830,6 +2884,115 @@ int main() {
         }
     }
     std::cout << right_bound;
+}
+```
+
+> [洛谷P2364](https://www.luogu.com.cn/problem/P2364)：现在有一个未知的字符串`s`，在其中不同的位置插入若干干扰字符，分别形成了字符串`a`、`b`、`c`。给定这三个干扰过的字符串，求原始字符串`s`。
+
+本题实质上是求三个字符串的最长公共子序列。令`dp[i][j][k]`表示分别取字符串`a`、`b`、`c`的前`i`、`j`、`k`个元素构成的子序列，它们能构成的最长公共子序列长度。于是有状态转移方程：
+
+$$
+\text{dp}[i][j][k] = \begin{cases}
+	\text{dp}[i-1][j-1][k-1] + 1 & , a[i]=b[j]=c[k] \\
+	\max\begin{cases}
+		\text{dp}[i-1][j][k] \\
+		\text{dp}[i][j-1][k] \\
+		\text{dp}[i][j][k-1]
+	\end{cases} & , a[i],b[j],c[k]不相等
+\end{cases}
+$$
+
+然而本题要求的并不是长度，而是具体的最长公共子序列。最容易想到的方法是使用`std::string s[i][j][k]`记录最长公共子序列的内容。状态转移方程为：
+
+$$
+s[i][j][k] = \begin{cases}
+	s[i-1][j-1][k-1] + a[i] & , a[i]=b[j]=c[k] \\
+	\begin{cases}
+		s[i-1][j][k] & ,\text{dp}[i-1][j][k]>\text{dp}[i][j][k] \\
+		s[i][j-1][k] & ,\text{dp}[i][j-1][k]>\text{dp}[i][j][k] \\
+		s[i][j][k-1] & ,\text{dp}[i][j][k-1]>\text{dp}[i][j][k]
+	\end{cases} & , \underset{如果\text{dp}[i-1][j][k],\text{dp}[i][j-1][k],\text{dp}[i][j][k-1]相等，任选一个}{a[i],b[j],c[k]不相等}
+\end{cases}
+$$
+
+```c++
+if(a[i] == b[j] && b[j] == c[k]) {
+	// 初始时dp[i][j][k]=0，一定能进入下面的分支
+    if(dp[i - 1][j - 1][k - 1] + 1 > dp[i][j][k]) {
+        dp[i][j][k] = dp[i - 1][j - 1][k - 1] + 1;
+		s[i][j][k] = s[i - 1][j - 1][k - 1] + a[i];
+    }
+} else { // 初始时dp[i][j][k]=0，有可能无法进入下面任何一个分支，对应无字符添加
+    if(dp[i - 1][j][k] > dp[i][j][k]) {
+        dp[i][j][k] = dp[i - 1][j][k];
+        s[i][j][k] = s[i - 1][j][k];
+    }
+    if(dp[i][j - 1][k] > dp[i][j][k]) {
+        dp[i][j][k] = dp[i][j - 1][k];
+        s[i][j][k] = s[i][j - 1][k];
+    }
+    if(dp[i][j][k - 1] > dp[i][j][k]) {
+        dp[i][j][k] = dp[i][j][k - 1];
+        s[i][j][k] = s[i][j][k - 1];
+    }
+}
+```
+
+这种方法存储了$O(n^3)$个状态，每个状态占用$O(n)$的字符串空间，因此会占用$O(n^4)$空间。这是我们无法接受的。
+
+接下来介绍标记法，它只需要$O(n^3)$的空间。其核心思想是记录上述代码进入了四个分支的哪一个，存入`branch[i][j][k]`，最后使用`dfs()`从后向前遍历最长公共子序列的字符，通过控制`dfs()`内部代码执行顺序为“先深搜再输出”，实现逆序字符串的逆序输出。
+
+```c++
+const int N_MAX = 100;
+char a[N_MAX + 2], b[N_MAX + 2], c[N_MAX + 2];
+int len_a, len_b, len_c, dp[N_MAX + 1][N_MAX + 1][N_MAX + 1], branch[N_MAX + 1][N_MAX + 1][N_MAX + 1];
+void dfs(int i, int j, int k) {
+    if(i < 1 || j < 1 || k < 1) { return; }
+    switch(branch[i][j][k]) {
+        case 0:
+            return;
+        case 1:
+            dfs(i - 1, j - 1, k - 1);
+            std::cout << a[i];
+            break;
+        case 2:
+            dfs(i - 1, j, k);
+            break;
+        case 3:
+            dfs(i, j - 1, k);
+            break;
+        case 4:
+            dfs(i, j, k - 1);
+            break;
+    }
+}
+int main() {
+    std::cin >> (a + 1) >> (b + 1) >> (c + 1);
+    len_a = std::strlen(a + 1), len_b = std::strlen(b + 1), len_c = std::strlen(c + 1);
+    for(int i = 1; i <= len_a; ++i) {
+        for(int j = 1; j <= len_b; ++j) {
+            for(int k = 1; k <= len_c; ++k) {
+                if(a[i] == b[j] && b[j] == c[k]) {
+                    dp[i][j][k] = dp[i - 1][j - 1][k - 1] + 1;
+                    branch[i][j][k] = 1;
+                } else { // 若无法进入下面是在哪个分支，则branch[i][j][k]=0，在dfs中表示终止
+                    if(dp[i - 1][j][k] > dp[i][j][k]) {
+                        dp[i][j][k] = dp[i - 1][j][k];
+                        branch[i][j][k] = 2;
+                    }
+                    if(dp[i][j - 1][k] > dp[i][j][k]) {
+                        dp[i][j][k] = dp[i][j - 1][k];
+                        branch[i][j][k] = 3;
+                    }
+                    if(dp[i][j][k - 1] > dp[i][j][k]) {
+                        dp[i][j][k] = dp[i][j][k - 1];
+                        branch[i][j][k] = 4;
+                    }
+                }
+            }
+        }
+    }
+    dfs(len_a, len_b, len_c);
 }
 ```
 
@@ -3945,6 +4108,29 @@ int main() {
     }
     std::cout << result;
     return 0;
+}
+```
+
+> [洛谷P8687](https://www.luogu.com.cn/problem/P8687)：给定`m<=20`种物品和`n`组物品，每组物品中均包含`k`个物品，物品所属种类为`a[i:1->n][j:1->k]`。要覆盖所有的`m`种物品，至少需要从`n`组物品中选择多少组物品？
+
+令`dp[i]`表示在状态`i`下，选定其表示的物品种类，所需的最少组物品数。直接用状压DP即可。这里我们不记录`a[][]`的值，而是即用即读，用完就抛，从而节省内存。
+
+```c++
+const int N_MAX = 100, M_MAX = 20, K_MAX = 20;
+int n, m, k, dp[1 << M_MAX], temp, status;
+int main() {
+    std::cin >> n >> m >> k;
+    memset(dp, 0x3f, sizeof(dp));
+    dp[0] = 0;
+    for(int i = 0; i < n; ++i) {
+        status = 0;
+        for(int j = 1; j <= k; ++j) {
+            std::cin >> temp; --temp; 
+            status |= (1 << temp);
+        }
+        for(int j = 0; j < (1 << m); ++j) { dp[j | status] = std::min(dp[j | status], dp[j] + 1); }
+    }
+    std::cout << (dp[(1 << m) - 1] == 0x3f3f3f3f ? -1 : dp[(1 << m) - 1]);
 }
 ```
 
