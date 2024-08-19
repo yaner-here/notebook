@@ -2405,7 +2405,7 @@ int main() {
 
 > [洛谷P2782](https://www.luogu.com.cn/problem/P2782)：在一维数轴上给定`n`条有向线段，起点和终点坐标分别为$a_i$和$b_i$。现在要保证对于任意两条有向线段$(a_i,b_i),(a_j,b_j)$，都满足$(a_i-a_j)(b_i-b_j)\ge0$，所以需要删除一些有向线段。求最后留下的线段数量最大值。
 
-题目给出了$(a_i-a_j)(b_i-b_j)>0$条件，它的等价含义是$a_i,a_j$的大小关系等同于$b_i,b_j$的大小关系，或者起点或终点重合。**于是将这堆线段按$a_i$从小到大排序后，$b_i$也应该非严格单调递增，问题转变为求$b_i$的最长非严格上升子序列的长度。**
+题目给出了$(a_i-a_j)(b_i-b_j)\ge 0$条件，它的等价含义是$a_i,a_j$的大小关系等同于$b_i,b_j$的大小关系，或者起点或终点重合。**于是将这堆线段按$a_i$从小到大排序后，$b_i$也应该非严格单调递增，问题转变为求$b_i$的最长非严格上升子序列的长度。**
 
 ```c++
 const long long int N_MAX = 2e5;
@@ -2594,6 +2594,10 @@ int main() {
     std::cout << n - result;
 }
 ```
+
+> [洛谷P1970](https://www.luogu.com.cn/problem/P1970)：给定一个长度为`n`的数字序列`a[]`，其子序列`b[]`满足：对于任意偶数$i\in[1,n]$，要么都满足`a[i-1]<a[i]>a[i+1]`，要么都满足`a[i-1]>a[i]<a[i+1]`。求`b[]`的最大长度。
+
+#TODO：？？？？？ 
 
 ### §2.2.3 单调子序列划分
 
@@ -2806,6 +2810,47 @@ int main() {
         }
     }
     std::cout << result << std::endl;
+}
+```
+
+> [洛谷P1594](https://www.luogu.com.cn/problem/P1594)：现在有`n`个要过桥的车辆排成一个序列，每个车辆的重量与过桥时间分别为`w[i]`和`t[i]`。现将其划分成若干个连续的子序列，每个子序列的重量之和不得超过桥梁载重上限`W`，其中所有车辆通行时间取子序列中最大的`t[]`，所有车辆过桥后才能轮到下一个子序列。求`n`个车辆的最短过桥时间。
+
+本题使用到了区间DP的思想。令`dp_seg[i][j]`表示闭区间`[i ,j]`内车辆的最短通行时间，`dp[i]`表示闭区间`[1, i]`内车辆的最短通行时间。考虑最后一辆车`i`与前面哪些车辆组队，容易得出状态转移方程：
+
+$$
+\begin{cases}
+	\text{dp\_seg}[i][j] := \displaystyle\max_{i\le k\le j}(t[k]) = \max(\text{dp\_seg}[i][j-1], t[j]) \\
+	\text{dp}[i] = \displaystyle\min_{1\le j<i}(\text{dp}[j] + \text{dp\_seg}[j+1][i])
+\end{cases}
+$$
+
+```c++
+const int N_MAX = 1000;
+long long int W, s, n, w[N_MAX + 1], v_temp;
+double t[N_MAX + 1], dp_seg[N_MAX + 1][N_MAX + 1], dp[N_MAX + 1];
+int main() {
+    std::cin >> W >> s >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> w[i] >> v_temp;
+        t[i] = (double) s / v_temp * 60;
+    }
+    for(int i = 1; i <= n; ++i) { dp_seg[i][i] = t[i]; }
+    for(int len = 2; len <= n; ++len) {
+        for(int i = 1, j = len; j <= n; ++i, ++j) {
+            dp_seg[i][j] = std::max(dp_seg[i][j - 1], t[j]);
+        }
+    }
+    std::fill_n(dp + 1, n, 1e100);
+    dp[1] = t[1];
+    for(int i = 2; i <= n; ++i) {
+        long long int weight_sum = 0;
+        for(int j = i; j >= 1; --j) {
+            weight_sum += w[j];
+            if(weight_sum > W) { break; }
+            dp[i] = std::min(dp[i], dp[j - 1] + dp_seg[j][i]);
+        }
+    }
+    std::cout << std::fixed << std::setprecision(1) << dp[n];
 }
 ```
 
@@ -4714,6 +4759,108 @@ int main() {
 }
 ```
 
+## §2.12 树形DP
+
+> [洛谷P1122](https://www.luogu.com.cn/problem/P1122)/[洛谷P8625](https://www.luogu.com.cn/problem/P8625)：给定一颗由`n`个节点构成的无向无根树，每个节点都有价值`v[i]`。现取其一个**非空**（洛谷P1122）或**可空**（洛谷P8625）的连通分量，求这部分的节点价值之和最大值。
+
+由于是无根树，所以我们可以认为随便选择某个节点，都可以成为根。**任意连通分量总是可以看作以任意节点为根的有根子树**，所以选谁为根不影响最终结果。这里我们令`1`号节点为根即可，问题转化为了有根树。令`dp[i]`表示在有根树中，以第`i`个节点为子树根节点能获得的最大价值。显然有状态转移方程：
+
+$$
+\text{dp}[i] = v[i] + \sum_{j\in\text{Child}(i),\text{dp}[j]>0}\text{dp}[j]
+$$
+
+```c++
+const int N_MAX = 16000; // 洛谷P1122
+const int N_MAX = 1e5; // 洛谷P8625
+int n, v[N_MAX + 1], edge_first[N_MAX * 2], edge_next[N_MAX * 2], edge_to[N_MAX * 2], edge_count, dp[N_MAX + 1];
+int root_temp, child_temp;
+inline void add_edge(int root, int child) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+}
+void dfs(int root, int father) {
+    dp[root] = v[root]; // dp[i]一定包含v[i]
+    for(int i = edge_first[root]; i; i = edge_next[i]) {
+        int child = edge_to[i];
+        if(child == father) { continue; }
+        dfs(child, root);
+        if(dp[child] > 0) { dp[root] += dp[child]; }
+    }
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> v[i]; }
+    for(int i = 1; i <= n - 1; ++i) {
+        std::cin >> root_temp >> child_temp;
+        add_edge(root_temp, child_temp);
+        add_edge(child_temp, root_temp);
+    }
+    dfs(1, 0);
+
+    // 洛谷P1122，连通分量不能为空
+    std::cout << *std::max_element(dp + 1, dp + n + 1);
+
+    // 洛谷P8625，连通分量可以为空，空时为0
+    std::cout << std::max(*std::max_element(dp + 1, dp + n + 1), 0ll);
+}
+```
+
+> [洛谷P3183](https://www.luogu.com.cn/problem/P3183)：给定一个无环有向图。求以入度为`0`的节点为起点，以出度为`0`的节点为终点，路径长度至少为`2`的路径有多少条。
+
+本题用到了树形DP的思想，DP的遍历顺序由拓扑排序给定。令`dp[i]`表示以入度为`0`的节点为起点，以第`i`个节点为终点，路径长度至少为`2`的路径有多少条。显然有状态转移方程：
+
+$$
+\text{dp}[\text{child}] = \sum_{\forall \text{root},\text{root}\rightarrow\text{child}}\text{dp}[\text{root}]
+$$
+
+初始时所有入度为`0`的节点的`dp[i]`均为`1`，没有边相连的孤立点（出度为`0`）除外，我们通过`edge_first[i]`是否为`0`来判断出度是否为`0`。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 2e5;
+int edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1], edge_count;
+int n, m, in_degree[N_MAX + 1], dp[N_MAX + 1], root_temp, child_temp;
+long long int result;
+std::queue<int> queue;
+inline void add_edge(int root, int child) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> root_temp >> child_temp;
+        ++in_degree[child_temp];
+        add_edge(root_temp, child_temp);
+    }
+    for(int i = 1; i <= n; ++i) {
+        if(in_degree[i] == 0 && edge_first[i] != 0) { // 保证路径长度至少为2
+            queue.emplace(i);
+            dp[i] = 1;
+        }
+    }
+    while(!queue.empty()) {
+        int root = queue.front(); queue.pop();
+        if(edge_first[root] == 0) { // 出度为0，说明遇到了终点
+            result += dp[root];
+            continue;
+        }
+        for(int i = edge_first[root]; i != 0; i = edge_next[i]) {
+            int child = edge_to[i];
+            dp[child] += dp[root];
+            --in_degree[edge_to[i]];
+            if(in_degree[edge_to[i]] == 0) { // 拓扑排序
+                queue.emplace(edge_to[i]);
+            }
+        }
+    }
+    std::cout << result;
+}
+```
+
 ## §2.A DP优化
 
 ### §2.A.1 状态转移方程简化
@@ -5208,6 +5355,53 @@ int main() {
         }
     }
     std::cout << dp[capacity];
+}
+```
+
+## §2.B 杂项收集
+
+> [洛谷P9173](https://www.luogu.com.cn/problem/solution/P9173)：给定两个长度分别为`len_a`、`len_b`的空白数列`a`、`b`，现要求在每个元素的位置上填入一个正整数，使得两个数列均严格单调递增。每个正整数只能使用一次，并且每个元素位置对填入数字的奇偶性作出了要求（通过`a[]`、`b[]`给出，`1`奇`0`偶）。在所有填入方案中，求使用的最大正整数的最小值。
+
+**我们直接给出`dp`的状态定义**：令`dp[i][j][0/1]`表示给定`a[]`的前`i`个空位、给定`b[]`的前`j`个空位，最后一个填入的数字在`a[]`/`b[]`末尾时，使用的最大正整数的最小值。
+
+接下来考虑状态转移方程：
+
+- 对于`dp[i][j][0]`而言，最后一个数填入了`a[]`的末尾。那么撤销这部操作，容易发现`dp[i-1][j][?]`可以转移到`dp[i][j][?]`。
+	- `dp[i-1][j][0]`转移到`dp[i][j][0]`。如果`a[i-1]==a[i]`，则对奇偶性的要求相同，在`a[i]`填入的数字只能比`a[i-1]`还大`2`；如果`a[i-1]!=a[i]`，则对奇偶性要求不同，只需大`1`即可。
+	- `dp[i-1][j][1]`转移到`dp[i][j][0]`。同理，`b[j]==a[i]`时加`2`，`b[j]!=a[i]`时加`1`。
+- 对于`dp[i][j][1]`而言，最后一个数填入了`b[]`的末尾。同理可得：
+	- `dp[i][j-1][0]`转移到`dp[i][j][1]`。如果`a[i]==b[j]`就加`2`，`a[i]!=b[j]`就加`1`。
+	- `dp[i][j-1][1]`转移到`dp[i][j][1]`。如果`b[j-1]==b[j]`就加`2`，`a[i]!=b[j]`就加`1`。
+
+```c++
+const int N_MAX = 5000;
+int a[N_MAX + 1], b[N_MAX + 1], len_a, len_b, dp[N_MAX + 1][N_MAX + 1][2];
+int main() {
+    std::cin >> len_a;
+    for(int i = 1; i <= len_a; ++i) { std::cin >> a[i]; }
+    std::cin >> len_b;
+    for(int i = 1; i <= len_b; ++i) { std::cin >> b[i]; }
+
+    dp[1][0][0] = (a[1] % 2 ? 1 : 2);
+    dp[1][0][1] = 1e9;
+    for(int i = 2; i <= len_a; ++i) {
+        dp[i][0][0] = dp[i - 1][0][0] + (a[i - 1] == a[i] ? 2 : 1);
+        dp[i][0][1] = 1e9;
+    }
+    dp[0][1][1] = (b[1] % 2 ? 1 : 2);
+    dp[0][1][0] = 1e9;
+    for(int i = 2; i <= len_b; ++i) {
+        dp[0][i][1] = dp[0][i - 1][1] + (b[i - 1] == b[i] ? 2 : 1);
+        dp[0][i][0] = 1e9;
+    }
+
+    for(int i = 1; i <= len_a; ++i) {
+        for(int j = 1; j <= len_b; ++j) {
+            dp[i][j][0] = std::min(dp[i - 1][j][0] + (a[i - 1] == a[i] ? 2 : 1), dp[i - 1][j][1] + (b[j] == a[i] ? 2 : 1));
+            dp[i][j][1] = std::min(dp[i][j - 1][0] + (a[i] == b[j] ? 2 : 1), dp[i][j - 1][1] + (b[j - 1] == b[j] ? 2 : 1));            
+        }
+    }
+    std::cout << std::min(dp[len_a][len_b][0], dp[len_a][len_b][1]);
 }
 ```
 
@@ -6585,7 +6779,7 @@ int main() {
 }
 ```
 
-> [洛谷P1140]：给定两个仅由`A`、`T`、`G`、`C`四种字符构成的字符串`a[]`和`b[]`。现在可以在两个字符串中插入空格，使得两个字符串长度相等，且插入空格后的字符串不存在一个位置`i`，使得`a[i]`和`b[i]`不能同时为空格。定义两个等长字符串的相似度为$\sum_{i=1}^{\text{strlen}(a)}\text{map}(a[i],b[i])$，其中`map(a[i],b[i])`的映射关系由二维数组给出。求插入空格的策略，使得相似度取得最大值。
+> [洛谷P1140]：给定两个仅由`A`、`T`、`G`、`C`四种字符构成的字符串`a[]`和`b[]`。现在可以在两个字符串中插入空格，使得两个字符串长度相等，且插入空格后的字符串不存在一个位置`i`，使得`a[i]`和`b[i]`同时为空格。定义两个等长字符串的相似度为$\sum_{i=1}^{\text{strlen}(a)}\text{map}(a[i],b[i])$，其中`map(a[i],b[i])`的映射关系由二维数组给出。求插入空格的策略，使得相似度取得最大值。
 
 本题的难点在于定义DP的状态，这里我们直接给出答案：令`dp[i][j]`表示原始字符串`a[]`和`b[]`分别给定前`i`个字符和前`j`个字符时，能获得的最大相似度。
 
@@ -6633,6 +6827,43 @@ int main() {
         }
     }
     std::cout << dp[len_a][len_b];
+}
+```
+
+> [洛谷P2138](https://www.luogu.com.cn/problem/solution/P2138)：两个字符串`a,b`（`strlen(a)>=strlen(b)`）之间的距离定义如下：（1）如果从`a`中删除数量小于等于`strlen(a)/2`个字符后，能变成`b`，则`a,b`之间的距离为`1`。（2）如果`a,b`之间的距离为`n`，`b,c`之间的距离为`m`，则`a,c`之间的距离为`n+m`。现给定两个字符串`a,b`，求其距离。
+
+**本题需要我们敏锐地注意到：删除字符实质上是在考察最长公共子序列**。令`a`和`b`的最长公共子序列的长度为`lcs_len`，则显然`a,b`距离为`1`的充要条件是`lcs_len>=strlen(a)/2`。
+
+接下来考虑距离的叠加。如果`a`和`c`之间的距离为`s`，我们总能根据以下方法找到一个`b`，使得`b`与`c`之间的距离为`s-1`。具体构造如下：我们在字符串`a`中增加`strlen(a)`个字符，这些字符使得LCS长度增加`strlen(a)`，同时字符长度变为原来的两倍，就能得到`b`。重复若干次这样的操作，直到`b`的长度恰好满足`strlen(b)*2>=strlen(a)`，使得`b`和`c`之间的距离缩短为`1`。
+
+使用以上方法，我们最终找到了字符串`c`，使得`a`和`c`之间的距离为若干次重复操作次数，`c`和`b`的距离为`1`。答案为两者相加。
+
+```c++
+const int STRING_LENGTH_MAX = 100;
+char a[STRING_LENGTH_MAX + 2], b[STRING_LENGTH_MAX + 2];
+int len_a, len_b, lcs_len, dp[2][STRING_LENGTH_MAX + 1];
+int main() {
+    std::cin >> (a + 1) >> (b + 1);
+    len_a = std::strlen(a + 1); len_b = std::strlen(b + 1);
+    if(len_a < len_b) { std::swap(a, b); std::swap(len_a, len_b); }
+    for(int i = 1; i <= len_a; ++i) {
+        for(int j = 1; j <= len_b; ++j) {
+            if(a[i] == b[j]) {
+                dp[i & 1][j] = dp[(i - 1) & 1][j - 1] + 1;
+            } else {
+                dp[i & 1][j] = std::max(dp[(i - 1) & 1][j], dp[i & 1][j - 1]);
+            }
+        }
+    }
+    lcs_len = dp[len_a & 1][len_b];
+    int distance = 0;
+    while(lcs_len * 2 < len_a) {
+        ++distance;
+        lcs_len += len_b;
+        len_b *= 2;
+    }
+    ++distance;
+    std::cout << distance << std::endl;
 }
 ```
 
@@ -6729,7 +6960,53 @@ int main() {
 
 # §5 树
 
-## §5.1 树的重心
+## §5.1 树的遍历
+
+> [洛谷P1229](https://www.luogu.com.cn/problem/P1229)：我们直到，前序遍历和后续遍历不能唯一确定一颗二叉树。给定前序遍历`std::string a`和后续遍历`std::string b`，求满足这两种遍历顺序的二叉树数量。
+
+之所以前序遍历和后续遍历不能确定唯一一个数，是因为两者分别展示了“根左右”和“左右根”的便利顺序，无法将“左”和“右”区分开来，从而无法确定一个元素在左右哪颗子树上，造成歧义。歧义只发生在左右子树，而不会发生在根部。
+
+```
+先序遍历均为abc；后序遍历均为cba
+      a  a       a       a
+     /    \       \     /
+    b      b       b   b
+   /        \     /     \
+  c          c   c       c
+```
+
+注意到并不是所有的前序遍历和后续遍历都无法确定唯一一棵树。例如前序遍历为`abc`，后续遍历为`bca`，则能唯一确定下面的情况：
+
+```
+  a
+ / \
+b   c
+```
+
+于是我们敏锐地给出结论：
+
+1. **如果以某节点为根的子树，只有一个叶子节点，则根节点的左右子树一定会发生歧义**。
+2. **进一步推理，如果先序遍历和后序遍历存在一段长度为`2`，但互为逆序的连续子序列，则说明存在一个引起歧义的根节点**。
+
+有`k`个歧义之处，就会有`2^k`个不同的子树。
+
+```c++
+std::string a, b;
+int count;
+int main() {
+    std::cin >> a >> b;
+    for(int i = 0; i < a.length() - 1; ++i) {
+        for(int j = 0; j < b.length(); ++j) {
+            if(a[i + 1] == b[j] && a[i] == b[j + 1]) {
+                ++count;
+            }
+        }
+    }
+    std::cout << (1 << count);
+}
+```
+
+## §5.2 树的重心
 
 给定一颗无根树（即树上的任意节点都可以作为根节点）。任取一个节点作为根节点，可以得到与其相邻的各个子节点及其子树。这些子树有着各自的节点总数。当这些节点总数的最大值达到理论下界时，称所选的这个根节点为数的中心。显然一棵无根树只可能有一个或两个重心。
 
@@ -7120,6 +7397,34 @@ for(int i = 2; i <= n; ++i) {
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定一个数字`n`及其二进制字符串`s`，如果`s`中存在两个索引不同的字符`1`，其下标分别记为`s[i]`、`s[j]`，使得`i`和`j`之间的距离（即`std::abs(i-j)`）恰好`k`，则输出`true`；反之输出`false`。
 
 如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？#TODO：
+
+# §8 组合计数
+
+> [洛谷P8667](https://www.luogu.com.cn/problem/P8667)：给定三个长度均为`n`的数组`a[],b[],c[]`，求有多少个不同的三元对`(i,j,k)`，使得`a[i]<b[j]<c[k]`。
+
+显然暴力解法的时间复杂度是$O(n^3)$，需要优化。
+
+对`a[]`和`c[]`排序后，**这里需要我们敏锐地注意到`b[j]`是`a[i]`和`c[k]`的分界线**。于是自然考虑到遍历`j`，对`i`和`k`的范围使用二分查找。时间复杂度为$O(n\cdot 2\log n)$。
+
+```c++
+const int N_MAX = 1e5;
+int n, a[N_MAX + 1], b[N_MAX + 1], c[N_MAX + 1];
+long long int count;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { std::cin >> b[i]; }
+    for(int i = 1; i <= n; ++i) { std::cin >> c[i]; }
+    std::sort(a + 1, a + n + 1);
+    std::sort(c + 1, c + n + 1);
+    for(int j = 1; j <= n; ++j) {
+        long long int a_valid = std::lower_bound(a + 1, a + n + 1, b[j], std::less<int>()) - 1 - a;
+        long long int c_valid = (c + n + 1) - std::upper_bound(c + 1, c + n + 1, b[j], std::less<int>());
+        count += a_valid * c_valid;
+    }
+    std::cout << count;
+}
+```
 
 # §A 警钟长鸣
 
