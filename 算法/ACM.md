@@ -4905,7 +4905,7 @@ $$
     \textcolor{red}{\text{dp}[i-1][i-1] + d[i]\times c[i]} \\
 \end{cases} = \min\begin{cases}
     \text{dp}[i-1][j-1] + d[i]\times c[j] \\
-    \te or{red}{\text{dp}[i][j-1]} \\
+    \textcolor{red}{\text{dp}[i][j-1]} \\
 \end{cases}
 $$
 
@@ -4947,7 +4947,7 @@ $$
 \text{dp}[i][j] = \text{dp}[i-1][j-i] + \text{dp}[i-1][j]
 $$
 
-**注意要删除“一步到位”的情况。**用滚动数组压成一行即可。
+**注意要删除“一步到位”的情况**。用滚动数组压成一行即可。
 
 ```c++
 const int N_MAX = 500;
