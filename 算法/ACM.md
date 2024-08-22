@@ -4861,7 +4861,56 @@ int main() {
 }
 ```
 
+> [洛谷P1922](https://www.luogu.com.cn/problem/P1922)：给定一颗有根树，所有叶子节点均可以染成红色、蓝色或不染色。如果对于所有非叶子节点，在该节点对应的子树（包括该节点）中，红色节点数量均等于蓝色节点数量，则求这颗有根树的红色节点最大数量。
+
+令`dp[i]`表示以第`i`个节点为根节点的子树（包括第`i`个节点本身）构成的子树满足上述要求时，红色节点的最大数量。显然题目求的是`dp[1]`。
+
+接下来考虑状态转移方程。考虑第`i`个节点旗下的非叶子子节点`j`，子节点的`dp[j]`已经符合了条件，因此肯定能直接叠加到`dp[i]`上，即`dp[i] += dp[j]`。
+
+真正棘手的是如何处理叶子节点，它关系着`dp[]`的初始值从何而来。如果`j`是叶子节点，那么`dp[j]=0`。**注意到叶子子节点与根节点都是可以自由操控的，非叶子子节点的最优策略已经固定了**。因此我们得到了完整的状态转移方程：
+
+$$
+\text{dp}[i] = \sum_{\forall j, i \rightarrow j}(\text{dp}[j]) + \left\lfloor\frac{\#(i的叶子子节点) + 1}{2}\right\rfloor
+$$
+
+由于我们只需判定`root`的子节点`child`是否为叶子节点，所以可以不用统计入度是否为`1`，占用额外$O(n)$空间，而是确保目标节点`child`只有一条边，且这条边指向根节点`root`即可。
+
+```c++
+const int N_MAX = 1e5, M_MAX = (N_MAX - 1) * 2;
+int n, x_temp, y_temp, dp[N_MAX + 1];
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count;
+inline void add_edge(int root, int child) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+}
+void dfs(int root, int father) {
+    int leaf_child_count = 0;
+    for(int i = edge_first[root]; i; i = edge_next[i]) {
+        int child = edge_to[i];
+        if(child == father) { continue; }
+        if(edge_to[edge_first[child]] == root && edge_next[edge_first[child]] == 0) { ++leaf_child_count; }
+        dfs(child, root);
+        dp[root] += dp[child];
+    }
+    dp[root] += (leaf_child_count + 1) / 2;
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n - 1; ++i) {
+        std::cin >> x_temp >> y_temp;
+        add_edge(x_temp, y_temp);
+        add_edge(y_temp, x_temp);
+    }
+    dfs(1, 0);
+    std::cout << dp[1];
+}
+```
+
 > [洛谷P2700](https://www.luogu.com.cn/problem/P2700)：给定一个带边权的无向图。现在给定了`k`个顶点，要求删除一些边，使得这`k`个顶点互不连通。每条边的删除代价为`cost[i]`，求总代价最小值。
+
+#TODO：？？？？？？虚树DP？感觉应该放在图论里介绍
 
 ## §2.A DP优化
 
@@ -7070,6 +7119,77 @@ int main() {
 }
 ```
 
+## §5.3 树的直径
+
+树的直径指的是树上两点之间路径的最大长度，这两个点称为树的最远点对。我们介绍两种方式来求解，时间复杂度均为$O(n)$。
+
+第一种方法是基于贪心思想做两次DFS/BFS，能得到完整路径，**但不能用于负边权，因为贪心思想只能得到局部最优解**。具体做法是：从树上任意节点出发，搜索与其距离最远的节点`a`，再从`a`出发搜索与其距离最远的节点`b`，则`a`和`b`即为所求的最远点对。
+
+第二种方法是树形DP，可以用于负边权，**但不能得到完整路径**。令`dp_sub[i]`表示以`i`为根节点的子树上，从`i`出发能经历的最远长度。令`dp_diameter[i]`表示给定以`i`为根节点的子树中，经过`i`的路径的最长长度。`dp_diameter[i]`本质上是对子节点`j`的`dp_sub[j]`进行排序，挑出最大的两个`dp_sub[j_1] + w[i,j_1]`、`dp_sub[j_2] + w[i,j_2]`，然后将两者相加，作为`dp_diameter[i]`的值。最后输出`dp_diameter[]`的最大值，即为树的直径。
+
+在实际编程中，我们使用以下技巧：
+
+1. 可以不必计算所有`dp_sub[j]`后再排序。注意到在遍历子节点时，`dp_sub[i]`一直在维护最大的`dp_sub[j] + w[i,j]`。利用这一特性，我们令`dp_sub[i]`维护当前已遍历完成的`dp_sub[j] + w[i,j]`的两个最大之和。在遍历子节点`j`之前，`dp_sub[i]`已经表示最大的`dp_sub[j] + w[i,j]`。而新的子节点`j`的出现，可能会使`dp_sub[j_1] + w[i,j_1] + dp_sub[j_2] + w[i,j_2]`变大，于是我们尝试用这个值更新`dp_diameter[i]`。
+2. 可以不必开辟`dp_diameter[]`数组。由于我们要求的是`dp_diameter[]`的最大值，于是完全可以只用一个`dp_diameter`变量维护这个最大值。
+
+综上所述，状态转移方程为：
+
+$$
+\begin{align}
+	& 注意:更新顺序不能改变 \\
+	& \begin{cases}
+		\text{dp\_diameter} = \displaystyle\max_{\forall j, i\rightarrow j}(\text{dp\_diameter}, \text{dp\_sub}[i] + \text{dp\_sub}[j] + w_{i,j}) \\
+		\text{dp\_sub}[i] = \displaystyle\max_{\forall j, i \rightarrow j}(\text{dp}[j] + w_{i,j})
+	\end{cases}
+\end{align}
+$$
+
+```cpp
+// 伪代码
+void dfs(int root){
+	for(child : root的子节点){
+		dfs(child);
+		dp_diameter = max(dp_diameter, dp_sub[root] + dp_sub[child] + edge_cost[root][child]);
+		dp[root] = max(dp[root], dp[child] + edge_cost[root][child]);
+	}
+}
+```
+
+> [洛谷P4016](https://www.luogu.com.cn/problem/B4016)：给定一颗树，边权均为`1`，求树的直径。
+
+这是模板题，这里使用树形DP做法。
+
+```c++
+const int N_MAX = 1e5, M_MAX = (N_MAX - 1) * 2;
+int n, node_u_temp, node_v_temp, dp_sub[N_MAX + 1], dp_diameter;
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count;
+inline void add_edge(int root, int child) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+}
+void dfs(int root, int father) {
+    for(int i = edge_first[root]; i; i = edge_next[i]) {
+        int child = edge_to[i];
+        if(child == father) { continue; }
+        dfs(child, root);
+        dp_diameter = std::max(dp_diameter, dp_sub[root] + dp_sub[child] + 1);
+        dp_sub[root] = std::max(dp_sub[root], dp_sub[child] + 1);
+    }
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n - 1; ++i) {
+        std::cin >> node_u_temp >> node_v_temp;
+        add_edge(node_u_temp, node_v_temp);
+        add_edge(node_v_temp, node_u_temp);
+    }
+    dfs(1, 0);
+    std::cout << dp_diameter;
+}
+```
+
 # §6 高级数据结构
 
 ## §6.1 前缀和
@@ -7224,8 +7344,93 @@ int main() {
 }
 ```
 
+## §6.2 并查集
 
-## §6.2 双端队列
+模版代码：
+
+```c++
+/* 结构体封装 */
+struct DSU {
+    int n;
+    std::vector<int> parent, size;
+    explicit DSU(int n): n(n), parent(n), size(n, 1) { std::iota(parent.begin(), parent.end(), 0); }
+    int find(int x) { return parent[x] == x ? x : parent[x] = find(parent[x]); }
+    inline void unite(int child, int root) { // 警告:默认x和y未合并
+        parent[find(child)] = find(root);
+        size[find(root)] += size[find(child)];
+    }
+    inline void heuristic_unite(int x, int y) {
+        x = find(x); y = find(y);
+        if(x == y) { return; }
+        if(size[x] < size[y]) { std::swap(x, y); }
+        parent[y] = x;
+        size[x] += size[y];
+    }
+};
+
+/* 裸封装 */
+const int N_MAX = 1e3, M_MAX = 1e5;
+int n, m;
+int dsu_parent[N_MAX + 1], dsu_size[N_MAX + 1];
+int dsu_find(int x) {
+    return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]);
+}
+inline void dsu_unite(int x, int y) { // 警告:默认x和y未合并
+    x = dsu_find(x); y = dsu_find(y);
+    dsu_parent[x] = y;
+    dsu_size[y] += dsu_size[x];
+}
+int main() {
+    std::cin >> n >> m;
+    std::iota(dsu_parent, dsu_parent + n + 1, 0);
+    std::fill_n(dsu_size, n + 1, 1);
+
+	int x, y; std::cin >> x >> y;
+	if(dsu_find(x) != dsu_find(y)){ // dsu_unite()未检测是否已经合并，需要手动检查，防止dsu_size[]错误
+		dsu_unite(x, y);
+	}
+}
+```
+
+> [洛谷P8686](https://www.luogu.com.cn/problem/P8686)：给定一个长度为`n`的数组`a[]`，从头到尾依次执行下列操作：如果`a[i]`与`a[1->i-1]`中的数字有所重复，则自增`a[i]`，直到不重复为止。求操作后的数组。
+
+本题乍一看可以使用`std::set`判定是否重复，但是会在自增上浪费大量的时间。例如Hack数据：`1 2 3 ... 99999 1 1 1 ... 1 1`，在判定后面几个连续的`1`时会造成大量的自增。
+
+基于此，我们使用并查集来维护当前`a[i]`自增到什么数字时才符合条件。如果当前`a[i]`符合条件，那么`dsu_parent[a[i]]`最终指向`dsu_find(a[i])`，表示查找到了符合条件的终点，同时让`dsu_parent[dsu_find(a[i])]++`。当后续遇到`j>i,a[j]==a[i]`的元素`a[j]`时，`dsu_parent[a[j]]`就会指向`a[i]+1`，实现“查找下一个自增数字”的效果。
+
+于是，我们使用了并查集，来实现本题中数字增长的“路径压缩”，使数字增长“一步到位”。
+
+```c++
+const int N_MAX = 1e6 + 1e5;
+int n, a_temp, a_trans;
+int dsu_parent[N_MAX + 1];
+int dsu_find(int x) {
+    return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]);
+}
+inline void dsu_unite(int x, int y) {
+    x = dsu_find(x); y = dsu_find(y);
+    dsu_parent[x] = y;
+}
+int main() {
+    std::cin >> n;
+    std::iota(dsu_parent, dsu_parent + N_MAX + 1, 0);
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> a_temp;
+        a_trans = dsu_find(a_temp); // 对于当前a_temp，满足条件的第一个递增数字
+        std::cout << a_trans << ' ';
+        ++dsu_parent[a_trans];
+    }
+}
+```
+
+
+
+
+### §6.2.1 带权并查集
+
+
+
+## §6.3 双端队列
 
 ```c++
 /**
@@ -7377,7 +7582,7 @@ template<typename T> class LinkedDeque {
 };
 ```
 
-## §6.3 线段树
+## §6.4 线段树
 
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
 
