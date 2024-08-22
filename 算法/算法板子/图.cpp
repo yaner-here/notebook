@@ -6,11 +6,10 @@ inline void add_edge(int root, int child) {
     edge_first[root] = edge_count;
     edge_to[edge_count] = child;
 }
-
-void dfs_cost_sum(int root, int father) {
+void dfs(int root, int father) {
     for(int i = edge_first[root]; i; i = edge_next[i]) {
         int child = edge_to[i];
         if(child == father) { continue; }
-        dfs_cost_sum(child, root);
+        dfs(child, root);
     }
 }
