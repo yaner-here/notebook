@@ -568,7 +568,42 @@ int main(){
 
 > [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定`m`个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个子物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$n$的约束条件下，求物品价值之和的最大值。
 
-？？？？？？？？？？？？？？？？？？？TODO
+？？？？？？？？？？？？？？？？？？？TODO：
+
+> [洛谷P1455](https://www.luogu.com.cn/problem/P1455)：给定`n`个物品的价格`cost[i]`和价值`value[i]`，与`m`个捆绑销售关系。如果`i`和`j`是捆绑销售关系，则要么两者都不选，要么都选。给定预算`budget`，求价值最大值。
+
+本题的关键在于意识到多个物品捆绑成了一个大物品。我们用并查集维护大物品的总价格和总价值，然后对`i:1->n`进行遍历，以`dsu_find(i) == i`为大物品的判断依据，对所有大物品使用0/1背包求解即可。
+
+```c++
+const int N_MAX = 1e4, M_MAX = 5e3, BUDGET_MAX = 1e4;
+int dsu_parent[N_MAX + 1],  dsu_cost[N_MAX + 1], dsu_value[N_MAX + 1];
+int n, m, budget, u_temp, v_temp, dp[BUDGET_MAX + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    int child_parent = dsu_find(child), root_parent = dsu_find(root);
+    if(child_parent != root_parent) {
+        dsu_cost[root_parent] += dsu_cost[child_parent];
+        dsu_value[root_parent] += dsu_value[child_parent];
+        dsu_parent[child_parent] = root_parent;
+    }
+}
+int main() {
+    std::cin >> n >> m >> budget;
+    std::iota(dsu_parent + 1, dsu_parent + 1 + n, 1);
+    for(int i = 1; i <= n; ++i) { std::cin >> dsu_cost[i] >> dsu_value[i]; }
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        dsu_unite(u_temp, v_temp);
+    }
+    for(int i = 1; i <= n; ++i) {
+        if(dsu_find(i) != i) { continue; }
+        for(int j = budget; j >= dsu_cost[i]; --j) {
+            dp[j] = std::max(dp[j], dp[j - dsu_cost[i]] + dsu_value[i]);
+        }
+    }
+    std::cout << dp[budget];
+}
+```
 
 ### §2.1.8 混合背包
 
@@ -3218,7 +3253,7 @@ $$
 	\text{dp}[i-1][j][p] + v[i][j] \\ 
 	\text{dp}[i-1][j-1][p] + v[i][j] \\ 
 	\text{dp}[i-1][j][p-1] + 3\times v[i][j] & , p \ge 1 \\ 
-	\text{dp}[i-1][j-1][p-1] 3\times v[i][j] & , p \ge 1
+	\text{dp}[i-1][j-1][p-1] + 3\times v[i][j] & , p \ge 1
 \end{cases}
 $$
 
@@ -7190,9 +7225,38 @@ int main() {
 }
 ```
 
-# §6 高级数据结构
+# §6 图
 
-## §6.1 前缀和
+## §6.1 图的存储
+
+| 图的存储方式 | 实现原理   | 实现难度 | 删边难度                         |
+| ------ | ------ | ---- | ---------------------------- |
+| 链式前向星  | 链表版邻接表 | ⭐    | 有向边：⭐⭐（涉及链表节点的删除）<br>无向边：⭐⭐⭐ |
+
+### §6.1.1 链式前向星
+
+链式前向星本是上是用链表实现的邻接表，其中链表用数组模拟实现。一条无向边用两条单向边储存。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 1e5;
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count;
+inline void add_edge(int root, int child) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+}
+for(int i = 1; i <= n; ++i){
+	for(int j = edge_first[i]; j; j = edge_next[j]){
+		// foo(i, edge_to[j]);
+	}
+}
+```
+
+在此基础上，我们还可以为第`i`条边指定起点`edge_from[i]`。
+# §7 高级数据结构
+
+## §7.1 前缀和
 
 > [洛谷P1659](https://www.luogu.com.cn/problem/P1659)：请设计满足以下条件的高效数据结构。
 > - 给定一个正整数`i`，给区间$[1,2i-1]$之内的奇数索引对应的值全部加1。
@@ -7200,7 +7264,7 @@ int main() {
 
 本题的关键在于排除偶数索引的影响。稍加思考就能发现，偶数索引不会对答案造成任何干扰，就算增加$[i,2i-1]$中的所有索引，也只是让偶数索引也增加，而我们的查询操作不涉及任何偶数，因此当成普通的前缀和即可。令`p`为前缀和数组，添加操作让`p[1]`加1，让`p[2*i]`减1。
 
-### §6.1.1 二维前缀和
+### §7.1.1 二维前缀和
 
 给定一个编号从`1`到`n`/`m`的二维数组`a[i][j]`，则定义其二维前缀和`s[i][j]`为：
 
@@ -7344,7 +7408,9 @@ int main() {
 }
 ```
 
-## §6.2 并查集
+## §7.2 并查集
+
+并查集思想的精妙之处在于：它使用“路径压缩”将各个元素的搜索结果进行记忆化，从而缩短了元素复用时的查询时间。
 
 模版代码：
 
@@ -7380,6 +7446,13 @@ inline void dsu_unite(int x, int y) { // 警告:默认x和y未合并
     dsu_parent[x] = y;
     dsu_size[y] += dsu_size[x];
 }
+/* 另一种安全版本
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child);
+    root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+*/
 int main() {
     std::cin >> n >> m;
     std::iota(dsu_parent, dsu_parent + n + 1, 0);
@@ -7392,13 +7465,80 @@ int main() {
 }
 ```
 
+> [洛谷P1197](https://www.luogu.com.cn/problem/P1197)：初始时给定一个无向图。接下来依次删除`deleted_index[]`中的点，及其相邻的所有边，求每次删除后的连通分量数量。
+
+从并查集中删除顶点并不容易。这里我们使用逆向思维，时间上正向的删除等价于时间上反向的添加。于是我们先对不用删除的点进行合并，然后依次添加要删除的点即可。
+
+```c++
+const int N_MAX = 1e6, M_MAX = 2e5 * 2;
+int n, m, k, u_temp, v_temp, connected_count;
+int deleted_index[N_MAX + 1], result[N_MAX + 1];
+bool is_deleted[N_MAX + 1];
+
+int dsu_parent[N_MAX + 1];
+int dsu_find(int root) { return dsu_parent[root] == root ? root : dsu_parent[root] = dsu_find(dsu_parent[root]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child);
+    root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; --connected_count; }
+}
+
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1];
+inline void add_edge(int u, int v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> m;
+    std::iota(dsu_parent, dsu_parent + 1 + n, 0);
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp; ++u_temp; ++v_temp;
+        add_edge(u_temp, v_temp);
+        add_edge(v_temp, u_temp);
+    }
+    std::cin >> k;
+    for(int i = 1; i <= k; ++i) {
+        std::cin >> deleted_index[i]; ++deleted_index[i];
+        is_deleted[deleted_index[i]] = true;
+    }
+    connected_count = 0;
+    for(int i = 1; i <= n; ++i) {
+        if(is_deleted[i]) { continue; }
+        ++connected_count;
+        for(int j = edge_first[i]; j; j = edge_next[j]) {
+            if(is_deleted[edge_to[j]]) { continue; }
+            dsu_unite(i, edge_to[j]);
+        }
+    }
+    result[k + 1] = connected_count;
+    for(int i = k; i >= 1; --i) {
+        is_deleted[deleted_index[i]] = false;
+        ++connected_count;
+        for(int j = edge_first[deleted_index[i]]; j; j = edge_next[j]) {
+            if(is_deleted[edge_to[j]]) { continue; }
+            dsu_unite(deleted_index[i], edge_to[j]);
+        }
+        result[i] = connected_count;
+    }
+    for(int i = 1; i <= k + 1; ++i) { std::cout << result[i] << '\n'; }
+}
+```
+
+### §7.2.1 路径压缩记忆化
+
 > [洛谷P8686](https://www.luogu.com.cn/problem/P8686)：给定一个长度为`n`的数组`a[]`，从头到尾依次执行下列操作：如果`a[i]`与`a[1->i-1]`中的数字有所重复，则自增`a[i]`，直到不重复为止。求操作后的数组。
 
 本题乍一看可以使用`std::set`判定是否重复，但是会在自增上浪费大量的时间。例如Hack数据：`1 2 3 ... 99999 1 1 1 ... 1 1`，在判定后面几个连续的`1`时会造成大量的自增。
 
 基于此，我们使用并查集来维护当前`a[i]`自增到什么数字时才符合条件。如果当前`a[i]`符合条件，那么`dsu_parent[a[i]]`最终指向`dsu_find(a[i])`，表示查找到了符合条件的终点，同时让`dsu_parent[dsu_find(a[i])]++`。当后续遇到`j>i,a[j]==a[i]`的元素`a[j]`时，`dsu_parent[a[j]]`就会指向`a[i]+1`，实现“查找下一个自增数字”的效果。
 
-于是，我们使用了并查集，来实现本题中数字增长的“路径压缩”，使数字增长“一步到位”。
+于是，我们使用了并查集，来实现本题中数字增长的“路径压缩”，使数字增长“一步到位”，即记忆化搜索。
 
 ```c++
 const int N_MAX = 1e6 + 1e5;
@@ -7423,14 +7563,90 @@ int main() {
 }
 ```
 
+> [洛谷P1840](https://www.luogu.com.cn/problem/P1840)：给定在数轴上的、下标从`1`开始递增的`n`个自然数点。每次操作都将闭区间上`[l[i], r[i]]`部分的点打上标记。求`m`次操作结束后，未被打标记的点的个数。
 
+本题乍一看可以使用线段树，时间复杂度是$O(m\log n )$。然而这并不是时间最优的做法。使用并查集，我们可以将时间复杂度压缩至最佳的$O(n+m)$。
 
+在前文中，我们提到线段树的精髓是使用路径压缩实现记忆化搜索。在本题中，我们**令`dsu_father[i]`表示第`i`个点向右遍历区间，第一个未打标记的点的下标**。对于任意给定的操作闭区间`[l, r]`，只要`dsu_father[l] <= r`，就说明`l`和`r`之间一定存在不连续的标记区间。我们只需要让`l`和`l+1`所在的区间进行合并，然后令`l = dsu_father[l] + 1`，重复上述操作即可。
 
-### §6.2.1 带权并查集
+最后的每个未标记节点都是自成一派的，初始时一共有`n`个派别，每次合并都会导致一个派别消失。于是可以统计合并了多少次，最后用`n`相减即可得到最终剩余多少个派别，即有多少个未标记节点。
 
+```c++
+const int N_MAX = 2e5;
+int dsu_father[N_MAX + 2]; // 必须额外为N——MAX+1号虚拟元素额外开辟空间，因为dsu_father[]可能会指向这一空间
+int n, m, l_temp, r_temp;
+int dsu_find(int x) { return dsu_father[x] == x ? x : dsu_father[x] = dsu_find(dsu_father[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child);
+    root = dsu_find(root);
+    if(child != root) { dsu_father[child] = root; }
+}
+int main() {
+    std::cin >> n >> m;
+    std::iota(dsu_father + 1, dsu_father + 2 + n, 1); // 同理，这里也要多开辟空间
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> l_temp >> r_temp;
+        l_temp = dsu_find(l_temp);
+        while(l_temp <= r_temp) {
+            dsu_unite(l_temp, l_temp + 1);
+            l_temp = dsu_find(l_temp);
+            --n; // 因为进行了一次合并，剩余派别数减1
+        }
+        std::cout << n << '\n';
+    }
+}
+```
 
+### §7.2.2 带权并查集
 
-## §6.3 双端队列
+在并查集中，如果属于同一种类的元素具有公共的属性，则称为带权并查集。例如统计种类的元素个数`dsu_size[]`就是一种权重。
+
+> [洛谷P2024](https://www.luogu.com.cn/problem/P2024)：给定三种类别（`A`、`B`、`C`）的动物，并且`A`吃`B`，`B`吃`C`，`C`吃`A`。我们给定或真或假的`k`条知识，揭示两个动物之间的关系（吃、被吃、平级）。若某条知识与前面的真知识相悖，则标记该条为假知识。求假知识的个数。
+
+本题的难点在于如何确定带权并查集的属性。一种方法是给所属类别编号为`0`、`1`、`2`，将其作为权重。然而这样做需要在初始时确定类别，编码上稍微麻烦一些。对于题目中给定的三种关系，我们令`0`表示与根节点是平级的关系，`1`表示该元素吃掉根节点，`2`表示根节点吃掉该元素。
+
+接下来考虑合并时如何更改权重。如果是平级知识，那么涉事的`u`和`v`两个节点
+
+```c++
+const int N_MAX = 5e4;
+int dsu_parent[N_MAX + 1], dsu_relation[N_MAX + 1];
+int n, m, type_temp, u_temp, v_temp, count;
+int dsu_find(int root) {
+    if(root != dsu_parent[root]) {
+        int fake_parent = dsu_parent[root];
+        dsu_parent[root] = dsu_find(fake_parent);
+        dsu_relation[root] = (dsu_relation[root] + dsu_relation[fake_parent]) % 3;
+    }
+    return dsu_parent[root];
+}
+inline void dsu_unite(int u, int v, int relation) {
+    int u_parent = dsu_find(u), v_parent = dsu_find(v);
+    if(u_parent == v_parent) {
+        if((dsu_relation[u] - dsu_relation[v] + 3) % 3 != relation) { count++; return; }
+    } else {
+        dsu_parent[u_parent] = v_parent;
+        dsu_relation[u_parent] = (dsu_relation[v] - dsu_relation[u] + relation + 3) % 3;
+    }
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; i++) dsu_parent[i] = i, dsu_relation[i] = 0;
+    for(int i = 1; i <= m; i++) {
+        std::cin >> type_temp >> u_temp >> v_temp;
+        if((u_temp > n || v_temp > n) || (type_temp == 2 && u_temp == v_temp)) {
+            count++;
+            continue;
+        }
+        dsu_unite(u_temp, v_temp, type_temp - 1);
+    }
+    std::cout << count;
+    return 0;
+}
+```
+
+### §7.2.3 种类并查集
+
+## §7.3 双端队列
 
 ```c++
 /**
@@ -7582,7 +7798,7 @@ template<typename T> class LinkedDeque {
 };
 ```
 
-## §6.4 线段树
+## §7.4 线段树
 
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
 
@@ -7597,15 +7813,15 @@ for(int i = 2; i <= n; ++i) {
 }
 ```
 
-# §7 位运算
+# §8 位运算
 
-## §7.1 相邻的`1`
+## §8.1 相邻的`1`
 
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定一个数字`n`及其二进制字符串`s`，如果`s`中存在两个索引不同的字符`1`，其下标分别记为`s[i]`、`s[j]`，使得`i`和`j`之间的距离（即`std::abs(i-j)`）恰好`k`，则输出`true`；反之输出`false`。
 
 如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？#TODO：
 
-# §8 组合计数
+# §9 组合计数
 
 > [洛谷P8667](https://www.luogu.com.cn/problem/P8667)：给定三个长度均为`n`的数组`a[],b[],c[]`，求有多少个不同的三元对`(i,j,k)`，使得`a[i]<b[j]<c[k]`。
 
@@ -7740,3 +7956,27 @@ int main(){
     for(int i = 0; i < 1e8; ++i) deque_dynamic.push_back(i);
 }
 ```
+
+## §A.3 压时间
+
+### §A.3.1 顺序与随机读写
+
+> [洛谷P1197](https://www.luogu.com.cn/problem/P1197)：初始时给定一个无向图。接下来依次删除`deleted_index[]`中的点，及其相邻的所有边，求每次删除后的连通分量数量。
+
+为了遍历`n`个点的所有`m`条边，我们可以使用两种链式前向星对应的遍历方式：
+
+```c++
+/* 随机访问 */
+for(int i = 1; i <= n; ++i){ // 对点进行遍历
+	for(int j = edge_first[i]; j; j = edge_next[j]){
+		foo(i, j); // 成功获取边的两个端点(i, j)，进行下一步操作
+	}
+}
+
+/* 顺序访问 */
+for(int i = 1; i <= m; ++i){ // 对所有边遍历
+	foo(edge_from[i], edge_to[i]);
+}
+```
+
+这两种方案的时间复杂度都是$O(m)$，但是顺序访问比随机访问能快3.1%。
