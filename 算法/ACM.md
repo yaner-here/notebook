@@ -7410,8 +7410,6 @@ int main() {
 
 ## §7.2 并查集
 
-并查集思想的精妙之处在于：它使用“路径压缩”将各个元素的搜索结果进行记忆化，从而缩短了元素复用时的查询时间。
-
 模版代码：
 
 ```c++
@@ -7532,6 +7530,8 @@ int main() {
 
 ### §7.2.1 路径压缩记忆化
 
+并查集思想的精妙之处在于：它使用“路径压缩”将各个元素的搜索结果进行记忆化，从而缩短了元素复用时的查询时间。\
+
 > [洛谷P8686](https://www.luogu.com.cn/problem/P8686)：给定一个长度为`n`的数组`a[]`，从头到尾依次执行下列操作：如果`a[i]`与`a[1->i-1]`中的数字有所重复，则自增`a[i]`，直到不重复为止。求操作后的数组。
 
 本题乍一看可以使用`std::set`判定是否重复，但是会在自增上浪费大量的时间。例如Hack数据：`1 2 3 ... 99999 1 1 1 ... 1 1`，在判定后面几个连续的`1`时会造成大量的自增。
@@ -7603,9 +7603,15 @@ int main() {
 
 > [洛谷P2024](https://www.luogu.com.cn/problem/P2024)：给定三种类别（`A`、`B`、`C`）的动物，并且`A`吃`B`，`B`吃`C`，`C`吃`A`。我们给定或真或假的`k`条知识，揭示两个动物之间的关系（吃、被吃、平级）。若某条知识与前面的真知识相悖，则标记该条为假知识。求假知识的个数。
 
-本题的难点在于如何确定带权并查集的属性。一种方法是给所属类别编号为`0`、`1`、`2`，将其作为权重。然而这样做需要在初始时确定类别，编码上稍微麻烦一些。对于题目中给定的三种关系，我们令`0`表示与根节点是平级的关系，`1`表示该元素吃掉根节点，`2`表示根节点吃掉该元素。
+本题的难点在于如何确定带权并查集的属性。一种方法是给所属类别编号为`0`、`1`、`2`，将其作为权重`dsu_relation[]`。然而这样做需要在初始时确定类别，编码上稍微麻烦一些。对于题目中给定的三种关系，我们令`0`表示与根节点是平级的关系，`1`表示该元素吃掉根节点，`2`表示根节点吃掉该元素。于是在模`3`意义上的加法群中，`dsu_relation[i] - dsu_relation[j]`就可以表示`i`和`j`之间的捕食关系。
 
-接下来考虑合并时如何更改权重。如果是平级知识，那么涉事的`u`和`v`两个节点
+考虑集合之间的合并，以下运算均在模`3`意义上的加法群：
+
+1. 如果`i->j`，且`j->k`，则根据定义知`k->i`。
+2. 如果`i<-j`，且`j<-k`，则根据定义知`i->k`。
+3. 如果`i==j`，且`j->k`，则根据定义知`i->k`
+
+综上所述，给定同一类别的`i`、`j`和另一类别的`k`，及其`dsu_relation[]`，则将这两者合并时，`dsu_relation[i,k] = (dsu_relation[i,j] + dsu_relation[j,k]) % 3`。
 
 ```c++
 const int N_MAX = 5e4;
@@ -7644,7 +7650,133 @@ int main() {
 }
 ```
 
+> [洛谷P1525](https://www.luogu.com.cn/problem/P1525)：将无向边权图$\mathcal{G}=(\mathcal{V},\mathcal{E})$按点集划分成两个子图$\mathcal{G}_1=(\mathcal{V}_1,\{\forall v_i,v_j\in\mathcal{V}_1,(v_i,v_j)\in\mathcal{E}\})$，$\mathcal{G}_2=(\mathcal{V}_2,\{\forall v_i,v_j\in\mathcal{V}_1,(v_i,v_j)\in\mathcal{E}\})$，这样做会丢失一些边。这两个子图中的所有边一定会有边权最大值，求其最小值。
+
+注意到所有边的边权最大值一定属于边权集合，所以我们的目标是划分子图时，尽可能抛弃掉边权较大的边，抛不掉的边一定会出现在边权集合中。于是使用贪心思想，对每条边按照边权从大到小排序，检测第一个抛不掉的边即可。我们使用`dsu_enemy[i]`记录与`i`相邻的权值最大的边的另一个点编号。由于我们按照边权递减的顺序遍历，因此`dsu_enemy[i]`第一次填入时就能确保永远是最大值。
+
+然后考虑如何判定一条边能否抛掉。我们不希望这条边的两个断点在同一个子图中。首先用并查集判断是否在同一个子图中：
+
+- 如果不在，说明$(v_i,v_j)$这条边可以抛弃，两个顶点属于不同的集合。如果`enemy[i]`和`enemy[j]`存在，那么接下来考虑`enemy[i]`或`enemy[j]`。加入到两个集合中的哪一个。可以确定的是，`emeny[i]`肯定不能与`i`同属一个集合，因为与`i`相邻的所有边中，$(v_{i},v_{\text{enemy}[i]})$是权值最大的边，在前面的遍历中，我们好不容易让$v_{i}$和$v_{\text{enemy}[i]}$不碰面，要是同属一个集合就前功尽弃了。于是我们只能让$v_{\text{enemy}[i]}$和$v_j$一组，毕竟也没有别的组可以选择了。同理，只能让$v_{\text{enemy}[j]}$和$v_i$一组，然后转而判断下一条边。
+- 如果在，那么无法抛掉这条边，这条边的权值就是权值最大值的最小值，输出即可。
+
+```c++
+const int N_MAX = 2e4, M_MAX = 1e5;
+struct Edge { int from, to, weight; } edge[M_MAX + 1];
+int n, m, dsu_parent[N_MAX + 1], dsu_enemy[N_MAX + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+int main() {
+    std::cin >> n >> m;
+    std::iota(dsu_parent + 1, dsu_parent + 1 + n, 1);
+    for(int i = 1; i <= m; ++i) { std::cin >> edge[i].from >> edge[i].to >> edge[i].weight; }
+    std::sort(edge + 1, edge + 1 + m, [](const auto &lhs, const auto &rhs) { return lhs.weight > rhs.weight; });
+    for(int i = 1; i <= m; ++i) {
+        if(dsu_find(edge[i].from) == dsu_find(edge[i].to)) {
+            std::cout << edge[i].weight;
+            return 0;
+        }
+        if(dsu_enemy[edge[i].from] == 0) {
+            dsu_enemy[edge[i].from] = edge[i].to;
+        } else {
+            dsu_unite(dsu_enemy[edge[i].from], edge[i].to);
+        }
+        if(dsu_enemy[edge[i].to] == 0) {
+            dsu_enemy[edge[i].to] = edge[i].from;
+        } else {
+            dsu_unite(dsu_enemy[edge[i].to], edge[i].from);
+        }
+    }
+    std::cout << 0;
+}
+```
+
 ### §7.2.3 种类并查集
+
+种类并查集同时牺牲常数倍的时间和空间，换取了容易想到的编码，不必像带权并查集那样苦苦设计权值与转移规则。
+
+> [洛谷P1525](https://www.luogu.com.cn/problem/P1525)：将无向边权图$\mathcal{G}=(\mathcal{V},\mathcal{E})$按点集划分成两个子图$\mathcal{G}_1=(\mathcal{V}_1,\{\forall v_i,v_j\in\mathcal{V}_1,(v_i,v_j)\in\mathcal{E}\})$，$\mathcal{G}_2=(\mathcal{V}_2,\{\forall v_i,v_j\in\mathcal{V}_1,(v_i,v_j)\in\mathcal{E}\})$，这样做会丢失一些边。这两个子图中的所有边一定会有边权最大值，求其最小值。
+
+在前文中，我们已经使用了带权并查集来解决这道题，而种类并查集是使用空间换取较少的码量。由于一个点`i`所属的子图有两种可能性，我们在并查集数组中，为第`i`个点分配`i`和`i+n`这两个空间，分别表示第`i`个点在两个集合的可能性。这需要我们给`dsu_parent[]`开辟双倍的空间。
+
+对边按照边权从大到小排序并遍历，考虑这条边`(i, j)`能否抛弃：
+
+- 如果能抛弃，即`i`和`j`、`i+n`和`j+n`都不在同一个集合，则根据前文的带权并查集思路：如果`i`在$\mathcal{G}_1$（编号为`i`），则`j`必须在$\mathcal{G}_2$（编号为`j+n`），将两者合并；同理，如果`i`在$\mathcal{G}_2$（编号为`i+n`），则`j`必须在$\mathcal{G}_1$（编号为`j`），将两者合并。
+- 如果不能抛弃，直接输出当前权值。
+
+```c++
+const int N_MAX = 2e4, M_MAX = 1e5;
+struct Edge { int from, to, weight; } edge[M_MAX + 1];
+int n, m, dsu_parent[N_MAX * 2 + 1], dsu_enemy[N_MAX * 2 + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+int main() {
+    std::cin >> n >> m;
+    std::iota(dsu_parent + 1, dsu_parent + 1 + 2 * n, 1);
+    for(int i = 1; i <= m; ++i) { std::cin >> edge[i].from >> edge[i].to >> edge[i].weight; }
+    std::sort(edge + 1, edge + 1 + m, [](const auto &lhs, const auto &rhs) { return lhs.weight > rhs.weight; });
+    for(int i = 1; i <= m; ++i) {
+        if(dsu_find(edge[i].from) == dsu_find(edge[i].to) || dsu_find(edge[i].from + n) == dsu_find(edge[i].to + n)) {
+            std::cout << edge[i].weight;
+            return 0;
+        }
+        dsu_unite(edge[i].from + n, edge[i].to);
+        dsu_unite(edge[i].from, edge[i].to + n);
+    }
+    std::cout << 0;
+}
+```
+
+> [洛谷P2024](https://www.luogu.com.cn/problem/P2024)：给定三种类别（`A`、`B`、`C`）的动物，并且`A`吃`B`，`B`吃`C`，`C`吃`A`。我们给定或真或假的`k`条知识，揭示两个动物之间的关系（吃、被吃、平级）。若某条知识与前面的真知识相悖，则标记该条为假知识。求假知识的个数。
+
+在前文中，我们已经使用了带权并查集来解决这道题。本题涉及三种类别，我们为`dsu_parent[]`开辟三倍空间。
+
+对于新的捕食关系，我们进行以下操作加入到种类并查集中：
+
+1. `i`吃`j`：由于`i`和`j`所属的类别可能有三种可能性，所以要经过三次合并，分别是`dsu_unite(i+n, j)`、`dsu_unite(i+n*2, j+n)`、`dsu_unite(i, j+n*2)`。
+2. `i`与`j`平级：同样由于三种可能性，也要经过三次合并，分别是`dsu_unite(i, j)`、`dsu_unite(i+n, j+n)`、`dsu_unite(i+n*2, j+n*2)`。
+
+根据种类并查集的定义，捕食关系的判定条件如下：
+
+1. `i`吃`j`：`dsu_find(i+n)==dsu_find(j)`。在之前的加入操作中，我们已经确保了`dsu(i+n)==dsu_find(j)`、`dsu_find(i+n*2)==dsu_find(j+n)`、`dsu_find(i)==dsu_find(j+n*2)`是同时成立的。如果其中一个条件成立，那么三个条件全部成立，因此只需判定其中的一个条件即可。
+2. `i`与`j`平级：`dsu_find(i)==dsu_find(j)`。同理，只需判定一个条件即可。
+3. `i`被`j`吃：`dsu_find(i)==dsu_find(j+n)`。同理，只需判定一个条件即可。
+
+```c++
+const int N_MAX = 5e4;
+int n, k, type_temp, u_temp, v_temp, count;
+int dsu_parent[N_MAX * 3 + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+int main() {
+    std::cin >> n >> k;
+    std::iota(dsu_parent + 1, dsu_parent + 1 + 3 * n, 1);
+    for(int i = 1; i <= k; ++i) {
+        std::cin >> type_temp >> u_temp >> v_temp;
+        if(u_temp > n || v_temp > n) { ++count; continue; }
+        if(type_temp == 1) {
+            if(dsu_find(u_temp + n) == dsu_find(v_temp) || dsu_find(u_temp) == dsu_find(v_temp + n)) { ++count; continue; }
+            dsu_unite(u_temp, v_temp);
+            dsu_unite(u_temp + n, v_temp + n);
+            dsu_unite(u_temp + n * 2, v_temp + n * 2);
+        } else if(type_temp == 2) {
+            if(dsu_find(u_temp) == dsu_find(v_temp) || dsu_find(u_temp) == dsu_find(v_temp + n)) { ++count; continue; }
+            dsu_unite(u_temp + n, v_temp);
+            dsu_unite(u_temp + n * 2, v_temp + n);
+            dsu_unite(u_temp, v_temp + n * 2);
+        }
+    }
+    std::cout << count;
+}
+```
 
 ## §7.3 双端队列
 
