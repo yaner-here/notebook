@@ -7693,6 +7693,46 @@ int main() {
 }
 ```
 
+> [洛谷P6111(降序)](https://www.luogu.com.cn/problem/P6111)/[洛谷P4185(降序+数据加强)](https://www.luogu.com.cn/problem/P4185)/[洛谷CF1213G(升序)](https://www.luogu.com.cn/problem/CF1213G)：给定一棵由`n`个点构成的无根无向边权树。记树上任意两点$v_i,v_j$之间的路径为边集合$\mathcal{E}_{i,j}=\{e_1,e_2,...\}$，则定义这两点之间的相似度为$w[i,j]:=\displaystyle\min_{\forall e\in\mathcal{E}_{i,j}}\left(w[e]\right)$。给定`q`个询问，每个询问给定相似度下界([洛谷P6111(降序)](https://www.luogu.com.cn/problem/P6111)/[洛谷P4185(降序+数据加强)](https://www.luogu.com.cn/problem/P4185))/上界（[洛谷CF1213G(升序)](https://www.luogu.com.cn/problem/CF1213G))`query[i].w`（可以取到），输出其余点与第`query[i].u`个点的相似度满足该下界/上界限制的个数。
+
+由于相似度一旦更新就难以撤回，于是我们考虑将其转化为离线问题。每个询问给定了相似度的下限，而相似度一定就是已有边之一的边权，所以我们不不希望将小边权的边率先加入到树中。因此得出思路：先考虑下界较高的询问，以及边权较大的边。
+
+首先将边按照边权从大到小排序，将询问按下界从大到小排序。然后以下界为标准，依次将边添加到树中。**已经添加到树中的边，都具有较大的边权，因此肯定符合当前询问对下界的要求，这使得本次要入树的节点与已经入树的节点构成了一个集合，可以使用并查集统计点的个数**。注意最后统计时，自己和自己不能组合，因此要对并查集的尺寸结果减1。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, dsu_parent[N_MAX + 1], dsu_size[N_MAX + 1];
+struct Query { int no, w, u, result; } query[Q_MAX + 1];
+struct Edge { int u, v, w; } edge[N_MAX - 1 + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) {
+        dsu_parent[child] = root;
+        dsu_size[root] += dsu_size[child];
+    }
+}
+int main() {
+    std::cin >> n >> q;
+    std::iota(dsu_parent + 1, dsu_parent + 1 + n, 1);
+    std::fill_n(dsu_size + 1, n, 1);
+    for(int i = 1; i <= n - 1; ++i) { std::cin >> edge[i].u >> edge[i].v >> edge[i].w; }
+    for(int i = 1; i <= q; ++i) { std::cin >> query[i].w >> query[i].u; query[i].no = i; }
+    std::sort(query + 1, query + q + 1, [](const Query &a, const Query &b) { return a.w > b.w; });
+    std::sort(edge + 1, edge + n - 1 + 1, [](const Edge &a, const Edge &b) { return a.w > b.w; });
+    int current_edge = 1;
+    for(int i = 1; i <= q; ++i) {
+        while(current_edge <= n && query[i].w <= edge[current_edge].w) {
+            dsu_unite(edge[current_edge].u, edge[current_edge].v);
+            ++current_edge;
+        }
+        query[i].result = dsu_size[dsu_find(query[i].u)] - 1;
+    }
+    std::sort(query + 1, query + q + 1, [](const Query &a, const Query &b) { return a.no < b.no; });
+    for(int i = 1; i <= q; ++i) { std::cout << query[i].result << '\n'; }
+}
+```
+
 ### §7.2.3 种类并查集
 
 种类并查集同时牺牲常数倍的时间和空间，换取了容易想到的编码，不必像带权并查集那样苦苦设计权值与转移规则。
