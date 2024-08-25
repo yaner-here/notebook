@@ -7259,9 +7259,147 @@ for(int i = 1; i <= n; ++i){
 
 ### §6.2.1 Tarjan算法
 
-Tarjan算法使用一遍DFS和单调栈，来求解有向图的强连通分量。其步骤如下：
+Tarjan算法使用一遍DFS和单调栈，来求解有向图的强连通分量。各变量定义如下，其中`N_MAX`表示顶点最大数量：
 
-1. 每个顶点`i`都有两个属性：`tarjan_depth[i]`和`tarjan_min[i]`。
+| 变量名                           | 含义                                                             | 初始值                                     |
+| ----------------------------- | -------------------------------------------------------------- | --------------------------------------- |
+| `int tarjan_time`             | 当前经过了几次DFS，遍历了多少节点                                             | `0`，每次DFS加`1`                           |
+| `int tarjan_dfn[N_MAX + 1]`   | 当前节点是在第几次DFS被遍历到的                                              | `0`，表示从未访问过。如果访问过则应该`>=1`               |
+| `int tarjan_low[N_MAX + 1]`   | $\displaystyle\min_{<i,j>\in\mathcal{V}}\text{tarjan\_low}[j]$ | 从未被访问过时为`0`，刚被访问而仍未遍历子节点时为`tarjan_time` |
+| `int tarjan_stack[N_MAX + 1]` | 栈。栈底指针恒为`0`取不到，栈顶指针能取到                                         | 栈为全空                                    |
+| `int tarjan_stack_size`       | 栈顶指针                                                           | `0`，元素入栈时先加`1`再写入，始终不使用栈内的`0`号空间        |
+| `bool tarjan_in_stack[N_MAX]` | 节点`i`是否在栈中                                                     | 全为`false`，表示初始时全都不在栈中                   |
+
+Tarjan算法步骤如下：
+
+1. 每个顶点`i`的`tarjan_dfn[i]`和`tarjan_low[i]`**初始均为`0`，表示尚未访问**，从而节省开辟`visited[]`所需的额外空间。
+   
+2. 从任意节点`i`出发，作为根节点进行DFS。
+   
+3. 在单次DFS中，给定节点`i`为根节点。
+	1. 记录当前DFS的时间戳，代码为`tarjan_dfn[i] = ++tarjan_time`。**这一步也标记了当前节点已被访问过**。
+	2. 初始化`tarjan_low[i]`。目前没有遍历任何相邻的顶点，所以初始值同样为当前DFS的时间戳，代码为`tarjan_low[i] = tarjan_dfn[i]`。**这一步也标记了当前节点已被访问过**。
+	3. 让当前节点入栈`tarjan_stack[]`。为了快速查找元素是否在栈中，我们还需额外维护`tarjan_in_stack[i]`。这里有个卡常的细节：为了避免获取栈顶元素`tarjan_stack[tarjan_stack_size - 1]`时引入一次额外的“减一运算”，我们转而放弃使用栈的`0`号空间，并且让`tarjan_stack_size`表示**闭区间**的端点。**也就是说，栈的范围从`[0, tarjan_stack_size)`变为`[1, tarjan_stack_size]`**。代码为`tarjan_stack[++tarjan_stack_size] = i`，并且`tarjan_in_stack[i] = true`。
+	4. 遍历所有以`i`为起点的有向边`<i,j>`，本步骤的目的是依据`j`来更新`tarjan_low[i]`。（1）如果`j`未被访问过（`tarjan_dfn[j] == 0`），则先对其`dfs(j)`，然后更新`tarjan_low[i] = std::min(tarjan_low[i], tarjan_low[j])`。（2）如果`j`在栈内（`tarjan_in_stack[i] == true`），则它一定被访问过，直接更新`tarjan_low[i] = std::min(tarjan_low[i], tarjan_low[j])`。
+	5. 我们知道，`i`一定属于某个强连通分量。更新完毕后，如果`tarjan_dfn[i] == tarjan_low[i]`，则说明`i`所在的强连通分量中，找不到比`tarjan_low[i]`还小的`tarjan_low[j]`，**所以`i`是所属强连通分量中第一个被DFS访问的节点**。于是不停地出栈顶点元素，直到连`i`也出栈为止，这些出栈的元素就构成了一个强连通分量，**用并查集表示它们属于同一个强连通分量即可**。
+
+4. 遍历图中的每个节点。如果该节点`i`尚未被访问，则`dfs(i)`。否则就略过。
+
+综上所述，伪代码如下所示：
+
+```c++
+const int N_MAX = 点的数量, M_MAX = 有向边的数量;
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size, tarjan_count;
+bool tarjan_in_stack[N_MAX + 1]
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        }
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        ++tarjan_count;
+        int v;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+			/* 此处可对出栈的v进行记录等操作 */
+        } while(v != u); // 如果当前的子节点v就是u本身，那么v(即u)已经出栈，退出循环，不再继续出栈
+    }
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        add_edge(u_temp, v_temp);
+    }
+    for(int i = 1; i <= n; ++i) {
+        if(tarjan_dfn[i] == 0) {
+            tarjan_dfs(i);
+        }
+    }
+}
+```
+
+> [洛谷B3609](https://www.luogu.com.cn/problem/B3609)：求强连通分量的模版题。给定`n`个点（编号从`1`到`n`）和`m`条边构成的有向图，求`1`号节点、`2`号节点、...、`n`号节点所属的强连通分量中的节点编号集合，节点编号按升序输出。如果某个节点`j`在之前的节点`i`（`i<j`）中已被输出，则不必输出节点`j`的强连通分量。
+
+在Tarjan模版的基础上，我们引入了`dsu_parent[i]`表示第`i`个节点所属强连通分量的节点最小编号，`dsu_queue[dsu_find(i)]`记录第`i`个节点所属强连通分量的编号集合。这里我们推迟到输出时，才对该集合进行排序。输出的元素标记为`output_visited[j] = true`。
+
+```c++
+const int N_MAX = 1e4, M_MAX = 1e5;
+int n, m, u_temp, v_temp;
+
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1];
+inline void add_edge(int u, int v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size, tarjan_count;
+bool tarjan_in_stack[N_MAX + 1], output_visited[N_MAX + 1];
+std::vector<int> dsu_queue[N_MAX + 1];
+int dsu_parent[N_MAX + 1];
+int dsu_find(int u) { return u == dsu_parent[u] ? u : dsu_parent[u] = dsu_find(dsu_parent[u]); }
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        }
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        ++tarjan_count;
+        int v;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+            dsu_parent[v] = u; // dsu_unite(u, v)
+            dsu_queue[u].push_back(v); // 记录出栈的元素v
+        } while(v != u); // 如果当前的子节点v就是u本身，那么v(即u)已经出栈，退出循环，不再继续出栈
+    }
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        add_edge(u_temp, v_temp);
+    }
+    for(int i = 1; i <= n; ++i) {
+        if(tarjan_dfn[i] == 0) {
+            tarjan_dfs(i);
+        }
+    }
+    std::cout << tarjan_count << '\n';
+    for(int i = 1; i <= n; ++i) {
+        int i_ancestor = dsu_find(i);
+        if(output_visited[i] == false) {
+            output_visited[i] = true;
+            std::sort(dsu_queue[i_ancestor].begin(), dsu_queue[i_ancestor].end());
+            for(const int &v: dsu_queue[i_ancestor]) {
+                output_visited[v] = true;
+                std::cout << v << ' ';
+            }
+            std::cout << '\n';
+        }
+    }
+}
+```
 
 # §7 高级数据结构
 
