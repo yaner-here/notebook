@@ -7254,6 +7254,15 @@ for(int i = 1; i <= n; ++i){
 ```
 
 在此基础上，我们还可以为第`i`条边指定起点`edge_from[i]`。
+
+## §6.2 连通分量
+
+### §6.2.1 Tarjan算法
+
+Tarjan算法使用一遍DFS和单调栈，来求解有向图的强连通分量。其步骤如下：
+
+1. 每个顶点`i`都有两个属性：`tarjan_depth[i]`和`tarjan_min[i]`。
+
 # §7 高级数据结构
 
 ## §7.1 前缀和
@@ -7733,6 +7742,93 @@ int main() {
 }
 ```
 
+> [洛谷P1196](https://www.luogu.com.cn/problem/P1196)：给定编号从`1`到`n`的`n`张纸牌，初始时分别在数轴上的`1`到`n`的位置。接下来给定`t`条指令：对于`M child root`指令，将`child`纸牌所在的牌堆按照“空当接龙”的方式，接在`root`纸牌所在牌堆的最后；对于`C x y`指令，输出`x`与`y`在队列中相隔多少张牌，如果不在同一队列则输出`-1`。
+
+本题容易想到：除了原始的并查集`dsu_parent[]`，还要维护纸牌在所处队列中的位置`dsu_position[]`，要维护`dsu_position[]`还需要引入`dsu_size[]`作为更新的依据。
+
+我们以这组输入为例，手动模拟一遍步骤：
+
+```
+4
+M 2 3
+C 1 2
+M 2 4
+C 4 2
+```
+
+| 指令      | `dsu_parent[]` | `dsu_size[]` | `dsu_position[]` | 输出  |
+| :------ | :------------: | :----------: | :--------------: | --- |
+| 初始      |    1 2 3 4     |   1 1 1 1    |     0 0 0 0      |     |
+| `M 2 3` |    1 3 3 4     |   1 - 2 1    |     0 1 0 0      |     |
+| `C 1 2` |                |              |                  | -1  |
+| `M 2 4` |    1 4 4 4     |   1 - - 3    |     0 2 1 0      |     |
+| `C 4 2` |                |              |                  | 1   |
+
+本题的难点在于如何使用`dsu_size[]`更新`dsu_position[]`。我们令`child_ancestor = dsu_find(child)`，`root_ancestor = dsu_find(root)`，则执行指令`M child root`需要更新的内容有：
+
+1. 合并之后，`child`的前面凭空多出了`dsu_size[root_ancestor]`张牌，因此`child`在牌堆中的序号增加了`dsu_size[root_ancestor]`，即`dsu_position[child] += dsu_size[root_ancestor]`。**至于为什么不是增加`dsu_size[root]`，下文会有分析**。
+   
+2. 由于合并时指定了`child`，所以我们将`child`所在集合的牌分成两类：第一类是`child_ancestor := dsu_find(child)`，第二类是牌堆中的其它牌`child_sible`（也包含`child`本身）。对于第一类牌而言，与第二类牌相比，它们的`dsu_position[child_sible]`没有得到更新，它们能变的只有`dsu_parent[child_sible]`从`child_ancestor`变为`root`。我们只能利用这个变化机制来更新`dsu_position[child_sible]`。
+   
+   能检测到这一变化的只有`dsu_find()`函数，它能发现合并之后`dsu_parent[child_ancestor] != dsu_find(child_sible)`。于是我们让`dsu_parent[child_sible]`更新完毕它自己的`dsu_position[]`后，再让`dsu_position[child_sible] += dsu_positon[dsu_parent[child_sible]]`。这样的话，连续多次合并对`dsu_position`产生的增加影响就能一代代累积下来。
+   
+   在设计`dsu_find()`时，要注意递归细节：先递归完毕，再更新`dsu_size[]`。
+
+3. 在上面的分析中，我们知道`root_sible`也不能及时更新自己的`dsu_size[]`，**所以如果加`dsu_size[root]`的话，`root`会认为自己所处的集合没有和`child`发生合并，导致提供的`dsu_size`偏小**。
+
+```c++
+const int N_MAX = 30000;
+int n = N_MAX, t, u_temp, v_temp;
+char type_temp;
+int dsu_parent[N_MAX + 1], dsu_position[N_MAX + 1], dsu_size[N_MAX + 1];
+int dsu_find(int x) {
+    if(dsu_parent[x] != x) {
+        int x_ancestor = dsu_find(dsu_parent[x]);
+        dsu_position[x] += dsu_position[dsu_parent[x]];
+        return dsu_parent[x] = x_ancestor;
+    }
+    return dsu_parent[x];
+}
+void inline dsu_unite(int child, int root) {
+    int child_ancestor = dsu_find(child), root_ancestor = dsu_find(root);
+    if(child_ancestor != root_ancestor) {
+        dsu_position[child_ancestor] += dsu_size[root_ancestor];
+        dsu_parent[child_ancestor] = root_ancestor;
+        dsu_size[root_ancestor] += dsu_size[child_ancestor];
+        // 可选: dsu_size[child_ancestor] = 0;
+    }
+}
+int main() {
+    std::cin >> t;
+    std::iota(dsu_parent + 1, dsu_parent + 1 + n, 1);
+    std::fill_n(dsu_size + 1, n, 1);
+    while(t--) {
+        std::cin >> type_temp >> u_temp >> v_temp;
+        if(type_temp == 'M') {
+            dsu_unite(u_temp, v_temp);
+        } else if(type_temp == 'C') {
+            if(dsu_find(u_temp) != dsu_find(v_temp)) { // 这里无形之中手动调用了路径更新！
+                std::cout << "-1\n";
+            } else {
+                std::cout << std::abs(dsu_position[u_temp] - dsu_position[v_temp]) - 1 << '\n';
+            }
+        }
+    }
+    return 0;
+}
+```
+
+需要警惕的是：当`type_temp == 'c'`时，`dsu_position[u_temp]`可能没有通过`dsu_find()`更新，所以要手动调用一次更新。在[洛谷P5092](https://www.luogu.com.cn/problem/P5092)中，题目求的是某张牌之上有多少牌。如果不假思索地直接输出`dsu_position[u_temp]`，就会踩这个坑，必须手动调用一次`dsu_find(u_temp)`。
+
+```c++
+if(type_temp == 'M') {
+	// ,,,
+} else if(type_temp == 'C') {
+    dsu_find(u_temp); // u_temp此时可能还没有路径压缩，dsu_position[]未更新，要手动更新一次
+    std::cout << dsu_position[u_temp] << '\n'; // 输出u_temp之上有多少牌
+}
+```
+
 ### §7.2.3 种类并查集
 
 种类并查集同时牺牲常数倍的时间和空间，换取了容易想到的编码，不必像带权并查集那样苦苦设计权值与转移规则。
@@ -7815,6 +7911,102 @@ int main() {
         }
     }
     std::cout << count;
+}
+```
+
+> [洛谷P1955](https://www.luogu.com.cn/problem/P1955)：给定`q`条对`u`和`v`使用`std::unordered_map<int, int>`离散化后的指令，`u v 1`表示$x_u$和$x_v$两个变量相等，`u v 0`表示不相等。请判断这`q`条指令是否冲突。题目给定`t`组这样的询问。
+
+你可能会不假思索的对每条规则使用如下所示的在线种类并查集：
+
+```c++
+std::cin >> u_temp >> v_temp >> type_temp;
+u_temp = map_find(u_temp); v_temp = map_find(v_temp);
+if(type_temp == 1) {
+    if(dsu_find(u_temp) == dsu_find(v_temp + n)) { is_valid = false; break; }
+    dsu_unite(u_temp, v_temp);
+    dsu_unite(u_temp + n, v_temp + n);
+} else if(type_temp == 0) {
+    if(dsu_find(u_temp) == dsu_find(v_temp)) { is_valid = false; break; }
+    dsu_unite(u_temp, v_temp + n);
+    dsu_unite(u_temp + n, v_temp);
+}
+```
+
+本题的陷阱在于：$x_i\neq x_j$和$x_j\neq x_k$不能推导出$x_i=x_k$。于是考虑下面这组输入样例：
+
+```
+1 2 0
+2 3 0
+1 3 0
+```
+
+执行到第三条指令时，程序或错误的判断为发生冲突。虽然不等关系没有传递率，但是相等关系有。因此我们可以离线地先处理所有的相等关系，再逐个检查不等关系是否发生冲突。
+
+```c++
+const int Q_MAX = 1e6, N_MAX = Q_MAX * 2; // 每条规则可以有两个数
+int t, q, n;
+
+int dsu_parent[N_MAX * 2 + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+
+struct Rule { int u, v, type; } rule[Q_MAX + 1];
+std::unordered_map<int, int> map;
+int map_count = 0;
+inline int map_find(int key) { return map.find(key) == map.end() ? map[key] = ++map_count : map[key]; }
+
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> q; n = q * 2;
+        map_count = 0; map.clear();
+        std::iota(dsu_parent, dsu_parent + n * 2 + 1, 0);
+        for(int i = 1; i <= q; ++i) {
+            std::cin >> rule[i].u >> rule[i].v >> rule[i].type;
+            rule[i].u = map_find(rule[i].u);
+            rule[i].v = map_find(rule[i].v);
+        }
+        for(int i = 1; i <= q; ++i) {
+            if(rule[i].type == 1) {
+                dsu_unite(rule[i].u, rule[i].v);
+                dsu_unite(rule[i].u + n, rule[i].v + n); // 从未使用过，可以删除
+            }
+        }
+        bool is_valid = true;
+        for(int i = 1; i <= q; ++i) {
+            if(rule[i].type == 0) {
+                if(dsu_find(rule[i].u) == dsu_find(rule[i].v)) {
+                    is_valid = false;
+                    break;
+                }
+            }
+        }
+        std::cout << (is_valid ? "YES\n" : "NO\n");
+    }
+}
+```
+
+观察上述代码，我们根本没用到`dsu_parent[i + n]`的部分，因此这道题可以特殊地视为一倍种类的种类并查集，从而退化成不带权的并查集。
+
+```c++
+// ...
+int dsu_parent[N_MAX + 1]; // 不必开辟两倍空间
+// ...
+int main() {
+    // ...
+    while(t--) {
+		// ...
+        for(int i = 1; i <= q; ++i) {
+            if(rule[i].type == 1) {
+                dsu_unite(rule[i].u, rule[i].v); // 只留这一句
+            }
+        }
+		// ...
+        std::cout << (is_valid ? "YES\n" : "NO\n");
+    }
 }
 ```
 
