@@ -7603,6 +7603,241 @@ int main() {
 }
 ```
 
+### §6.2.3 缩点
+
+给定一个有向图，将其中所有的强连通分量做离散化，分别使用一个总结点代替。这一过程称为缩点。
+
+在强连通分量的基础上，Tarjan算法进行缩点所需的变量有：
+
+| 必选  | 变量名                             | 含义                     | 初始值                                          |
+| --- | ------------------------------- | ---------------------- | -------------------------------------------- |
+| ✅   | `int scc_map[N_MAX + 1]`        | 原始有向图中的节点对应着第几个缩点      | `0`                                          |
+| ✅   | `int scc_count`                 | 目前为止发现了几个强连通分量，创建了几个缩点 | `0`，每次出栈导出一个强连通分量就加`1`                       |
+| ❌   | `int scc_indegree[N_MAX + 1]`   | 统计第`i`个强连通分量作为一个缩点的总入度 | `0`                                          |
+| ❌   | `int scc_outdegree[N_MAX + 1]`  | 统计第`i`个强连通分量作为一个缩点的总出度 | `0`                                          |
+| ❌   | `int scc_source_count`          | 统计入度为`0`的缩点数           | `0`，遍历所有缩点`i`，如果`scc_indegree[i] == 0`则加`1`  |
+| ❌   | `int scc_sink_count`            | 统计出度为`0`的缩点数           | `0`，遍历所有缩点`i`，如果`scc_outdegree[i] == 0`则加`1` |
+| ❌   | `int scc_edge_count`            | 在缩点后的图中有多少条缩点之间的边      | `0`                                          |
+| ❌   | `int scc_edge_first[N_MAX + 1]` | 链式前向星存储缩点图             | `0`                                          |
+| ❌   | `int scc_edge_next[M_MAX + 1]`  | 链式前向星存储缩点图             | `0`                                          |
+| ❌   | `int scc_edge_to[M_MAX + 1]`    | 链式前向星存储缩点图             | `0`                                          |
+
+模板如下所示，按需选择并使用上表中的变量：
+
+```c++
+int scc_map[N_MAX + 1], scc_count, scc_indegree[N_MAX + 1], scc_outdegree[N_MAX + 1], scc_sink_count, scc_source_count;
+int scc_edge_count, scc_edge_first[N_MAX + 1], scc_edge_next[M_MAX + 1], scc_edge_to[M_MAX + 1];
+inline void scc_add_edge(int u, int v) {
+	++scc_edge_count;
+	scc_edge_next[scc_edge_count] = scc_edge_first[u];
+	scc_edge_first[u] = scc_edge_count;
+	scc_edge_to[scc_edge_count] = v;
+}
+
+// ...tarjan变量定义
+void tarjan_dfs(int u) {
+    // ...
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+		// ...
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        int v; ++scc_count;
+        do {
+	        // ...
+            scc_map[v] = scc_count;
+        } while(u != v);
+    }
+}
+
+int main() {
+    std::cin >> n;
+    for(int u = 1; u <= n; ++u) {
+		// ...输入并添加有向边
+    }
+    for(int u = 1; u <= n; ++u) {
+        if(tarjan_dfn[u] == 0) { tarjan_dfs(u); }
+    }
+    for(int u = 1; u <= n; ++u) { // 维护scc_indegree和scc_outdegree
+        for(int i = edge_first[u]; i; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(scc_map[u] != scc_map[v]) {
+                scc_indegree[scc_map[v]]++;
+                scc_outdegree[scc_map[u]]++;
+            }
+        }
+    }
+    for(int i = 1; i <= scc_count; ++i) { // 维护scc_sink_count和scc_source_count
+        if(scc_indegree[i] == 0) { ++scc_sink_count; }
+        if(scc_outdegree[i] == 0) { ++scc_source_count; }
+    }
+}
+```
+
+> [洛谷P2746](https://www.luogu.com.cn/problem/P2746)/[洛谷P2812](https://www.luogu.com.cn/problem/P2812)（数据加强）：给定一个有向图$\mathcal{G}$，求（1）至少要选中多少点作为起点，才能保证图中的任意节点均可达；（2）至少还要添加多少条有向边，才能使$\mathcal{G}$变成强连通图。
+
+考虑$\mathcal{G}$在缩点之后形成的缩点有向图。显然我们可以引入一条边，加在入度为`0`的缩点上，就能消灭一个不弱连通的、入度为`0`的子图，于是（1）的答案即为`scc_source_count`。更进一步，这条边可以顺带消灭一个不强连通的、出度为`0`的子图，于是（2）的答案即为`std::max(scc_source_count, scc_sink_count)`。
+
+**特判极端情况：$\mathcal{G}$本身就是一个强连通图，只有一个缩点**。（1）的答案应为`1`，恰好`acc_source_count`也是`1`，所以成立。**（2）的答案应为`0`，然而`std::max(...) = std::max(1, 1) = 1`，不成立，因此要做特判输出`0`**。
+
+```c++
+const int N_MAX = 1e4, M_MAX = 5e4;
+int n, v_temp;
+
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1];
+inline void add_edge(int u, int v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+int scc_map[N_MAX + 1], scc_count, scc_indegree[N_MAX + 1], scc_outdegree[N_MAX + 1], scc_sink_count, scc_source_count; // 强连通分量相关的变量
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size;
+bool tarjan_in_stack[N_MAX + 1];
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+        }
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        int v; ++scc_count;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+            scc_map[v] = scc_count;
+        } while(u != v);
+    }
+}
+
+int main() {
+    std::cin >> n;
+    for(int u = 1; u <= n; ++u) {
+        while(std::cin >> v_temp, v_temp != 0) { add_edge(u, v_temp); }
+    }
+    for(int u = 1; u <= n; ++u) {
+        if(tarjan_dfn[u] == 0) { tarjan_dfs(u); }
+    }
+    for(int u = 1; u <= n; ++u) {
+        for(int i = edge_first[u]; i; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(scc_map[u] != scc_map[v]) {
+                scc_indegree[scc_map[v]]++;
+                scc_outdegree[scc_map[u]]++;
+            }
+        }
+    }
+    for(int i = 1; i <= scc_count; ++i) {
+        if(scc_indegree[i] == 0) { ++scc_sink_count; }
+        if(scc_outdegree[i] == 0) { ++scc_source_count; }
+    }
+    std::cout << scc_sink_count << '\n';
+    std::cout << (scc_count == 1 ? 0 : std::max(scc_sink_count, scc_source_count));
+}
+```
+
+> [洛谷P2341](https://www.luogu.com.cn/problem/P2341)：给定一个有向图$\mathcal{G}$，求有多少个顶点`i`满足任意节点均能到达`i`？
+
+本题的答案是“**唯一**入度为`0`的缩点中的节点总数”。顶点`i`所在的缩点的入度为`0`，保证了所在的弱连通分量中的有些节点可以到达`i`。入度为`0`的缩点数只有一个，保证了$\mathcal{G}$是连通图（排除图2可能性），也保证了只有一个终点，从终点出发一定可以到达终点（排除图3可能性）。
+
+```mermaid
+graph TB
+	subgraph 图3
+		direction LR
+		A3["A"] --> B3["B"] & C3["C"]
+	end
+	subgraph 图2
+		direction LR
+		A2["A"]
+		B2["B"] --> C2["C"]
+	end
+	subgraph 图1
+		direction LR
+		A1["A"] --> B1["B"] --> C1["C"]
+	end
+```
+
+```c++
+const int N_MAX = 1e4, M_MAX = 5e4;
+int n, m, u_temp, v_temp;
+
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1];
+inline void add_edge(int u, int v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+int scc_map[N_MAX + 1], scc_count, scc_size[N_MAX + 1];
+int scc_indegree[N_MAX + 1], scc_outdegree[N_MAX + 1], scc_sink_count, scc_source_count;
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size;
+bool tarjan_in_stack[N_MAX + 1];
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+        }
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        int v; ++scc_count;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+            scc_map[v] = scc_count;
+            ++scc_size[scc_count];
+        } while(u != v);
+    }
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        add_edge(u_temp, v_temp);
+    }
+    for(int u = 1; u <= n; ++u) {
+        if(tarjan_dfn[u] == 0) { tarjan_dfs(u); }
+    }
+    for(int u = 1; u <= n; ++u) {
+        for(int i = edge_first[u]; i; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(scc_map[u] != scc_map[v]) {
+                scc_indegree[scc_map[v]]++;
+                scc_outdegree[scc_map[u]]++;
+            }
+        }
+    }
+    for(int i = 1; i <= scc_count; ++i) {
+        if(scc_indegree[i] == 0) { ++scc_source_count; }
+        if(scc_outdegree[i] == 0) { ++scc_sink_count; }
+    }
+    int result = 0;
+    for(int i = 1; i <= scc_count; ++i) {
+        if(scc_outdegree[i] == 0) {
+            result += scc_size[i];
+        }
+    }
+    std::cout << (scc_sink_count == 1 ? result : 0);
+}
+```
+
 # §7 高级数据结构
 
 ## §7.1 前缀和
