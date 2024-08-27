@@ -7402,9 +7402,9 @@ int main() {
 }
 ```
 
-### §6.2.2 割点与割边
+### §6.2.2 割点
 
-Tarjan算法使用一遍DFS（**不需要单调栈**），来求解无向图的割点。给定一个弱连通图（或无向图），如果删除图中的某个节点`i`以及与其相邻的所有有向边，能让原图不再是弱连通图，则称这个点为割点。割边同理。
+Tarjan算法使用一遍DFS（**不需要单调栈**），来求解无向图的割点。给定一个弱连通图（或无向图），如果删除图中的某个节点`i`以及与其相邻的所有有向边，能让原图不再是弱连通图，则称这个点为割点。
 
 在实际编程中，我们认为给定的有向图都要转化成无向图，所以有向边要正反添加两次。各变量定义如下，其中`N_MAX`表示顶点最大数量：
 
@@ -7417,9 +7417,9 @@ Tarjan算法使用一遍DFS（**不需要单调栈**），来求解无向图的�
 | `int cutvertex_count`          | 目前检测到的割点数量                                                                                                           | `0`                                     |
 | `bool is_cutvertex[N_MAX + 1]` | 当前节点是否为割点                                                                                                            | 全为`false`                               |
 
-需要注意的是：**`tarjan_low[]`的含义发生了改变**。在强连通分量中，`tarjan_low[i]`表示`i`所在强连通分量中被DFS搜索树第一个搜索到的节点`j`的`tarjan_dfn[j]`；**而在割点和割边中，`tarjan_low[i]`表示在DFS搜索树遍历到节点`i`时，给定节点`i`本身及其DFS搜索树的所有子树节点`j`，它们的所有反祖边指向的已访问过的节点中，最早被访问的节点`k`的`tarjan_dfn[k]`，也就是`k`何时被访问**。
+需要注意的是：**`tarjan_low[]`的含义发生了改变**。在强连通分量中，`tarjan_low[i]`表示`i`所在强连通分量中被DFS搜索树第一个搜索到的节点`j`的`tarjan_dfn[j]`；**而在割点中，`tarjan_low[i]`表示在DFS搜索树遍历到节点`i`时，给定节点`i`本身及其DFS搜索树的所有子树节点`j`，它们的所有反祖边指向的已访问过的节点中，最早被访问的节点`k`的`tarjan_dfn[k]`，也就是`k`何时被访问**。
 
-在求强连通分量时，我们介绍过在下面的代码中`tarjan_low[v]`（旧）和`tarjan_dfn[v]`可以互换，但是在求割点和割边时，由于`tarjan_low[]`的含义发生了改变，只能使用`tarjan_dfn[v]`。否则这就相当于在更新`tarjan_low[u]`（新）时，让其指向`tarjan_low[u]`（旧），也就是`tarjan_low[tarjan_low[...tarjan_low[u]]]`（新），导致`tarjan_low[u]`指向的最早被访问的节点，不属于`i`的反祖边，违反定义。用[张一帆](https://yfzhang114.github.io/)在[CSDN博客](https://blog.csdn.net/csyifanZhang/article/details/105370924)中的话来说，这导致`tarjan_low[u]`回翻过头，翻到了其它的环中。
+在求强连通分量时，我们介绍过在下面的代码中`tarjan_low[v]`（旧）和`tarjan_dfn[v]`可以互换，但是在求割点时，由于`tarjan_low[]`的含义发生了改变，只能使用`tarjan_dfn[v]`。否则这就相当于在更新`tarjan_low[u]`（新）时，让其指向`tarjan_low[u]`（旧），也就是`tarjan_low[tarjan_low[...tarjan_low[u]]]`（新），导致`tarjan_low[u]`指向的最早被访问的节点，不属于`i`的反祖边，违反定义。用[张一帆](https://yfzhang114.github.io/)在[CSDN博客](https://blog.csdn.net/csyifanZhang/article/details/105370924)中的话来说，这导致`tarjan_low[u]`回翻过头，翻到了其它的环中。
 
 ```c++
 /* 强连通分量 */
@@ -7435,13 +7435,14 @@ void tarjan_dfs(int u){
 		}
 	}
 }
-/* 割点和割边 */
+/* 割点 */
 void tarjan_dfs(int u){
 	for(遍历v: u -> v){
 		if(v未访问过){
 			tarjan_dfs(v);
 			tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
 		} else { // 这一步不用判断是否在栈中!
+		// 也可以替换成else if(v != father)，不影响正确性，其中father为DFS生成树中u的父节点
 			/* 只能用tarjan_dfn[v]，不能用tarjan_low[v]，即下面这行是错误的
 			tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
 			*/
@@ -7494,13 +7495,10 @@ void tarjan_dfs(int u){
    }
    ```
 
-然后考虑割点和割边的判定条件。我们不加证明地给出以下判定依据，直观的证明过程参考[Bilibili @邋遢大哥233](https://www.bilibili.com/video/BV1Q7411e7bM/)的视频讲解。
+然后考虑割点的判定条件。我们不加证明地给出以下判定依据，二者满足其一即可。直观的证明过程参考[Bilibili @邋遢大哥233](https://www.bilibili.com/video/BV1Q7411e7bM/)的视频讲解：
 
-- 割点判定条件
-	- 节点`u`是DFS搜索树根节点，且其子树数量大于等于`2`
-	- 节点`u`不是DFS搜索树根节点，且存在一条有向边`<u, v>`满足`tarjan_low[v] >= tarjan_dfn[u]`
-- 割边判定条件
-	- 节点`u`存在一条有向边`<u, v>`满足`tarjan_dfn[u] < tarjan_low[v]`
+- 节点`u`是DFS搜索树根节点，且其子树数量大于等于`2`
+- 节点`u`不是DFS搜索树根节点，且存在一条有向边`<u, v>`满足`tarjan_low[v] >= tarjan_dfn[u]`
 
 在Tarjan算法中，一个点可能会被多次判定为割点。以下面的输入为例：
 
@@ -7539,7 +7537,7 @@ graph LR
 
 综上所述，时间复杂为$O(n+m)$。
 
-> [洛谷P3388]()：有向图割点的模板题。要求先输出割点个数，然后升序输出割点编号。
+> [洛谷P3388](https://www.luogu.com.cn/problem/P3388)：有向图割点的模板题。要求先输出割点个数，然后升序输出割点编号。
 
 ```c++
 const int N_MAX = 2e4, M_MAX = 1e5 * 2;
@@ -7603,9 +7601,200 @@ int main() {
 }
 ```
 
-### §6.2.3 缩点
+### §6.2.3 割边
+
+Tarjan算法使用一遍DFS（**不需要单调栈，需要DFS生成树支持查询某个节点的父节点**），来求解无向图的割边。给定一个弱连通图（或无向图），如果删除图中的某个无向边，能让原图不再是弱连通图，则称这个点为割边。
+
+在实际编程中，我们认为给定的有向图都要转化成无向图，所以有向边要正反添加两次。各变量定义如下，其中`N_MAX`表示顶点最大数量：
+
+| 必选  | 变量名                                      | 含义                                                                                                                                              | 初始值                                     |
+| --- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| ✅   | `int tarjan_time`                        | 同割点                                                                                                                                             | 同割点                                     |
+| ✅   | `int tarjan_dfn[N_MAX + 1]`              | 同割点                                                                                                                                             | 同割点                                     |
+| ✅   | `int tarjan_low[N_MAX + 1]`              | $\displaystyle\min_{\begin{align}&i\le j\text{符合DFS搜索序},i先j后\\&<j,k>\in\mathcal{V}-\textcolor{red}{\{<j,i>\}}\end{align}}\text{tarjan\_dfn}[k]$ | 从未被访问过时为`0`，刚被访问而仍未遍历子节点时为`tarjan_time` |
+| ❌   | `int tarjan_father`                      | 在DFS搜索树中，某个节点的父节点编号                                                                                                                             | 全为`0`                                   |
+| ❓   | `int cutedge_count`                      | 目前检测到的割边数量                                                                                                                                      | `0`                                     |
+| ❓   | `bool is_cutedge[M_MAX + 1]`             | 当前边是否为割边（无需定义`cutedge_count`，但不能参与排序）                                                                                                           | 全为`false`                               |
+| ❓   | `std::pair<int, int> cutedge[M_MAX + 1]` | 检测到的第`i`条割边的首尾节点（可以排序，但需要配合`cutedge_count`使用）                                                                                                   | 全为`0`                                   |
+
+需要注意的是：**`tarjan_low[]`的含义发生了改变**。在割点中，`tarjan_low[i]`表示在DFS搜索树遍历到节点`i`时，**给定节点`i`本身及其DFS搜索树的所有子树节点`j`**，它们的所有反祖边指向的已访问过的节点中，最早被访问的节点`k`的`tarjan_dfn[k]`。而在割边中，`tarjan_low[i]`表示**只有DFS搜索树的所有字数节点`j`**，它们的所有反祖边指向的最早访问节点k的`tarjan_dfn[k]`。
+
+因为`tarjan_low[]`的含义发生了改变，所以我们要更改`tarjan_dfs()`的逻辑：
+
+```c++
+/* 割点 */
+void tarjan_dfs(int u){
+	for(遍历v: u -> v){
+		if(v未访问过){
+			tarjan_dfs(v);
+			tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+		} else { 
+		// 也可以替换成else if(v != father[u])，不影响正确性
+		// 其中father[u]为DFS生成树中u的父节点
+			tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+		}
+	}
+}
+/* 割边 */
+void tarjan_dfs(int u){
+	for(遍历v: u -> v){
+		if(v未访问过){
+			tarjan_dfs(v);
+			tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+		else if(v != father) { // 只能这么写
+			tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+		}
+	}
+}
+```
+
+在割点中，我们之所以使用`} else {`而不出错，是因为求割点只关心`tarjan_dfn[u] >= tarjan_low[v]`，即使从DFS搜索树上的子节点回到了父节点，也只是会让两者相等，依然符合判定条件，所以我们为了节省常数空间和时间而“将错就错”。而割点使用的`tarjan_dfn[u] > tarjan_low[v]`则不同，取等之后会不满足判定条件，所以需要严格区分。
+
+为了获取这个`father[u]`，编程实践中有两种实现方式：
+
+1. 使用`tarjan_dfs_father[]`记录每个节点的父节点
+   这种方法使用了额外的$O(n)$空间，在`tarjan_dfs()`中实时维护。
+   ```c++
+   int tarjan_dfs_father[N_MAX + 1];
+   void tarjan_dfs(int u){
+	   for(遍历v: u -> v){
+		   if(v未被访问){
+			   tarjan_dfs_father[v] = u;
+			   tarjan_dfs(v);
+			   // ,,,
+		   }else if(v != tarjan_dfs_father[u]){
+			   // ,,,
+		   }
+	   }
+   }
+   ```
+2. 在`tarjan_dfs()`中携带父节点信息
+   ```c++
+   void tarjan_dfs(int u, int father){ // father是u的父节点
+	   for(遍历v: u -> v){
+		   if(v未被访问){
+			   tarjan_dfs(v, u);
+			   // ,,,
+		   }else if(v != father){
+			   // ,,,
+		   }
+	   }
+   }
+   int main(){
+		// ...
+		tarjan_dfs(i, 0);
+		// ...
+   }
+   ```
+
+然后考虑割点的判定条件。我们不加证明地给出以下判定依据。直观的证明过程参考[Bilibili @邋遢大哥233](https://www.bilibili.com/video/BV1Q7411e7bM/)的视频讲解：
+
+- 节点`u`存在一条有向边`<u, v>`满足`tarjan_dfn[u] < tarjan_low[v]`。
+
+然后考虑割边的存储方式、编程实践中有以下两种方法：
+
+1. 使用`bool is_cutedge[]`标记边是否为割边（不能参与排序）
+   ```c++
+   bool is_cutedge[M_MAX + 1];
+   for(int i = edge_first[u]; i; i = edge_next[i]){
+	   // ...
+	   if(tarjan_dfn[u] < tarjan_low[v]){
+		   is_cutedge[i] = true;
+	   }
+	   // ...
+   }
+   ```
+2. 复制一份割边信息为`std::pair<int,int>`，用数组或`std::vector`存储（可以排序）
+   ```c++
+   std::pair<int, int> cutedge[M_MAX + 1];
+   int cutedge_count;
+   for(int i = edge_first[u]; i; i = edge_next[i]){
+	   // ...
+	   if(tarjan_dfn[u] < tarjan_low[v]){
+		   ++cutedge_count;
+		   cutedge[cutedge_count].first = u;
+		   cutedge[cutedge_count].second = v;
+		   /* 如果对顺序有要求，也可以：
+		   cutedge[cutedge_count].first = std::min(u, v);
+		   cutedge[cutedge_count].second = std::max(u, v);
+		   */
+	   }
+	   // ...
+   }
+   ```
+
+> [洛谷P1656](https://www.luogu.com.cn/problem/P1656)：割边模版题。给定一个有向图，请输出它的所有割边。每条割边内的两个节点按升序输出，多条割边整体按照起点和终点做字典序升序输出。
+
+代码如下：
+
+```c++
+const int N_MAX = 150, M_MAX = 5000;
+int n, m, u_temp, v_temp;
+
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1];
+inline void edge_add(int u, int v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_dfs_root;
+std::pair<int, int> cutedge[M_MAX + 1]; int cutedge_count;
+inline void tarjan_dfs(int u, int father) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v, u);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);          
+            if(tarjan_dfn[u] < tarjan_low[v]) {
+                ++cutedge_count;
+                cutedge[cutedge_count].first = std::min(u, v);
+                cutedge[cutedge_count].second = std::max(u, v);
+            }
+        } else if(v != father) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+        }
+    }
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        edge_add(u_temp, v_temp);
+        edge_add(v_temp, u_temp);
+    }
+    for(int u = 1; u <= n; ++u) {
+        if(tarjan_dfn[u] == 0) {
+            tarjan_dfs_root = u;
+            tarjan_dfs(u, 0);
+        }
+    }
+    std::sort(cutedge + 1, cutedge + cutedge_count + 1, [](const auto &lhs, const auto &rhs) -> bool {
+        if(lhs.first != rhs.first) {
+            return lhs.first < rhs.first;
+        } else {
+            return lhs.second < rhs.second;
+        }
+    });
+    for(int i = 1; i <= cutedge_count; ++i) {
+        std::cout << cutedge[i].first << ' ' << cutedge[i].second << '\n';
+    }
+}
+```
+
+### §6.2.4 缩点
 
 给定一个有向图，将其中所有的强连通分量做离散化，分别使用一个总结点代替。这一过程称为缩点。
+
+缩点构成的图一定是有向无环图（DAG），因为缩点表示的强连通分量本身就是最大的极大强连通子图，如果存在环，则检测到的强连通子图并不是极大，从而矛盾，证毕。
+
+由于缩点图一定是DAG，于是我们可以在上面进行拓扑排序。
+
+- BFS的做法是先让各个入度为`0`的缩点入队，同时初始化其`dp[]`，然后就是正常的拓扑排序，**这里的`dp[i]`通常是将`i`作为终点**。
+- DFS的做法是**让`dp[i]`表示以`i`为起点，同时`dp[i]`的初始值也充当`visited[]`的作用**。在`main()`函数遍历所有`dp[i] == 初始值(0)`的缩点，然后沿有向图依次更新。
 
 在强连通分量的基础上，Tarjan算法进行缩点所需的变量有：
 
@@ -7675,7 +7864,7 @@ int main() {
 
 > [洛谷P2746](https://www.luogu.com.cn/problem/P2746)/[洛谷P2812](https://www.luogu.com.cn/problem/P2812)（数据加强）：给定一个有向图$\mathcal{G}$，求（1）至少要选中多少点作为起点，才能保证图中的任意节点均可达；（2）至少还要添加多少条有向边，才能使$\mathcal{G}$变成强连通图。
 
-考虑$\mathcal{G}$在缩点之后形成的缩点有向图。显然我们可以引入一条边，加在入度为`0`的缩点上，就能消灭一个不弱连通的、入度为`0`的子图，于是（1）的答案即为`scc_source_count`。更进一步，这条边可以顺带消灭一个不强连通的、出度为`0`的子图，于是（2）的答案即为`std::max(scc_source_count, scc_sink_count)`。
+考虑$\mathcal{G}$在缩点之后形成的缩点有向无环图。显然我们可以引入一条边，加在入度为`0`的缩点上，就能消灭一个不弱连通的、入度为`0`的子图，于是（1）的答案即为`scc_source_count`。更进一步，这条边可以顺带消灭一个不强连通的、出度为`0`的子图，于是（2）的答案即为`std::max(scc_source_count, scc_sink_count)`。
 
 **特判极端情况：$\mathcal{G}$本身就是一个强连通图，只有一个缩点**。（1）的答案应为`1`，恰好`acc_source_count`也是`1`，所以成立。**（2）的答案应为`0`，然而`std::max(...) = std::max(1, 1) = 1`，不成立，因此要做特判输出`0`**。
 
@@ -7835,6 +8024,98 @@ int main() {
         }
     }
     std::cout << (scc_sink_count == 1 ? result : 0);
+}
+```
+
+> [洛谷P3387](https://www.luogu.com.cn/problem/P3387)：给定一个有向点权图，每个点的价值为`value[i]`。初始时从任意节点出发，可以重复地经过同一节点，最终停下形成一条路径。求路径上各点的价值之和最大值。
+
+本题显然是求缩点图后，转化为不能重复经过统一节点的情况。对缩点图使用DFS或BFS求最值即可，这里我们从根节点开始使用BFS，其中`dp_value[i]`表示以第`i`个缩点为终点能达到的最大价值。
+
+```c++
+const int N_MAX = 1e4, M_MAX = 1e5;
+int n, m, u_temp, v_temp, value[N_MAX + 1];
+
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1];
+inline void edge_add(int u, int v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size;
+bool tarjan_in_stack[N_MAX + 1];
+int scc_map[N_MAX + 1], scc_count, scc_value[N_MAX + 1];
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+        }
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        int v; ++scc_count;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+            scc_map[v] = scc_count;
+            scc_value[scc_count] += value[v];
+        } while(u != v);
+    }
+}
+
+int scc_indegree[N_MAX + 1];
+int scc_edge_count, scc_edge_first[N_MAX + 1], scc_edge_next[M_MAX + 1], scc_edge_to[M_MAX + 1];
+int dp_value[N_MAX + 1];
+inline void scc_edge_add(int u, int v) {
+    ++scc_edge_count;
+    scc_edge_next[scc_edge_count] = scc_edge_first[u];
+    scc_edge_first[u] = scc_edge_count;
+    scc_edge_to[scc_edge_count] = v;
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int u = 1; u <= n; ++u) { std::cin >> value[u]; }
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        edge_add(u_temp, v_temp);
+    }
+    for(int u = 1; u <= n; ++u){
+        if(tarjan_dfn[u] == 0) { tarjan_dfs(u); }
+    }
+    for(int u = 1; u <= n; ++u) {
+        for(int i = edge_first[u]; i; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(scc_map[u] != scc_map[v]) {
+                scc_edge_add(scc_map[u], scc_map[v]);
+                ++scc_indegree[scc_map[v]];
+            }
+        }
+    }
+    std::queue<int> queue; // 拓扑排序
+    for(int u = 1; u <= scc_count; ++u) {
+        if(scc_indegree[u] == 0) {
+            queue.push(u);
+            dp_value[u] = scc_value[u];
+        }
+    }
+    while(!queue.empty()) {
+        int u = queue.front(); queue.pop();
+        for(int i = scc_edge_first[u]; i; i = scc_edge_next[i]) {
+            int v = scc_edge_to[i];
+            --scc_indegree[v];
+            if(scc_indegree[v] == 0) { queue.push(v); }
+            dp_value[v] = std::max(dp_value[v], dp_value[u] + scc_value[v]);
+        }
+    }
+    std::cout << *std::max_element(dp_value + 1, dp_value + scc_count + 1);
 }
 ```
 
