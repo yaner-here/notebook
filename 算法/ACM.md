@@ -8866,6 +8866,42 @@ int main() {
 }
 ```
 
+> [洛谷P1892](https://www.luogu.com.cn/problem/P1892)：给定`n`个人，两个人之间要么是朋友的关系，要么是敌人的关系。朋友的朋友是朋友，敌人的敌人是朋友。现给定`m`条知识，每条知识指明两个人之间的关系。求这`n`个人最多能形成多少个朋友堆。
+
+注意到朋友关系具有传递性，所以朋友关系的并查集代码为`dsu_unite(u, v)`。这里千万不能同时执行`dsu_unite(u + n, v + n)`，这是因为多个“朋友”可以成为一个类别，但是多个“敌人”不一定能凑成一个朋友堆，这些敌人可能互为敌人或朋友。
+
+对于敌对关系而言，对于`dsu_unite(child, root)`函数而言，并查集代码为`dsu_unite(u_temp + n, v_temp)`和`dsu_unite(v_temp + n, u_temp)`。这里要额外注意`child`和`root`形参的位置，在后面的统计环节中，我们只对`dsu_parent[i: 1->n]`的部分进行遍历，遍历的判定依据为`dsu_parent[i] == i`。所以我们希望`i: 1->n`的部分作为根节点。
+
+```c++
+const int N_MAX = 1000;
+int n, m, u_temp, v_temp, dsu_parent[N_MAX * 2 + 1];
+char type_temp;
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+int main() {
+    std::cin >> n >> m;
+    std::iota(dsu_parent, dsu_parent + 1 + 2 * n, 0);
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> type_temp >> u_temp >> v_temp;
+        if(type_temp == 'F') {
+            dsu_unite(u_temp, v_temp);
+        } else if(type_temp == 'E') {
+            dsu_unite(v_temp + n, u_temp);
+            dsu_unite(u_temp + n, v_temp);
+        }
+    }
+    int result = 0;
+    for(int i = 1; i <= n; ++i) {
+        dsu_find(i);
+        if(dsu_parent[i] == i) { ++result; }
+    }
+    std::cout << result;
+}
+```
+
 ## §7.3 双端队列
 
 ```c++
