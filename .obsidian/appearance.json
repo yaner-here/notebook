@@ -5,5 +5,8 @@
   "cssTheme": "Catppuccin",
   "accentColor": "",
   "textFontFamily": "CaskaydiaCove Nerd Font Mono,HYZhengYuan",
-  "baseFontSizeAction": true
+  "baseFontSizeAction": true,
+  "enabledCssSnippets": [
+    "code-comment-lighter"
+  ]
 }
