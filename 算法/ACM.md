@@ -8119,6 +8119,71 @@ int main() {
 }
 ```
 
+## §6.3 最小生成树
+
+最小生成树（MST, Minimum Spanning Tree）是无向图中的概念，指的是边权之和最小的生成树。
+
+**在稠密图中，Prim算法更优；在稀疏图中，Kruskal算法更优**。
+
+### §6.3.1 Kruskal算法
+
+Kruskal使用贪心思想，**每次添加权值最小的边**，使用并查集判定是否成环。在不成环的前提下，先尝试将边权较小的边添加到生成树中，直到形成一颗生成树，此时再引入任何边都会导致成环。我们还可以维护`kruskal_count`表示当前已加入的边，Kruskal算法的时间复杂度由排序和并查集构成，总共为$O(m\log m + m\alpha(n, m))$。
+
+```c++
+/* 伪代码 */
+int kruskal_count = 0;
+std::sort(edge + 1, edge + 1 + m, [](const Edge &lhs, const Edge &rhs){
+	return lhs.w < rhs.w;
+});
+for(int i = 1; i <= m; ++i){
+	if(dsu_find(edge[i].u) != dsu_find(edge[i].v){
+		dsu_unite(edge[i].u, edge[i].v);
+		++kruskal_count;
+	}
+	// 这行代码可选，在稠密图中能节省时间
+	// if(kruskal_count == n - 1) { break; }
+}
+```
+
+> [洛谷P3366](https://www.luogu.com.cn/problem/P3366)：最小生成树的模板题。求最小生成树的边权之和最小值。
+```c++
+const int N_MAX = 5000, M_MAX = 2e5;
+
+int n, m, dsu_parent[N_MAX + 1], kruskal_count, kruskal_sum;
+struct Edge { int u, v, w; } edge[M_MAX + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+int main() {
+    std::cin >> n >> m;
+    std::iota(dsu_parent + 1, dsu_parent + n + 1, 1);
+    for(int i = 1; i <= m; ++i) { std::cin >> edge[i].u >> edge[i].v >> edge[i].w; }
+    std::sort(edge + 1, edge + m + 1, [](const Edge &a, const Edge &b) { return a.w < b.w; });
+    for(int i = 1; i <= m; ++i) {
+        if(dsu_find(edge[i].u) != dsu_find(edge[i].v)) {
+            dsu_unite(edge[i].u, edge[i].v);            
+            kruskal_count++;
+            kruskal_sum += edge[i].w;
+        }
+        if(kruskal_count == n - 1) { break; }
+    }
+    if(kruskal_count == n - 1) {
+        std::cout << kruskal_sum;
+    } else {
+        std::cout << "orz";
+    }
+    return 0;
+}
+```
+
+### §6.3.2 Prim算法
+
+### §6.3.3 Sollin算法
+
+https://www.luogu.com.cn/article/h041rvt9
+
 # §7 高级数据结构
 
 ## §7.1 前缀和
@@ -9068,6 +9133,70 @@ for(int i = 2; i <= n; ++i) {
     }
 }
 ```
+
+## §7.5 堆
+
+堆的本质是一棵树，每个子节点都表示一个值，每个子节点都大于/小于其父亲节的值，称为小根堆/大根堆。小根堆/大根堆能够快速地插入、查询、删除值，支持多个堆之间的合并。
+
+| 均摊时间复杂度 | 插入             | 删除             | 查询     | 修改             | 堆合并            | 可持久化 |
+| ------- | -------------- | -------------- | ------ | -------------- | -------------- | ---- |
+| 配对堆     | $O(1)$         | $O(\log_2{n})$ | $O(1)$ | $O(\log_2{n})$ | $O(1)$         | ❌    |
+| 二叉堆     | $O(\log_2{n})$ | $O(\log_2{n})$ | $O(1)$ | $O(\log_2{n})$ | $O(n)$         | ✔    |
+| 左偏树     | $O(\log_2{n})$ | $O(\log_2{n})$ | $O(1)$ | $O(\log_2{n})$ | $O(\log_2{n})$ | ✔    |
+| 二项堆     | $O(\log_2{n})$ | $O(\log_2{n})$ | $O(1)$ | $O(\log_2{n})$ | $O(\log_2{n})$ | ✔    |
+| 斐波那契堆   | $O(1)$         | $O(\log_2{n})$ | $O(1)$ | $O(1)$         | $O(1)$         | ❌    |
+
+### §7.5.1 二叉堆
+
+二叉堆是最常用的堆，它的本质是一颗完全二叉树，可以使用数组`heap[N_MAX + 1]`模拟。
+
+对于插入操作，我们将要插入的值直接放在深度最大、位置最靠右的叶子节点处（即数组的`head[++n]`），然后自下而上逐层更新，以维护堆的大小关系。时间复杂度为$O(\log_2{n})$。
+
+```c++
+int n = 0;
+void heap_update_up(int x){ // 要向上更新的节点编号，把最大/小的数往上运
+	// 大根堆是heap[x/2]<heap[x]，小根堆是heap_[x/2]>heap[x]
+	while(x > 1 && heap[x / 2] < heap[x]){
+		std::swap(h[x / 2], h[x]);
+		x /= 2;
+	}
+}
+void heap_insert_value(const int &x){ // 要插入的值
+	heap[++n] = x;
+	heap_update_up(n);
+}
+```
+
+对于删除操作，我们考虑插入的逆操作：将要删除的节点逐层向下交换，直到交换到最后一层，此时根节点在数组的最后一个位置，直接`--n`删除即可。以大根堆为例，向下交换时需要选定与哪个子节点交换，这里我们在满足
+
+```c++
+int n = 0;
+void heap_update_down(int x){ // 要向下更新的节点编号，把最大/小的数往下运
+	int x_next;
+	while(x * 2 <= n){
+		x_next = x * 2;
+		// 在大根堆中，下面的条件为heap[x_next+1]>heap[x_next]，使得x_next指向值最大的子节点
+		// 在小根堆中，下面的条件为heap[x_next+1]<heap[x_next]，使得x_next指向值最小的子节点
+		x_next += (x_next + 1 <= n && heap[x_next + 1] > heap[x_next]); 
+		// 大根堆是heap[x]>=heap[x_next]
+		// 小根堆是heap[x]<=heap[x_next]
+		if(heap_[x] >= heap[x_next]) { return; }
+	}
+}
+void heap_delete_index(const int &x){ // 要删除的节点编号
+	heap[x] = heap[n--]; // 交换x与最后一个节点，然后删除最后一个节点
+	heap_update_down(x);
+}
+```
+
+### §7.5.2 左偏树
+
+### §7.5.3 二项堆
+
+### §7.5.4 配对堆
+
+### §7.5.5 斐波纳挈堆
+
 
 # §8 位运算
 
