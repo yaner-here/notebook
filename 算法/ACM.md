@@ -114,6 +114,58 @@ std::cout << left_pointer << '\n';
 std::cout << right_pointer << '\n';
 ```
 
+## §1.3 `<iostream>`
+
+### §1.3.1 `std::cin`
+
+#### §1.3.1.1 动态截断输入
+
+设想题目的`STDIN`给定了`n`个数组，但是没有给定`n`的具体值。这时我们可以将`std::cin >> a[i++]`放在`while()`中。
+
+```c++
+int a[100], i;
+while(std::cin >> a[i++]){
+	;
+}
+```
+
+之所以能这么做，是因为我们可以将这个流输入表达式转换成`bool`值。具体来说，在C++中，`std::cin`的继承关系如下图所示：
+
+```mermaid
+graph TB
+	ios_base["xiosbase: <br> explicit operator ios_base::bool() const noexcept"] -->
+	basic_ios["ios: <br>class basic_ios : public ios_base"] -->
+	basic_istream["istream: <br>class basic_istream : virtual public basic_ios&lt;_Elem, _Traits&gt;"] -->
+	istream["iosfwd: <br>using istream = basic_istream&lt;char, char_traits&lt;char&gt;&gt;"] -->
+	istream_extern["iostream: <br>extern &quot;extern c++&quot; istream cin"] -->
+	cin["main.cpp: <br>while(std::cin >> ...)"]
+```
+
+`std::cin`的数据类型是`std::basic_istream<char, std::char_traits<char>>`，`std::cin >>`操作符返回的还是它自己的引用（`std::basic_istream&`）。沿着泛型实例化与静态类继承关系，一步步向上找，我们找到了这个关键的`bool()`类型转换函数：
+
+```c++
+extern "C++" class ios_base : public _Iosb<int> {
+	// ...
+    explicit operator bool() const noexcept {
+        return !fail();
+    }
+    // ...
+}
+```
+
+然而这个类型转换函数是被`explicit`修饰的，也就是说我们必须显式调用`(bool)`强制类型转换符才能转成`bool`，为什么我们可以不显式调用呢？这是因为在C++规定了[上下文转换](https://en.cppreference.com/w/cpp/language/implicit_conversion#Contextual_conversions)特性，在下面的六种情况中会自动转换成`bool`。
+
+| 表达式位置                                | 注释       |
+| ------------------------------------ | -------- |
+| `if(...)`/`while(...)`/`for(;...;)`  |          |
+| `!(...)`/`(...)&&(...)`/`...\|\|...` |          |
+| `T func() noexcept { ... }`          |          |
+| `static_assert([](){...}, str)`      |          |
+| `...? :`                             | C++11及以后 |
+| `explicit T func() { ... }`          | C++20及以后 |
+
+当`std::cin`读到EOF或不符合格式的数据时，其`fail()`会返回`true`，于是`bool(std::cin)`返回`false`，可以作为终止输入的依据。
+
 # §2 动态规划
 
 ## §2.1 背包DP
@@ -9178,11 +9230,11 @@ void heap_update_down(int x){ // 要向下更新的节点编号，把最大/小�
 		// 在大根堆中，下面的条件为heap[x_next+1]>heap[x_next]，使得x_next指向值最大的子节点
 		// 在小根堆中，下面的条件为heap[x_next+1]<heap[x_next]，使得x_next指向值最小的子节点
 		x_next += (x_next + 1 <= n && heap[x_next + 1] > heap[x_next]); 
-		// 大根堆是heap[x]<=heap[x_next]
-		// 小根堆是heap[x]>=heap[x_next]
+		// 大根堆是heap[x]>=heap[x_next]
+		// 小根堆是heap[x]<=heap[x_next]
 		if(heap[x] <= heap[x_next]) { return; }
 		std::swap(heap[x], heap[x_next]);
-		
+		x = x_next;
 	}
 }
 void heap_delete_index(const int &x){ // 要删除的节点编号
@@ -9200,7 +9252,8 @@ void heap_delete_index(const int &x){ // 要删除的节点编号
    }
    ```
    考虑引入第`i`个元素时，堆中一共有`i`个元素，所以插入第`i`个元素的时间复杂度为$\log i$。于是该方法的时间复杂度为$O\left(\displaystyle\sum_{i=1}^{n}{\log_{2}{i}}\right)=O(\log_{2}{n!})$，由斯特林公式$n!\approx\sqrt{2\pi n}\left(\frac{n}{e}\right)^n$的等价无穷大估计，可进一步变形为$O(n\log_2{n}-n\log_2{e}+\frac{1}{2}\log_2{n}+\frac{1}{2}(\log_{2}{\pi}+1))$。令$\log_{2}{n}\approx \ln{n}(即\log{n})$，立即有$\textcolor{red}{O(n\log{n}-n+\frac{1}{2}\log_2{n})=O(n\log{n})}$，**只是常数略小而已**。
-2. 按`heap[i:n->1]`的顺序向下更新。
+   
+2. 按`heap[i:n->1]`的顺序向下更新
    ```c++
    for(int i = n; i >= 1; --i){
 	   heap_update_down(i);
@@ -9208,6 +9261,7 @@ void heap_delete_index(const int &x){ // 要删除的节点编号
    ```
    考虑引入第`i`个元素（即`heap[i]`）时，堆的深度近似于$\log_2{i}$，所以倒序插入第`i`个元素的时间复杂度为$O(\log{n}-\log i)$。于是该方法的时间复杂度为$O\left(\displaystyle\sum_{i=1}^{n}(\log_2{n}-\log_2{i})\right)=O\left(\displaystyle\log_2\frac{n^n}{n!}\right)$，同样由斯特林公式估计，然后将$\log_2(\cdot)$视为$\ln(\cdot)$可得：$\textcolor{red}{O(n-\frac{1}{2}\log{n}-\frac{1}{2}\log{2\pi})=O(n)}$，**运算量下降了将近一阶**。
    **注意到叶子节点单独自成一堆，因此不必对叶子节点向下更新，遍历范围可从`heap[1:n->1]`变为`heap[1:n/2->1]`**。于是优化后的时间复杂度为$\textcolor{red}{O(\frac{1}{2}n-\frac{1}{2}\log{n}-\frac{1}{2}\log{\pi})=O(\frac{1}{2}n)}$，**又缩小了一半常数**。
+
 
 ### §7.5.2 左偏树
 
