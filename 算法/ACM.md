@@ -120,7 +120,7 @@ std::cout << right_pointer << '\n';
 
 #### §1.3.1.1 动态截断输入
 
-设想题目的`STDIN`给定了`n`个数组，但是没有给定`n`的具体值。这时我们可以将`std::cin >> a[i++]`放在`while()`中。
+设想题目的`STDIN`给定了`n`个数，但是没有给定`n`的具体值。这时我们可以将`std::cin >> a[i++]`放在`while()`中。
 
 ```c++
 int a[100], i;
@@ -9262,6 +9262,52 @@ void heap_delete_index(const int &x){ // 要删除的节点编号
    考虑引入第`i`个元素（即`heap[i]`）时，堆的深度近似于$\log_2{i}$，所以倒序插入第`i`个元素的时间复杂度为$O(\log{n}-\log i)$。于是该方法的时间复杂度为$O\left(\displaystyle\sum_{i=1}^{n}(\log_2{n}-\log_2{i})\right)=O\left(\displaystyle\log_2\frac{n^n}{n!}\right)$，同样由斯特林公式估计，然后将$\log_2(\cdot)$视为$\ln(\cdot)$可得：$\textcolor{red}{O(n-\frac{1}{2}\log{n}-\frac{1}{2}\log{2\pi})=O(n)}$，**运算量下降了将近一阶**。
    **注意到叶子节点单独自成一堆，因此不必对叶子节点向下更新，遍历范围可从`heap[1:n->1]`变为`heap[1:n/2->1]`**。于是优化后的时间复杂度为$\textcolor{red}{O(\frac{1}{2}n-\frac{1}{2}\log{n}-\frac{1}{2}\log{\pi})=O(\frac{1}{2}n)}$，**又缩小了一半常数**。
 
+> [洛谷P3378](https://www.luogu.com.cn/problem/P3378)：堆模版题。实现一个小根堆，完成`q<=1e6`个操作（添加、查询最小值、删除最小值）。
+
+```c++
+const int N_MAX = 1e6;
+int heap[N_MAX + 1], n, type_temp, u_temp, q;
+inline void heap_update_up(int x) {
+    while(x > 1 && heap[x / 2] > heap[x]) {
+        std::swap(heap[x / 2], heap[x]);
+        x /= 2;
+    }
+}
+inline void heap_insert_value(const int &x) {
+    heap[++n] = x;
+    heap_update_up(n);
+}
+inline void heap_updated_down(int x) {
+    int x_next;
+    while(x * 2 <= n) {
+        x_next = x * 2;
+        x_next += (x_next + 1 <= n && heap[x_next + 1] < heap[x_next]);
+        if(heap[x] <= heap[x_next]) { return; }
+        std::swap(heap[x], heap[x_next]);
+        x = x_next;
+    }
+}
+inline void heap_delete_index(const int &x) {
+    std::swap(heap[x], heap[n--]);
+    heap_updated_down(x);
+}
+
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> type_temp;
+        if(type_temp == 1) {
+            std::cin >> u_temp; heap_insert_value(u_temp);
+            // 或std::cin >> heap[++n]; heap_update_up(n);
+        } else if(type_temp == 2) {
+            std::cout << heap[1] << '\n';
+        } else if(type_temp == 3) {
+            heap_delete_index(1);
+            // 或std::swap(heap[1], heap[n--]); heap_updated_down(1);
+        }
+    }
+}
+```
 
 ### §7.5.2 左偏树
 
@@ -9439,3 +9485,390 @@ for(int i = 1; i <= m; ++i){ // 对所有边遍历
 ```
 
 这两种方案的时间复杂度都是$O(m)$，但是顺序访问比随机访问能快3.1%。
+
+### §A.3.2 快读
+
+以下基准测试使用的代码出自[洛谷P3378](https://www.luogu.com.cn/problem/P3378)的[提交记录](https://www.luogu.com.cn/record/175296135)，时间取其第11个输入点，输入量约为$10^6\le x\le 2\cdot 10^6$个数字。
+
+| 序号  | 输入输出方式                         | 最长耗时                                               | 备注     |
+| --- | ------------------------------ | -------------------------------------------------- | ------ |
+| ①   | `scanf()/printf()`             | [114ms](https://www.luogu.com.cn/record/175298499) |        |
+| ②   | `std::cin/cout`(开流同步)          | [498ms](https://www.luogu.com.cn/record/175296135) |        |
+|     | `std::cin/cout`(关流同步)          | [82ms](https://www.luogu.com.cn/record/175298744)  |        |
+| ③   | `getchar()/putchar()`快读快写      | [22ms](https://www.luogu.com.cn/record/175308089)  |        |
+| ④   | `fread()/fwrite()`快读快写         | [14ms](https://www.luogu.com.cn/record/175313044)  |        |
+| ⑤   | `mmap(stdin)/mmap(stdout)`快读快写 | [18ms](https://www.luogu.com.cn/record/175314548)  | 仅Linux |
+|     | `mmap()`快读+`fwrite()`快写        | [10ms](https://www.luogu.com.cn/record/175314963)  | 仅Linux |
+
+#### §A.3.2.1 `std::cin/cout`关流同步
+
+默认的`std::cin/cout`为了与C语言兼容，保证与`scanf()/printf()`不乱序，所以默认开启了流同步，以保证线程安全。
+
+除此以外，默认情况下，无形参的`std::cin.tie()`返回当前绑定流的指针`&std::cout`，这会导致每次调用`std::cin`输入时都会执行`std::cout.flush()`。无形参的`std::cout.tie()`同理。为了解决这一问题，我们使用`std::cin.tie(nullptr)`和`std::cout.tie(nullptr)`强制解绑。
+
+关闭流同步后，**不能同时使用`std::cin`和`scanf()`，也不能同时使用`std::cout`和`printf()`。但是可以同时使用`std::cin`和`printf()`，也可以同时使用`std::cout`和`scanf()`**。
+
+```c++
+/* std::cin/cout（关流同步） */
+int main(){
+	std::ios::sync_with_stdio(false);
+	std::cin.tie(nullptr);
+	std::cout.tie(nullptr);
+	
+	int a; std::cin >> a; std::cout << a;
+}
+```
+
+#### §A.3.2.2 `getchar()/putchar()`快读快写
+
+`getchar()`和`putchar()`每次只操作一个`byte`，效率很高，于是我们可以将多个读入的`char`拼成想要的数据类型。
+
+对于动态长度的输入而言，可以在每次调用`fast_read()`前使用`bool feof(stdin)`判断是否读到了EOF，也可以使用`(ch = getchar()) == EOF`判断。
+
+对于`putchar()`输出数字，我通常使用`stack[top++] = x / 10; x /= 10`逆序存储每一位十进制数字，然后使用`putchar(stack[top--] + '0')`逆序输出，得到逆逆为正的数字字符串。
+
+```c++
+/* getchar()/putchar()快读快写 */
+template <typename T> inline T fast_read() {
+    T x = 0;
+    bool symbol = true;
+    static char character; character = getchar();
+    while(character < '0' || character > '9') {
+        if(character == '-') { symbol = !symbol; }
+        character = getchar();
+    }
+    while(character >= '0' && character <= '9') {
+        x = (x << 3) + (x << 1) + (character - '0');
+        character = getchar();
+    }
+    return symbol ? x : -x;
+}
+template <typename T> inline void fast_write(T x) {
+    if(x < 0) { putchar('-'); x = -x; }
+    static char stack[39], stack_top = 0; // 栈的范围为[0, stack_top), log_10(UINT64_MAX) <= 39
+    do {
+        stack[stack_top++] = x % 10 + '0';
+        x /= 10;
+    } while(x);
+    while(stack_top) { putchar(stack[--stack_top]); }
+}
+int main(){
+	int a;
+	a = fast_read<int>();
+	fast_write<int>(a);
+}
+```
+
+#### §A.3.2.3 `fread()/fwrite()`快读快写
+
+`STDIN`和`STDOUT`本质上是文件指针，支持文件操作中的读`fread()`和写`fwrite()`。`getchar()`/`putchar()`一次只能操作单个`byte`，导致对硬盘产生多次读写I/O。与之相比，`fread()`/`fwrite()`一次性将大部分甚至全部数据读入/写出到内存缓冲区，显然速度更快，只不过要在内存中开辟一篇较大的输入输出暂存数组，可按需选择空间大小，这里我们使用`1MB`（即`1<<20`个`byte`）。
+
+```c++
+const int FILE_BUFFER_SIZE = 1 << 20;
+char file_stdin_buffer[FILE_BUFFER_SIZE], file_stdout_buffer[FILE_BUFFER_SIZE], *file_stdin_p, *file_stdin_end, *file_stdout_p = file_stdout_buffer;
+inline char file_getchar() {
+    if(file_stdin_p == file_stdin_end) {
+        file_stdin_p = file_stdin_buffer;
+        file_stdin_end = file_stdin_buffer + fread(file_stdin_buffer, 1, FILE_BUFFER_SIZE, stdin);
+    }
+    return file_stdin_p == file_stdin_end ? EOF : *(file_stdin_p++);
+}
+template <typename T> inline int file_read() {
+    T x = 0;
+    bool symbol = true;
+    char character = file_getchar();
+    while(character < '0' || character > '9') {
+        if(character == '-') { symbol = !symbol; }
+        character = file_getchar();
+    }
+    while(character >= '0' && character <= '9') {
+        x = x * 10 + character - '0';
+        character = file_getchar();
+    }
+    return symbol ? x : -x;
+}
+inline void file_flush(size_t buffer_length) { fwrite(file_stdout_buffer, 1, buffer_length, stdout); }
+inline void file_flush() { file_flush(file_stdout_p - file_stdout_buffer); }
+inline void file_push(const char &character) {
+    if(file_stdout_p - file_stdout_buffer == FILE_BUFFER_SIZE) {
+        file_flush(FILE_BUFFER_SIZE);
+        file_stdout_p = file_stdout_buffer;
+    }
+    *(file_stdout_p++) = character;
+}
+inline void file_push(const char *str) { while(*str) { file_push(*str++); } }
+template<typename T> inline void file_write(T x) {
+    static char stack[39], stack_top = 0;
+    if(x < 0) { file_write('-'); x = -x; }
+    do {
+        stack[stack_top++] = x % 10 + '0';
+        x /= 10;
+    } while(x);
+    while(stack_top) { file_push(stack[--stack_top]); }   
+}
+
+int main() {
+    int a = file_read<int>();
+    file_write(a);
+    file_push('\n');
+    file_push("string");
+    file_flush(); // 最后必须调用这一步!
+}
+```
+
+#### §A.3.2.4 `mmap()`快读快写
+
+下面的板子来源于[洛谷@TensorFlow_js](https://www.luogu.com/article/ntedlpuu)，将`STDIN`和`STDOUT`都映射到内存地址中。本代码必须使用C++20编译。
+
+```c++
+#include<bits/stdc++.h>
+#include<sys/mman.h>
+#include<sys/types.h>
+#include<fcntl.h>
+#include<unistd.h>
+namespace mmapreader {using namespace std; constexpr char Author[]="Suruka",License[]="CC BY-NC-ND 4.0",Copyright[]="C2022 by Suruka",Version[]="Beta 1.2";inline namespace __private__{int len=0,file=-1;char*addr,*nowp,*buff;}inline void prepare(string filename){file=open(filename.c_str(),O_RDONLY);len=(int)lseek(file,0,SEEK_END);addr=(char*)(mmap(0,len,PROT_READ,MAP_PRIVATE,file,0));close(file);buff=(char*)malloc(len*sizeof(char));memcpy(buff,addr,len);munmap(addr,len);nowp=buff;atexit([&buff](){free(buff);});}inline void prepare(FILE* fileptr){file=fileno(fileptr);len=(int)lseek(file,0,SEEK_END);addr=(char*)(mmap(0,len,PROT_READ,MAP_PRIVATE,file,0));buff=(char*)malloc(len*sizeof(char));memcpy(buff,addr,len);munmap(addr,len);nowp=buff;atexit([&buff](){free(buff);});}template<typename T>T checked_read(){if(nowp-buff>=len)throw overflow_error("Read out of range!");static T n,s;n=0,s=1;while((*nowp>'9'||*nowp<'0')&&(nowp-buff<len)){if(*nowp=='-')s=-s;nowp++;}if(nowp-buff>=len)throw overflow_error("Read out of range!");while((*nowp<='9'&&*nowp>='0')&&(nowp-buff<len)){n=10*n+(*nowp-'0');nowp++;}return n*s;}template<typename T>T unchecked_read(){static T n,s;n=0,s=1;while(*nowp>'9'||*nowp<'0'){if(*nowp=='-')s=-s;nowp++;}while(*nowp<='9'&&*nowp>='0'){n=10*n+(*nowp-'0');nowp++;}return n*s;}template<> string checked_read<string>(){if(nowp-buff>=len)throw overflow_error("Read out of range!");static string s;s="";while((*nowp==' '||*nowp==0||*nowp==-1||*nowp=='\n'||*nowp=='\t'||*nowp=='\r')&&(nowp-buff<len))nowp++;if(nowp-buff>=len)throw overflow_error("Read out of range!");while(!(*nowp==' '||*nowp==0||*nowp==-1||*nowp=='\n'||*nowp=='\t'||*nowp=='\r')&&(nowp-buff<len))s+=*(nowp++);return s;}template<> string unchecked_read<string>(){static string s;s="";while((*nowp==' '||*nowp==0||*nowp==-1||*nowp=='\n'||*nowp=='\t'||*nowp=='\r'))nowp++;while(!(*nowp==' '||*nowp==0||*nowp==-1||*nowp=='\n'||*nowp=='\t'||*nowp=='\r'))s+=*(nowp++);return s;}template<> char checked_read<char>(){if(nowp-buff>=len)throw overflow_error("Read out of range!");while((*nowp==' '||*nowp==0||*nowp==-1||*nowp=='\n'||*nowp=='\t'||*nowp=='\r')&&(nowp-buff<len))nowp++;if(nowp-buff>=len)throw overflow_error("Read out of range!");return *(nowp++);}template<> char unchecked_read<char>(){while((*nowp==' '||*nowp==0||*nowp==-1||*nowp=='\n'||*nowp=='\t'||*nowp=='\r'))nowp++;return *(nowp++);}template<>long double checked_read<long double>(){if(nowp-buff>=len)throw overflow_error("Read out of range!");static long double x,s,n,p;static char*oc;oc=nowp,x=0,s=1,n=0,p=1;while((*nowp>'9'||*nowp<'0')&&(nowp-buff<len)){if(*nowp=='-')s=-s;nowp++;}if(nowp-buff>=len)throw overflow_error("Read out of range!");while((*nowp<='9'&&*nowp>='0')&&(nowp-buff<len)){n=10*n+(*nowp-'0');nowp++;}if(nowp-buff>=len||(*nowp!='.'&&*nowp!='e'&&*nowp!='E'))return n*s;if(*nowp=='E'||*nowp=='e'){nowp++;while(*nowp=='-')p=-p,nowp++;if(nowp-buff>=len)return nowp=oc,n*s;while((*nowp<='9'&&*nowp>='0')&&(nowp-buff<len))x=10*x+(*nowp-'0'),nowp++;return n*powl(10.0l,x*p);}nowp++;while((*nowp<='9'&&*nowp>='0')&&(nowp-buff<len))x=10*x+(*nowp-'0'),nowp++;return n+x/powl(10.0l,floorl(log10l(x)+1));}template<>long double unchecked_read<long double>(){static long double x,s,n,p;static char*oc;oc=nowp,x=0,s=1,n=0,p=1;while(*nowp>'9'||*nowp<'0'){if(*nowp=='-')s=-s;nowp++;}while((*nowp<='9'&&*nowp>='0')){n=10*n+(*nowp-'0');nowp++;}if(nowp-buff>=len||(*nowp!='.'&&*nowp!='e'&&*nowp!='E'))return n*s;if(*nowp=='E'||*nowp=='e'){nowp++;while(*nowp=='-')p=-p,nowp++;while(*nowp<='9'&&*nowp>='0')x=10*x+(*nowp-'0'),nowp++;return n*powl(10.0l,x*p);}nowp++;while(*nowp<='9'&&*nowp>='0')x=10*x+(*nowp-'0'),nowp++;return n+x/powl(10.0l,floorl(log10l(x)+1));}template<>float checked_read<float>(){return checked_read<long double>();}template<>float unchecked_read<float>(){return unchecked_read<long double>();}template<>double checked_read<double>(){return checked_read<long double>();}template<>double unchecked_read<double>(){return checked_read<long double>();}template<typename T>T checked_read(T& val){return val=checked_read<T>();}template<typename T>T unchecked_read(T& val){return val=unchecked_read<T>();}template<typename T,typename... args>T checked_read(T& val,args&... ar){return val=checked_read<T>(),checked_read(ar...);}template<typename T,typename... args>T unchecked_read(T& val,args&... ar){return val=unchecked_read<T>(),unchecked_read(ar...);}}
+namespace mmapwriter {using namespace std; constexpr char Author[]="Suruka",License[]="CC BY-NC-ND 4.0",Copyright[]="C2022 by Suruka",Version[]="Beta 1.2";int maxsize=50000000,floatpos=11;bool truncate=true;inline namespace __private__{int len=0,file=-1;char*addr,*nowp,*buff;}inline void prepare(string filename){buff=(char*)malloc(maxsize*sizeof(char));nowp=buff;file=open(filename.c_str(),O_RDWR|O_CREAT,00777);atexit([&len,&file,&addr,&buff](){/*write(file,buff,len);*/lseek(file,len-1,SEEK_END);write(file,"",1);addr=(char*)mmap(0,len,PROT_READ|PROT_WRITE,MAP_SHARED,file,0);close(file);memcpy(addr,buff,len);munmap(addr,len);});}inline void prepare(FILE* fileptr){buff=(char*)malloc(maxsize*sizeof(char));nowp=buff;file=fileno(fileptr);atexit([&len,&file,&addr,&buff](){write(file,buff,len);});}template<typename T>bool write(T val){if(val<0)write('-'),val=-val;if(val>9)write<T>(val/10);*nowp='0'+val%10,nowp++,len++;return true;}template<> bool write<char>(char val){*nowp=val,nowp++,len++;return true;}template<> bool write<const char*>(const char*val){for(int i=0;i<strlen(val);i++)*nowp=val[i],nowp++,len++;return true;}template<> bool write<char*>(char*val){for(int i=0;i<strlen(val);i++)*nowp=val[i],nowp++,len++;return true;}template<> bool write<string>(string val){for(int i=0;i<val.size();i++)*nowp=val[i],nowp++,len++;return true;}template<>bool write<long double>(long double x){static int k=1;if(k==1)return k=0,write(x/10.0l),*(nowp++)=floorl(fmodl(x,10.0l))+'0',len++,(~floatpos||x-floorl(x)>1e-20l?len++,*(nowp++)='.',k--,write((floorl(x)-x)):1),k=1;if(truncate&&k==-1&&fabs(x)<=1e-20l)return len-=2;if(truncate&&k<1&&fabs(x)<=1e-20l)return len--;if(-k>floatpos)return true;if(fabs(x)<=1e-20l)return*(nowp++)='0';if(x<=-1.0l)return*(nowp++)='-',len++,write(-x);if(x<0.0l)return*(nowp++)=-x*10.0l+'0',len++,k--,write(fmodl(x,0.1l)*10.0l);if(x<10.0l)return*(nowp++)=x+'0',len++;return write(x/10.0l),*(nowp++)=floorl(fmodl(x,10.0l))+'0',len++;}template<>bool write<float>(float x){return write<long double>(x);}template<>bool write<double>(double x){return write<long double>(x);}template<typename T>bool writeln(T val){return write(val),write('\n');}template<typename T,typename... args>bool write(T val,args... ar){return write(val),write(' '),write(ar...);}template<typename T,typename... args>bool writeln(T val,args... ar){return writeln(val),writeln(ar...);}}
+int main() {
+    //mmapreader::prepare(FILE*/string file);mmapwriter::prepare(FILE*/string file);
+    //使用前的准备。注意：若使用 mmapwriter::prepare() + 文件指针，则由于文件已经被打开，无法使用 mmap 输出，作为替代的是差不多快的 write 函数（比 fwrite 快）。
+    
+    //mmapreader<type>::read();mmapreader<type>::unchecked_read();mmapreader<type>::checked_read();
+    //读入一个 type 型的变量。目前支持整数、浮点数（含科学记数法）、字符与字符串。
+
+    //mmapreader::read(sth);mmapreader::unchecked_read(sth);mmapreader::checked_read(sth);
+    //往 sth 内读入。sth 可以是一个变量/一堆变量（下同）。
+
+    //mmapwriter::write(sth);
+    //输出 sth，若有多个变量则以空格分隔，目前支持整数、浮点数、字符与字符串。
+
+    //mmapwriter::writeln(sth);
+    //输出 sth 与一个换行符 \n，若有多个变量则以换行符 \n 分隔。
+
+    //mmapwriter::maxsize
+    //最大输出字符量。若空间不够可尝试减小此值。
+
+    //mmapwriter::floatpos
+    //浮点数小数点后保留位数。默认11位。
+
+    //mmapwriter::truncate
+    //浮点数小数点后的0是否省略。默认为是。
+
+	mmapreader::prepare(stdin);
+	mmapwriter::prepare(stdout);
+	int a = mmapreader::read<int>(); mmapreader::read(a);
+	mmapwriter(a);
+	return 0; // atexit()注册了退出函数，保证在程序结束前flush
+}
+```
+
+下面的板子来源于[洛谷@oldyan](https://www.luogu.com.cn/record/151634839)，将`STDIN`映射到内存地址，使用`fwrite()`快写。要注意每输入输出一个数都要重新获取一个实例，即调用`::get_instance()`方法。
+
+```c++
+#include <bits/stdc++.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#ifndef __OY_LINUXIO__
+#define __OY_LINUXIO__
+#ifdef __unix__
+#endif
+#ifndef INPUT_FILE
+#define INPUT_FILE "in.txt"
+#endif
+#ifndef OUTPUT_FILE
+#define OUTPUT_FILE "out.txt"
+#endif
+namespace OY {
+    namespace LinuxIO {
+        static constexpr size_t INPUT_BUFFER_SIZE = 1 << 26, OUTPUT_BUFFER_SIZE = 1 << 20;
+#ifdef OY_LOCAL
+        static constexpr char input_file[] = INPUT_FILE, output_file[] = OUTPUT_FILE;
+#else
+        static constexpr char input_file[] = "", output_file[] = "";
+#endif
+        template<typename U, size_t E> struct TenPow {
+            static constexpr U value = TenPow<U, E - 1>::value * 10;
+        };
+        template<typename U> struct TenPow<U, 0> {
+            static constexpr U value = 1;
+        };
+        template<size_t MMAP_SIZE = 1 << 30> struct InputHelper {
+            uint32_t m_pre[0x10000];
+            struct stat m_stat;
+            char *m_p, *m_c;
+            InputHelper(FILE *file = stdin) {
+                std::fill(m_pre, m_pre + 0x10000, -1);
+                for(size_t i = 0, val = 0; i != 10; i++)
+                    for(size_t j = 0; j != 10; j++) m_pre[0x3030 + i + (j << 8)] = val++;
+#ifdef __unix__
+                auto fd = fileno(file);
+                fstat(fd, &m_stat);
+                m_c = m_p = (char *) mmap(nullptr, m_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+#else
+                fread(m_c = m_p = new char[INPUT_BUFFER_SIZE], 1, INPUT_BUFFER_SIZE, file);
+#endif
+            }
+            static InputHelper<MMAP_SIZE> &get_instance() {
+                static InputHelper<MMAP_SIZE> s_obj(*input_file ? fopen(input_file, "rt") : stdin);
+                return s_obj;
+            }
+            template<typename Tp, std::enable_if<std::is_unsigned<Tp>::value & std::is_integral<Tp>::value>::type * = nullptr>
+            InputHelper &operator>>(Tp &x) {
+                x = 0;
+                while(!isdigit(*m_c)) m_c++;
+                x = *m_c++ - '0';
+                while(~m_pre[*reinterpret_cast<uint16_t *&>(m_c)]) x = x * 100 + m_pre[*reinterpret_cast<uint16_t *&>(m_c)++];
+                if(isdigit(*m_c)) x = x * 10 + (*m_c++ - '0');
+                return *this;
+            }
+            template<typename Tp, std::enable_if<std::is_signed<Tp>::value & std::is_integral<Tp>::value>::type * = nullptr>
+            InputHelper &operator>>(Tp &x) {
+                typename std::make_unsigned<Tp>::type t{};
+                bool sign{};
+                while(!isdigit(*m_c)) sign = (*m_c++ == '-');
+                t = *m_c++ - '0';
+                while(~m_pre[*reinterpret_cast<uint16_t *&>(m_c)]) t = t * 100 + m_pre[*reinterpret_cast<uint16_t *&>(m_c)++];
+                if(isdigit(*m_c)) t = t * 10 + (*m_c++ - '0');
+                x = sign ? -t : t;
+                return *this;
+            }
+            InputHelper &operator>>(char &x) {
+                while(*m_c <= ' ') m_c++;
+                x = *m_c++;
+                return *this;
+            }
+            InputHelper &operator>>(std::string &x) {
+                while(*m_c <= ' ') m_c++;
+                char *c = m_c;
+                while(*c > ' ') c++;
+                x.assign(m_c, c - m_c), m_c = c;
+                return *this;
+            }
+        };
+        struct OutputHelper {
+            uint32_t m_pre[10000];
+            FILE *m_file;
+            char m_p[OUTPUT_BUFFER_SIZE], *m_c, *m_end;
+            OutputHelper(FILE *file = stdout) {
+                m_file = file;
+                m_c = m_p, m_end = m_p + OUTPUT_BUFFER_SIZE;
+                uint32_t *c = m_pre;
+                for(size_t i = 0; i != 10; i++)
+                    for(size_t j = 0; j != 10; j++)
+                        for(size_t k = 0; k != 10; k++)
+                            for(size_t l = 0; l != 10; l++) *c++ = i + (j << 8) + (k << 16) + (l << 24) + 0x30303030;
+            }
+            ~OutputHelper() { flush(); }
+            static OutputHelper &get_instance() {
+                static OutputHelper s_obj(*output_file ? fopen(output_file, "wt") : stdout);
+                return s_obj;
+            }
+            void flush() { fwrite(m_p, 1, m_c - m_p, m_file), m_c = m_p; }
+            OutputHelper &operator<<(char x) {
+                if(m_end - m_c < 20) flush();
+                *m_c++ = x;
+                return *this;
+            }
+            OutputHelper &operator<<(const std::string &s) {
+                if(m_end - m_c < s.size()) flush();
+                memcpy(m_c, s.data(), s.size()), m_c += s.size();
+                return *this;
+            }
+            OutputHelper &operator<<(uint64_t x) {
+                if(m_end - m_c < 20) flush();
+#define CASEW(w)                                                           \
+    case TenPow<uint64_t, w - 1>::value... TenPow<uint64_t, w>::value - 1: \
+        *(uint32_t *) m_c = m_pre[x / TenPow<uint64_t, w - 4>::value];     \
+        m_c += 4, x %= TenPow<uint64_t, w - 4>::value;
+                switch(x) {
+                    CASEW(19);
+                    CASEW(15);
+                    CASEW(11);
+                    CASEW(7);
+                case 100 ... 999:
+                    *(uint32_t *) m_c = m_pre[x * 10];
+                    m_c += 3;
+                    break;
+                    CASEW(18);
+                    CASEW(14);
+                    CASEW(10);
+                    CASEW(6);
+                case 10 ... 99:
+                    *(uint32_t *) m_c = m_pre[x * 100];
+                    m_c += 2;
+                    break;
+                    CASEW(17);
+                    CASEW(13);
+                    CASEW(9);
+                    CASEW(5);
+                case 0 ... 9: *m_c++ = '0' + x; break;
+                default:
+                    *(uint32_t *) m_c = m_pre[x / TenPow<uint64_t, 16>::value];
+                    m_c += 4;
+                    x %= TenPow<uint64_t, 16>::value;
+                    CASEW(16);
+                    CASEW(12);
+                    CASEW(8);
+                case 1000 ... 9999:
+                    *(uint32_t *) m_c = m_pre[x];
+                    m_c += 4;
+                    break;
+                }
+#undef CASEW
+                return *this;
+            }
+            OutputHelper &operator<<(uint32_t x) {
+                if(m_end - m_c < 20) flush();
+#define CASEW(w)                                                           \
+    case TenPow<uint32_t, w - 1>::value... TenPow<uint32_t, w>::value - 1: \
+        *(uint32_t *) m_c = m_pre[x / TenPow<uint32_t, w - 4>::value];     \
+        m_c += 4, x %= TenPow<uint32_t, w - 4>::value;
+                switch(x) {
+                default:
+                    *(uint32_t *) m_c = m_pre[x / TenPow<uint32_t, 6>::value];
+                    m_c += 4;
+                    x %= TenPow<uint32_t, 6>::value;
+                    CASEW(6);
+                case 10 ... 99:
+                    *(uint32_t *) m_c = m_pre[x * 100];
+                    m_c += 2;
+                    break;
+                    CASEW(9);
+                    CASEW(5);
+                case 0 ... 9:
+                    *m_c++ = '0' + x;
+                    break;
+                    CASEW(8);
+                case 1000 ... 9999:
+                    *(uint32_t *) m_c = m_pre[x];
+                    m_c += 4;
+                    break;
+                    CASEW(7);
+                case 100 ... 999:
+                    *(uint32_t *) m_c = m_pre[x * 10];
+                    m_c += 3;
+                    break;
+                }
+#undef CASEW
+                return *this;
+            }
+            OutputHelper &operator<<(int64_t x) {
+                if(x >= 0) return (*this) << uint64_t(x);
+                else return (*this) << '-' << uint64_t(-x);
+            }
+            OutputHelper &operator<<(int32_t x) {
+                if(x >= 0) return (*this) << uint32_t(x);
+                else return (*this) << '-' << uint32_t(-x);
+            }
+        };
+    }
+}
+#endif
+#define mmap_cin OY::LinuxIO::InputHelper<>::get_instance()
+#define mmap_cout OY::LinuxIO::OutputHelper::get_instance()
+int main(){
+	int a;
+	mmap_cin >> a;
+	mmap_cout << a;
+	// 不必手动flush()
+}
+```
