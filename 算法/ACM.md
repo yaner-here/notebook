@@ -18,11 +18,11 @@ cout << fixed << setprecision(位数) << 值;
 
 ## §1.2 `<algorithm>`
 
-### §1.2.1 `std::sort`
+### §1.2.1 内省排序
 
-`std::sort(Iterator begin, Iterator end)`默认从小到大排序。
+`std::sort(Iterator begin, Iterator end)`使用的是内省排序，默认从小到大排序。
 
-### §1.2.2 `std::lower_bound()`/`std::upper_bound()`
+### §1.2.2 容器二分查找
 
 > [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound(Iterator begin, Iterator end, T value)`返回非严格单调递增容器从`begin`到`end`遍历，找到第一个大于等于`value`的位置，并返回这个位置的迭代器。
 
@@ -112,6 +112,54 @@ while(left <= right) {
 }
 std::cout << left_pointer << '\n';
 std::cout << right_pointer << '\n';
+```
+
+### §1.2.3 二叉堆
+
+C++11提供了一系列关于二叉堆的算法。传统二叉堆并不使用容器的第一个空间`heap[0]`，因此使用`2*i`和`2*i+1`获取`i`的左右子节点，然而STL提供的算法并不浪费任何空间，使用`2*i+1`和`2*i+2`获取`i`的左右子节点，因此额外引入了一次加法的时间常数。
+
+`std::make_heap()`用于建立二叉堆。其中`Compare comp`等价于`bool comp(const T &child, const T &root)`，默认为`std::less`。**时间复杂度为$O(3n)$，远大于自己手写的$O(\frac{1}{2}n)$板子**。
+
+```c++
+void std::make_heap(Iter first, Iter last); // 访问范围为[first, last)
+void std::make_heap(Iter first, Iter last, Compare comp);
+// comp = std::less<>() 生成大顶堆（默认）
+// comp = std::greater<>() 生成小顶堆
+```
+
+`std::is_heap()`用于判断一个容器是否成堆。时间复杂度为$O(n)$。
+
+```c++
+bool std::is_heap(Iter first, Iter last);
+bool std::is_heap(Iter first, Iter last, Compare comp);
+```
+
+`std::is_heap_until()`用于查找使得容器符合堆条件的最大尾指针。时间复杂度为$O(n)$
+。
+```c++
+Iter std::is_heap_until(Iter first, Iter last);
+Iter std::is_heap_until(Iter first, Iter last, Compare comp);
+```
+
+`std::push_heap()`用于将`last - 1`处的元素插入到堆`[first, last - 1)`中，形成一个`[first, last)`的堆。时间复杂度为$O(\log_{2}{n})$。
+
+```c++
+void std::push_heap(Iter first, Iter last);
+void std::push_heap(Iter first, Iter last, Compare comp);
+```
+
+`std::pop_heap()`先交换`heap[first]`和`heap[last - 1]`，然后确保`[first, last - 1)`为堆。时间复杂度为$O(2\log_{2}{n})$。
+
+```c++
+void std::pop_heap(Iter first, Iter last);
+void std::pop_heap(Iter first, Iter last, Compare comp);
+```
+
+`std::sort_heap()`对储存堆的容器进行排序，`comp`默认为`std::less<>()`表示升序，**必须与建堆时使用的`comp`保持一致**。时间复杂度为$O(2n\log_{2}{n})$，**甚至不如`std::sort()`的$O(n\log_{2}{n})$**，不推荐使用。
+
+```c++
+void std::sort_heap(Iter first, Iter last);
+void std::sort_heap(Iter first, Iter last, Compare comp);
 ```
 
 ## §1.3 `<iostream>`
@@ -816,7 +864,7 @@ int main(){
 }
 ```
 
-### §2.1.10 二维费用背包
+### §2.1.10 二维极值背包
 
 > [洛谷P1509](https://www.luogu.com.cn/problem/P1509)：给定`n`个物品，第`i`个物品含有金钱代价`money[i]`、幸运代价`luck[i]`、时间代价`time[i]`和价值`value[i]`（本题恒为1）。现在金钱预算只有`money_budget`，幸运运算只有`luck_budget`。请求出一种方案，使得物品总价值最大化。如果有多种方式均能使得物品总价值到达最大值，则选取时间总代价最小的方案，并输出该方案所需的时间总代价。
 
@@ -9309,6 +9357,48 @@ int main() {
 }
 ```
 
+或使用STL提供的堆函数，实测表明耗时可以与手写板子持平，推荐使用。
+
+```c++
+const int N_MAX = 1e6;
+int heap[N_MAX], n, type_temp, u_temp, q;
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> type_temp;
+        if(type_temp == 1) {
+            std::cin >> heap[n++];
+            std::push_heap(heap, heap + n, std::greater<int>());
+        } else if(type_temp == 2) {
+            std::cout << heap[0] << '\n';
+        } else if(type_temp == 3) {
+            std::pop_heap(heap, heap + (n--), std::greater<int>());
+        }
+    }
+}
+```
+
+或使用STL提供的优先队列，实测表明耗时可以与手写板子持平，推荐使用。
+
+```c++
+int type_temp, u_temp, q;
+std::priority_queue<int, std::vector<int>, std::greater<int>> heap;
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> type_temp;
+        if(type_temp == 1) {
+            std::cin >> u_temp;
+            heap.push(u_temp);
+        } else if(type_temp == 2) {
+            std::cout << heap.top() << '\n';
+        } else if(type_temp == 3) {
+            heap.pop();
+        }
+    }
+}
+```
+
 ### §7.5.2 左偏树
 
 ### §7.5.3 二项堆
@@ -9490,15 +9580,15 @@ for(int i = 1; i <= m; ++i){ // 对所有边遍历
 
 以下基准测试使用的代码出自[洛谷P3378](https://www.luogu.com.cn/problem/P3378)的[提交记录](https://www.luogu.com.cn/record/175296135)，时间取其第11个输入点，输入量约为$10^6\le x\le 2\cdot 10^6$个数字。
 
-| 序号  | 输入输出方式                         | 最长耗时                                               | 备注     |
-| --- | ------------------------------ | -------------------------------------------------- | ------ |
-| ①   | `scanf()/printf()`             | [114ms](https://www.luogu.com.cn/record/175298499) |        |
-| ②   | `std::cin/cout`(开流同步)          | [498ms](https://www.luogu.com.cn/record/175296135) |        |
-|     | `std::cin/cout`(关流同步)          | [82ms](https://www.luogu.com.cn/record/175298744)  |        |
-| ③   | `getchar()/putchar()`快读快写      | [22ms](https://www.luogu.com.cn/record/175308089)  |        |
-| ④   | `fread()/fwrite()`快读快写         | [14ms](https://www.luogu.com.cn/record/175313044)  |        |
-| ⑤   | `mmap(stdin)/mmap(stdout)`快读快写 | [18ms](https://www.luogu.com.cn/record/175314548)  | 仅Linux |
-|     | `mmap()`快读+`fwrite()`快写        | [10ms](https://www.luogu.com.cn/record/175314963)  | 仅Linux |
+| 序号  | 输入输出方式                             | 耗时                                                 | 备注            |
+| --- | ---------------------------------- | -------------------------------------------------- | ------------- |
+| ①   | `scanf()/printf()`                 | [114ms](https://www.luogu.com.cn/record/175298499) |               |
+| ②   | `std::cin/cout`(开流同步)              | [498ms](https://www.luogu.com.cn/record/175296135) |               |
+|     | `std::cin/cout`(关流同步)              | [82ms](https://www.luogu.com.cn/record/175298744)  |               |
+| ③   | `getchar()/putchar()`快读快写          | [22ms](https://www.luogu.com.cn/record/175308089)  |               |
+| ④   | `fread(stdin)/fwrite(stdout)`快读快写  | [14ms](https://www.luogu.com.cn/record/175313044)  |               |
+| ⑤   | `mmap(stdin)/mmap(stdout)`快读快写     | [18ms](https://www.luogu.com.cn/record/175314548)  | 仅Linux        |
+|     | `mmap(stdin)`快读+`fwrite(stdout)`快写 | [10ms](https://www.luogu.com.cn/record/175314963)  | 仅Linux，仅C++20 |
 
 #### §A.3.2.1 `std::cin/cout`关流同步
 
@@ -9618,7 +9708,7 @@ int main() {
 
 #### §A.3.2.4 `mmap()`快读快写
 
-下面的板子来源于[洛谷@TensorFlow_js](https://www.luogu.com/article/ntedlpuu)，将`STDIN`和`STDOUT`都映射到内存地址中。本代码必须使用C++20编译。
+下面的板子来源于[洛谷@TensorFlow_js](https://www.luogu.com/article/ntedlpuu)，将`STDIN`和`STDOUT`都映射到内存地址中，使用`atexit()`注册程序退出时的`flush`操作。
 
 ```c++
 #include<bits/stdc++.h>
@@ -9661,7 +9751,7 @@ int main() {
 }
 ```
 
-下面的板子来源于[洛谷@oldyan](https://www.luogu.com.cn/record/151634839)，将`STDIN`映射到内存地址，使用`fwrite()`快写。要注意每输入输出一个数都要重新获取一个实例，即调用`::get_instance()`方法。
+下面的板子来源于[洛谷@oldyan](https://www.luogu.com.cn/record/151634839)，将`STDIN`映射到内存地址，使用`fwrite()`快写，使用析构函数保证执行`flush`操作。要注意每输入输出一个数都要重新获取一个实例，即调用`::get_instance()`方法。本代码必须使用C++20编译。
 
 ```c++
 #include <bits/stdc++.h>
