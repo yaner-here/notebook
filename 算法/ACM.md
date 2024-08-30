@@ -8227,7 +8227,7 @@ int main() {
 
 ### §6.3.1 Kruskal算法
 
-Kruskal使用贪心思想，**每次添加权值最小的边**，使用并查集判定是否成环。在不成环的前提下，先尝试将边权较小的边添加到生成树中，直到形成一颗生成树，此时再引入任何边都会导致成环。我们还可以维护`kruskal_count`表示当前已加入的边，Kruskal算法的时间复杂度由排序和并查集构成，总共为$O(m\log m + m\alpha(n, m))$。
+Kruskal算法使用贪心思想，**每次添加权值最小的边**，使用并查集判定是否成环。在不成环的前提下，先尝试将边权较小的边添加到生成树中，直到形成一颗生成树，此时再引入任何边都会导致成环。我们还可以维护`kruskal_count`表示当前已加入的边，Kruskal算法的时间复杂度由排序和并查集构成，总共为$O(m\log m + m\alpha(n, m))$。
 
 ```c++
 /* 伪代码 */
@@ -8246,6 +8246,7 @@ for(int i = 1; i <= m; ++i){
 ```
 
 > [洛谷P3366](https://www.luogu.com.cn/problem/P3366)：最小生成树的模板题。求最小生成树的边权之和最小值。
+
 ```c++
 const int N_MAX = 5000, M_MAX = 2e5;
 
@@ -8278,7 +8279,217 @@ int main() {
 }
 ```
 
+> [洛谷P1991](https://www.luogu.com.cn/problem/P1991)：给定一个由`n`个节点构成的、带边权`cost[i][j]`的无向完全图。现允许在此基础上任意选择`s`个点，在其中的每两个节点之间添加一条边权为`0`的无向边。求其生成树的最大边权的最小值。
+
+本题的关键是如何利用这`s`个点。**这里我们需要先生成`s`棵最小生成子树，然后在每棵子树中分别取一个节点，添加边权为`0`的无向边即可**。
+
+由于我们求的是最大边权的最小值，所以我们在生成子树时更偏向于选择边权较小的边。Kruskal算法在选择边时恰好遵循这个原则，所以我们可以放心地用Kruskal算法生成`s`棵最小生成子树。判定条件不再是`kruskal_count == n - 1`，而是`kruskal_count == n - s`。看到`n - s`很容易注意到需要特判。
+
+```c++
+const int N_MAX = 500, M_MAX = N_MAX * N_MAX - N_MAX;
+int s, n, m, x[N_MAX + 1], y[N_MAX + 1];
+
+int edge_count;
+struct Edge { int u, v; float distance; } edge[M_MAX + 1];
+
+int dsu_parent[N_MAX + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    dsu_parent[child] = root;
+}
+
+int kruskal_count;
+float kruskal_distance;
+
+int main() {
+    std::cin >> s >> n;
+    if(s >= n) {
+        std::cout << "0.00\n";
+        return 0;
+    }
+    std::iota(dsu_parent, dsu_parent + 1 + n, 0);
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i] >> y[i]; }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = i + 1; j <= n; ++j) {
+            float d = std::sqrt((x[i] - x[j]) * (x[i] - x[j]) + (y[i] - y[j]) * (y[i] - y[j]));
+            edge[++edge_count] = {i, j, d};
+            edge[++edge_count] = {j, i, d};
+        }
+    }
+    m = edge_count;
+    std::sort(edge + 1, edge + m + 1, [](const Edge &a, const Edge &b) { return a.distance < b.distance; });
+    for(int i = 1; i <= m; ++i) {
+        if(dsu_find(edge[i].u) != dsu_find(edge[i].v)) {
+            dsu_unite(edge[i].u, edge[i].v);
+            ++kruskal_count;
+            kruskal_distance = edge[i].distance;
+            if(kruskal_count == n - s) { break; }
+        }
+    }
+    std::cout << std::fixed << std::setprecision(2) << kruskal_distance << "\n";
+}
+```
+
 ### §6.3.2 Prim算法
+
+Prim算法使用贪心思想，**每次添加邻边权值最小的相邻顶点**，使用`visited[]`防止成环。
+
+为了维护最小权值的邻边，我们可以使用以下编程实现：
+
+- 对于稀疏图，使用二叉堆（$O(n\log_2{n}+m\log_2{n})$）或斐波那契堆（$O(n\log_2{n}+m)$）。
+- 对于稠密图，例如完全图（$m=n^2$）而言，直接暴力遍历搜索（$O(2n^2)$）会更快。
+
+```c++
+/* 伪代码 */
+struct PrimEdge {
+	int u, cost;
+	PrimEdge(const int &u, const int &cost) : u(u), cost(cost) {}
+	friend bool operator>(const PrimEdge &child, const PrimEdge &root) {
+		return child.cost > root.cost;
+	}
+}
+bool prim_visited[N_MAX + 1];
+int prim_distance[N_MAX + 1], prim_count, cost_sum;
+std::priority<PrimEdge, std::vector<PrimEdge>, std::greater<PrimEdge>> prim_heap;
+
+std::fill(prim_distance + 1, prim_distance + n + 1, INT32_MAX);
+prim_prim_heap.emplace(1, 0); // 从1号节点开始待添加，虚构一条代价为0的边
+while(!prim_heap.empty()){
+	if(生成树已完毕，即prim_count >= n){
+		break;
+	}
+	auto [u, cost] = prim_heap.top(); prim_heap.pop();
+	if(u已被访问过，即prim_visited[u]){
+		continue;
+	}
+	prim_visited[u] = true; // 标记访问
+	添加这条边，更新总代价(result += cost)和点的个数(++prim_count);
+	foreach(有向边i及其终点v: u->v){
+		if(存在一条通向v的、代价更小的边){
+			prim_distance[v] = edge_cost[i];
+			把PrimEdge(v, edge_cost[i])添加到待选边列表prim_heap中;
+		}
+	}
+}
+if(prim_count == n){ 所有的点都添加到了连通的生成树中; }
+else{ 无法得到连通的生成树; }
+```
+
+> [洛谷P3366](https://www.luogu.com.cn/problem/P3366)：最小生成树的模板题。求最小生成树的边权之和最小值。
+
+```c++
+const int N_MAX = 5e3, M_MAX = 2e5 * 2;
+int n, m, u_temp, v_temp, cost_temp;
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1], edge_cost[M_MAX + 1], edge_from[M_MAX + 1];
+void edge_add(const int &u, const int &v, const int &cost) {
+    ++edge_count;
+    edge_from[edge_count] = u;
+    edge_to[edge_count] = v;
+    edge_cost[edge_count] = cost;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+}
+struct PrimEdge {
+    int u, cost;
+    PrimEdge(const int &u, const int &cost) : u(u), cost(cost) {}
+    friend bool operator>(const PrimEdge &child, const PrimEdge &root) { return child.cost > root.cost; }
+}; // 添加节点u所需的代价
+
+std::priority_queue<PrimEdge, std::vector<PrimEdge>, std::greater<PrimEdge>> prim_heap;
+bool prim_visited[N_MAX + 1];
+int prim_distance[N_MAX + 1], prim_count, result;
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> cost_temp;
+        edge_add(u_temp, v_temp, cost_temp);
+        edge_add(v_temp, u_temp, cost_temp);
+    }
+    std::fill(prim_distance + 1, prim_distance + n + 1, INT32_MAX);
+    prim_distance[1] = 0; prim_heap.emplace(1, 0);
+    while(!prim_heap.empty()) {
+        if(prim_count >= n) { break; }
+        const int u = prim_heap.top().u, cost = prim_heap.top().cost; prim_heap.pop();
+        if(prim_visited[u]) { continue; } prim_visited[u] = true;
+        ++prim_count; result += cost;
+        for(int i = edge_first[u]; i; i = edge_next[i]) {
+            const int v = edge_to[i];
+            if(prim_distance[v] > edge_cost[i]) {
+                prim_distance[v] = edge_cost[i]; prim_heap.emplace(v, edge_cost[i]);
+            }
+        }
+    }
+    if(prim_count == n) {
+        std::cout << result;
+    } else {
+        std::cout << "orz";
+    }
+}
+```
+
+> [洛谷P1991](https://www.luogu.com.cn/problem/P1991)：给定一个由`n`个节点构成的、带边权`cost[i][j]`的无向完全图。现允许在此基础上任意选择`s`个点，在其中的每两个节点之间添加一条边权为`0`的无向边。求其生成树的最大边权的最小值。
+
+Prim算法的做法需要敏锐的注意力。在Kruskal算法一节中，我们提到了预先生成`s`棵最小生成子树的做法。然而这一思路在Prim算法行不通。考虑下面的输入样例：
+
+```
+n = 3, s = 2
+cost[1][2] = cost[2][1] = 5
+cost[1][3] = cost[3][1] = 5
+cost[2][3] = cost[3][2] = 1
+最优解：连接2和3，分配s个节点和1和2
+```
+
+从第`1`个节点出发，使用Prim算法，必定会在两条较大的边中选择一个，导致无法获得最优解。因此Prim算法无法生成最小生成森林，只能生成一个大的子树与若干个孤立的节点。
+
+从另一种角度来想，引入的零权重边与原先的边互相重复，且必将取代原来的边。一条无向边的归宿只有两种：**要么参与`std::max(...cost...)`的最大值竞争，要么被引入的零权重边替代，因此本题求的是原始无向图中的第`std::max(1, p)`大的边权**。因为`p`可能等于`0`，所以要特判。
+
+由于题目给定的完全图是稠密图，所以我们直接使用暴力遍历查找，时间复杂度为$O(2n^2)$。
+
+```c++
+const int N_MAX = 500, M_MAX = N_MAX * N_MAX - N_MAX;
+int s, n, m, x[N_MAX + 1], y[N_MAX + 1];
+float distance[N_MAX + 1][N_MAX + 1], prim_distance[N_MAX + 1], result[N_MAX + 1];
+int result_count;
+bool prim_visited[N_MAX + 1];
+int main() {
+    std::cin >> s >> n;
+    if(s >= n) {
+        std::cout << "0.00\n";
+        return 0;
+    }
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i] >> y[i]; }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = i + 1; j <= n; ++j) {
+            distance[i][j] = distance[j][i] = std::sqrt((x[i] - x[j]) * (x[i] - x[j]) + (y[i] - y[j]) * (y[i] - y[j]));
+        }
+    }
+    std::fill(prim_distance + 1, prim_distance + n + 1, INT32_MAX);
+    prim_distance[1] = 0;
+    for(int i = 1; i <= n; ++i) {
+        float min_distance = INT32_MAX;
+        int j_min;
+        for(int j = 1; j <= n; ++j) {
+            if(!prim_visited[j] && min_distance > prim_distance[j]) { // !prim_visited[j]保证j_min的引入不会成环
+                min_distance = prim_distance[j];
+                j_min = j;
+            }
+        }
+        prim_visited[j_min] = true; // 上面的代码保证至少prim_visited[j]==false, 完全图保证prim_distance[j]一定变得更小，因此j_min一定会被赋值
+        result[++result_count] = min_distance;
+        for(int j = 1; j <= n; ++j) { // 给未访问节点更新prim_distance[]
+            if(!prim_visited[j] && distance[j_min][j] < prim_distance[j]) {
+                prim_distance[j] = distance[j_min][j];
+            }
+        }
+    }
+    std::nth_element(result + 1, result + (s - 1) + 1, result + result_count + 1, std::greater<int>());
+    std::cout << std::fixed << std::setprecision(2) << result[(s - 1) + 1] << std::endl;
+    // 或者使用下面的O(nlogn)排序
+    // std::sort(result + 1, result + result_count + 1, std::greater<float>());
+    // std::cout << std::fixed << std::setprecision(2) << result[s];
+}
+```
 
 ### §6.3.3 Sollin算法
 
