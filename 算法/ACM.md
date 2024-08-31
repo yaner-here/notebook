@@ -5344,8 +5344,6 @@ $$
  入队                      出队         j固定       i递增
 ```
 
-#TODO：？？？？？？ 
-
 - `i`遍历范围：由于`i>j`，因此内层循环中`i:[j+1->n]`。
 - 入队元素：随着`i`的增大，`x[i]-x[j]>=x[j]-x[k]`可以让`k`越来越小。令第一个仍未入队的元素为`n_valid`，初始时为`j`
 
@@ -5482,51 +5480,75 @@ j+2 :┃...┫           ┃             ┃j+2-3×cost[i]┃           ┃...�
      ┗━━━┻━━━━━━━━━━━┻━━━━━━━━━━━━━┻━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━┛
 ```
 
-这是因为我们认为`j:[capacity->1]`每次递减1。如果每次递减`cost[i]`，则又能观察到重叠现象。这提醒我们，只有`j%capacity`相同的一批`j`才能参与到单调队列的优化。具体来说，从最原始的状态转移方程可以看出，在前`i-1`种物品的基础上给定第`i`种物品，那么第`i`种物品最多能买$\text{k\_max}=\lfloor\frac{j}{\text{cost}[i]}\rfloor$个。令$\text{mod}$表示当前预算$j$与价格$\text{cost}[i]$的余数，则`k_max`就是除法结果向下取整（即$j\div\text{cost}[i]=\text{k\_max}\cdots \text{mod}$）。基于这样的思想，对于任意第`i`个物品，我们都可以将`j`拆成`k_max×cost[i]+mod`两部分相加。于是改写状态转移方程为：
+这是因为我们认为`j:[capacity->1]`每次递减1。如果每次递减`cost[i]`，则又能观察到重叠现象。这提醒我们，只有`j%capacity`相同的一批`j`才能参与到单调队列的优化。具体来说，从最原始的状态转移方程可以看出，在前`i-1`种物品的基础上给定第`i`种物品，那么第`i`种物品最多能买$\text{k\_max}=\min(\text{count}[i],\lfloor\frac{j}{\text{cost}[i]}\rfloor)$个。令$\text{mod}$表示当前预算$j$与价格$\text{cost}[i]$的余数，则`k_max`就是除法结果向下取整（即$j\div\text{cost}[i]=\text{k\_max}\cdots \text{mod}$）。基于这样的思想，对于任意第`i`个物品，我们都可以将`j`拆成`k×cost[i]+mod`两部分相加（其中`k<=k_max`）。于是改写状态转移方程为：
 
 $$
 \begin{cases}
-\forall j\in[0, \text{capacity}], 即 \forall\text{mod}\in[0,\text{capacity}), \forall\text{k\_max}\in[0,\lfloor\frac{\text{capacity}}{\text{cost}[i]}\rfloor], \\
+\forall j\in[0, \text{capacity}], 即 \forall\text{mod}\in[0,\text{capacity}), \text{k\_max} = \min(\text{count}[i],\lfloor\frac{\text{capacity}}{\text{cost}[i]}\rfloor), \forall k\in[0,\text{k\_max}], \\
 \begin{align}
-	\text{dp}[\text{k\_max}\times\text{cost}[i]+\text{mod}] & =
-		\max_{\forall \textcolor{red}{k}\in[0, \min(\text{count}[i], \text{k\_max})]}\left(
-			\text{dp}[\text{k\_max}\times\text{cost}[i] + \text{mod} - \textcolor{red}{k\times\text{cost}[i]}] + \textcolor{red}{k\times\text{value}[i]}
+	\text{dp}[j] = \text{dp}[k\times\text{cost}[i]+\text{mod}] & =
+		\max_{\forall \textcolor{red}{k'}\in[0, \min(\text{count}[i], k)]}\left(
+			\text{dp}[k\times\text{cost}[i] + \text{mod} - \textcolor{red}{k'\times\text{cost}[i]}] + \textcolor{red}{k'\times\text{value}[i]}
 		\right) \\
-	& = \max_{\forall \textcolor{red}{k}\in[0, \min(\text{count}[i], \text{k\_max})]}\left(
-		\text{dp}[(\text{k\_max}\textcolor{red}{-k}) \times \text{cost}[i] + \text{mod}] + \textcolor{red}{k\times\text{value}[i]}
+	& = \max_{\forall \textcolor{red}{k'}\in[0, \min(\text{count}[i], k)]}\left(
+		\text{dp}[(k\textcolor{red}{-k'}) \times \text{cost}[i] + \text{mod}] + \textcolor{red}{k'\times\text{value}[i]}
 	\right) \\
-	& \text{令}j = \text{k\_max} - k, \text{使得}\text{dp}[\text{k\_max}-k]以\text{k\_max}-k为自变量 \\
-	& = \max_{\forall \textcolor{red}{j}\in[
-			\text{k\_max}-\min(\text{count}[i],\text{k\_max}), \text{k\_max}
+	& \text{令}\textcolor{red}{j'} = k - \textcolor{red}{k'}, \text{使得}\text{dp}[k-\textcolor{red}{k'}]以k-\textcolor{red}{k'}为自变量 \\
+	& = \max_{\forall \textcolor{red}{j'}\in[
+			k-\min(\text{count}[i],k), k
 		]}\left(
-		\text{dp}[j \times \text{cost}[i] + \text{mod}] + \textcolor{red}{(\text{k\_max} - j)\times\text{value}[i]}
+		\text{dp}[\textcolor{red}{j'} \times \text{cost}[i] + \text{mod}] + \textcolor{red}{(k - j')\times\text{value}[i]}
 	\right) \\
-	& = \max_{\forall j\in[
-			\textcolor{yellow}{\text{k\_max}-\min(\text{count}[i],\text{k\_max})}, \text{k\_max}
+	& = \max_{\forall \textcolor{red}{j'}\in[
+			\textcolor{yellow}{k-\min(\text{count}[i],k)}, k
 		]}\left(
-		\textcolor{green}{\text{dp}[j \times \text{cost}[i] + \text{mod}] - j \times \text{value}[i]} + \text{k\_max} \times \text{value}[i]
+		\textcolor{green}{\text{dp}[j' \times \text{cost}[i] + \text{mod}] - j' \times \text{value}[i]} + k \times \text{value}[i]
 	\right) \\
-	& = \max_{\forall j\in[
-			\textcolor{yellow}{\max(0, \text{k\_max} - \text{count}[i])}, \text{k\_max}
+	& = \max_{\forall \textcolor{red}{j'}\in[
+			\textcolor{yellow}{\max(0, k - \text{count}[i])}, k
 		]}\left(
-		\textcolor{green}{\text{ds}[j]} + \text{k\_max} \times \text{value}[i]
+		\textcolor{green}{\text{ds}[j']} + k \times \text{value}[i]
 	\right) \\
-	& = \textcolor{green}{\text{ds\_max}[i]} + \text{k\_max} \times \text{value}[i] \\
+	& = \textcolor{green}{\text{ds\_max}_k[i]} + k \times \text{value}[i] \\
 \end{align}
 \end{cases}
 $$
 
-这证明了我们可以使用单调队列来进行优化。这里的`j`是我们为了证明而强行构造的中间变量，在实际代码中我们还是直接使用原始的变量`k`进行遍历。
+注意到当`mod`不变时，随着`k`的增加，$[\textcolor{yellow}{\max(0, k - \text{count}[i])}, k]$可被视为滑动窗口，这证明了我们可以使用单调队列来进行优化。在代码实现中，我们对`dp[j]`的遍历顺序从`j:1->capacity`变为**如图所示的对`cost[i]`取模得到同余类、从上到下、从左到右**的遍历顺序：
+
+$$
+\begin{align}
+	& \\
+	&  \begin{array}{c|c|c|c|c|}
+		\mod \text{cost}[i] & 0 & 1 & 2 & \cdots\cdots & \text{cost}[i]-2 & \text{cost}[i]-1 \\
+		\hline
+		k = 0 & \text{dp}[0] & \text{dp}[1] & \text{dp}[2] & \cdots\cdots & \text{dp}[\text{cost}[i]-2] & \text{dp}[\text{cost}[i]-1] \\
+		\hline
+		k = 1 & \text{dp}[\text{cost}[i]] & \text{dp}[\text{cost}[i]+1] & \text{dp}[\text{cost}[i]+2] & \cdots\cdots & \text{dp}[2\cdot\text{cost}[i]-2] & \text{dp}[2\cdot\text{cost}[i]-1] \\
+		\hline
+		k = 2 & \text{dp}[2\cdot\text{cost}[i]] & \text{dp}[2\cdot\text{cost}[i]+1] & \text{dp}[2\cdot\text{cost}[i]+2] & \cdots\cdots & \text{dp}[3\cdot\text{cost}[i]-2] & \text{dp}[3\cdot\text{cost}[i]-1] \\
+		\hline
+		k = \cdots & \cdots & \cdots & \cdots & \cdots\cdots & \cdots & \cdots \\
+		\hline
+		k=\text{k\_max} & \text{dp}[\text{k\_max}\cdot\text{cost}[i]] & \text{dp}[\text{k\_max}\cdot\text{cost}[i]+1] & \text{dp}[\text{k\_max}\cdot\text{cost}[i]+2] & \cdots\cdots & \text{dp}[\text{budget}] \\
+		\hline
+	\end{array}
+\end{align}
+$$
+
+分析这个滑动窗口的区间，随着`k`的增加，队尾不断有$j'=k$进入，对应的进入元素为$\text{ds}[j']=\text{ds}[k]=\text{dp}[k\times\text{cost}[i]+\text{mod}]-k\times\text{value}[i]$；队头不断有$j'<\max(0,k-\text{count}[i])$退出。
+
+需要警惕的是，在实际编程中，由于我们对`k`和`mod`的每种可能都取了一遍，因此给定`k=k_max`时，`mod`的取值范围理应缩小，但是我们仍然让`mod: 0 ~ cost[i] - 1`。因此必定存在一个`mod`，使得`k_max*cost[i] + mod > budget`导致数组`dp[budget + 1]`越界。**因此还需要给`dp`多扩充`COST_MAX`个空间，或者每次给`dp[j]`赋值时都检测是否越界**。
 
 ```c++
-const int N_MAX = 100000;
-int n, capacity, dp[N_MAX + 1], deque_ds[N_MAX + 1], deque_j[N_MAX + 1];
+const int N_MAX = 100000, COST_MAX = 10000; // 题目数据很水，甚至没给COST_MAX，实测改成0都可以过
+int n, capacity, dp[N_MAX + 1 + COST_MAX], deque_ds[N_MAX + 1], deque_j[N_MAX + 1];
 int main() {
     std::cin >> n >> capacity;
     for(int i = 1; i <= n; ++i) {
         int value, cost, count;
         std::cin >> value >> cost >> count;
-        int k_max = capacity / cost;
+        int k_max = capacity / cost; // 之所以不能取std::min(count, capacity/cost)，是因为必须保证k=capacity/cost使得dp[capacity]被更新
         for(int mod = 0; mod < cost; ++mod) {
             int deque_head = 0, deque_tail = 0;
             for(int k = 0; k <= k_max; ++k) {
@@ -8769,9 +8791,38 @@ int main() {
 }
 ```
 
+> [洛谷P3420](https://www.luogu.com.cn/problem/P3420)：给定一个由`n`个顶点、**`n`条有向边**的有向图。**每个顶点的入度和出度均为`1`**。求至少要选择多少顶点作为起点，才能保证任意顶点可达？
+
+本题其实是[洛谷P2746](https://www.luogu.com.cn/problem/P2746)/[洛谷P2812](https://www.luogu.com.cn/problem/P2812)的弱化版，直接对强连通分量缩点，输出入度为`0`的强连通分量个数即可，时间复杂度为$O(n+m)=O(2n)$。但是本题给定了众多优良的性质，我们可以用并查集解决，时间复杂度为$O(n)$。
+
+令第`i`个节点对应的并查集集合为：从第`i`个节点出发，能到达的所有节点。如果存在有向边`i->j`，则`dsu_parent[j] = i`；如果还存在有向边`j->k`，则`dsu_parent[k] = i`。基于此，确定好`dsu_unite()`中的`child`和`root`，统计生成的集合个数（满足`dsu_find(x) == x`的个数），输出即可。
+
+```c++
+const int N_MAX = 1e6;
+int n, u_temp, dsu_parent[N_MAX + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    child = dsu_find(child); root = dsu_find(root);
+    if(child != root) { dsu_parent[child] = root; }
+}
+int main() {
+    std::cin >> n;
+    std::iota(dsu_parent, dsu_parent + 1 + n, 0);
+    for(int v = 1; v <= n; ++v) {
+        std::cin >> u_temp;
+        dsu_unite(u_temp, v);
+    }
+    int result = 0;
+    for(int u = 1; u <= n; ++u) {
+        if(dsu_find(u) == u) { ++result; }
+    }
+    std::cout << result << std::endl;
+}
+```
+
 ### §7.2.1 路径压缩记忆化
 
-并查集思想的精妙之处在于：它使用“路径压缩”将各个元素的搜索结果进行记忆化，从而缩短了元素复用时的查询时间。\
+并查集思想的精妙之处在于：它使用“路径压缩”将各个元素的搜索结果进行记忆化，从而缩短了元素复用时的查询时间。
 
 > [洛谷P8686](https://www.luogu.com.cn/problem/P8686)：给定一个长度为`n`的数组`a[]`，从头到尾依次执行下列操作：如果`a[i]`与`a[1->i-1]`中的数字有所重复，则自增`a[i]`，直到不重复为止。求操作后的数组。
 
