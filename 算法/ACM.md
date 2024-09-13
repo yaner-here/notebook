@@ -9485,6 +9485,103 @@ template<typename T> class LinkedDeque {
 
 ## §7.4 线段树
 
+给定一段连续区间`a[1->n]`，线段树可以用$O(\log_{2}{n})$的时间维护任意连续子区间的目标函数值，包括单点修改、区间修改、区间查询。
+
+## §7.4.1 基础线段树
+
+在实践中，我们开辟一段连续的结构体数组`SegTree[]`来模拟线段树的树上节点，每个`SegTree`结构体对应的节点存储着当前节点维护的子区间`[l, r]`边界与目标函数值`v`。目标函数是一种变长参数的函数，且必须满足可拆分性：即对于任意子区间`s`（包括原区间）的任意连续划分`s1, s2, ...`，`目标函数(s) == 目标函数(目标函数(s1), 目标函数(s2), ...)`恒成立。例如$f(s)=\displaystyle\sum_{\forall i\in s}{a[i]}$、$f(s)=\underset{\forall i \in s}{\text{min/max}}{(a[i])}$都是满足可拆分性的目标函数。
+
+线段树的核心是：要维护节点`root`对应的`[segtree[root].l. segtree[root].r]`的目标函数值，我们使用二分的方式将其拆分为两个子区间，分别使用左节点`root*2`和右节点`root*2+1`储存并维护这两个子区间，依次类推即可。**容易发现线段树一定是完全二叉树**。证明如下：对于任意区间`[l, r]`，无论其长度`r - l + 1`是奇数还是偶数，对应的二分左区间长度一定大于等于二分右区间长度。而区间长度与对应的子树深度形成了非严格单调递增的关系，因此左子树的深度一定大于等于右子树的深度，证毕。
+
+假设要维护的连续区间为`a[1->n]`，则叶子节点的数量一定为$n$。根据完全二叉树的特性，最后一层全满的二叉树层的节点数$n'$必定满足$n'\le n$。显然总结点数的上界，就对应着最后一层全填满的情况，因此总结点数$M$满足$M\le 2^{\lceil\log_{2}{n}\rceil+1}\le 2^{\log_2{n}+1+1}\le 4n$。因此**线段树要开四倍的空间**。经数学严格证明，$M$的严格上界为$4n-5$，当且仅当$n=2^{x}+1, \forall x\in\mathbb{N}^{+}$时取到。为简便起见，编程实践中还是使用$4n$即可。
+
+```c++
+template <typename T> struct SegTree { int l, r; T v; } segtree[N_MAX * 4 + 1];
+template <typename T> T 目标函数(const T &x, const T &y){ ...... }
+template <typename T> T 单点修改函数(T &v, const T &v_delta){ ...... }
+```
+
+为了让线段树依据给定的连续区间`a[l->r]`进行初始化，我们使用DFS的方式建树：
+
+```c++
+/* 对a[l->r]区间建立线段树 */
+void segtree_init(const int root, const int &l, const int &r) {
+	// assert(l <= r);
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].sum = a[l];
+        return;
+    } else {
+        int m = (l + r) / 2;
+        segtree_init(root * 2, l, m); // 对a[l->m]区间建立线段树
+        segtree_init(root * 2 + 1, m + 1, r); // 对a[m+1->r]区间建立线段树
+        segtree[root].v = 目标函数(segtree[root * 2].v, segtree[root * 2 + 1].v);
+    }
+}
+```
+
+线段树的区间查询采用DP的思想，将问题拆分成子问题，即`[l, r]`区间查询可以拆分成`[l, mid]`和`[mid + 1, r]`这两段区间查询。
+
+```c++
+/* 查询root节点对应的区间[seg.l, seg.r]与[l, r]区间的交集的目标函数值 */
+/* 特殊地，当root=1时，root节点对应的区间为全集，该函数退化为[l, r]上的区间查询 */
+template <typename T>
+T segtree_query(const int root, const int &l, const int &r) { 
+    // 如果[l, r]包含了segtree[root]存储的区间范围，则直接返回该节点的值
+    if(l <= segtree[root].l && segtree[root].r <= r) { return segtree[root].v; }
+    
+	// 否则要对segtree[root]的涵盖区间进行进一步拆分，拆成[s.l, s.m]和[s.m + 1, r]左右两个子区间
+    int m = (segtree[root].l + segtree[root].r) / 2;
+
+    // 如果r<=s.m，说明左区间[s.l, s.m]就能涵盖查询范围[l, r]，对其进行进一步拆分，留到下一轮dfs
+    if(r <= m) { return segtree_query(root * 2, l, r); }
+
+    // 如果l>s.m，说明右区间[s.m + 1, r]就能涵盖查询范围[l, r]，对其进行进一步拆分，留到下一轮dfs
+    if(l > m) { return segtree_query(root * 2 + 1, l, r); }
+
+    // 否则两个半区间合并起来才能涵盖查询范围[l, r]，结合上述两个if
+    return 目标函数(segtree_query(root * 2, l, m), segtree_query(root * 2 + 1, m + 1, r));
+}
+```
+
+对于单点修改而言，我们使用DFS先遍历到目标叶子节点，然后在回溯的过程中确保子节点维护完毕之后，才维护本节点。
+
+```c++
+// 对a[x]进行单点修改，修改函数使用的参数为v
+template <typename T>
+void segtree_single_add(const int root, const int &x, const T &v) {
+    // 如果是叶子节点，则一定定位到了要修改的x节点
+    if(segtree[root].l == segtree[root].r) {
+        修改函数(segtree[root].v, v);
+        return;
+    }
+    
+    // 如果不是叶子节点，需要接着深入查找
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(x <= mid) { // 判断x落在左半区间还是右半区间
+        segtree_single_add(root * 2, x, v);
+    } else {
+        segtree_single_add(root * 2 + 1, x, v);
+    }
+
+    // 实时更新segtree[root]的值
+    segtree[root].v = 目标函数(segtree[root * 2].v, segtree[root * 2 + 1].v);
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
 
 本题的条件十分优良，以至于我们可以不使用线段树。首先创建一个空数组`int count[]`，在批量加一时，只给`count[i]`加一。最后询问的时候，使用类似于前缀和的方式从`count[n]`开始向后累加（即`count[i-1]+=count[i]`），最终就得到了储存答案的数组。对于每个询问`i`，只需输出`count[i]`即可。
