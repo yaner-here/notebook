@@ -9569,6 +9569,54 @@ void segtree_single_add(const int root, const int &x, const T &v) {
 }
 ```
 
+接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。
+
+```c++
+template <typename T> struct SegTree { int l, r; T v, v_delta; bool lazy; } segtree[N_MAX * 4 + 1];
+template <typename T> inline void segtree_lazy_pushdown(const int &root, const int &l, const int &r, const T &v_delta){
+	if(segtree[root].lazy == false){
+		return; // 当前节点没有懒标记，无需更新子节点
+	}
+	// 当前节点存在懒标记，需要将懒标记下传，更新子节点
+	segtree[root * 2].lazy = true; segtree[root * 2].v_delta = 修改v_delta函数(segtree[root * 2].v_delta, v_delta); segtree[root * 2].v = 修改v函数(segtree[root * 2].l/r/v/v_delta) // 更新左子节点的lazy、v_delta、v
+	segtree[root * 2 + 1].lazy = true; segtree[root * 2 + 1].v_delta = 修改v_delta函数(segtree[root * 2 + 1].v_delta, v_delta); segtree[root * 2 + 1].v = 修改v函数(segtree[root * 2 + 1].l/r/v/v_delta); // 更新右子节点的lazy、v_delta、v
+	segtree[root].lazy = false; segtree[root].v_delta = 0; // 清空当前节点的懒标记和变化量
+}
+template <typename T> T segtree_range_query(const int root, const int &l, const int &r){
+	// 如果不涉及子节点
+	if(l <= segtree[root].l && r >= segtree[root].r){
+		// segtree_range_query的DFS遍历顺序决定了此处的segtree[root].v一定是最终更新的值
+		return segtree[root].v;
+	}
+	
+	// 如果涉及子节点
+	int m = (l + r) / 2;
+	segtree_lazy_pushdown(root, l, r, v_delta); // 更新子节点
+	if(r <= m){ return segtree_range_query(root * 2, l, r); }
+	if(l > m){ return segtree_range_query(root * 2 + 1, l, r); }
+	return 目标函数(
+		segtree_range_query(root * 2, l, r), 
+		segtree_range_query(root * 2 + 1, l, r)
+	);
+}
+template <typename T> void segtree_range_change(const int root, const int &l, const int &r, const T &v_delta){
+	// 如果不涉及子节点
+	if(l <= segtree[root].l && r >= segtree[root].r){
+		segtree[root].v_delta = 修改v_delta函数(segtree[root].v_delta, v_delta); // 合并懒标记的变化量
+		segtree[root].lazy = true; // 打上懒标记，待更新子节点
+		segtree[root].v = 修改v函数(segtree[root].l/r/v, v_delta); // 更新当前节点的v
+		return;
+	}
+	
+	// 如果涉及子节点
+	int m = (l + r) / 2;
+	segtree_lazy_pushdown(root, l, r, v_delta); // 更新子节点
+	// 通过更新完的子节点，来更新当前节点
+	if(r <= m){ segtree_range_change(root * 2, l, r, v_delta); }
+	if(l > m){ segtree_range_change(root * 2 + 1, l, r, v_delta); }
+	segtree[root].v = 修改v函数(segtree[root].v, v_delta);
+}
+```
 
 
 
