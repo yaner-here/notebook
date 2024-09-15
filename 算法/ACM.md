@@ -9487,7 +9487,7 @@ template<typename T> class LinkedDeque {
 
 给定一段连续区间`a[1->n]`，线段树可以用$O(\log_{2}{n})$的时间维护任意连续子区间的目标函数值，包括单点修改、区间修改、区间查询。
 
-## §7.4.1 基础线段树
+### §7.4.1 基础线段树
 
 在实践中，我们开辟一段连续的结构体数组`SegTree[]`来模拟线段树的树上节点，每个`SegTree`结构体对应的节点存储着当前节点维护的子区间`[l, r]`边界与目标函数值`v`。目标函数是一种变长参数的函数，且必须满足可拆分性：即对于任意子区间`s`（包括原区间）的任意连续划分`s1, s2, ...`，`目标函数(s) == 目标函数(目标函数(s1), 目标函数(s2), ...)`恒成立。例如$f(s)=\displaystyle\sum_{\forall i\in s}{a[i]}$、$f(s)=\underset{\forall i \in s}{\text{min/max}}{(a[i])}$都是满足可拆分性的目标函数。
 
@@ -9569,52 +9569,133 @@ void segtree_single_add(const int root, const int &x, const T &v) {
 }
 ```
 
-接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。
+> [洛谷P4392](https://www.luogu.com.cn/problem/P4392)：给定一个长度为`n`的数组`a[]`，在所有长度为`m`的滑动窗口中，找出所有满足“区间最大值减区间最小值小于等于`c`”的滑动窗口，升序输出这些滑动窗口的左闭端点。
+
+线段树板子题，需要为每个节点（区间）维护两个值：最大值和最小值。
 
 ```c++
-template <typename T> struct SegTree { int l, r; T v, v_delta; bool lazy; } segtree[N_MAX * 4 + 1];
-template <typename T> inline void segtree_lazy_pushdown(const int &root, const int &l, const int &r, const T &v_delta){
-	if(segtree[root].lazy == false){
-		return; // 当前节点没有懒标记，无需更新子节点
-	}
-	// 当前节点存在懒标记，需要将懒标记下传，更新子节点
-	segtree[root * 2].lazy = true; segtree[root * 2].v_delta = 修改v_delta函数(segtree[root * 2].v_delta, v_delta); segtree[root * 2].v = 修改v函数(segtree[root * 2].l/r/v/v_delta) // 更新左子节点的lazy、v_delta、v
-	segtree[root * 2 + 1].lazy = true; segtree[root * 2 + 1].v_delta = 修改v_delta函数(segtree[root * 2 + 1].v_delta, v_delta); segtree[root * 2 + 1].v = 修改v函数(segtree[root * 2 + 1].l/r/v/v_delta); // 更新右子节点的lazy、v_delta、v
-	segtree[root].lazy = false; segtree[root].v_delta = 0; // 清空当前节点的懒标记和变化量
+const int N_MAX = 1e6;
+int n, m, c, a[N_MAX * 4 + 1];
+
+struct SegTree { int l, r, v_min, v_max; } segtree[N_MAX * 4 + 1];
+void segtree_init(const int root, const int &l, const int &r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_min = segtree[root].v_max = a[l];
+    } else {
+        int m = (l + r) / 2;
+        segtree_init(root * 2, l, m);
+        segtree_init(root * 2 + 1, m + 1, r);
+        segtree[root].v_min = std::min(segtree[root * 2].v_min, segtree[root * 2 + 1].v_min);
+        segtree[root].v_max = std::max(segtree[root * 2].v_max, segtree[root * 2 + 1].v_max);
+    }
 }
-template <typename T> T segtree_range_query(const int root, const int &l, const int &r){
-	// 如果不涉及子节点
-	if(l <= segtree[root].l && r >= segtree[root].r){
-		// segtree_range_query的DFS遍历顺序决定了此处的segtree[root].v一定是最终更新的值
-		return segtree[root].v;
-	}
-	
-	// 如果涉及子节点
-	int m = (l + r) / 2;
-	segtree_lazy_pushdown(root, l, r, v_delta); // 更新子节点
-	if(r <= m){ return segtree_range_query(root * 2, l, r); }
-	if(l > m){ return segtree_range_query(root * 2 + 1, l, r); }
-	return 目标函数(
-		segtree_range_query(root * 2, l, r), 
-		segtree_range_query(root * 2 + 1, l, r)
-	);
+std::pair<int, int> segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return {segtree[root].v_min, segtree[root].v_max}; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    std::pair<int, int> query{1e9, -1e9};
+    if(l <= m) {
+        std::pair<int, int> query_left = segtree_range_query(root * 2, l, r);
+        query.first = std::min(query.first, query_left.first);
+        query.second = std::max(query.second, query_left.second);
+    }
+    if(r > m) {
+        std::pair<int, int> query_right = segtree_range_query(root * 2 + 1, l, r);
+        query.first = std::min(query.first, query_right.first);
+        query.second = std::max(query.second, query_right.second);
+    }
+    return query;
 }
-template <typename T> void segtree_range_change(const int root, const int &l, const int &r, const T &v_delta){
-	// 如果不涉及子节点
-	if(l <= segtree[root].l && r >= segtree[root].r){
-		segtree[root].v_delta = 修改v_delta函数(segtree[root].v_delta, v_delta); // 合并懒标记的变化量
-		segtree[root].lazy = true; // 打上懒标记，待更新子节点
-		segtree[root].v = 修改v函数(segtree[root].l/r/v, v_delta); // 更新当前节点的v
-		return;
-	}
-	
-	// 如果涉及子节点
-	int m = (l + r) / 2;
-	segtree_lazy_pushdown(root, l, r, v_delta); // 更新子节点
-	// 通过更新完的子节点，来更新当前节点
-	if(r <= m){ segtree_range_change(root * 2, l, r, v_delta); }
-	if(l > m){ segtree_range_change(root * 2 + 1, l, r, v_delta); }
-	segtree[root].v = 修改v函数(segtree[root].v, v_delta);
+
+int main() {
+    std::cin >> n >> m >> c;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    bool is_printed = false;
+    for(int l = 1, r = m; r <= n; ++l, ++r) {
+        std::pair<int, int> query = segtree_range_query(1, l, r);
+        if(query.second - query.first <= c) {
+            is_printed = true;
+            std::cout << l << '\n';
+        }
+    }
+    if(is_printed == false) {
+        std::cout << "NONE";
+    }
+}
+```
+
+注意：本题的线段树做法时间复杂度为$O(n\log_2{n})$，最佳做法是使用单调队列$O(n)$，做法略。
+
+### §7.4.2 懒标记线段树
+
+接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`bool lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。有时`v_delta`本身就可以反映出是否存在懒标记。
+
+> [洛谷P3372](https://www.luogu.com.cn/problem/P3372)：维护一个线段树，支持两种操作。（1）区间内所有元素都加`z_temp`；（2）查询区间内的元素之和。
+
+```c++
+const int N_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp;
+long long int a[N_MAX + 1], z_temp;
+
+struct SegTree { int l, r; long long int v_sum, v_delta; } segtree[N_MAX * 4 + 1];
+void segtree_init(int root, int l, int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+}
+inline void segtree_push_down(int root, int l, int r) {
+    if(segtree[root].v_delta == 0) { return; }
+    int m = (l + r) / 2;
+    segtree[root * 2].v_sum += segtree[root].v_delta * (m - l + 1);
+    segtree[root * 2].v_delta += segtree[root].v_delta; // 使用+=合并懒标记
+    segtree[root * 2 + 1].v_sum += segtree[root].v_delta * (r - m);
+    segtree[root * 2 + 1].v_delta += segtree[root].v_delta; // 使用+=合并懒标记
+    segtree[root].v_delta = 0;
+}
+void segtree_range_change(int root, int l, int r, long long int delta) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_sum += delta * (segtree[root].r - segtree[root].l + 1);
+        segtree[root].v_delta += delta;
+        return;
+    }
+    segtree_push_down(root, segtree[root].l, segtree[root].r);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_change(root * 2, l, r, delta); }
+    if(m < r) { segtree_range_change(root * 2 + 1, l, r, delta); }
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+}
+long long int segtree_range_query(int root, int l, int r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) return segtree[root].v_sum;
+    long long int query = 0;
+    segtree_push_down(root, segtree[root].l, segtree[root].r);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { query += segtree_range_query(root * 2, l, r); }
+    if(m < r) { query += segtree_range_query(root * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) std::cin >> a[i];
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp >> y_temp >> z_temp;
+            segtree_range_change(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            std::cin >> x_temp >> y_temp;
+            std::cout << segtree_range_query(1, x_temp, y_temp) << '\n';
+        }
+    }
+    return 0;
 }
 ```
 
