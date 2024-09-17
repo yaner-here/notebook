@@ -9699,11 +9699,214 @@ int main() {
 }
 ```
 
+> 洛谷：维护一个线段树，支持三种操作。（1）区间内所有的元素自乘`z_temp`；（2）区间内所有的元素自增`z_temp`；（3）查询区间内元素在模`mod`意义下的总和。
+
+本题涉及到两种懒标记。对于元素自乘而言，我们可以用`v_mul`同时表示懒标记（`v_mul==1`）与变化值；对于元素自增而言，我们可以用`v_inc`同时表示懒标记（`v_inc==0`）与变化值。
+
+**本题的难点在于标记下推函数`segtree_pushdown()`函数的逻辑**，有两种对应的实现思路：先乘再加、先加再乘。
+
+对于先乘再加而言，如果节点中同时存在自增懒标记和自乘懒标记，则
+
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e4;
+int n, q, mod, op_temp, x_temp, y_temp, z_temp, a[N_MAX + 1];
+
+struct SegTree { int l, r; long long int v_sum, v_mul, v_inc; } segtree[N_MAX * 4 + 1];
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum = (a[l] % mod + mod) % mod;
+        segtree[root].v_mul = 1;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree[root].v_sum = (segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum) % mod;
+    segtree[root].v_mul = 1;
+}
+void segtree_pushdown(const int &root) {
+    segtree[root * 2].v_sum = (
+        segtree[root * 2].v_sum * segtree[root].v_mul +
+        segtree[root].v_inc * (segtree[root * 2].r - segtree[root * 2].l + 1)
+    ) % mod;
+    segtree[root * 2].v_mul = segtree[root * 2].v_mul * segtree[root].v_mul % mod;
+    segtree[root * 2].v_inc = (segtree[root * 2].v_inc * segtree[root].v_mul + segtree[root].v_inc) % mod;
+
+    segtree[root * 2 + 1].v_sum = (
+        segtree[root * 2 + 1].v_sum * segtree[root].v_mul +
+        segtree[root].v_inc * (segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1)
+    ) % mod;
+    segtree[root * 2 + 1].v_mul = segtree[root * 2 + 1].v_mul * segtree[root].v_mul % mod;
+    segtree[root * 2 + 1].v_inc = (segtree[root * 2 + 1].v_inc * segtree[root].v_mul + segtree[root].v_inc) % mod;
+
+    segtree[root].v_mul = 1;
+    segtree[root].v_inc = 0;
+}
+void segtree_range_inc(const int root, const int &l, const int &r, const long long int &inc) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_sum = (segtree[root].v_sum + inc * (segtree[root].r - segtree[root].l + 1)) % mod;
+        segtree[root].v_inc = (segtree[root].v_inc + inc) % mod;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_inc(root * 2, l, r, inc); }
+    if(r > m) { segtree_range_inc(root * 2 + 1, l, r, inc); }
+    segtree[root].v_sum = (segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum) % mod;
+}
+void segtree_range_mul(const int root, const int &l, const int &r, const long long int &mul) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_sum = (segtree[root].v_sum * mul) % mod;
+        segtree[root].v_mul = (segtree[root].v_mul * mul) % mod;
+        segtree[root].v_inc = (segtree[root].v_inc * mul) % mod;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_mul(root * 2, l, r, mul); }
+    if(r > m) { segtree_range_mul(root * 2 + 1, l, r, mul); }
+    segtree[root].v_sum = (segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum) % mod;
+}
+long long int segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    long long int query = 0;
+    if(l <= m) { query = (query + segtree_range_query(root * 2, l, r)) % mod; }
+    if(r > m) { query = (query + segtree_range_query(root * 2 + 1, l, r)) % mod; }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q >> mod;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_range_mul(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            std::cin >> z_temp;
+            segtree_range_inc(1, x_temp, y_temp, z_temp);
+        } else {
+            std::cout << segtree_range_query(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
+
 > [洛谷P1253](https://www.luogu.com.cn/problem/P1253)：维护一个线段树，支持三种操作。（1）区间内所有元素都重置为`z_temp`；（2）区间内所有元素都加`z_temp`；（3）查询区间内的元素最大值。
 
-本题涉及到两种懒标记。对于元素自增而言，我们可以用`v_incre`同时表示懒标记与变化值；对于元素重置而言，由于`0`也算一种重置值，所以我们需要同时使用`lazy_reset`和`v_reset`分别表示懒标记与重置值。
+本题涉及到两种懒标记。对于元素自增而言，我们可以用`v_incre`同时表示懒标记（`v_incre==0`）与变化值；对于元素重置而言，由于`0`也算一种重置值，所以我们需要同时使用`lazy_reset`和`v_reset`分别表示懒标记与重置值。
 
-**本题的难点在于标记下推函数`segtree_pushdown()`函数的逻辑**。首先，
+**本题的难点在于标记下推函数`segtree_pushdown()`函数的逻辑**。首先，重置的优先级肯定大于自增。然而考虑以下两种情况：
+
+1. 一个节点先打上了自增懒标记，然后打上了重置懒标记，最后一并下推
+2. 一个节点先打上了重置懒标记，然后打上了自增懒标记，最后一并下推
+
+如果不做特殊处理，那么在这两种情况中，节点的重置/自增懒标记完全一致，但是应该采取不同的策略，导致无法分辨。因此我们需要确保：**当节点打上重置懒标记时，必须清空自增懒标记**。所以，**如果一个节点同时存在自增懒标记和重置懒标记，则一定是重置懒标记在先，自增懒标记在后**。于是在`segtree_pushdown()`函数的重置分支中，我们要让值`v`先重置为`=v_reset`，然后使用自增懒标记`+=v_incre`。
+
+```c++
+const int N_MAX = 1e6, Q_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp, z_temp; long long int a[N_MAX + 1];
+
+struct SegTree { int l, r; long long int v, v_reset, v_incre; bool lazy_reset; } segtree[N_MAX * 4 + 1];
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v = a[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree[root].v = std::max(segtree[root * 2].v, segtree[root * 2 + 1].v);
+}
+inline void segtree_pushdown(const int root) {
+    if(segtree[root].lazy_reset == true) {
+        segtree[root * 2].v = segtree[root].v_reset + segtree[root].v_incre;
+        segtree[root * 2].v_reset = segtree[root].v_reset;
+        segtree[root * 2].lazy_reset = true;
+        segtree[root * 2].v_incre = segtree[root].v_incre;
+        segtree[root * 2 + 1].v = segtree[root].v_reset + segtree[root].v_incre;
+        segtree[root * 2 + 1].v_reset = segtree[root].v_reset;
+        segtree[root * 2 + 1].lazy_reset = true;
+        segtree[root * 2 + 1].v_incre = segtree[root].v_incre;
+        segtree[root].v_incre = 0;
+        segtree[root].v_reset = 0;
+        segtree[root].lazy_reset = false;
+        return;
+    }
+    if(segtree[root].v_incre != 0) {
+        segtree[root * 2].v += segtree[root].v_incre;
+        segtree[root * 2 + 1].v += segtree[root].v_incre;
+        segtree[root * 2].v_incre += segtree[root].v_incre;
+        segtree[root * 2 + 1].v_incre += segtree[root].v_incre;
+        segtree[root].v_incre = 0;
+        return;
+    }
+}
+void segtree_range_incre(const int root, const int l, const int r, const long long int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v += incre;
+        segtree[root].v_incre += incre;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_incre(root * 2, l, r, incre); }
+    if(r > m) { segtree_range_incre(root * 2 + 1, l, r, incre); }
+    segtree[root].v = std::max(segtree[root * 2].v, segtree[root * 2 + 1].v);
+}
+void segtree_range_reset(const int root, const int l, const int r, const long long int &reset) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v = reset;
+        segtree[root].v_incre = 0;
+        segtree[root].v_reset = reset;
+        segtree[root].lazy_reset = true;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_reset(root * 2, l, r, reset); }
+    if(r > m) { segtree_range_reset(root * 2 + 1, l, r, reset); }
+    // segtree[root].v = reset;
+    segtree[root].v = std::max(segtree[root * 2].v, segtree[root * 2 + 1].v);
+}
+long long int segtree_range_query(const int root, const int l, const int r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v; }
+    segtree_pushdown(root);
+    long long int query = INT64_MIN;
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { query = std::max(query, segtree_range_query(root * 2, l, r)); }
+    if(r > m) { query = std::max(query, segtree_range_query(root * 2 + 1, l, r)); }
+    return query;
+}
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_range_reset(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            std::cin >> z_temp;
+            segtree_range_incre(1, x_temp, y_temp, z_temp);
+        } else {
+            std::cout << segtree_range_query(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
 
 
 
@@ -10243,7 +10446,7 @@ int main() {
 }
 ```
 
-下面的板子来源于[洛谷@oldyan](https://www.luogu.com.cn/record/151634839)，将`STDIN`映射到内存地址，使用`fwrite()`快写，使用析构函数保证执行`flush`操作。要注意每输入输出一个数都要重新获取一个实例，即调用`::get_instance()`方法。本代码必须使用C++20编译。
+下面的板子来源于[洛谷@oldyan](https://www.luogu.com.cn/record/151634839)，将`STDIN`映射到内存地址，使用`fwrite()`快写，使用析构函数保证执行`flush`操作。要注意每输入输出一个数都要重新获取一个实例，即调用`::get_instance()`方法。本代码必须使用C++20编译，**且不直接支持输出`long long int`，需要手动用`unsigned long long int`**转换并输出正负号**。
 
 ```c++
 #include <bits/stdc++.h>
