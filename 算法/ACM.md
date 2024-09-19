@@ -9915,10 +9915,98 @@ int main() {
 
 本题要查询的方差函数并不满足可拆分性。但是注意到方差$s^2(l,r) := \displaystyle\frac{1}{r-l+1}\sum_{i\in[l,r]}{(x_i-\overline{x})^2} = \frac{1}{r-l+1}\left(\sum_{i\in[l,r]}{x_i^2}-n\overline{x}^2\right)$，可以线性地分成两个满足可拆分性的函数，问题转化为维护$\displaystyle\sum_{i\in[l,r]}x_i$和$\displaystyle\sum_{i\in[l,r]}x_i^2$。
 
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp; double a[N_MAX + 1], z_temp;
+
+struct SegTree { int l, r; double v_sum, v_sum2, v_inc; } segtree[N_MAX * 4 + 1];
+void segtree_init(const int root, const int &l, const int &r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        segtree[root].v_sum2 = a[l] * a[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_sum2 = segtree[root * 2].v_sum2 + segtree[root * 2 + 1].v_sum2;
+}
+void segtree_pushdown(const int &root) {
+    if(segtree[root].v_inc == 0) { return; }
+    segtree[root * 2].v_sum2 += 2 * segtree[root].v_inc * segtree[root * 2].v_sum + (segtree[root * 2].r - segtree[root * 2].l + 1) * segtree[root].v_inc * segtree[root].v_inc;
+    segtree[root * 2].v_sum += (segtree[root * 2].r - segtree[root * 2].l + 1) * segtree[root].v_inc;
+    segtree[root * 2].v_inc += segtree[root].v_inc;
+
+    segtree[root * 2 + 1].v_sum2 += 2 * segtree[root].v_inc * segtree[root * 2 + 1].v_sum + (segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1) * segtree[root].v_inc * segtree[root].v_inc;
+    segtree[root * 2 + 1].v_sum += (segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1) * segtree[root].v_inc;
+    segtree[root * 2 + 1].v_inc += segtree[root].v_inc;
+
+    segtree[root].v_inc = 0;
+}
+void segtree_range_inc(const int root, const int &l, const int &r, const double &inc) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_sum2 += 2 * inc * segtree[root].v_sum + (segtree[root].r - segtree[root].l + 1) * inc * inc;
+        segtree[root].v_sum += (segtree[root].r - segtree[root].l + 1) * inc;
+        segtree[root].v_inc += inc;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_inc(root * 2, l, r, inc); }
+    if(r > m) { segtree_range_inc(root * 2 + 1, l, r, inc); }
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_sum2 = segtree[root * 2].v_sum2 + segtree[root * 2 + 1].v_sum2;
+}
+double segtree_range_query_sum(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    double query = 0;
+    if(l <= m) { query += segtree_range_query_sum(root * 2, l, r); }
+    if(r > m) { query += segtree_range_query_sum(root * 2 + 1, l, r); }
+    return query;
+}
+double segtree_range_query_sum2(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum2; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    double query = 0;
+    if(l <= m) { query += segtree_range_query_sum2(root * 2, l, r); }
+    if(r > m) { query += segtree_range_query_sum2(root * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_range_inc(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            double v_sum = segtree_range_query_sum(1, x_temp, y_temp);
+            std::cout << std::fixed << std::setprecision(4) << v_sum / (y_temp - x_temp + 1) << '\n';
+        } else if(op_temp == 3) {
+            double v_sum = segtree_range_query_sum(1, x_temp, y_temp);
+            double v_sum2 = segtree_range_query_sum2(1, x_temp, y_temp);
+            double v_variance = (v_sum2 - (v_sum * v_sum) / (y_temp - x_temp + 1)) / (y_temp - x_temp + 1);
+            std::cout << std::fixed << std::setprecision(4) << v_variance << '\n';
+        }
+    }
+}
+```
+
 ### §7.4.B 种类目标函数
 
+> [洛谷P1558](https://www.luogu.com.cn/problem/P1558)：给定`T<=30`种编号从`1`开始递增的颜色，和`n`个排成一行的格子。格子初始颜色均为`1`号颜色，现需要支持两种操作。（1）将区间内的所有格子涂成`z_temp`号颜色；（2）查询区间内所有格子的不同颜色数量。
 
+本题的目标函数要统计不同种类的个数，依然符合可拆分性。**注意到`T<=30`范围较小，因此可以用`uint32_t`做状态压缩，或者用`std::bitset`记录状态**。
 
+> [洛谷P1972](https://www.luogu.com.cn/problem/P1972)：给定`T<=1e6`种编号未经离散化的颜色，和`n`个排成一行的格子。格子初始颜色已知且固定。现需要支持查询区间内所有格子的不同颜色数量。
 
 
 
