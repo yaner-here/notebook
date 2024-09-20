@@ -9627,6 +9627,72 @@ int main() {
 
 注意：本题的线段树做法时间复杂度为$O(n\log_2{n})$，最佳做法是使用单调队列$O(n)$，做法略。
 
+> [洛谷P4588](https://www.luogu.com.cn/problem/P4588)：给定一个初值为`1`的变量`x`，接下来支持两种操作，每次操作执行完成后输出`x`对`mod`的余数。（1）将`x`自乘`m_temp`；（2）保证第`pos_temp`次操作一定是第一种操作，**每种`pos_temp`至多使用一次**，记第`pos_temp`次操作自乘的值为`m_temp`，现在将`x`自除`m_temp`。
+
+本题的难点是**如何使用线段树维护信息**。记录每次操作自乘的数字记为`a[i]`（记第二种操作自乘的数为`1`）。于是第二种操作等价于将`a[pos_temp]`重置为`1`，我们只须维护`a[]`在区间`[1, q]`上模`mod`意义的乘积即可，使用线段树维护。
+
+```c++
+const int Q_MAX = 1e5, N_MAX = Q_MAX;
+int t, n, q, op_temp, k_temp, pos_temp;
+long long int a[N_MAX + 1], mod;
+
+/* 普通线段树，无懒标记，只支持区间查询与单点修改 */
+struct SegTree { int l, r; long long int v; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v = ((segtree[root * 2].v % mod) * (segtree[root * 2 + 1].v % mod)) % mod;
+}
+void segtree_init(const int root, const int l, const int r){
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v = 1;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_reset(const int root, const int &target, const int &reset) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v = reset;
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_reset(root * 2, target, reset); }
+    if(target > m) { segtree_reset(root * 2 + 1, target, reset); }
+    segtree_pushup(root);
+}
+long long int segtree_range_query_mul(const int root, const int &l, const int &r){
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    long long int query = 1;
+    if(l <= m) { query = (query * segtree_range_query_mul(root * 2, l, r)) % mod; }
+    if(r > m) { query = (query * segtree_range_query_mul(root * 2 + 1, l, r)) % mod; }
+    return query;
+}
+
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> q >> mod; n = q;
+        std::fill(a + 1, a + n + 1, 1);
+        segtree_init(1, 1, n);
+        for(int i = 1; i <= q; ++i) {
+            std::cin >> op_temp;
+            if(op_temp == 1) {
+                std::cin >> k_temp;
+                segtree_reset(1, i, k_temp % mod);
+                std::cout << segtree_range_query_mul(1, 1, i) << '\n';
+            } else if(op_temp == 2) {
+                std::cin >> pos_temp;
+                segtree_reset(1, pos_temp, 1);
+                std::cout << segtree_range_query_mul(1, 1, i) << '\n';
+            }
+        }
+    }
+}
+```
+
 ### §7.4.2 懒标记线段树
 
 接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`bool lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。有时`v_delta`本身就可以反映出是否存在懒标记。
@@ -10000,15 +10066,223 @@ int main() {
 }
 ```
 
-### §7.4.B 种类目标函数
+> [洛谷P2894](https://www.luogu.com.cn/problem/P2894)：给定`n`个排成一行、初始为空的房间，支持以下操作。（1）从左开始查找第一个“连续`y_temp`个房间均为空”的区间，占用这些房间，并输出其左闭端点；（2）重置区间内的所有房间为空。
+
+本题的关键在于设计可以拆分的目标函数。如果只令`v_len`为区间内的最长连续空房间长度，则左右节点的两个`v_len`无法推导出当前节点的`v_len`。**我们还需要维护`v_llen`和`v_rlen`，分别表示在当前区间中，从区间的最左/右侧起，向中间延伸的最长连续空房间长度**。
+
+在下推函数`segtree_pushdown()`中，我们需要处理重置懒标记。首先要给两个子节点打上懒标记`.lazy_reset=true`，传递重置值`.v_reset=reset`。然后更新`.v_len`、`.v_llen`、`.v_rlen`，如果要占用房间（`reset=1`），则全部置为`0`，反之则置为区间长度。
+
+在上推函数`segtree_pushup()`中，我们需要根据两个子节点更新当前节点。当前节点`root`的最长连续空房间有三种情况：全在左子结点对应的区间中、**横跨左右两个子节点**、全在右子节点对应的区间中。所以要考虑这三种情况的最大值，才是`segtree[root].v_len`的最终值。其余的`.v_llen`和`v_rlen`同理，**要警惕横跨左右两个子节点时，当左/右子节点区间全空时，`左节点.v_llen`/`右节点.v_rlen`可能会与另一侧区间续上，因此不能无脑`root.v_llen = 左节点.v_llen`/`root.v_rlen = 右节点.v_rlen`**。
+
+```c++
+// 错误代码
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_len = std::max({三种情况});
+    segtree[root].v_llen = segtree[root * 2].v_llen; // 没有考虑与右子区间续上的可能性
+    segtree[root].v_rlen = segtree[root * 2 + 1].v_rlen; // 没有考虑与左子区间续上的可能性
+}
+
+// 正确代码
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_len = std::max({三种情况});
+    if(segtree[root * 2].v_len == segtree[root * 2].r - segtree[root * 2].l + 1) {
+        segtree[root].v_llen = segtree[root * 2].r - segtree[root * 2].l + 1 + segtree[root * 2 + 1].v_llen;
+    } else {
+        segtree[root].v_llen = segtree[root * 2].v_llen;
+    }
+    if(segtree[root * 2 + 1].v_len == segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1){
+        segtree[root].v_rlen = segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1 + segtree[root * 2].v_rlen;
+    } else {
+        segtree[root].v_rlen = segtree[root * 2 + 1].v_rlen;
+    }
+}
+```
+
+在查找函数`segtree_ask()`中，我们在保证答案存在的情况下，按顺序搜索目标区间的三种可能性：全在左子结点对应的区间中、**横跨左右两个子节点**、全在右子节点对应的区间中。按DFS向下搜索，直到目标区间的可以被“**横跨左右两个子节点/与子节点分界线接壤**”捕获到为止。
+
+代码如下所示。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp, x_find;
+
+struct SegTree {
+    int l, r;
+    int v_len, v_llen, v_rlen;
+    bool lazy_reset;
+    int v_reset;
+} segtree[N_MAX * 4 + 1];
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l;
+    segtree[root].r = r;
+    segtree[root].v_len = segtree[root].v_llen = segtree[root].v_rlen = r - l + 1;
+    if(l == r) { return; }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+}
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_len = std::max({segtree[root * 2].v_len, segtree[root * 2 + 1].v_len, segtree[root * 2].v_rlen + segtree[root * 2 + 1].v_llen});
+    if(segtree[root * 2].v_len == segtree[root * 2].r - segtree[root * 2].l + 1) {
+        segtree[root].v_llen = segtree[root * 2].r - segtree[root * 2].l + 1 + segtree[root * 2 + 1].v_llen;
+    } else {
+        segtree[root].v_llen = segtree[root * 2].v_llen;
+    }
+    if(segtree[root * 2 + 1].v_len == segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1){
+        segtree[root].v_rlen = segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1 + segtree[root * 2].v_rlen;
+    } else {
+        segtree[root].v_rlen = segtree[root * 2 + 1].v_rlen;
+    }
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_reset == false) { return; }
+
+    segtree[root * 2].lazy_reset = true;
+    segtree[root * 2 + 1].lazy_reset = true;
+    segtree[root * 2].v_reset = segtree[root].v_reset;
+    segtree[root * 2 + 1].v_reset = segtree[root].v_reset;
+    if(segtree[root].v_reset == 0) {
+        segtree[root * 2].v_len = segtree[root * 2].v_llen = segtree[root * 2].v_rlen = segtree[root * 2].r - segtree[root * 2].l + 1;
+        segtree[root * 2 + 1].v_len = segtree[root * 2 + 1].v_llen = segtree[root * 2 + 1].v_rlen = segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1;
+    } else if(segtree[root].v_reset == 1) {
+        segtree[root * 2].v_len = segtree[root * 2].v_llen = segtree[root * 2].v_rlen = 0;
+        segtree[root * 2 + 1].v_len = segtree[root * 2 + 1].v_llen = segtree[root * 2 + 1].v_rlen = 0;
+    }
+    segtree[root].lazy_reset = false;
+}
+void segtree_range_reset(const int root, const int &l, const int &r, const int &reset) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].lazy_reset = true;
+        segtree[root].v_reset = reset;
+        if(reset == 0) {
+            segtree[root].v_len = segtree[root].v_llen = segtree[root].v_rlen = segtree[root].r - segtree[root].l + 1;
+        } else if(reset == 1) {
+            segtree[root].v_len = segtree[root].v_llen = segtree[root].v_rlen = 0;
+        }
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_reset(root * 2, l, r, reset); }
+    if(r > m) { segtree_range_reset(root * 2 + 1, l, r, reset); }
+    segtree_pushup(root);
+}
+int segtree_range_find_available(const int root, const int &len_min) {
+    if(segtree[root].v_len < len_min) { return 0; }
+    segtree_pushdown(root);
+    // 搜索左子节点
+    if(segtree[root * 2].v_len >= len_min) { return segtree_range_find_available(root * 2, len_min); }
+    // 搜索横跨左右子节点/与左右子节点分界线接壤
+    if(segtree[root * 2].v_rlen + segtree[root * 2 + 1].v_llen >= len_min) { return segtree[root * 2].r - segtree[root * 2].v_rlen + 1; }
+    // 搜索右子节点
+    return segtree_range_find_available(root * 2 + 1, len_min);
+}
+
+int main() {
+    std::cin >> n >> q;
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp;
+            x_find = segtree_range_find_available(1, x_temp);
+            std::cout << x_find << '\n';
+            if(x_find >= 1) { segtree_range_reset(1, x_find, x_find + x_temp - 1, 1); }
+        } else if(op_temp == 2) {
+            std::cin >> x_temp >> y_temp;
+            segtree_range_reset(1, x_temp, x_temp + y_temp - 1, 0);
+        }
+    }
+}
+```
+
+### §7.4.B 区间染色数问题
 
 > [洛谷P1558](https://www.luogu.com.cn/problem/P1558)：给定`T<=30`种编号从`1`开始递增的颜色，和`n`个排成一行的格子。格子初始颜色均为`1`号颜色，现需要支持两种操作。（1）将区间内的所有格子涂成`z_temp`号颜色；（2）查询区间内所有格子的不同颜色数量。
 
 本题的目标函数要统计不同种类的个数，依然符合可拆分性。**注意到`T<=30`范围较小，因此可以用`uint32_t`做状态压缩，或者用`std::bitset`记录状态**。
 
-> [洛谷P1972](https://www.luogu.com.cn/problem/P1972)：给定`T<=1e6`种编号未经离散化的颜色，和`n`个排成一行的格子。格子初始颜色已知且固定。现需要支持查询区间内所有格子的不同颜色数量。
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, x_temp, y_temp, z_temp;
+char op_temp;
 
+struct SegTree { int l, r; std::bitset<32> v, v_reset; bool lazy_reset; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &p) {
+    segtree[p].v = segtree[p * 2].v | segtree[p * 2 + 1].v;
+}
+inline void segtree_pushdown(const int &p) {
+    if(segtree[p].lazy_reset == false) { return; }
 
+    segtree[p * 2].v = segtree[p].v_reset;
+    segtree[p * 2].v_reset = segtree[p].v_reset;
+    segtree[p * 2].lazy_reset = true;
+
+    segtree[p * 2 + 1].v = segtree[p].v_reset;
+    segtree[p * 2 + 1].v_reset = segtree[p].v_reset;
+    segtree[p * 2 + 1].lazy_reset = true;
+
+    segtree[p].lazy_reset = false;
+}
+void segtree_init(const int p, const int l, const int r) {
+    segtree[p].l = l; segtree[p].r = r;
+    if(l == r) {
+        segtree[p].v = 1;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(p * 2, l, m);
+    segtree_init(p * 2 + 1, m + 1, r);
+    segtree_pushup(p);
+}
+void segtree_range_reset(const int p, const int l, const int r, std::bitset<32> &reset) {
+    if(l <= segtree[p].l && r >= segtree[p].r) {
+        segtree[p].v = reset;
+        segtree[p].lazy_reset = true;
+        segtree[p].v_reset = reset;
+        return;
+    }
+    segtree_pushdown(p);
+    int m = (segtree[p].l + segtree[p].r) / 2;
+    if(l <= m) { segtree_range_reset(p * 2, l, r, reset); }
+    if(r > m) { segtree_range_reset(p * 2 + 1, l, r, reset); }
+    segtree_pushup(p);
+}
+std::bitset<32> segtree_range_query(const int p, const int &l, const int &r) {
+    if(l <= segtree[p].l && r >= segtree[p].r) { return segtree[p].v; }
+    segtree_pushdown(p);
+    int m = (segtree[p].l + segtree[p].r) / 2;
+    std::bitset<32> query = 0;
+    if(l <= m) { query |= segtree_range_query(p * 2, l, r); }
+    if(r > m) { query |= segtree_range_query(p * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    int t_useless;
+    std::cin >> n >> t_useless >> q;
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 'C') {
+            std::cin >> x_temp >> y_temp >> z_temp;
+            std::bitset<32> reset = std::bitset<32>(1) << (z_temp - 1);
+            segtree_range_reset(1, std::min(x_temp, y_temp), std::max(x_temp, y_temp), reset);
+        } else if(op_temp == 'P') {
+            std::cin >> x_temp >> y_temp;
+            std::cout << segtree_range_query(1, std::min(x_temp, y_temp), std::max(x_temp, y_temp)).count() << '\n';
+        }
+    }
+}
+```
+
+> [洛谷P1972](https://www.luogu.com.cn/problem/P1972)：给定`T<=1e6`种编号未经离散化的颜色，和`n`个排成一行的格子。格子初始颜色已知且固定。现需要支持查询任意区间内所有格子的不同颜色数量。
+
+???????????????？？？？？？？？？？TODO
+
+> [洛谷P4690](https://www.luogu.com.cn/problem/P4690)（[洛谷P1558](https://www.luogu.com.cn/problem/P1558)数据加强版）：给定`T<=1e9`种编号未经离散化的颜色，和`n`个排成一行的格子。格子初始颜色编号为`a[i]`，现需要支持两种操作。（1）将区间内的所有格子涂成`z_temp`号颜色；（2）查询区间内所有格子的不同颜色数量。
+
+本题的颜色种类数进一步扩充到`1e9`，???????????????？？？？？？？？？？TODO
 
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
 
