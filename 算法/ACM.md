@@ -9697,6 +9697,58 @@ int main() {
 
 接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`bool lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。有时`v_delta`本身就可以反映出是否存在懒标记。
 
+以下为伪代码模版：
+
+```c++
+const int N_MAX = ...; // 总元素数量
+
+struct SegTree { int l, r; T v, v_delta; bool lazy_delta; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root){
+	segtree[root].v = ...; // 修改维护的值v
+}
+inline void segtree_pushdown(const int &root){
+	if(segtree[root].lazy_delta == false) { return; }
+	更新segtree[root * 2]的v、v_delta，设置懒标记;
+	更新segtree[root * 2 + 1]的v、v_delta、设置懒标记;
+	清空segtree[root]的懒标记;
+}
+void segtree_init(const int root, const int l, const int r){
+	segtree[root].l = l; segtree[root].r = r;
+	if(l == r){ // 找到了线段树上的叶子节点
+		要么提前储存a[]，现在赋值segtree[root].v = a[l];
+		要么现在读入a[l]，std::cin >> segtree[root].v;
+		return;
+	}
+	int m = (l + r) / 2;
+	segtree_init(root * 2, l, m);
+	segtree_init(root * 2 + 1, m + 1, r);
+	segtree_pushup(root);
+}
+void segtree_range_change(const int root, const int &l, const int &r, const int &delta){
+	if(l <= segtree[root].l && r >= segtree[root].r){
+		更新segtree[root].v;
+		为segtree[root]打上懒标记lazy_delta、v_delta;
+		return;
+	}
+	segtree_pushdown(root);
+	int m = (segtree[root].l + segtree[root].r) / 2;
+	if(l <= m) { segtree_range_change(root * 2, l, r, delta); }
+	if(r > m) { segtree_range_change(root * 2 + 1, l, r, delta); }
+	segtree_pushup(root);
+}
+T segtree_range_query(const int root, const int &l, const int &r){
+	if(l <= segtree[root].l && r >= segtree[root].r){
+		return segtre[root].v;
+	}
+	segtree_pushdown(root);
+	int m = (segtree[root].l + segtree[root].r) / 2;
+	T query = ...;
+	if(l <= m) { query = 更新函数(query, segtree_range_query(root * 2, l, r)); }
+	if(r > m) { query = 更新函数(query, segtree_range_query(root * 2 + 1, l, r)); }
+	return query;
+}
+```
+
 > [洛谷P3372](https://www.luogu.com.cn/problem/P3372)：维护一个`int64_t`的线段树，支持两种操作。（1）区间内所有元素都加`z_temp`；（2）查询区间内的元素之和。
 
 ```c++
@@ -9977,6 +10029,8 @@ int main() {
 
 ### §7.4.A 不可拆分性目标函数
 
+如果线段树要查询的区间值使用一个不可拆分的目标函数$f(\cdot)$给出的，那么我们可以构造一个变量数恒定的函数$h(\cdot)$和一系列可拆分的函数$g_1(\cdot),g_2(\cdot),\cdots$，使得$f(\cdot)=h(g_1(\cdot),g_2(\cdot),\cdots)$。我们只须每次`segtree_pushdown()`时维护这些$g_i$变量，在`segtree_pushup()`时现场计算即可。
+
 > [洛谷P1471](https://www.luogu.com.cn/problem/P1471)：维护一个`double`的线段树，实现三种操作。（1）区间内所有元素自增`z_temp`；（2）查询区间内所有元素的平均值；（3）查询区间内所有元素的方差。
 
 本题要查询的方差函数并不满足可拆分性。但是注意到方差$s^2(l,r) := \displaystyle\frac{1}{r-l+1}\sum_{i\in[l,r]}{(x_i-\overline{x})^2} = \frac{1}{r-l+1}\left(\sum_{i\in[l,r]}{x_i^2}-n\overline{x}^2\right)$，可以线性地分成两个满足可拆分性的函数，问题转化为维护$\displaystyle\sum_{i\in[l,r]}x_i$和$\displaystyle\sum_{i\in[l,r]}x_i^2$。
@@ -10196,6 +10250,102 @@ int main() {
 }
 ```
 
+> [洛谷P6327](https://www.luogu.com.cn/problem/P6327)：维护一个`int a[1->n]`上的`int`线段树，实现两种操作。（1）区间内所有元素自增`int z_temp`；（2）查询区间内所有元素的$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$，四舍五入精确到小数点后1位。
+
+显然$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$不满足可拆分性。但是注意到$\displaystyle \sum_{i\in[l, r]}\sin(x_i+k)=\cos(k)\sum_{i\in[l, r]}(\sin(x_i))+\sin(k)\sum_{i\in[l, r]}(\cos(x_i))$，于是只需维护$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$和$\displaystyle\sum_{i\in[l, r]}\cos(x_i)$即可。
+
+在常数优化中，我们可以复用`sin(v_incre)`和`cos(v_incre)`，避免重复计算。本题略。
+
+```c++
+const int N_MAX = 2e5, Q_MAX = 2e5;
+int n, q, op_temp, x_temp, y_temp;
+long long int a[N_MAX + 1], z_temp;
+
+struct SegTree { int l, r; double v_sumsin, v_sumcos; long long int v_incre; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sumsin = segtree[root * 2].v_sumsin + segtree[root * 2 + 1].v_sumsin;
+    segtree[root].v_sumcos = segtree[root * 2].v_sumcos + segtree[root * 2 + 1].v_sumcos;
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].v_incre == 0) { return; }
+    double new_sumsin, new_sumcos;
+
+    segtree[root * 2].v_incre += segtree[root].v_incre;
+    new_sumsin = std::cos(segtree[root].v_incre) * segtree[root * 2].v_sumsin + std::sin(segtree[root].v_incre) * segtree[root * 2].v_sumcos;
+    new_sumcos = std::cos(segtree[root].v_incre) * segtree[root * 2].v_sumcos - std::sin(segtree[root].v_incre) * segtree[root * 2].v_sumsin;
+    segtree[root * 2].v_sumsin = new_sumsin;
+    segtree[root * 2].v_sumcos = new_sumcos;
+
+    segtree[root * 2 + 1].v_incre += segtree[root].v_incre;
+    new_sumsin = std::cos(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumsin + std::sin(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumcos;
+    new_sumcos = std::cos(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumcos - std::sin(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumsin;
+    segtree[root * 2 + 1].v_sumsin = new_sumsin;
+    segtree[root * 2 + 1].v_sumcos = new_sumcos;
+    
+    segtree[root].v_incre = 0;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sumsin = std::sin(a[l]);
+        segtree[root].v_sumcos = std::cos(a[l]);
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_incre(const int root, const int &l, const int &r, const long long int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_incre += incre;
+        double new_sumsin = std::cos(incre) * segtree[root].v_sumsin + std::sin(incre) * segtree[root].v_sumcos;
+        double new_sumcos = std::cos(incre) * segtree[root].v_sumcos - std::sin(incre) * segtree[root].v_sumsin;
+        segtree[root].v_sumsin = new_sumsin;
+        segtree[root].v_sumcos = new_sumcos;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_incre(root * 2, l, r, incre); }
+    if(r > m) { segtree_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+std::pair<double, double> segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return {segtree[root].v_sumsin, segtree[root].v_sumcos}; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    std::pair<double, double> query = {0, 0};
+    if(l <= m) {
+        std::pair<double, double> sub_query = segtree_range_query(root * 2, l, r);
+        query.first += sub_query.first;
+        query.second += sub_query.second;
+    }
+    if(r > m) {
+        std::pair<double, double> sub_query = segtree_range_query(root * 2 + 1, l, r);
+        query.first += sub_query.first;
+        query.second += sub_query.second;
+    }
+    return query;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_range_incre(1, x_temp, y_temp, z_temp);
+        } else {
+            std::cout << std::fixed << std::setprecision(1) << segtree_range_query(1, x_temp, y_temp).first << '\n';
+        }
+    }
+}
+```
+
 ### §7.4.B 区间染色数问题
 
 > [洛谷P1558](https://www.luogu.com.cn/problem/P1558)：给定`T<=30`种编号从`1`开始递增的颜色，和`n`个排成一行的格子。格子初始颜色均为`1`号颜色，现需要支持两种操作。（1）将区间内的所有格子涂成`z_temp`号颜色；（2）查询区间内所有格子的不同颜色数量。
@@ -10296,6 +10446,14 @@ for(int i = 2; i <= n; ++i) {
     }
 }
 ```
+
+### §7.4.C 非恒等修改函数
+
+在之前的例题中，我们在进行区间修改时，修改后的值$v'=f(v)$使用的修改函数是一致的。本节将介绍不一致的修改函数。这类题的核心是找到一对函数$g(\cdot),h(\cdot)$满足$v'=h(g(v))$，其中$g(v)$是恒等的修改函数，令线段树维护的值从$v$变为$g(v)$。
+
+> [洛谷P1438](https://www.luogu.com.cn/problem/P1438)：给定数组`a[1->n]`，维护一个`long long int`线段树，支持两种操作。（1）给定一个首项为`k_temp`、公差为`d_temp`的等差数列，将其按顺序叠加到给定的`[l_temp, r_temp]`区间上；（2）单点查询某个元素的值。
+
+线段树存储的是原数组`a[]`的差分数组`a_delta[]`，维护区间和即可。TODO：？？？？？？？？？？？
 
 ## §7.5 堆
 
