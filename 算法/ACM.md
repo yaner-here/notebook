@@ -10346,6 +10346,129 @@ int main() {
 }
 ```
 
+> [洛谷P4513](https://www.luogu.com.cn/problem/P4513)：为`int a[1->n]`维护一个`int`线段树，支持两种操作。（1）查询给定的区间`[x_temp, y_temp]`中，任意连续子区间内元素之和的最大值；（2）单点修改`a[x_temp]`的值为`y_temp`。
+
+为了维护任意连续子区间内元素之和的最大值`v_summax`，我们需要额外维护三个变量：
+
+- `v_lsummax`：从区间的最左侧开始，至少选择一个元素，向右扩展而成的连续子区间中，各元素之和的最大值。
+- `v_rsummax`：从区间的最右侧开始，至少选择一个元素，向左扩展而成的连续子区间中，各元素之和的最大值。
+- `v_sum`：该区间内所有元素之和。
+
+在`segtree_pushup()`中，当`root`的节点的左右子节点合并时，这四个变量的更新规则为：
+
+- `v_sum`：直接相加即可。
+- `v_lsummax`：欲求的区间有两种可能，要么只在左半区间，要么横跨两个区间，取最大值即可。
+- `v_rsummax`：欲求的区间有两种可能，要么只在右半区间，要么横跨两个区间，取最大值即可。
+- `v_summax`：欲求的区间有三种可能，要么只在左半区间，要么只在右半区间，要么横跨两个区间，取最大值即可。
+
+需要注意的是，**`segtree_range_query()`对某个子区间的查询结果必须包括上述四个变量**，才能与其它子区间的结果一起向上推导。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 1e5;
+int n, q, a[N_MAX + 1], op_temp, x_temp, y_temp;
+
+struct SegTree {
+    int l, r;
+    int v_sum, v_lsummax, v_rsummax, v_summax;
+    bool lazy_reset;
+    int v_reset;
+} segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_lsummax = std::max(segtree[root * 2].v_lsummax, segtree[root * 2].v_sum + segtree[root * 2 + 1].v_lsummax);
+    segtree[root].v_rsummax = std::max(segtree[root * 2 + 1].v_rsummax, segtree[root * 2 + 1].v_sum + segtree[root * 2].v_rsummax);
+    segtree[root].v_summax = std::max({
+        segtree[root * 2].v_summax,
+        segtree[root * 2 + 1].v_summax, 
+        segtree[root * 2].v_rsummax + segtree[root * 2 + 1].v_lsummax
+    });
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_reset == false) { return; }
+
+    segtree[root * 2].v_sum = segtree[root].v_reset * (segtree[root * 2].r - segtree[root * 2].l + 1);
+    segtree[root * 2].v_lsummax = std::max(segtree[root * 2].v_sum, segtree[root].v_reset);
+    segtree[root * 2].v_rsummax = segtree[root * 2].v_lsummax;
+    segtree[root * 2].v_summax = segtree[root * 2].v_lsummax;
+    segtree[root * 2].lazy_reset = segtree[root].lazy_reset;
+    segtree[root * 2].v_reset = segtree[root].v_reset;
+
+    segtree[root * 2 + 1].v_sum = segtree[root].v_reset * (segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1);
+    segtree[root * 2 + 1].v_lsummax = std::max(segtree[root * 2 + 1].v_sum, segtree[root].v_reset);
+    segtree[root * 2 + 1].v_rsummax = segtree[root * 2 + 1].v_lsummax;
+    segtree[root * 2 + 1].v_summax = segtree[root * 2 + 1].v_lsummax;
+    segtree[root * 2 + 1].lazy_reset = segtree[root].lazy_reset;
+    segtree[root * 2 + 1].v_reset = segtree[root].v_reset;
+
+    segtree[root].lazy_reset = false;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l;
+    segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        segtree[root].v_lsummax = a[l];
+        segtree[root].v_rsummax = a[l];
+        segtree[root].v_summax = a[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_reset(const int root, const int &l, const int &r, const int &reset) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_sum = reset * (segtree[root].r - segtree[root].l + 1);
+        segtree[root].v_lsummax = std::max(segtree[root].v_sum, reset);
+        segtree[root].v_rsummax = segtree[root].v_lsummax;
+        segtree[root].v_summax = segtree[root].v_lsummax;
+        segtree[root].lazy_reset = true;
+        segtree[root].v_reset = reset;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_reset(root * 2, l, r, reset); }
+    if(r > m) { segtree_range_reset(root * 2 + 1, l, r, reset); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r);
+    SegTree query;
+    query.l = l; query.r = r;
+    query.v_sum = query_l.v_sum + query_r.v_sum;
+    query.v_lsummax = std::max(query_l.v_lsummax, query_l.v_sum + query_r.v_lsummax);
+    query.v_rsummax = std::max(query_r.v_rsummax, query_r.v_sum + query_l.v_rsummax);
+    query.v_summax = std::max({
+        query_l.v_summax, 
+        query_r.v_summax, 
+        query_l.v_rsummax + query_r.v_lsummax
+    });
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            if(x_temp > y_temp) { std::swap(x_temp, y_temp); }
+            std::cout << segtree_range_query(1, x_temp, y_temp).v_summax << '\n';
+        } else if(op_temp == 2) {
+            segtree_range_reset(1, x_temp, x_temp, y_temp);
+        }
+    }
+}
+```
+
 ### §7.4.B 区间染色数问题
 
 > [洛谷P1558](https://www.luogu.com.cn/problem/P1558)：给定`T<=30`种编号从`1`开始递增的颜色，和`n`个排成一行的格子。格子初始颜色均为`1`号颜色，现需要支持两种操作。（1）将区间内的所有格子涂成`z_temp`号颜色；（2）查询区间内所有格子的不同颜色数量。
