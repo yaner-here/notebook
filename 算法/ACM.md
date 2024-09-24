@@ -10350,6 +10350,104 @@ int main() {
 }
 ```
 
+> [洛谷P6327](https://www.luogu.com.cn/problem/P6327)：维护一个`int a[1->n]`上的`int`线段树，实现两种操作。（1）区间内所有元素自增`int z_temp`；（2）查询区间内所有元素的$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$，四舍五入精确到小数点后1位。
+
+显然$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$不满足可拆分性。但是注意到$\displaystyle \sum_{i\in[l, r]}\sin(x_i+k)=\cos(k)\sum_{i\in[l, r]}(\sin(x_i))+\sin(k)\sum_{i\in[l, r]}(\cos(x_i))$，于是只需维护$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$和$\displaystyle\sum_{i\in[l, r]}\cos(x_i)$即可。
+
+在常数优化中，我们可以复用`sin(v_incre)`和`cos(v_incre)`，避免重复计算。本题略。
+
+```c++
+const int N_MAX = 2e5, Q_MAX = 2e5;
+int n, q, op_temp, x_temp, y_temp;
+long long int a[N_MAX + 1], z_temp;
+
+struct SegTree { int l, r; double v_sumsin, v_sumcos; long long int v_incre; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sumsin = segtree[root * 2].v_sumsin + segtree[root * 2 + 1].v_sumsin;
+    segtree[root].v_sumcos = segtree[root * 2].v_sumcos + segtree[root * 2 + 1].v_sumcos;
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].v_incre == 0) { return; }
+    double new_sumsin, new_sumcos;
+
+    segtree[root * 2].v_incre += segtree[root].v_incre;
+    new_sumsin = std::cos(segtree[root].v_incre) * segtree[root * 2].v_sumsin + std::sin(segtree[root].v_incre) * segtree[root * 2].v_sumcos;
+    new_sumcos = std::cos(segtree[root].v_incre) * segtree[root * 2].v_sumcos - std::sin(segtree[root].v_incre) * segtree[root * 2].v_sumsin;
+    segtree[root * 2].v_sumsin = new_sumsin;
+    segtree[root * 2].v_sumcos = new_sumcos;
+
+    segtree[root * 2 + 1].v_incre += segtree[root].v_incre;
+    new_sumsin = std::cos(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumsin + std::sin(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumcos;
+    new_sumcos = std::cos(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumcos - std::sin(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumsin;
+    segtree[root * 2 + 1].v_sumsin = new_sumsin;
+    segtree[root * 2 + 1].v_sumcos = new_sumcos;
+    
+    segtree[root].v_incre = 0;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sumsin = std::sin(a[l]);
+        segtree[root].v_sumcos = std::cos(a[l]);
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_incre(const int root, const int &l, const int &r, const long long int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_incre += incre;
+        double new_sumsin = std::cos(incre) * segtree[root].v_sumsin + std::sin(incre) * segtree[root].v_sumcos;
+        double new_sumcos = std::cos(incre) * segtree[root].v_sumcos - std::sin(incre) * segtree[root].v_sumsin;
+        segtree[root].v_sumsin = new_sumsin;
+        segtree[root].v_sumcos = new_sumcos;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_incre(root * 2, l, r, incre); }
+    if(r > m) { segtree_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+std::pair<double, double> segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return {segtree[root].v_sumsin, segtree[root].v_sumcos}; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    std::pair<double, double> query = {0, 0};
+    if(l <= m) {
+        std::pair<double, double> sub_query = segtree_range_query(root * 2, l, r);
+        query.first += sub_query.first;
+        query.second += sub_query.second;
+    }
+    if(r > m) {
+        std::pair<double, double> sub_query = segtree_range_query(root * 2 + 1, l, r);
+        query.first += sub_query.first;
+        query.second += sub_query.second;
+    }
+    return query;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_range_incre(1, x_temp, y_temp, z_temp);
+        } else {
+            std::cout << std::fixed << std::setprecision(1) << segtree_range_query(1, x_temp, y_temp).first << '\n';
+        }
+    }
+}
+```
+
+#### §7.4.A.1 区间连续段拼接函数
+
 > [洛谷P2894](https://www.luogu.com.cn/problem/P2894)：给定`n`个排成一行、初始为空的房间，支持以下操作。（1）从左开始查找第一个“连续`y_temp`个房间均为空”的区间，占用这些房间，并输出其左闭端点；（2）重置区间内的所有房间为空。
 
 本题的关键在于设计可以拆分的目标函数。如果只令`v_len`为区间内的最长连续空房间长度，则左右节点的两个`v_len`无法推导出当前节点的`v_len`。**我们还需要维护`v_llen`和`v_rlen`，分别表示在当前区间中，从区间的最左/右侧起，向中间延伸的最长连续空房间长度**。
@@ -10480,102 +10578,6 @@ int main() {
 }
 ```
 
-> [洛谷P6327](https://www.luogu.com.cn/problem/P6327)：维护一个`int a[1->n]`上的`int`线段树，实现两种操作。（1）区间内所有元素自增`int z_temp`；（2）查询区间内所有元素的$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$，四舍五入精确到小数点后1位。
-
-显然$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$不满足可拆分性。但是注意到$\displaystyle \sum_{i\in[l, r]}\sin(x_i+k)=\cos(k)\sum_{i\in[l, r]}(\sin(x_i))+\sin(k)\sum_{i\in[l, r]}(\cos(x_i))$，于是只需维护$\displaystyle\sum_{i\in[l, r]}\sin(x_i)$和$\displaystyle\sum_{i\in[l, r]}\cos(x_i)$即可。
-
-在常数优化中，我们可以复用`sin(v_incre)`和`cos(v_incre)`，避免重复计算。本题略。
-
-```c++
-const int N_MAX = 2e5, Q_MAX = 2e5;
-int n, q, op_temp, x_temp, y_temp;
-long long int a[N_MAX + 1], z_temp;
-
-struct SegTree { int l, r; double v_sumsin, v_sumcos; long long int v_incre; } segtree[N_MAX * 4 + 1];
-inline void segtree_pushup(const int &root) {
-    segtree[root].v_sumsin = segtree[root * 2].v_sumsin + segtree[root * 2 + 1].v_sumsin;
-    segtree[root].v_sumcos = segtree[root * 2].v_sumcos + segtree[root * 2 + 1].v_sumcos;
-}
-inline void segtree_pushdown(const int &root) {
-    if(segtree[root].v_incre == 0) { return; }
-    double new_sumsin, new_sumcos;
-
-    segtree[root * 2].v_incre += segtree[root].v_incre;
-    new_sumsin = std::cos(segtree[root].v_incre) * segtree[root * 2].v_sumsin + std::sin(segtree[root].v_incre) * segtree[root * 2].v_sumcos;
-    new_sumcos = std::cos(segtree[root].v_incre) * segtree[root * 2].v_sumcos - std::sin(segtree[root].v_incre) * segtree[root * 2].v_sumsin;
-    segtree[root * 2].v_sumsin = new_sumsin;
-    segtree[root * 2].v_sumcos = new_sumcos;
-
-    segtree[root * 2 + 1].v_incre += segtree[root].v_incre;
-    new_sumsin = std::cos(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumsin + std::sin(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumcos;
-    new_sumcos = std::cos(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumcos - std::sin(segtree[root].v_incre) * segtree[root * 2 + 1].v_sumsin;
-    segtree[root * 2 + 1].v_sumsin = new_sumsin;
-    segtree[root * 2 + 1].v_sumcos = new_sumcos;
-    
-    segtree[root].v_incre = 0;
-}
-void segtree_init(const int root, const int l, const int r) {
-    segtree[root].l = l; segtree[root].r = r;
-    if(l == r) {
-        segtree[root].v_sumsin = std::sin(a[l]);
-        segtree[root].v_sumcos = std::cos(a[l]);
-        return;
-    }
-    int m = (l + r) / 2;
-    segtree_init(root * 2, l, m);
-    segtree_init(root * 2 + 1, m + 1, r);
-    segtree_pushup(root);
-}
-void segtree_range_incre(const int root, const int &l, const int &r, const long long int &incre) {
-    if(l <= segtree[root].l && r >= segtree[root].r) {
-        segtree[root].v_incre += incre;
-        double new_sumsin = std::cos(incre) * segtree[root].v_sumsin + std::sin(incre) * segtree[root].v_sumcos;
-        double new_sumcos = std::cos(incre) * segtree[root].v_sumcos - std::sin(incre) * segtree[root].v_sumsin;
-        segtree[root].v_sumsin = new_sumsin;
-        segtree[root].v_sumcos = new_sumcos;
-        return;
-    }
-    segtree_pushdown(root);
-    int m = (segtree[root].l + segtree[root].r) / 2;
-    if(l <= m) { segtree_range_incre(root * 2, l, r, incre); }
-    if(r > m) { segtree_range_incre(root * 2 + 1, l, r, incre); }
-    segtree_pushup(root);
-}
-std::pair<double, double> segtree_range_query(const int root, const int &l, const int &r) {
-    if(l <= segtree[root].l && r >= segtree[root].r) { return {segtree[root].v_sumsin, segtree[root].v_sumcos}; }
-    segtree_pushdown(root);
-    int m = (segtree[root].l + segtree[root].r) / 2;
-    std::pair<double, double> query = {0, 0};
-    if(l <= m) {
-        std::pair<double, double> sub_query = segtree_range_query(root * 2, l, r);
-        query.first += sub_query.first;
-        query.second += sub_query.second;
-    }
-    if(r > m) {
-        std::pair<double, double> sub_query = segtree_range_query(root * 2 + 1, l, r);
-        query.first += sub_query.first;
-        query.second += sub_query.second;
-    }
-    return query;
-}
-
-int main() {
-    std::cin >> n;
-    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
-    segtree_init(1, 1, n);
-    std::cin >> q;
-    for(int i = 1; i <= q; ++i) {
-        std::cin >> op_temp >> x_temp >> y_temp;
-        if(op_temp == 1) {
-            std::cin >> z_temp;
-            segtree_range_incre(1, x_temp, y_temp, z_temp);
-        } else {
-            std::cout << std::fixed << std::setprecision(1) << segtree_range_query(1, x_temp, y_temp).first << '\n';
-        }
-    }
-}
-```
-
 > [洛谷P4513](https://www.luogu.com.cn/problem/P4513)：为`int a[1->n]`维护一个`int`线段树，支持两种操作。（1）查询给定的区间`[x_temp, y_temp]`中，任意连续子区间内元素之和的最大值；（2）单点修改`a[x_temp]`的值为`y_temp`。
 
 为了维护任意连续子区间内元素之和的最大值`v_summax`，我们需要额外维护三个变量：
@@ -10694,6 +10696,131 @@ int main() {
             std::cout << segtree_range_query(1, x_temp, y_temp).v_summax << '\n';
         } else if(op_temp == 2) {
             segtree_range_reset(1, x_temp, x_temp, y_temp);
+        }
+    }
+}
+```
+
+#### §7.4.A.2 子区间全排列函数
+
+> [洛谷P6225](https://www.luogu.com.cn/problem/P6225)：维护`int a[1->n]`上的`int`线段树，实现以下操作。（1）单点修改；（2）查询区间内所有子区间内所有元素的异或和的异或和$\displaystyle\bigoplus_{\forall [i,j]\subseteq[l, r]}\left(\bigoplus_{\forall k\in[i,j]}a[k]\right)$。
+
+注意到异或的性质$x\oplus x = 0$，显然要找规律，判断某个元素`a[i]`在目标函数中出现次数的奇偶性。我们直接打表找规律：
+
+| `[l, r]` | 异或和目标函数          |
+| -------- | ---------------- |
+| `[1, 1]` | `a[1]`           |
+| `[1, 2]` | `0`              |
+| `[1, 3]` | `a[1]^a[3]`      |
+| `[1, 4]` | `0`              |
+| `[1, 5]` | `a[1]^a[3]^a[5]` |
+
+容易得出结论：若查询区间长度为偶数，而结果为`0`；若查询区间长度为奇数，则隔一个数异或一次。于是容易想到：让线段树维护两种值，分别是位于查询区间内、相对序号（从`1`开始数）分别为奇数/偶数的元素异或和`v_lsum`/`v_rsum`。
+
+本题的易错点在于`segtree_range_query()`中对左右子区间查询结果的合并。合并策略取决于左子区间的长度，而这个长度`query_l.r - query_l.l + 1`并不容易维护。对于总查询区间`[l, r]`而言，如果当前线段树节点表示的范围为`[segtree[root].l, segtree[root].r]`，则`query.l`/`query.r`必须满足以下条件：
+
+- `query.l`/`query.r`必须在总查询区间`[l, r]`中，即`query.l >= l`/`query.r <= r`。
+- `query.l`/`query.r`必须在当前线段树节点的表示范围`[segtree[root].l, ]`中，即`query.l >= segtree[root].l`/`query.r <= segtree[root].r`。
+
+综上所述，`query.l`/`query.r`分别由`std::max()`/`std::min()`给出。**这样我们才能准确地得到左子查询区间的长度**。
+
+```c++
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    const SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r);
+    SegTree query;
+	query.v_lsum = query_l.v_lsum; query.v_rsum = query_l.v_rsum;
+    query.l = std::max(segtree[root].l, l); // 易错点
+    query.r = std::min(segtree[root].r, r); // 易错点
+    // 错误写法: if((m - segtree[root].l + 1) % 2 == 1) {
+    // 错误写法: if((m - l + 1) % 2 == 1) {
+    // 正确写法: if((m - std::max(segtree[root].l, l) + 1) % 2 == 1) {
+    if((query_l.r - query_l.l + 1) % 2 == 1) { // 正确写法
+        query.v_lsum ^= query_r.v_rsum;
+        query.v_rsum ^= query_r.v_lsum;
+    } else {
+        query.v_lsum ^= query_r.v_lsum;
+        query.v_rsum ^= query_r.v_rsum;
+    }
+    return query;
+}
+```
+
+正确代码如下所示。
+
+```c++
+const int N_MAX = 2e5, Q_MAX = 2e5;
+int n, q, op_temp, x_temp, y_temp;
+
+struct SegTree { int l, r; int v_lsum, v_rsum; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_lsum = segtree[root * 2].v_lsum; segtree[root].v_rsum = segtree[root * 2].v_rsum;
+    if((segtree[root * 2].r - segtree[root * 2].l + 1) % 2 == 1) {
+        segtree[root].v_lsum ^= segtree[root * 2 + 1].v_rsum;
+        segtree[root].v_rsum ^= segtree[root * 2 + 1].v_lsum;
+    } else {
+        segtree[root].v_lsum ^= segtree[root * 2 + 1].v_lsum;
+        segtree[root].v_rsum ^= segtree[root * 2 + 1].v_rsum;
+    }
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        std::cin >> segtree[root].v_lsum;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_reset(const int root, const int &target, const int &reset) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_lsum = reset;
+        segtree[root].v_rsum = 0;
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_reset(root * 2, target, reset); }
+    if(target > m) { segtree_reset(root * 2 + 1, target, reset); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    const SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r);
+    SegTree query;
+    query.l = std::max(segtree[root].l, l);
+    query.r = std::min(segtree[root].r, r);
+    query.v_lsum = query_l.v_lsum; query.v_rsum = query_l.v_rsum;
+    if((query_l.r - query_l.l + 1) % 2 == 1) {
+        query.v_lsum ^= query_r.v_rsum;
+        query.v_rsum ^= query_r.v_lsum;
+    } else {
+        query.v_lsum ^= query_r.v_lsum;
+        query.v_rsum ^= query_r.v_rsum;
+    }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            segtree_reset(1, x_temp, y_temp);
+        } else if(op_temp == 2) {
+            if((y_temp - x_temp + 1) % 2 == 1) {
+                std::cout << segtree_range_query(1, x_temp, y_temp).v_lsum << '\n';
+            }else{
+                std::cout << "0\n";
+            }
         }
     }
 }
