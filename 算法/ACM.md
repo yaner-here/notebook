@@ -10027,6 +10027,236 @@ int main() {
 }
 ```
 
+> [洛谷P2572](https://www.luogu.com.cn/problem/P2572)：为`bool a[1->n]`维护一个`bool`线段树，要求支持五种操作。（1）区间置为`false`；（2）区间置为`true`；（3）区间取反；（4）查询区间内`true`的数量；（5）查询区间内最长连续`true`的长度。
+
+本题需要维护八个变量与两个懒标记：
+
+- `v_sum0`/`v_sum1`：统计区间内`false`/`true`的个数
+- `v_lcont0`/`v_lcont1`：统计从区间左侧开始的最长连续`false`/`true`的长度
+- `v_rcont0`/`v_rcont1`：统计从区间右侧开始的最长连续`false`/`true`的长度
+- `v_cont0`/`v_cont1`：统计区间内最长连续`false`/`true`的长度
+- `v_reset`、`lazy_reset`：重置懒标记
+- `lazy_reverse`：反转懒标记
+
+本题的重点是多个懒标记的优先级。不妨认为重置的优先级更高，因为一旦执行重置，反转操作就会失效。于是函数设计如下：
+
+- `segtree_range_reset()`：一旦执行重置，则为当前节点添加重置懒标记，**取消反转懒标记**。
+- `segtree_range_reverse()`：执行到这一步时，当前节点已经完成了重置操作。一旦执行反转，则在此基础上直接反转，并**为当前节点打上反转懒标记**。
+- `segtree_range_pushdown()`：如果反转懒标记和重置懒标记同时存在，**一定要先重置，再反转**。执行重置后，**取消当前节点的重置懒标记**。执行反转懒标记后，**取消当前节点的反转懒标记**。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, a[N_MAX + 1], op_temp, x_temp, y_temp;
+
+struct SegTree {
+    int l, r;
+    int v_sum0, v_sum1, v_lcont0, v_lcont1, v_rcont0, v_rcont1, v_cont0, v_cont1;
+    int v_reset;
+    bool lazy_reset, lazy_reverse;
+} segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum0 = segtree[root * 2].v_sum0 + segtree[root * 2 + 1].v_sum0;
+    segtree[root].v_sum1 = segtree[root * 2].v_sum1 + segtree[root * 2 + 1].v_sum1;
+    segtree[root].v_lcont0 = (segtree[root * 2].v_lcont0 == segtree[root * 2].r - segtree[root * 2].l + 1) ? (segtree[root * 2].v_lcont0 + segtree[root * 2 + 1].v_lcont0) : (segtree[root * 2].v_lcont0);
+    segtree[root].v_lcont1 = (segtree[root * 2].v_lcont1 == segtree[root * 2].r - segtree[root * 2].l + 1) ? (segtree[root * 2].v_lcont1 + segtree[root * 2 + 1].v_lcont1) : (segtree[root * 2].v_lcont1);
+    segtree[root].v_rcont0 = (segtree[root * 2 + 1].v_rcont0 == segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1) ? (segtree[root * 2 + 1].v_rcont0 + segtree[root * 2].v_rcont0) : (segtree[root * 2 + 1].v_rcont0);
+    segtree[root].v_rcont1 = (segtree[root * 2 + 1].v_rcont1 == segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1) ? (segtree[root * 2 + 1].v_rcont1 + segtree[root * 2].v_rcont1) : (segtree[root * 2 + 1].v_rcont1);
+    segtree[root].v_cont0 = std::max({segtree[root * 2].v_cont0, segtree[root * 2 + 1].v_cont0, segtree[root * 2].v_rcont0 + segtree[root * 2 + 1].v_lcont0});
+    segtree[root].v_cont1 = std::max({segtree[root * 2].v_cont1, segtree[root * 2 +1].v_cont1, segtree[root * 2].v_rcont1 + segtree[root * 2 + 1].v_lcont1});
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_reset == false && segtree[root].lazy_reverse == false) { return; }
+    if(segtree[root].lazy_reset == true) {
+        if(segtree[root].v_reset == 1) {
+            segtree[root * 2].v_sum0 = segtree[root * 2].v_lcont0 = segtree[root * 2].v_rcont0 = segtree[root * 2].v_cont0 = 0;
+            segtree[root * 2].v_sum1 = segtree[root * 2].v_lcont1 = segtree[root * 2].v_rcont1 = segtree[root * 2].v_cont1 = segtree[root * 2].r - segtree[root * 2].l + 1;
+            segtree[root * 2 + 1].v_sum0 = segtree[root * 2 + 1].v_lcont0 = segtree[root * 2 + 1].v_rcont0 = segtree[root * 2 + 1].v_cont0 = 0;
+            segtree[root * 2 + 1].v_sum1 = segtree[root * 2 + 1].v_lcont1 = segtree[root * 2 + 1].v_rcont1 = segtree[root * 2 + 1].v_cont1 = segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1;
+        } else if(segtree[root].v_reset == 0) {
+            segtree[root * 2].v_sum0 = segtree[root * 2].v_lcont0 = segtree[root * 2].v_rcont0 = segtree[root * 2].v_cont0 = segtree[root * 2].r - segtree[root * 2].l + 1;
+            segtree[root * 2].v_sum1 = segtree[root * 2].v_lcont1 = segtree[root * 2].v_rcont1 = segtree[root * 2].v_cont1 = 0;
+            segtree[root * 2 + 1].v_sum0 = segtree[root * 2 + 1].v_lcont0 = segtree[root * 2 + 1].v_rcont0 = segtree[root * 2 + 1].v_cont0 = segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1;
+            segtree[root * 2 + 1].v_sum1 = segtree[root * 2 + 1].v_lcont1 = segtree[root * 2 + 1].v_rcont1 = segtree[root * 2 + 1].v_cont1 = 0;
+        }
+        segtree[root * 2].v_reset = segtree[root].v_reset;
+        segtree[root * 2].lazy_reset = true;
+        segtree[root * 2].lazy_reverse = false;
+        segtree[root * 2 + 1].lazy_reset = true;
+        segtree[root * 2 + 1].lazy_reverse = false;
+        segtree[root * 2 + 1].v_reset = segtree[root].v_reset;
+        segtree[root].lazy_reset = false;
+    }
+    if(segtree[root].lazy_reverse == true) {
+        std::swap(segtree[root * 2].v_sum0, segtree[root * 2].v_sum1);
+        std::swap(segtree[root * 2].v_lcont0, segtree[root * 2].v_lcont1);
+        std::swap(segtree[root * 2].v_rcont0, segtree[root * 2].v_rcont1);
+        std::swap(segtree[root * 2].v_cont0, segtree[root * 2].v_cont1);
+        segtree[root * 2].lazy_reverse ^= segtree[root].lazy_reverse;
+        std::swap(segtree[root * 2 + 1].v_sum0, segtree[root * 2 + 1].v_sum1);
+        std::swap(segtree[root * 2 + 1].v_lcont0, segtree[root * 2 + 1].v_lcont1);
+        std::swap(segtree[root * 2 + 1].v_rcont0, segtree[root * 2 + 1].v_rcont1);
+        std::swap(segtree[root * 2 + 1].v_cont0, segtree[root * 2 + 1].v_cont1);
+        segtree[root * 2 + 1].lazy_reverse ^= segtree[root].lazy_reverse;
+        segtree[root].lazy_reverse = false;
+    }
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum0 = segtree[root].v_lcont0 = segtree[root].v_rcont0 = segtree[root].v_cont0 = (a[l] == 0);
+        segtree[root].v_sum1 = segtree[root].v_lcont1 = segtree[root].v_rcont1 = segtree[root].v_cont1 = 1 - segtree[root].v_sum0;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_reset(const int root, const int &l, const int &r, const int &reset) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        if(reset == 1) {
+            segtree[root].v_sum0 = segtree[root].v_lcont0 = segtree[root].v_rcont0 = segtree[root].v_cont0 = 0;
+            segtree[root].v_sum1 = segtree[root].v_lcont1 = segtree[root].v_rcont1 = segtree[root].v_cont1 = segtree[root].r - segtree[root].l + 1;
+        } else if(reset == 0) {
+            segtree[root].v_sum0 = segtree[root].v_lcont0 = segtree[root].v_rcont0 = segtree[root].v_cont0 = segtree[root].r - segtree[root].l + 1;
+            segtree[root].v_sum1 = segtree[root].v_lcont1 = segtree[root].v_rcont1 = segtree[root].v_cont1 = 0;
+        }
+        segtree[root].v_reset = reset;
+        segtree[root].lazy_reset = true; // reset强于reverse，懒标记同时出现时先reset再reverse
+        segtree[root].lazy_reverse = false;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_reset(root * 2, l, r, reset); }
+    if(r > m) { segtree_range_reset(root * 2 + 1, l, r, reset); }
+    segtree_pushup(root);
+}
+void segtree_range_reverse(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        std::swap(segtree[root].v_sum0, segtree[root].v_sum1);
+        std::swap(segtree[root].v_lcont0, segtree[root].v_lcont1);
+        std::swap(segtree[root].v_rcont0, segtree[root].v_rcont1);
+        std::swap(segtree[root].v_cont0, segtree[root].v_cont1);
+        segtree[root].lazy_reverse = !segtree[root].lazy_reverse;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_reverse(root * 2, l, r); }
+    if(r > m) { segtree_range_reverse(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    const SegTree query_l = segtree_range_query(root * 2, l, r);
+    const SegTree query_r = segtree_range_query(root * 2 + 1, l, r);
+    SegTree query;
+    query.v_sum0 = query_l.v_sum0 + query_r.v_sum0;
+    query.v_sum1 = query_l.v_sum1 + query_r.v_sum1;
+    query.v_lcont0 = (query_l.v_lcont0 == query_l.r - query_l.l + 1) ? (query_l.v_lcont0 + query_r.v_lcont0) : (query_l.v_lcont0);
+    query.v_lcont1 = (query_l.v_lcont1 == query_l.r - query_l.l + 1) ? (query_l.v_lcont1 + query_r.v_lcont1) : (query_l.v_lcont1);
+    query.v_rcont0 = (query_r.v_rcont0 == query_r.r - query_r.l + 1) ? (query_r.v_rcont0 + query_l.v_rcont0) : (query_r.v_rcont0);
+    query.v_rcont1 = (query_r.v_rcont1 == query_r.r - query_r.l + 1) ? (query_r.v_rcont1 + query_l.v_rcont1) : (query_r.v_rcont1);
+    query.v_cont0 = std::max({query_l.v_cont0, query_r.v_cont0, query_l.v_rcont0 + query_r.v_lcont0});
+    query.v_cont1 = std::max({query_l.v_cont1, query_r.v_cont1, query_l.v_rcont1 + query_r.v_lcont1});
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        ++x_temp; ++y_temp;
+        if(op_temp == 0) {
+            segtree_range_reset(1, x_temp, y_temp, 0);
+        } else if(op_temp == 1) {
+            segtree_range_reset(1, x_temp, y_temp, 1);
+        } else if(op_temp == 2) {
+            segtree_range_reverse(1, x_temp, y_temp);
+        } else if(op_temp == 3) {
+            std::cout << segtree_range_query(1, x_temp, y_temp).v_sum1 << '\n';
+        } else if(op_temp == 4) {
+            std::cout << segtree_range_query(1, x_temp, y_temp).v_cont1 << '\n';
+        }
+    }
+}
+```
+
+### §7.4.3 小清新线段树
+
+如果线段树上对区间修改的恒等函数$f(\cdot)$在$k$次迭代的过程中，总存在一个迭代次数上界$k^*$，使得对于任意取值范围$\mathcal{V}$内的$v\in\mathcal{V}$，$f^{(k^*)}(v)$总为定值$v^*$，则这样的线段树称为“小清新线段树”。针对小清新线段树，我们可以实时记录区间内各个元素的最小迭代次数$k'$，如果$k'\ge k^*$，则不必再更新这段区间；也可以维护区间内的元素是否均为$v^*$，如果是，则不必再更新这段区间。因此**小清新线段树的本质是带有剪枝的线段树**。
+
+> [洛谷P4145](https://www.luogu.com.cn/problem/P4145)：为`long long int a[1->n<=1e5]<=1e12`维护一个`long long int`线段树，实现两种操作。（1）对区间内所有元素开平方根后，向下取整；（2）查询区间内各元素之和。
+
+显然$f(v)=\lfloor\sqrt{v}\rfloor$不满足可拆分性。然而注意到$\forall v\in[0, 10^{12}]$，必定存在迭代次数上界$k^*=6$，使得$f^{(k^*)}(v)=1$。于是我们的思路是同时维护区间内的元素之和与元素最大值，进行**单点修改**和区间查询。这样可以保证时间复杂度上限为常数$O(N_{\mathrm{max}}\cdot k^*)=O(6\times {10}^5)$，可以通过本题。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp;
+long long int a[N_MAX + 1];
+
+struct SegTree { int l, r; long long int v_sum, v_max; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_max = std::max(segtree[root * 2].v_max, segtree[root * 2 + 1].v_max);
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        segtree[root].v_max = a[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_sqrt(const int root, const int &l, const int &r) {
+    if(segtree[root].v_max <= 1) { return; } // 剪枝
+    if(segtree[root].l == segtree[root].r) { // 单点修改
+        segtree[root].v_sum = std::sqrt(segtree[root].v_sum);
+        segtree[root].v_max = segtree[root].v_sum;
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_sqrt(root * 2, l, r); }
+    if(r > m) { segtree_range_sqrt(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+long long int segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    long long int query = 0;
+    if(l <= m) { query += segtree_range_query(root * 2, l, r); }
+    if(r > m) { query += segtree_range_query(root * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(x_temp > y_temp) { std::swap(x_temp, y_temp); }
+        if(op_temp == 0) {
+            segtree_range_sqrt(1, x_temp, y_temp);
+        } else if(op_temp == 1) {
+            std::cout << segtree_range_query(1, x_temp, y_temp) << '\n'; 
+        }
+    }
+}
+```
+
 ### §7.4.A 不可拆分性目标函数
 
 如果线段树要查询的区间值使用一个不可拆分的目标函数$f(\cdot)$给出的，那么我们可以构造一个变量数恒定的函数$h(\cdot)$和一系列可拆分的函数$g_1(\cdot),g_2(\cdot),\cdots$，使得$f(\cdot)=h(g_1(\cdot),g_2(\cdot),\cdots)$。我们只须每次`segtree_pushdown()`时维护这些$g_i$变量，在`segtree_pushup()`时现场计算即可。
@@ -10578,7 +10808,11 @@ for(int i = 2; i <= n; ++i) {
 
 线段树存储的是原数组`a[]`的差分数组`a_delta[]`，维护区间和即可。TODO：？？？？？？？？？？？
 
-## §7.5 堆
+## §7.5 树状数组
+
+
+
+## §7.6 堆
 
 堆的本质是一棵树，每个子节点都表示一个值，每个子节点都大于/小于其父亲节的值，称为小根堆/大根堆。小根堆/大根堆能够快速地插入、查询、删除值，支持多个堆之间的合并。
 
@@ -10590,7 +10824,7 @@ for(int i = 2; i <= n; ++i) {
 | 二项堆     | $O(\log_2{n})$ | $O(\log_2{n})$ | $O(1)$ | $O(\log_2{n})$ | $O(\log_2{n})$ | ✔    |
 | 斐波那契堆   | $O(1)$         | $O(\log_2{n})$ | $O(1)$ | $O(1)$         | $O(1)$         | ❌    |
 
-### §7.5.1 二叉堆
+### §7.6.1 二叉堆
 
 二叉堆是最常用的堆，它的本质是一颗完全二叉树，可以使用数组`heap[N_MAX + 1]`模拟。
 
@@ -10743,13 +10977,13 @@ int main() {
 }
 ```
 
-### §7.5.2 左偏树
+### §7.6.2 左偏树
 
-### §7.5.3 二项堆
+### §7.6.3 二项堆
 
-### §7.5.4 配对堆
+### §7.6.4 配对堆
 
-### §7.5.5 斐波纳挈堆
+### §7.6.5 斐波纳挈堆
 
 
 # §8 位运算
