@@ -1,4 +1,4 @@
-.obsidian/**
+#.obsidian/**
 .trash/**
 GPT_history/**
 ebooks/**
