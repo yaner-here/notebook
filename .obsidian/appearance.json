@@ -1,12 +1,5 @@
 {
-  "baseFontSize": 16,
-  "translucency": false,
-  "monospaceFontFamily": "CaskaydiaCove Nerd Font Mono,HYZhengYuan",
-  "cssTheme": "Catppuccin",
-  "accentColor": "",
-  "textFontFamily": "CaskaydiaCove Nerd Font Mono,HYZhengYuan",
-  "baseFontSizeAction": true,
-  "enabledCssSnippets": [
-    "code-comment-lighter"
-  ]
+  "cssTheme": "Tokyo Night",
+  "textFontFamily": "HYZhengYuan",
+  "monospaceFontFamily": "CaskaydiaCove Nerd Font Mono"
 }
