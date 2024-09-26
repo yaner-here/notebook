@@ -9983,7 +9983,7 @@ void segtree_range_incre(const int root, const int l, const int r, const long lo
 void segtree_range_reset(const int root, const int l, const int r, const long long int &reset) {
     if(l <= segtree[root].l && r >= segtree[root].r) {
         segtree[root].v = reset;
-        segtree[root].v_incre = 0;
+        segtree[root].v_incre = 0; // reset执行后，清空自增懒标记
         segtree[root].v_reset = reset;
         segtree[root].lazy_reset = true;
         return;
