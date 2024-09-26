@@ -10744,6 +10744,79 @@ int main() {
 }
 ```
 
+> [洛谷P6373](https://www.luogu.com.cn/problem/P6373)：维护一个初始值已给定的0/1序列`a[1->n]`，支持以下操作：（1）单点修改为0/1；（2）查询区间内有多少个长度为`3`的子序列能凑出`101`。
+
+本题只需统计节点中的`0`、`1`、`01`、`10`、`101`子序列的数量`v_0`、`v_1`、`v_01`、`v_10`、`v_101`分别是多少即可。然后讨论区间合并后形成的子序列，分三种情况分类讨论：全在左半区间、横跨左右区间、全在右半区间。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5;
+int n, q, op_temp, l_temp, r_temp; char a_temp, x_temp;
+
+struct SegTree { int l, r; long long int v_0, v_1, v_10, v_01, v_101; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_0 = segtree[root * 2].v_0 + segtree[root * 2 + 1].v_0;
+    segtree[root].v_1 = segtree[root * 2].v_1 + segtree[root * 2 + 1].v_1;
+    segtree[root].v_01 = segtree[root * 2].v_01 + segtree[root * 2 + 1].v_01 + segtree[root * 2].v_0 * segtree[root * 2 + 1].v_1;
+    segtree[root].v_10 = segtree[root * 2].v_10 + segtree[root * 2 + 1].v_10 + segtree[root * 2].v_1 * segtree[root * 2 + 1].v_0;
+    segtree[root].v_101 = segtree[root * 2].v_101 + segtree[root * 2 + 1].v_101 + segtree[root * 2].v_1 * segtree[root * 2 + 1].v_01 + segtree[root * 2].v_10 * segtree[root * 2 + 1].v_1;
+}
+void segtree_init(const int root, const int &l, const int &r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        std::cin >> a_temp;
+        segtree[root].v_1 = (a_temp == 'I');
+        segtree[root].v_0 = (a_temp == 'O');
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_reset(const int root, const int &target, const int &reset) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_1 = (reset == 1);
+        segtree[root].v_0 = (reset == 0);
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_reset(root * 2, target, reset); }
+    if(target > m) { segtree_reset(root * 2 + 1, target, reset); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    const SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r);
+    SegTree query;
+    query.l = std::max(segtree[root].l, l);
+    query.r = std::min(segtree[root].r, r);
+    query.v_0 = query_l.v_0 + query_r.v_0;
+    query.v_1 = query_l.v_1 + query_r.v_1;
+    query.v_01 = query_l.v_01 + query_r.v_01 + query_l.v_0 * query_r.v_1;
+    query.v_10 = query_l.v_10 + query_r.v_10 + query_l.v_1 * query_r.v_0;
+    query.v_101 = query_l.v_101 + query_r.v_101 + query_l.v_1 * query_r.v_01 + query_l.v_10 * query_r.v_1;
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> l_temp >> x_temp;
+            segtree_reset(1, l_temp, x_temp == 'I' ? 1 : 0);
+        } else if(op_temp == 2) {
+            std::cin >> l_temp >> r_temp;
+            std::cout << segtree_range_query(1, l_temp, r_temp).v_101 << '\n';
+        }
+    }
+}
+```
+
 #### §7.4.A.2 子区间全排列函数
 
 > [洛谷P6225](https://www.luogu.com.cn/problem/P6225)：维护`int a[1->n]`上的`int`线段树，实现以下操作。（1）单点修改；（2）查询区间内所有子区间内所有元素的异或和的异或和$\displaystyle\bigoplus_{\forall [i,j]\subseteq[l, r]}\left(\bigoplus_{\forall k\in[i,j]}a[k]\right)$。
@@ -10921,12 +10994,13 @@ f_p(\Delta v_p, f_1(\Delta v_1, f_2(\Delta v_2))) = \begin{cases}
 \end{cases}
 $$
 
-**由于本题的自增值、取反操作均涉及负数，因此为了保证模意义成立，必须时时刻刻都取模**。具体体现在以下容易忽略取模的场景：
+**由于本题的自增值、取反操作均涉及负数，因此为了保证模意义成立，必须时时刻刻都取正数模（`(a % p + p) % p`）**。具体体现在以下容易忽略取模的场景：
 
 - 初始读入`a[1->n]`时就需要取模。
 - 每次读入自增操作的`z_temp`后就要取模。
 - `v_incre`、`v[]`取反后需要及时取模。
 - `v_incre`叠加后需要及时取模。
+- 给组合数打表时需要取模。
 - 几乎每一次乘法操作后都要取整，尤其是$C_{(r-l+1)-(c-k)}^{k}\cdot f(l,r,c-k)\cdot x^k$。虽然组合数打表后预先取模，`f`已经是取模后的值，`x`每次自乘都取模，但是这三者相乘时还是要取模。这里用到了恒等式$\displaystyle\left(\prod_{i=1}^{n}{a_i}\right) \% \text{MOD}=\left(\prod_{i=1}^{n}\left(a_i \% \text{MOD}\right)\right)\%\text{MOD}$。
 
 ```c++
@@ -11082,6 +11156,12 @@ int main() {
 ```
 
 ### §7.4.B 区间染色数问题
+
+#### §7.4.B.1 一次性颜色
+
+> [洛谷P3740](https://www.luogu.com.cn/problem/P3740)：给定`q<=`
+
+#### §7.4.B.2 可重复颜色
 
 > [洛谷P1558](https://www.luogu.com.cn/problem/P1558)：给定`T<=30`种编号从`1`开始递增的颜色，和`n`个排成一行的格子。格子初始颜色均为`1`号颜色，现需要支持两种操作。（1）将区间内的所有格子涂成`z_temp`号颜色；（2）查询区间内所有格子的不同颜色数量。
 
