@@ -10834,7 +10834,7 @@ int main() {
 
 $$
 \begin{align}
-	\prod_{i=1}^{n}(a_i+x) & = (a_1+x)(a_2+x)\cdots(a_n+x) \\
+	\prod_{i=1}^{k}(a_{p_i}+x) & = (a_{p_1}+x)(a_{p_2}+x)\cdots(a_{p_n}+x) \\
 	& = f(l,r,c) + f(l,r,c-1)x + \cdots + f(l, r, 0)x^n = \sum_{k=0}^cf(l, r, c-k)\cdot x^k
 \end{align}
 $$
@@ -10857,8 +10857,15 @@ $$
 考虑区间的取反操作。显然当单项式$a_1a_2\cdots a_n$有偶数个元素时，全部取反不会改变正负号；有奇数个元素时则会改变。令$f(l,r,c)$/$f'(l,r,c)$表示取反前/后的区间查询值，于是显然有：
 
 $$
-f'[l,r,c]
+f'(l,r,c) = \begin{cases}
+	+f(l,r,c) & , c为偶数 \\
+	-f(l,r,c) & , c为奇数
+\end{cases}
 $$
+
+当自增懒标记和取反懒标记同时存在时，不妨假设先取反再自增。
+
+
 
 ### §7.4.B 区间染色数问题
 
