@@ -33,6 +33,16 @@
         "type": "tabs",
         "children": [
           {
+            "id": "cb9847649a182d9a",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "算法/ACM.md"
+              }
+            }
+          },
+          {
             "id": "67b9851f7a1c4a0b",
             "type": "leaf",
             "state": {
@@ -48,7 +58,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "tag:#00CED1",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -69,7 +79,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "right": {
     "id": "6ac2a4cb39577b94",
@@ -86,7 +96,7 @@
               "type": "backlink",
               "state": {
                 "file": "算法/ACM.md",
-                "collapseAll": false,
+                "collapseAll": true,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
                 "showSearch": false,
@@ -118,16 +128,6 @@
                 "useHierarchy": true
               }
             }
-          },
-          {
-            "id": "cb9847649a182d9a",
-            "type": "leaf",
-            "state": {
-              "type": "outline",
-              "state": {
-                "file": "算法/ACM.md"
-              }
-            }
           }
         ]
       }
@@ -146,6 +146,6 @@
       "command-palette:打开命令面板": false
     }
   },
-  "active": "6276b527240cb561",
+  "active": "cb9847649a182d9a",
   "lastOpenFiles": []
 }
