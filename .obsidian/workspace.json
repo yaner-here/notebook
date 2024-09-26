@@ -84,54 +84,7 @@
   "right": {
     "id": "6ac2a4cb39577b94",
     "type": "split",
-    "children": [
-      {
-        "id": "cbb5baa988330fc9",
-        "type": "tabs",
-        "children": [
-          {
-            "id": "37f28fc958fa24e9",
-            "type": "leaf",
-            "state": {
-              "type": "backlink",
-              "state": {
-                "file": "算法/ACM.md",
-                "collapseAll": true,
-                "extraContext": false,
-                "sortOrder": "alphabetical",
-                "showSearch": false,
-                "searchQuery": "",
-                "backlinkCollapsed": false,
-                "unlinkedCollapsed": true
-              }
-            }
-          },
-          {
-            "id": "03bd3e84059ba46d",
-            "type": "leaf",
-            "state": {
-              "type": "outgoing-link",
-              "state": {
-                "file": "算法/ACM.md",
-                "linksCollapsed": false,
-                "unlinkedCollapsed": true
-              }
-            }
-          },
-          {
-            "id": "d3d316d102460d66",
-            "type": "leaf",
-            "state": {
-              "type": "tag",
-              "state": {
-                "sortOrder": "frequency",
-                "useHierarchy": true
-              }
-            }
-          }
-        ]
-      }
-    ],
+    "children": [],
     "direction": "horizontal",
     "width": 300,
     "collapsed": true
@@ -146,6 +99,6 @@
       "command-palette:打开命令面板": false
     }
   },
-  "active": "cb9847649a182d9a",
+  "active": "6276b527240cb561",
   "lastOpenFiles": []
 }

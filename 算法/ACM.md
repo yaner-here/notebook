@@ -4007,7 +4007,7 @@ $$
 - $O(1)$递推公式：$f[n]=\displaystyle\frac{f[n-1](4n-2)}{n+1}$。但是在模意义下一旦`f[n]%MOD==0`，则后续的`f[n+k]`全部为0，因此对`MOD`的选取有较高的要求。如果题目限死了`MOD`，则该公式可能失效。
 - **$O(1)$通项公式：$f[n]=C_{2n}^{n}-C_{2n}^{n-1}$。非常推荐。**
 
-为了计算组合数$C_{n}^m$，我们常用恒等式$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$递推求得。恒等式证明如下：
+为了计算组合数$C_{n}^m$，我们常用恒等式$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$递推求得。具体证明详见组合计数章节。恒等式证明如下：
 
 $$
 \begin{align}
@@ -9817,11 +9817,54 @@ int main() {
 }
 ```
 
+#### §7.4.2.1 多重懒标记线段树
+
+给定线段树区间修改内的$k$种操作$f_1(l,r,\Delta v_1),f_2(l,r,\Delta v_2),\cdots, f_k(l,r,\Delta v_k)$（若$l=r$则简记为$f_i(\Delta v_i)$），则需要设置$k$个懒标记，并规定对应的运算优先级。不妨将这些操作按优先级排列，序号越大说明优先级越高，应该先执行。则优先级必须满足：**假设某节点同时有$k$种懒标记，在基础上额外再任意进行一次$f_p(l,r,\textcolor{red}{\Delta v_p})$（$1\le p\le k$）操作，则对于任意$k+1$元组$(\textcolor{red}{\Delta v_p}, \Delta v_1, \Delta v_2, \cdots, \Delta v_k)$，总存在对应的$k$元组**$(\Delta v'_1, \Delta v'_2, \cdots, \Delta v'_k)$，使得：
+
+$$
+\textcolor{red}{f_p(\Delta v_p, }
+	f_1(\Delta v_1,f_2(\Delta v_2,\cdots f_n(\Delta v_n)))
+\textcolor{red}{)} = 
+f_1(\Delta v'_1,f_2(\Delta v'_2,\cdots f_n(\Delta v'_n)))
+$$
+
 > [洛谷P3373](https://www.luogu.com.cn/problem/P3373)：维护一个`int64_t`的线段树，支持三种操作。（1）区间内所有的元素自乘`z_temp`；（2）区间内所有的元素自增`z_temp`；（3）查询区间内元素在模`mod`意义下的总和。
 
 本题涉及到两种懒标记。对于元素自乘而言，我们可以用`v_mul`同时表示懒标记（`v_mul==1`）与变化值；对于元素自增而言，我们可以用`v_inc`同时表示懒标记（`v_inc==0`）与变化值。
 
-**本题的难点在于标记下推函数`segtree_pushdown()`函数的逻辑**，不妨令乘法优先级更高。对于先乘再加而言，如果节点中同时存在自增懒标记和自乘懒标记，则自乘会作用到自加（即`v_mul*=(+=v_inc)`）。
+对于题目中的两种区间编辑操作，我们有"先加后乘"和"先乘后加"两种选择。
+
+在"先加后乘"中，$f_1(\Delta v_1, f_2(\Delta v_2)) = (a \cdot \Delta v_2) + \Delta v_1$。现在我们遍历额外的编辑操作$f_p\in\{f_1, f_2\}$。容易发现元组的映射关系。但是映射步骤中出现了除法，不能保证整除，会有精度问题：
+
+$$
+f_p(\Delta v_p, f_1(\Delta v_1, f_2(\Delta v_2))) = \begin{cases}
+	\begin{aligned} p = 1, 
+		& = (a + \Delta v_2) \cdot \Delta v_1 \cdot \Delta v_p \\
+		& = (a + \textcolor{red}{\Delta v_2}) \cdot \textcolor{red}{\Delta v_1 \cdot \Delta v_p}
+		= f_1(\textcolor{red}{\Delta v'_1}, f_2(\textcolor{red}{\Delta v'_2}))
+	\end{aligned} \\
+	\begin{aligned} p = 2, 
+		& = (a + \Delta v_2) \cdot \Delta v_1 + \Delta v_p \\
+		& = (a + \textcolor{red}{\Delta v_2 + \frac{\Delta v_p}{\Delta v_1}}) \cdot \textcolor{red}{\Delta v_1} = f_1(\textcolor{red}{\Delta v'_1}, f_2(\textcolor{red}{\Delta v'_2}))
+	\end{aligned}
+\end{cases}
+$$
+
+在"先乘后加"中，$f_1(\Delta v_1, f_2(\Delta v_2)) = (a \cdot \Delta v_1) + \Delta v_2$。现在我们遍历额外的编辑操作$f_p\in\{f_1, f_2\}$。容易发现元组的映射关系：
+
+$$
+f_p(\Delta v_p, f_1(\Delta v_1, f_2(\Delta v_2))) = \begin{cases}
+	\begin{aligned} p = 1, 
+		& = (a \cdot \Delta v_2) + \Delta v_1 + \Delta v_p \\
+		& = (a \cdot \textcolor{red}{\Delta v_2}) + \textcolor{red}{\Delta v_1 + \Delta v_p} = f_1(\textcolor{red}{\Delta v_1}, f_2(\textcolor{red}{\Delta v_2}))
+	\end{aligned} \\
+	\begin{aligned} p = 2, & = ((a \cdot \Delta v_1) + \Delta v_2) \cdot \Delta v_p \\
+		& = (a \cdot \textcolor{red}{\Delta v_1 \Delta v_p}) + \textcolor{red}{\Delta v_2 \Delta v_p} = f_1(\textcolor{red}{\Delta v_1}, f_2(\textcolor{red}{\Delta v_2}))
+	\end{aligned}
+\end{cases}
+$$
+
+于是不妨使用"先乘后加"策略。**本题的难点在于标记下推函数`segtree_pushdown()`函数的逻辑**，对于先乘后加而言，如果节点中同时存在自增懒标记和自乘懒标记，则自乘会作用到自加（即`v_mul*=(+=v_inc)`）。
 
 - 在`segtree_range_mul()`中，对于已经存在自增懒标记的节点，也需要对其自乘`v_mul`；
 - 在`segtree_range_inc()`中，对于已经存在自乘懒标记的节点，无需更新自乘懒标记；
@@ -10828,9 +10871,9 @@ int main() {
 
 > [洛谷P4247](https://www.luogu.com.cn/problem/P4247)：为`int64_t a[1->n]`维护一个`int64_t`线段树，支持以下操作。（1）区间内所有元素加`int z_temp`；（2）区间内所有元素取相反数；（3）在区间内的`r - l + 1`个元素中取出`c<=20`个元素，一共有$C_{r-l+1}^{c}$种选择方法，将每种选择方法选出的`c`个数相乘，查询这$C_{r-l+1}^{c}$个乘积在模`MOD`意义下的和，即查询区间的$f(l, r, c)=\displaystyle\sum_{\forall\{p_1,p_2,\cdots, p_c\}\subseteq[l,r]}\left(\prod_{k=1}^{c}a_{p_k}\right)$。
 
-考虑区间的查询操作。本题结合了组合数学的思想：从`[l, r]`中取出`c`个数，等价于分别从`[l, m]`、`[m+1, r]`中取出`k`、`c-k`个数。于是我们得到了递推式：$f(l,r,c)=\displaystyle\sum_{k=0}^{c}\left(f(l,m,k)\cdot f(m+1,r,c-k)\right)$。
+考虑区间的查询操作。本题结合了组合数学的思想：从`[l, r]`中取出`c`个数，等价于分别从`[l, m]`、`[m+1, r]`中取出`k`、`c-k`个数。于是我们得到了递推式：$f(l,r,c)=\displaystyle\sum_{k=0}^{c}\left(f(l,m,k)\cdot f(m+1,r,c-k)\right)$。**这里我们规定，当$c>r-l+1$时，$f(l,r,c)=0$**，这样就能使得在$k=0$/$k=c$的极端取值时，求和符合可以自动忽略对应的项。
 
-考虑区间的自增操作。假设区间内元素均自增$x$，令$f(l,r,c)$/$f'(l,r,c)$表示自增前/后的区间查询值。**特殊地，定义$f(l,r,0)=1$**。**$f(l,r,c)$必定为关于$a_l,\cdots,a_r$的多项式，其中每个单项式均表示一种选择方案**。**单项式**中的每个元素自增后，其中的每个对应的**单项式**变为：
+考虑区间的自增操作。假设区间内元素均自增$x$，令$f(l,r,c)$/$f'(l,r,c)$表示自增前/后的区间查询值。**特殊地，定义$f(l,r,0)=1$**，这与$\displaystyle\prod$的元素为空集时为$1$的意义一致。**$f(l,r,c)$必定为关于$a_l,\cdots,a_r$的多项式，其中每个单项式均表示一种选择方案**。**单项式**中的每个元素自增后，**单项式**变为：
 
 $$
 \begin{align}
@@ -10852,7 +10895,7 @@ $$
 \end{align}
 $$
 
-至此，$f'(l,r,c)$的计算量降到了$O(c)\le O(20)$，可以接受。
+至此，$f'(l,r,c)$的计算量降到了$O(c)\le O(20)$，可以接受。这里让$x$的指数为$k\in[0,c]$有两个用处：第一是将式子视为关于$x$的多项式，我们只须关注$x^k$的系数就能重组得到整个式子；第二是便于组织$C_{(r-l+1)-(c-k)}^{k}$的打表空间`C[?][?]`，第一维的取值范围为$[0,\text{N\_MAX}]$，**第二维的取值范围为$[0, \text{C\_MAX}]$，都是从`0`开始的，便于索引**。
 
 考虑区间的取反操作。显然当单项式$a_1a_2\cdots a_n$有偶数个元素时，全部取反不会改变正负号；有奇数个元素时则会改变。令$f(l,r,c)$/$f'(l,r,c)$表示取反前/后的区间查询值，于是显然有：
 
@@ -10863,9 +10906,180 @@ f'(l,r,c) = \begin{cases}
 \end{cases}
 $$
 
-当自增懒标记和取反懒标记同时存在时，不妨假设先取反再自增。
+当自增懒标记和取反懒标记同时存在时，不妨假设先取反再自增。为了验证是否可行，我们对其进行判定。令取反操作$f_2(\Delta v_2)=-a$的优先级大于自增操作$f_1(\Delta v_1)=(a + \Delta v_1)$，则对$f_p\in\{f_1,f_2\}$遍历可得：
 
+$$
+f_p(\Delta v_p, f_1(\Delta v_1, f_2(\Delta v_2))) = \begin{cases}
+	\begin{aligned}
+		p = 1, & = (a \cdot (-1)) + \Delta v_1 + \Delta v_p \\
+		& = (a \cdot \textcolor{red}{(-1)}) + \textcolor{red}{\Delta v_1 + \Delta v_p} = f_1(\textcolor{red}{\Delta v'_1}, f_2(\textcolor{red}{\Delta v'_2}))
+	\end{aligned} \\
+	\begin{aligned}
+		p = 2, & = ((a \cdot (-1)) + \Delta v_1) \cdot (-1) \\
+		& = (a \cdot \textcolor{red}{(1)}) + (\textcolor{red}{-\Delta v_1}) = f_1(\textcolor{red}{\Delta v'_1}, f_2(\textcolor{red}{\Delta v'_2}))
+	\end{aligned}
+\end{cases}
+$$
 
+**由于本题的自增值、取反操作均涉及负数，因此为了保证模意义成立，必须时时刻刻都取模**。具体体现在以下容易忽略取模的场景：
+
+- 初始读入`a[1->n]`时就需要取模。
+- 每次读入自增操作的`z_temp`后就要取模。
+- `v_incre`、`v[]`取反后需要及时取模。
+- `v_incre`叠加后需要及时取模。
+- 几乎每一次乘法操作后都要取整，尤其是$C_{(r-l+1)-(c-k)}^{k}\cdot f(l,r,c-k)\cdot x^k$。虽然组合数打表后预先取模，`f`已经是取模后的值，`x`每次自乘都取模，但是这三者相乘时还是要取模。这里用到了恒等式$\displaystyle\left(\prod_{i=1}^{n}{a_i}\right) \% \text{MOD}=\left(\prod_{i=1}^{n}\left(a_i \% \text{MOD}\right)\right)\%\text{MOD}$。
+
+```c++
+const int N_MAX = 5e4, Q_MAX = 5e4, C_MAX = 20, MOD = 19940417;
+int C[N_MAX + 1][C_MAX + 1], n, q, x_temp, y_temp, z_temp;
+char op_temp;
+
+struct SegTree {
+    int l, r;
+    long long int v[C_MAX + 1], v_incre;
+    bool lazy_reverse;
+} segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    for(int c = 1; c <= std::min(segtree[root].r - segtree[root].l + 1, C_MAX); ++c) {
+        segtree[root].v[c] = 0;
+        for(int k = 0; k <= c; ++k) {
+            segtree[root].v[c] += (segtree[root * 2].v[k] * segtree[root * 2 + 1].v[c - k]) % MOD;
+            segtree[root].v[c] = (segtree[root].v[c] % MOD + MOD) % MOD;
+        }
+    }
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_reverse == true) {
+        for(int c = 0; c <= std::min(segtree[root * 2].r - segtree[root * 2].l + 1, C_MAX); ++c) {
+            if(c % 2 == 1) { segtree[root * 2].v[c] = (-segtree[root * 2].v[c] % MOD + MOD) % MOD; }
+        }
+        segtree[root * 2].v_incre = (-segtree[root * 2].v_incre % MOD + MOD) % MOD;
+        segtree[root * 2].lazy_reverse = !segtree[root * 2].lazy_reverse;
+        for(int c = 0; c <= std::min(segtree[root * 2 + 1].r - segtree[root * 2+ 1].l + 1, C_MAX); ++c){
+            if(c % 2 == 1) { segtree[root * 2 + 1].v[c] = (-segtree[root * 2 + 1].v[c] % MOD + MOD) % MOD; }
+        }
+        segtree[root * 2 + 1].v_incre = (-segtree[root * 2 + 1].v_incre % MOD + MOD) % MOD;
+        segtree[root * 2 + 1].lazy_reverse = !segtree[root * 2 + 1].lazy_reverse;
+
+        segtree[root].lazy_reverse = false;
+    }
+    if(segtree[root].v_incre != 0) {
+        for(int c = std::min(segtree[root * 2].r - segtree[root * 2].l + 1, C_MAX); c >= 1; --c) {
+            long long int x_pow = segtree[root].v_incre;
+            for(int k = 1; k <= c; ++k) {
+                segtree[root * 2].v[c] += (C[segtree[root * 2].r - segtree[root * 2].l + 1 - (c - k)][k] * segtree[root * 2].v[c - k] % MOD) * x_pow % MOD;
+                segtree[root * 2].v[c] = (segtree[root * 2].v[c] % MOD + MOD) % MOD;
+                x_pow = (x_pow * segtree[root].v_incre) % MOD;
+            }
+        }
+        segtree[root * 2].v_incre = (segtree[root * 2].v_incre + segtree[root].v_incre) % MOD;
+        for(int c = std::min(segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1, C_MAX); c >= 1; --c) {
+            long long int x_pow = segtree[root].v_incre;
+            for(int k = 1; k <= c; ++k) {
+                segtree[root * 2 + 1].v[c] += (C[segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1 - (c - k)][k] * segtree[root * 2 + 1].v[c - k] % MOD) * x_pow % MOD;
+                segtree[root * 2 + 1].v[c] = (segtree[root * 2 + 1].v[c] % MOD + MOD) % MOD;
+                x_pow = x_pow * segtree[root].v_incre % MOD;
+            }
+        }
+        segtree[root * 2 + 1].v_incre = (segtree[root * 2 + 1].v_incre + segtree[root].v_incre) % MOD;
+        segtree[root].v_incre = 0;
+    }
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l;
+    segtree[root].r = r;
+    segtree[root].v[0] = 1;
+    if(l == r) {
+        std::cin >> segtree[root].v[1];
+        segtree[root].v[1] = (segtree[root].v[1] % MOD + MOD) % MOD;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_incre(const int root, const int &l, const int &r, const long long int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        for(int c = std::min(segtree[root].r - segtree[root].l + 1, C_MAX); c >= 1; --c) {
+            long long int x_pow = incre;
+            for(int k = 1; k <= c; ++k) {
+                segtree[root].v[c] += (C[(segtree[root].r - segtree[root].l + 1) - (c - k)][k] * segtree[root].v[c - k] % MOD) * x_pow % MOD;
+                segtree[root].v[c] = (segtree[root].v[c] % MOD + MOD) % MOD;
+                x_pow = x_pow * incre % MOD;
+            }
+        }
+        segtree[root].v_incre += incre; segtree[root].v_incre = (segtree[root].v_incre % MOD + MOD) % MOD;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_incre(root * 2, l, r, incre); }
+    if(r > m) { segtree_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+void segtree_range_reverse(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        for(int c = 0; c <= (segtree[root].r - segtree[root].l + 1, C_MAX); ++c) {
+            if(c % 2 == 1) { segtree[root].v[c] = (-segtree[root].v[c] % MOD + MOD) % MOD; }
+        }
+        segtree[root].v_incre = (-segtree[root].v_incre % MOD + MOD) % MOD;
+        segtree[root].lazy_reverse = !segtree[root].lazy_reverse;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_reverse(root * 2, l, r); }
+    if(r > m) { segtree_range_reverse(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    const SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r);
+    SegTree query;
+    query.l = std::max(segtree[root].l, l);
+    query.r = std::min(segtree[root].r, r);
+    query.v[0] = 1; std::fill(query.v + 1, query.v + 1 + C_MAX, 0ll);
+    for(int c = 1; c <= std::min(segtree[root].r - segtree[root].l + 1, C_MAX); ++c) {
+        for(int k = 0; k <= c; ++k) {
+            query.v[c] += query_l.v[k] * query_r.v[c - k] % MOD;
+            query.v[c] = (query.v[c] % MOD + MOD) % MOD;
+        }
+    }
+    query.lazy_reverse = false;
+    query.v_incre = 0;
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 0; i <= n; ++i) {
+        C[i][0] = 1;
+        for(int j = 1; j <= C_MAX && j <= i; ++j) {
+            C[i][j] = (C[i - 1][j] + C[i - 1][j - 1]) % MOD;
+        }
+    }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 'I') {
+            std::cin >> x_temp >> y_temp >> z_temp;
+            z_temp = (z_temp % MOD + MOD) % MOD;
+            segtree_range_incre(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 'R') {
+            std::cin >> x_temp >> y_temp;
+            segtree_range_reverse(1, x_temp, y_temp);
+        } else if(op_temp == 'Q') {
+            std::cin >> x_temp >> y_temp >> z_temp;
+            std::cout << segtree_range_query(1, x_temp, y_temp).v[z_temp] << '\n';
+        }
+    }
+}
+```
 
 ### §7.4.B 区间染色数问题
 
@@ -11162,7 +11376,52 @@ int main() {
 
 如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？#TODO：
 
-# §9 组合计数
+# §9 排列组合
+
+## §9.1 组合数
+
+为了计算组合数$C_{n}^m$，我们常用恒等式$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$递推求得。具体证明详见组合计数章节。恒等式证明如下：
+
+$$
+\begin{align}
+	C_{n-1}^{m}+C_{n-1}^{m-1} & = 
+	\frac{(n-1)!}{(n-m-1)!m!} + \frac{(n-1)!}{(n-m)!(m-1)!} \\
+	& = \frac{n-m}{n}\frac{n!}{(n-m)!m!} + \frac{m}{n}\frac{n!}{(n-m)!m!} \\
+	& = (1)\cdot\frac{n!}{(n-m)!m!} = C_{n}^{m}
+\end{align}
+$$
+
+```c++
+for(int i = 0; i <= n; ++i) {
+    C[i][0] = C[i][i] = 1;
+    for(int j = 1; j <= n; ++j) { C[i][j] = C[i - 1][j] + C[i - 1][j - 1]; }
+}
+```
+
+## §9.1.2 广义组合数
+
+如果使用$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$来求解$n=m$时的$C_{n}^{n}$，那么就会遇到$C_{n-1}^{n}$的情况，不在组合数的定义域内。在上面的代码中，为了避免这一情况，我们特地直接给出了$C_{n}^{n}=1$，不必使用该递推式求解，从而绕过了定义域的限制。本节将介绍广义组合数的概念，将$C_n^m$从$n\ge m > 0$推广到$n < m$、甚至$n, m < 0$的情况。
+
+下面我们从递推式出发，考虑以$n$为横轴，$m$为纵轴的二维平面定义域。为便于阐述，我们拓展四个象限的概念，用$45\degree$角将平面划分成八个"半"象限，序号命名顺序不变。根据递推式，如果知道$C_{n}^{m}$、$C_{n-1}^{m}$、$C_{n-1}^{m-1}$中的任意两个值，就可以解方程得到第三个值。基于此，令$n=m$，于是$C_{n}^{n}=C_{n-1}^{n-1}=1$，解得$C_{n-1}^{n}=0$。以此类推，易证$(n,m)$在第二"半"象限且不在分界线时，$C_{n}^{m}=0$。
+
+```
+ ╲3┃2╱
+ 4╲┃╱1
+━━━╋━━━
+ 5╱┃╲8
+ ╱6┃7╲
+```
+
+递推式能做的只有这些了。下面我们从更通用的伽马函数出发。组合数有两种公式：$\displaystyle C_n^m = \frac{n!}{(n-m)!m!}$和$\displaystyle C_n^m = \frac{A_n^m}{m!}=\frac{\displaystyle\prod_{i=n-m+1}^{n}i}{m!}$。于是有下列结论成立：
+
+$$
+C_{n}^{m} = \begin{cases}
+	n-m\in \mathbb{Z}^{-} & \displaystyle \frac{n!}{(n-m)!m!}=\frac{常数}{\infty\cdot常数} = 0 \\
+	n>m, n\in \mathbb{R},m\in\mathbb{N^+} & \displaystyle \frac{\displaystyle\prod_{i=n-m+1}^{n}{i}}{m!},其中\prod对i依次加1即可
+\end{cases}
+$$
+
+广义组合数的性质让我们不必绕过$C_n^n$，直接用递推公式也能过。在栈上初始化的组合数打表中，$m > n \ge 0$的情景自动初始化$C_n^m$为$0$。
 
 > [洛谷P8667](https://www.luogu.com.cn/problem/P8667)：给定三个长度均为`n`的数组`a[],b[],c[]`，求有多少个不同的三元对`(i,j,k)`，使得`a[i]<b[j]<c[k]`。
 
@@ -11189,6 +11448,17 @@ int main() {
     std::cout << count;
 }
 ```
+
+# §10 数论
+
+## §10.1 模意义的运算
+
+- 模`p`加法分配率：$(a+b)\% p=(a\% p + b\% p)\% p$
+- 模`p`减法分配率：$(a-b)\% p=(a\% p - b\% p)\% p$
+- 模`p`乘法分配率：$(a\cdot b)\%\ p = (a \% p \cdot b \% p) \% p$
+- 模`p`加法结合律：$(a+b)\% p=((a\% p + b)\% p)$
+- 模`p`乘法结合律：$(a\cdot b)\%\ p = ((a\% p)\cdot b)\% p$
+- 正数模：$(a \% p + p) \% p$
 
 # §A 警钟长鸣
 
