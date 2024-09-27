@@ -10310,16 +10310,112 @@ int main() {
 
 注意到本题只有最后一次操作才是查询，因此可以考虑离线做法。**注意到涂颜色操作执行的时间越晚，涂的颜色的优先级越高，优先级低的颜色无法覆盖优先级高的颜色**。于是按时间逆序刷颜色：先刷时间上最后一个、优先级最高的颜色，再刷时间上倒数第二个、优先级次高的颜色，以此类推。当刷第`i`个颜色时，使用线段树递归查找`[l, r]`内有无未曾刷过颜色的元素，**如果有，则说明颜色`i`可以占据这些元素，并且永远不可能被后续的颜色刷掉。因此颜色`i`能出现在最终的区间内，给统计的颜色总数加`1`**。最后输出颜色总数即可。
 
-本题的`n<=1e7`，因此考虑使用离散化线段树。本题的坑点在于**离散化的编号必须要反映出原始的两个相邻区间之间是否还有元素**。例如下面两种情况：
+在编程实现上，我们令`.has_empty`表示区间内是否有未曾粉刷过的节点。显然`segtree_pushup()`的逻辑是：只要`root`节点的`.has_empty`是两个子节点`.has_empty`的逻辑或。
+
+本题的`n<=1e7`，因此考虑使用离散化线段树。本题的坑点在于**离散化的编号必须要反映出原始的两个相邻区间之间是否还有元素**。例如下面的输入样例：
 
 $$
-\begin{}
-\end{}
+
+\begin{aligned} 
+	& \text{原始编号}: \\
+	& \begin{array}{c|c|c|c|c|c|}
+		\text{元素编号} & \textcolor{red}{1} & \textcolor{red}{2} & 3 & \textcolor{red}{4} & \textcolor{red}{5} \\
+		\hline \text{初始颜色} & 0 & 0 & 0 & 0 & 0 \\
+		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & 1 & \textcolor{red}{1} \\
+		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & & \\
+		\hline \text{第3次刷颜色} & & & & \textcolor{red}{3} & \textcolor{red}{3} \\
+		\hline \text{最终颜色} & 2 & 2 & 1 & 3 & 3 \\
+	\end{array}
+\end{aligned} 
+\quad
+\begin{aligned} 
+	& \text{直接离散化的编号}: \\
+	& \begin{array}{c|c|c|c|c|}
+		\text{元素离散化编号} & \textcolor{red}{1'} & \textcolor{red}{2'} & \textcolor{red}{3'} & \textcolor{red}{4'} \\
+		\hline \text{初始颜色} & 0 & 0 & 0 & 0 \\
+		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & \textcolor{red}{1} \\
+		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & \\
+		\hline \text{第3次刷颜色} & & & \textcolor{red}{3} & \textcolor{red}{3} \\
+		\hline \text{最终颜色} & 2 & 2 & 3 & 3 \\
+	\end{array} \\
+\end{aligned} 
+\quad
+\begin{aligned} 
+	& \text{正确离散化的编号}: \\
+	& \begin{array}{c|c|c|c|c|c|}
+		\text{元素离散化编号} & \textcolor{red}{1'} & \textcolor{red}{2'} & 3' & \textcolor{red}{4'} & \textcolor{red}{5'} \\
+		\hline \text{初始颜色} & 0 & 0 & 0 & 0 & 0 \\
+		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & 1 & \textcolor{red}{1} \\
+		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & & \\
+		\hline \text{第3次刷颜色} & & & & \textcolor{red}{3} & \textcolor{red}{3} \\
+		\hline \text{最终颜色} & 2 & 2 & 1 & 3 & 3 \\
+	\end{array}
+\end{aligned} 
 $$
 
+左图为原始编号，中图为直接离散化编号，右图为我们想要的离散化编号。可以看到，如果直接离散化编号，则无法保留"相邻区间内是否还隔有元素"的信息。为了保留这一信息，在离散化时，**如果在去重后的原始编号列表中，对于当前遍历到的原始编号`i`，不存在恰好大`1`的元素编号`i+1`，则离散化编号要额外加`1`**。
+
+基于此，$q$次区间编辑会产生$2q$个端点值，去重后最多会得到$2q$个待离散化的值。由于要保留"相邻区间内是否还隔有元素"的信息，离散化后的值至多会形成一个首项为`1`、公差为`2`、项数为$2q$的等差数列，最大项至多为$4q-1$，放缩其上界到$4q$。于是线段树要维护一个$[1, 4q]$的区间，**至少要开辟$16q$个线段树节点空间**。
 
 ```c++
+const int Q_MAX = 1e3, N_MAX = 2 * Q_MAX;
 
+int n, q, l_temp, r_temp, ans;
+int q_seg[Q_MAX + 1][2], q_point[Q_MAX * 2 + 1], q_point_count, n_id_count, n_id_max;
+std::unordered_map<int, int> q_id_map;
+
+struct SegTree { int l, r; bool has_empty; } segtree[Q_MAX * 16 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].has_empty = segtree[root * 2].has_empty | segtree[root * 2 + 1].has_empty;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].has_empty = true;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+bool segtree_range_fill_empty(const int root, const int &l, const int &r) {
+    if(segtree[root].has_empty == false) { return false; }
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        bool has_empty = segtree[root].has_empty;
+        segtree[root].has_empty = false;
+        return has_empty;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    bool query = false;
+    if(l <= m) { query |= segtree_range_fill_empty(root * 2, l, r); }
+    if(r > m) { query |= segtree_range_fill_empty(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> q_seg[i][0] >> q_seg[i][1];
+        q_point[++q_point_count] = q_seg[i][0];
+        q_point[++q_point_count] = q_seg[i][1];
+    }
+    std::sort(q_point + 1, q_point + 1 + q_point_count);
+    n_id_count = std::unique(q_point + 1, q_point + 1 + q * 2) - (q_point + 1);
+    q_point[0] = q_point[1] - 1; // 本来需要储存上一个q_point的值q_point_last，现在令q_point[0]就是上一个q_point的值，使得q_point[1]对应的离散化编号为1
+    for(int i = 1; i <= n_id_count; ++i) {
+        if(q_point[i - 1] + 1 < q_point[i]) { ++n_id_max; }
+        q_id_map[q_point[i]] = ++n_id_max;
+    }
+    segtree_init(1, 1, n_id_max);
+    for(int i = q; i >= 1; --i) {
+        l_temp = q_id_map[q_seg[i][0]];
+        r_temp = q_id_map[q_seg[i][1]];
+        ans += segtree_range_fill_empty(1, l_temp, r_temp);
+    }
+    std::cout << ans;
+}
 ```
 
 ### §7.4.A 不可拆分性目标函数
