@@ -9693,6 +9693,74 @@ int main() {
 }
 ```
 
+#### §7.4.1.1 小清新线段树
+
+如果线段树上对区间修改的恒等函数$f(\cdot)$在$k$次迭代的过程中，总存在一个迭代次数上界$k^*$，使得对于任意取值范围$\mathcal{V}$内的$v\in\mathcal{V}$，$f^{(k^*)}(v)$总为定值$v^*$，则这样的线段树称为“小清新线段树”。针对小清新线段树，我们可以实时记录区间内各个元素的最小迭代次数$k'$，如果$k'\ge k^*$，则不必再更新这段区间；也可以维护区间内的元素是否均为$v^*$，如果是，则不必再更新这段区间。因此**小清新线段树的本质是带有剪枝的线段树**。
+
+> [洛谷P4145](https://www.luogu.com.cn/problem/P4145)：为`long long int a[1->n<=1e5]<=1e12`维护一个`long long int`线段树，实现两种操作。（1）对区间内所有元素开平方根后，向下取整；（2）查询区间内各元素之和。
+
+显然$f(v)=\lfloor\sqrt{v}\rfloor$不满足可拆分性。然而注意到$\forall v\in[0, 10^{12}]$，必定存在迭代次数上界$k^*=6$，使得$f^{(k^*)}(v)=1$。于是我们的思路是同时维护区间内的元素之和与元素最大值，进行**单点修改**和区间查询。这样可以保证时间复杂度上限为常数$O(N_{\mathrm{max}}\cdot k^*)=O(6\times {10}^5)$，可以通过本题。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp;
+long long int a[N_MAX + 1];
+
+struct SegTree { int l, r; long long int v_sum, v_max; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_max = std::max(segtree[root * 2].v_max, segtree[root * 2 + 1].v_max);
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        segtree[root].v_max = a[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_sqrt(const int root, const int &l, const int &r) {
+    if(segtree[root].v_max <= 1) { return; } // 剪枝
+    if(segtree[root].l == segtree[root].r) { // 单点修改
+        segtree[root].v_sum = std::sqrt(segtree[root].v_sum);
+        segtree[root].v_max = segtree[root].v_sum;
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_sqrt(root * 2, l, r); }
+    if(r > m) { segtree_range_sqrt(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+long long int segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    long long int query = 0;
+    if(l <= m) { query += segtree_range_query(root * 2, l, r); }
+    if(r > m) { query += segtree_range_query(root * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(x_temp > y_temp) { std::swap(x_temp, y_temp); }
+        if(op_temp == 0) {
+            segtree_range_sqrt(1, x_temp, y_temp);
+        } else if(op_temp == 1) {
+            std::cout << segtree_range_query(1, x_temp, y_temp) << '\n'; 
+        }
+    }
+}
+```
+
 ### §7.4.2 懒标记线段树
 
 接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`bool lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。有时`v_delta`本身就可以反映出是否存在懒标记。
@@ -10232,72 +10300,26 @@ int main() {
 }
 ```
 
-### §7.4.3 小清新线段树
+#### §7.4.2.2 离散化线段树
 
-如果线段树上对区间修改的恒等函数$f(\cdot)$在$k$次迭代的过程中，总存在一个迭代次数上界$k^*$，使得对于任意取值范围$\mathcal{V}$内的$v\in\mathcal{V}$，$f^{(k^*)}(v)$总为定值$v^*$，则这样的线段树称为“小清新线段树”。针对小清新线段树，我们可以实时记录区间内各个元素的最小迭代次数$k'$，如果$k'\ge k^*$，则不必再更新这段区间；也可以维护区间内的元素是否均为$v^*$，如果是，则不必再更新这段区间。因此**小清新线段树的本质是带有剪枝的线段树**。
+我们知道对于长度为`n`的序列`a[1->n]`，传统线段树需要`4*n`个空间。如果$n$超过了$10^6$的数量级，那么空间和时间一定会炸。基于此，我们转而关注`q`次修改和查询中涉及的左右区间，于是只需对至多`Q_MAX * 2`个端点位置进行离散化即可。
 
-> [洛谷P4145](https://www.luogu.com.cn/problem/P4145)：为`long long int a[1->n<=1e5]<=1e12`维护一个`long long int`线段树，实现两种操作。（1）对区间内所有元素开平方根后，向下取整；（2）查询区间内各元素之和。
+对`2*q`个端点位置排序需要$O(2q\log_{2}2q)$时间，去重需要$O(2q)$时间；对于每个区间给定的端点值`x`，都可以用二分查找的方式找到离散化后的编号，时间复杂度为$O(\log_2 2q)$；一共要查询`2*q`次端点的离散化编号；每次区间编辑或查询需要耗费$O(2q\log_2{2q})$的时间。**综上所述，离散化线段树的时间复杂度为$O(6q\log_{2}{q} + 8q)$**。**当`n>=1e7`，而`q<=1e6`时，不妨使用离散化线段树**。
 
-显然$f(v)=\lfloor\sqrt{v}\rfloor$不满足可拆分性。然而注意到$\forall v\in[0, 10^{12}]$，必定存在迭代次数上界$k^*=6$，使得$f^{(k^*)}(v)=1$。于是我们的思路是同时维护区间内的元素之和与元素最大值，进行**单点修改**和区间查询。这样可以保证时间复杂度上限为常数$O(N_{\mathrm{max}}\cdot k^*)=O(6\times {10}^5)$，可以通过本题。
+> [洛谷P3740](https://www.luogu.com.cn/problem/P3740)：为初始值均**无颜色**的序列`int a[1->n<=1e7]`维护线段树，支持`q<=1e3`区间重置操作：第`i`条指令将闭区间`[l, r]`中的元素颜色重置为`i`。最后查询`[1, n]`中的不同的颜色数量（不计初始值的无颜色）。
+
+注意到本题只有最后一次操作才是查询，因此可以考虑离线做法。**注意到涂颜色操作执行的时间越晚，涂的颜色的优先级越高，优先级低的颜色无法覆盖优先级高的颜色**。于是按时间逆序刷颜色：先刷时间上最后一个、优先级最高的颜色，再刷时间上倒数第二个、优先级次高的颜色，以此类推。当刷第`i`个颜色时，使用线段树递归查找`[l, r]`内有无未曾刷过颜色的元素，**如果有，则说明颜色`i`可以占据这些元素，并且永远不可能被后续的颜色刷掉。因此颜色`i`能出现在最终的区间内，给统计的颜色总数加`1`**。最后输出颜色总数即可。
+
+本题的`n<=1e7`，因此考虑使用离散化线段树。本题的坑点在于**离散化的编号必须要反映出原始的两个相邻区间之间是否还有元素**。例如下面两种情况：
+
+$$
+\begin{}
+\end{}
+$$
+
 
 ```c++
-const int N_MAX = 1e5, Q_MAX = 1e5;
-int n, q, op_temp, x_temp, y_temp;
-long long int a[N_MAX + 1];
 
-struct SegTree { int l, r; long long int v_sum, v_max; } segtree[N_MAX * 4 + 1];
-inline void segtree_pushup(const int &root) {
-    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
-    segtree[root].v_max = std::max(segtree[root * 2].v_max, segtree[root * 2 + 1].v_max);
-}
-void segtree_init(const int root, const int l, const int r) {
-    segtree[root].l = l; segtree[root].r = r;
-    if(l == r) {
-        segtree[root].v_sum = a[l];
-        segtree[root].v_max = a[l];
-        return;
-    }
-    int m = (l + r) / 2;
-    segtree_init(root * 2, l, m);
-    segtree_init(root * 2 + 1, m + 1, r);
-    segtree_pushup(root);
-}
-void segtree_range_sqrt(const int root, const int &l, const int &r) {
-    if(segtree[root].v_max <= 1) { return; } // 剪枝
-    if(segtree[root].l == segtree[root].r) { // 单点修改
-        segtree[root].v_sum = std::sqrt(segtree[root].v_sum);
-        segtree[root].v_max = segtree[root].v_sum;
-        return;
-    }
-    int m = (segtree[root].l + segtree[root].r) / 2;
-    if(l <= m) { segtree_range_sqrt(root * 2, l, r); }
-    if(r > m) { segtree_range_sqrt(root * 2 + 1, l, r); }
-    segtree_pushup(root);
-}
-long long int segtree_range_query(const int root, const int &l, const int &r) {
-    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
-    int m = (segtree[root].l + segtree[root].r) / 2;
-    long long int query = 0;
-    if(l <= m) { query += segtree_range_query(root * 2, l, r); }
-    if(r > m) { query += segtree_range_query(root * 2 + 1, l, r); }
-    return query;
-}
-
-int main() {
-    std::cin >> n;
-    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
-    segtree_init(1, 1, n);
-    std::cin >> q;
-    for(int i = 1; i <= q; ++i) {
-        std::cin >> op_temp >> x_temp >> y_temp;
-        if(x_temp > y_temp) { std::swap(x_temp, y_temp); }
-        if(op_temp == 0) {
-            segtree_range_sqrt(1, x_temp, y_temp);
-        } else if(op_temp == 1) {
-            std::cout << segtree_range_query(1, x_temp, y_temp) << '\n'; 
-        }
-    }
-}
 ```
 
 ### §7.4.A 不可拆分性目标函数
@@ -10744,9 +10766,9 @@ int main() {
 }
 ```
 
-> [洛谷P6373](https://www.luogu.com.cn/problem/P6373)：维护一个初始值已给定的0/1序列`a[1->n]`，支持以下操作：（1）单点修改为0/1；（2）查询区间内有多少个长度为`3`的子序列能凑出`101`。
+> [洛谷P6373](https://www.luogu.com.cn/problem/P6373)：维护一个初始值已给定的`0/1`序列`a[1->n]`，支持以下操作：（1）单点修改为`0/1`；（2）查询区间内有多少个长度为`3`的子序列能凑出`101`。
 
-本题只需统计节点中的`0`、`1`、`01`、`10`、`101`子序列的数量`v_0`、`v_1`、`v_01`、`v_10`、`v_101`分别是多少即可。然后讨论区间合并后形成的子序列，分三种情况分类讨论：全在左半区间、横跨左右区间、全在右半区间。
+**本题的难点在于设计状态**，只需统计节点中的`0`、`1`、`01`、`10`、`101`子序列的数量`v_0`、`v_1`、`v_01`、`v_10`、`v_101`分别是多少即可。然后讨论区间合并后形成的子序列，分三种情况分类讨论：全在左半区间、横跨左右区间、全在右半区间。
 
 ```c++
 const int N_MAX = 5e5, Q_MAX = 5e5;
@@ -10814,6 +10836,70 @@ int main() {
             std::cout << segtree_range_query(1, l_temp, r_temp).v_101 << '\n';
         }
     }
+}
+```
+
+> [洛谷P3097](https://www.luogu.com.cn/problem/P3097)：维护一个`int64_t a[1->n]`上的线段树，支持两种操作。（1）单点修改；（2）在区间内选中任意个不相邻的元素，查询这些元素的求和最大值。
+
+**本题的难点在于设计状态**。考虑左右两个子区间合并时，我们特别关心合并的交界处，要防止这个地方发生元素相邻的情况。按照是否选择交界处左右两侧的元素，可以分为四种情况，这就是线段树节点需要储存的四个状态：`v_00`、`v_01`、`v_10`、`v_11`分别表示区间左右端点都不选、只选右端点、只选左端点、左右端点都选时，挑出的不相邻元素的求和最大值。我们要求的答案即为这四种状态的最大值。
+
+```c++
+int n, q, x_temp; long long int y_temp, ans;
+
+struct SegTree { int l, r; long long int v_00, v_01, v_10, v_11; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_00 = std::max({segtree[root * 2].v_01 + segtree[root * 2 + 1].v_00, segtree[root * 2].v_00 + segtree[root * 2 + 1].v_00, segtree[root * 2].v_00 + segtree[root * 2 + 1].v_10});
+    segtree[root].v_10 = std::max({segtree[root * 2].v_10 + segtree[root * 2 + 1].v_00, segtree[root * 2].v_10 + segtree[root * 2 + 1].v_10, segtree[root * 2].v_11 + segtree[root * 2 + 1].v_00});
+    segtree[root].v_01 = std::max({segtree[root * 2].v_00 + segtree[root * 2 + 1].v_01, segtree[root * 2].v_01 + segtree[root * 2 + 1].v_01, segtree[root * 2].v_00 + segtree[root * 2 + 1].v_11});
+    segtree[root].v_11 = std::max({segtree[root * 2].v_10 + segtree[root * 2 + 1].v_01, segtree[root * 2].v_11 + segtree[root * 2 + 1].v_01, segtree[root * 2].v_10 + segtree[root * 2 + 1].v_11});
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        std::cin >> segtree[root].v_11;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_reset(const int root, const int &target, const long long int &reset) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_11 = reset;
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_reset(root * 2, target, reset); }
+    if(target > m) { segtree_reset(root * 2 + 1, target, reset); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    const SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r);
+    SegTree query;
+    query.l = std::max(segtree[root].l, l);
+    query.r = std::min(segtree[root].r, r);
+    query.v_00 = std::max({query_l.v_00 + query_r.v_00, query_l.v_00 + query_r.v_10, query_l.v_01 + query_r.v_00});
+    query.v_01 = std::max({query_l.v_00 + query_r.v_01, query_l.v_00 + query_r.v_11, query_l.v_01 + query_r.v_01});
+    query.v_10 = std::max({query_l.v_10 + query_r.v_00, query_l.v_10 + query_r.v_10, query_l.v_11 + query_r.v_10});
+    query.v_11 = std::max({query_l.v_10 + query_r.v_01, query_l.v_10 + query_r.v_11, query_l.v_11 + query_r.v_01});
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> x_temp >> y_temp;
+        segtree_reset(1, x_temp, y_temp);
+        const SegTree query = segtree_range_query(1, 1, n);
+        ans += std::max({query.v_00, query.v_01, query.v_10, query.v_11});
+    }
+    std::cout << ans;
 }
 ```
 
