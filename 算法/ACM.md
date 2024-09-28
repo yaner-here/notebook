@@ -162,6 +162,10 @@ void std::sort_heap(Iter first, Iter last);
 void std::sort_heap(Iter first, Iter last, Compare comp);
 ```
 
+### §1.2.4 相邻元素去重
+
+`T* std::unique(Iter first, Iter last)`用于将`[first, last)`中的相邻重复元素移动到容器末尾，并返回一个新的`T* unique_last`指针，表示相邻元素去重后的结果存放在`[first, unique_last)`中。**通常配合`std::sort()`预处理后，做整体去重，而非仅仅是相邻重复元素的去重**。
+
 ## §1.3 `<iostream>`
 
 ### §1.3.1 `std::cin`
@@ -9761,6 +9765,127 @@ int main() {
 }
 ```
 
+> [洛谷P4681](https://www.luogu.com.cn/problem/P4681)：为已给定初值的序列`int64_t a[1->n]`维护一个线段树，**其中的每个元素均满足`0<=a[i]<MOD`**，支持如下操作：（1）对区间内的所有元素取其平方后对`MOD`取模；（2）查询区间内的各元素之和。
+
+
+
+#### §7.4.1.2 离散化线段树
+
+我们知道对于长度为`n`的序列`a[1->n]`，传统线段树需要`4*n`个空间。如果$n$超过了$10^6$的数量级，那么空间和时间一定会炸。基于此，我们转而关注`q`次修改和查询中涉及的左右区间，于是只需对至多`Q_MAX * 2`个端点位置进行离散化即可。
+
+对`2*q`个端点位置排序需要$O(2q\log_{2}2q)$时间，去重需要$O(2q)$时间；对于每个区间给定的端点值`x`，都可以用二分查找的方式找到离散化后的编号，时间复杂度为$O(\log_2 2q)$；一共要查询`2*q`次端点的离散化编号；每次区间编辑或查询需要耗费$O(2q\log_2{2q})$的时间。**综上所述，离散化线段树的时间复杂度为$O(6q\log_{2}{q} + 8q)$**。**当`n>=1e7`，而`q<=1e6`时，不妨使用离散化线段树**。
+
+> [洛谷P3740](https://www.luogu.com.cn/problem/P3740)：为初始值均**无颜色**的序列`int a[1->n<=1e7]`维护线段树，支持`q<=1e3`区间重置操作：第`i`条指令将闭区间`[l, r]`中的元素颜色重置为`i`。最后查询`[1, n]`中的不同的颜色数量（不计初始值的无颜色）。
+
+注意到本题只有最后一次操作才是查询，因此可以考虑离线做法。**注意到涂颜色操作执行的时间越晚，涂的颜色的优先级越高，优先级低的颜色无法覆盖优先级高的颜色**。于是按时间逆序刷颜色：先刷时间上最后一个、优先级最高的颜色，再刷时间上倒数第二个、优先级次高的颜色，以此类推。当刷第`i`个颜色时，使用线段树递归查找`[l, r]`内有无未曾刷过颜色的元素，**如果有，则说明颜色`i`可以占据这些元素，并且永远不可能被后续的颜色刷掉。因此颜色`i`能出现在最终的区间内，给统计的颜色总数加`1`**。最后输出颜色总数即可。
+
+在编程实现上，我们令`.has_empty`表示区间内是否有未曾粉刷过的节点。显然`segtree_pushup()`的逻辑是：只要`root`节点的`.has_empty`是两个子节点`.has_empty`的逻辑或。
+
+本题的`n<=1e7`，因此考虑使用离散化线段树。因此`N_MAX`的值变得不再重要。本题的坑点在于**离散化的编号必须要反映出原始的两个相邻区间之间是否还有元素**。例如下面的输入样例：
+
+$$
+
+\begin{aligned} 
+	& \text{原始编号}: \\
+	& \begin{array}{c|c|c|c|c|c|}
+		\text{元素编号} & \textcolor{red}{1} & \textcolor{red}{2} & 3 & \textcolor{red}{4} & \textcolor{red}{5} \\
+		\hline \text{初始颜色} & 0 & 0 & 0 & 0 & 0 \\
+		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & 1 & \textcolor{red}{1} \\
+		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & & \\
+		\hline \text{第3次刷颜色} & & & & \textcolor{red}{3} & \textcolor{red}{3} \\
+		\hline \text{最终颜色} & 2 & 2 & 1 & 3 & 3 \\
+	\end{array}
+\end{aligned} 
+\quad
+\begin{aligned} 
+	& \text{直接离散化的编号}: \\
+	& \begin{array}{c|c|c|c|c|}
+		\text{元素离散化编号} & \textcolor{red}{1'} & \textcolor{red}{2'} & \textcolor{red}{3'} & \textcolor{red}{4'} \\
+		\hline \text{初始颜色} & 0 & 0 & 0 & 0 \\
+		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & \textcolor{red}{1} \\
+		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & \\
+		\hline \text{第3次刷颜色} & & & \textcolor{red}{3} & \textcolor{red}{3} \\
+		\hline \text{最终颜色} & 2 & 2 & 3 & 3 \\
+	\end{array} \\
+\end{aligned} 
+\quad
+\begin{aligned} 
+	& \text{正确离散化的编号}: \\
+	& \begin{array}{c|c|c|c|c|c|}
+		\text{元素离散化编号} & \textcolor{red}{1'} & \textcolor{red}{2'} & 3' & \textcolor{red}{4'} & \textcolor{red}{5'} \\
+		\hline \text{初始颜色} & 0 & 0 & 0 & 0 & 0 \\
+		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & 1 & \textcolor{red}{1} \\
+		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & & \\
+		\hline \text{第3次刷颜色} & & & & \textcolor{red}{3} & \textcolor{red}{3} \\
+		\hline \text{最终颜色} & 2 & 2 & 1 & 3 & 3 \\
+	\end{array}
+\end{aligned} 
+$$
+
+左图为原始编号，中图为直接离散化编号，右图为我们想要的离散化编号。可以看到，如果直接离散化编号，则无法保留"相邻区间内是否还隔有元素"的信息。为了保留这一信息，在离散化时，**如果在去重后的原始编号列表中，对于当前遍历到的原始编号`i`，不存在恰好大`1`的元素编号`i+1`，则离散化编号要额外加`1`**。
+
+基于此，$q$次区间编辑会产生$2q$个端点值，去重后最多会得到$2q$个待离散化的值。由于要保留"相邻区间内是否还隔有元素"的信息，离散化后的值至多会形成一个首项为`1`、公差为`2`、项数为$2q$的等差数列，最大项至多为$4q-1$，放缩其上界到$4q$。于是线段树要维护一个$[1, 4q]$的区间，**至少要开辟$16q$个线段树节点空间**。
+
+```c++
+const int Q_MAX = 1e3, N_MAX = 2 * Q_MAX;
+int n, q, l_temp, r_temp, ans;
+int q_seg[Q_MAX + 1][2], q_point[Q_MAX * 2 + 1], q_point_count, n_id_count, n_id_max;
+std::unordered_map<int, int> q_id_map;
+
+struct SegTree { int l, r; bool has_empty; } segtree[Q_MAX * 16 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].has_empty = segtree[root * 2].has_empty | segtree[root * 2 + 1].has_empty;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].has_empty = true;
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+bool segtree_range_fill_empty(const int root, const int &l, const int &r) {
+    if(segtree[root].has_empty == false) { return false; }
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        bool has_empty = segtree[root].has_empty;
+        segtree[root].has_empty = false;
+        return has_empty;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    bool query = false;
+    if(l <= m) { query |= segtree_range_fill_empty(root * 2, l, r); }
+    if(r > m) { query |= segtree_range_fill_empty(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> q_seg[i][0] >> q_seg[i][1];
+        q_point[++q_point_count] = q_seg[i][0];
+        q_point[++q_point_count] = q_seg[i][1];
+    }
+    std::sort(q_point + 1, q_point + 1 + q_point_count);
+    n_id_count = std::unique(q_point + 1, q_point + 1 + q * 2) - (q_point + 1);
+    q_point[0] = q_point[1] - 1; // 本来需要储存上一个q_point的值q_point_last，现在令q_point[0]就是上一个q_point的值，使得q_point[1]对应的离散化编号为1
+    for(int i = 1; i <= n_id_count; ++i) {
+        if(q_point[i - 1] + 1 < q_point[i]) { ++n_id_max; }
+        q_id_map[q_point[i]] = ++n_id_max;
+    }
+    segtree_init(1, 1, n_id_max);
+    for(int i = q; i >= 1; --i) {
+        l_temp = q_id_map[q_seg[i][0]];
+        r_temp = q_id_map[q_seg[i][1]];
+        ans += segtree_range_fill_empty(1, l_temp, r_temp);
+    }
+    std::cout << ans;
+}
+```
+
 ### §7.4.2 懒标记线段树
 
 接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`bool lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。有时`v_delta`本身就可以反映出是否存在懒标记。
@@ -10300,123 +10425,11 @@ int main() {
 }
 ```
 
-#### §7.4.2.2 离散化线段树
+### §7.4.3 其它改良线段树
 
-我们知道对于长度为`n`的序列`a[1->n]`，传统线段树需要`4*n`个空间。如果$n$超过了$10^6$的数量级，那么空间和时间一定会炸。基于此，我们转而关注`q`次修改和查询中涉及的左右区间，于是只需对至多`Q_MAX * 2`个端点位置进行离散化即可。
+#### §7.4.3.1 动态开点线段树
 
-对`2*q`个端点位置排序需要$O(2q\log_{2}2q)$时间，去重需要$O(2q)$时间；对于每个区间给定的端点值`x`，都可以用二分查找的方式找到离散化后的编号，时间复杂度为$O(\log_2 2q)$；一共要查询`2*q`次端点的离散化编号；每次区间编辑或查询需要耗费$O(2q\log_2{2q})$的时间。**综上所述，离散化线段树的时间复杂度为$O(6q\log_{2}{q} + 8q)$**。**当`n>=1e7`，而`q<=1e6`时，不妨使用离散化线段树**。
-
-> [洛谷P3740](https://www.luogu.com.cn/problem/P3740)：为初始值均**无颜色**的序列`int a[1->n<=1e7]`维护线段树，支持`q<=1e3`区间重置操作：第`i`条指令将闭区间`[l, r]`中的元素颜色重置为`i`。最后查询`[1, n]`中的不同的颜色数量（不计初始值的无颜色）。
-
-注意到本题只有最后一次操作才是查询，因此可以考虑离线做法。**注意到涂颜色操作执行的时间越晚，涂的颜色的优先级越高，优先级低的颜色无法覆盖优先级高的颜色**。于是按时间逆序刷颜色：先刷时间上最后一个、优先级最高的颜色，再刷时间上倒数第二个、优先级次高的颜色，以此类推。当刷第`i`个颜色时，使用线段树递归查找`[l, r]`内有无未曾刷过颜色的元素，**如果有，则说明颜色`i`可以占据这些元素，并且永远不可能被后续的颜色刷掉。因此颜色`i`能出现在最终的区间内，给统计的颜色总数加`1`**。最后输出颜色总数即可。
-
-在编程实现上，我们令`.has_empty`表示区间内是否有未曾粉刷过的节点。显然`segtree_pushup()`的逻辑是：只要`root`节点的`.has_empty`是两个子节点`.has_empty`的逻辑或。
-
-本题的`n<=1e7`，因此考虑使用离散化线段树。本题的坑点在于**离散化的编号必须要反映出原始的两个相邻区间之间是否还有元素**。例如下面的输入样例：
-
-$$
-
-\begin{aligned} 
-	& \text{原始编号}: \\
-	& \begin{array}{c|c|c|c|c|c|}
-		\text{元素编号} & \textcolor{red}{1} & \textcolor{red}{2} & 3 & \textcolor{red}{4} & \textcolor{red}{5} \\
-		\hline \text{初始颜色} & 0 & 0 & 0 & 0 & 0 \\
-		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & 1 & \textcolor{red}{1} \\
-		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & & \\
-		\hline \text{第3次刷颜色} & & & & \textcolor{red}{3} & \textcolor{red}{3} \\
-		\hline \text{最终颜色} & 2 & 2 & 1 & 3 & 3 \\
-	\end{array}
-\end{aligned} 
-\quad
-\begin{aligned} 
-	& \text{直接离散化的编号}: \\
-	& \begin{array}{c|c|c|c|c|}
-		\text{元素离散化编号} & \textcolor{red}{1'} & \textcolor{red}{2'} & \textcolor{red}{3'} & \textcolor{red}{4'} \\
-		\hline \text{初始颜色} & 0 & 0 & 0 & 0 \\
-		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & \textcolor{red}{1} \\
-		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & \\
-		\hline \text{第3次刷颜色} & & & \textcolor{red}{3} & \textcolor{red}{3} \\
-		\hline \text{最终颜色} & 2 & 2 & 3 & 3 \\
-	\end{array} \\
-\end{aligned} 
-\quad
-\begin{aligned} 
-	& \text{正确离散化的编号}: \\
-	& \begin{array}{c|c|c|c|c|c|}
-		\text{元素离散化编号} & \textcolor{red}{1'} & \textcolor{red}{2'} & 3' & \textcolor{red}{4'} & \textcolor{red}{5'} \\
-		\hline \text{初始颜色} & 0 & 0 & 0 & 0 & 0 \\
-		\hline \text{第1次刷颜色} & \textcolor{red}{1} & 1 & 1 & 1 & \textcolor{red}{1} \\
-		\hline \text{第2次刷颜色} & \textcolor{red}{2} & \textcolor{red}{2} & & & \\
-		\hline \text{第3次刷颜色} & & & & \textcolor{red}{3} & \textcolor{red}{3} \\
-		\hline \text{最终颜色} & 2 & 2 & 1 & 3 & 3 \\
-	\end{array}
-\end{aligned} 
-$$
-
-左图为原始编号，中图为直接离散化编号，右图为我们想要的离散化编号。可以看到，如果直接离散化编号，则无法保留"相邻区间内是否还隔有元素"的信息。为了保留这一信息，在离散化时，**如果在去重后的原始编号列表中，对于当前遍历到的原始编号`i`，不存在恰好大`1`的元素编号`i+1`，则离散化编号要额外加`1`**。
-
-基于此，$q$次区间编辑会产生$2q$个端点值，去重后最多会得到$2q$个待离散化的值。由于要保留"相邻区间内是否还隔有元素"的信息，离散化后的值至多会形成一个首项为`1`、公差为`2`、项数为$2q$的等差数列，最大项至多为$4q-1$，放缩其上界到$4q$。于是线段树要维护一个$[1, 4q]$的区间，**至少要开辟$16q$个线段树节点空间**。
-
-```c++
-const int Q_MAX = 1e3, N_MAX = 2 * Q_MAX;
-
-int n, q, l_temp, r_temp, ans;
-int q_seg[Q_MAX + 1][2], q_point[Q_MAX * 2 + 1], q_point_count, n_id_count, n_id_max;
-std::unordered_map<int, int> q_id_map;
-
-struct SegTree { int l, r; bool has_empty; } segtree[Q_MAX * 16 + 1];
-inline void segtree_pushup(const int &root) {
-    segtree[root].has_empty = segtree[root * 2].has_empty | segtree[root * 2 + 1].has_empty;
-}
-void segtree_init(const int root, const int l, const int r) {
-    segtree[root].l = l; segtree[root].r = r;
-    if(l == r) {
-        segtree[root].has_empty = true;
-        return;
-    }
-    int m = (l + r) / 2;
-    segtree_init(root * 2, l, m);
-    segtree_init(root * 2 + 1, m + 1, r);
-    segtree_pushup(root);
-}
-bool segtree_range_fill_empty(const int root, const int &l, const int &r) {
-    if(segtree[root].has_empty == false) { return false; }
-    if(l <= segtree[root].l && r >= segtree[root].r) {
-        bool has_empty = segtree[root].has_empty;
-        segtree[root].has_empty = false;
-        return has_empty;
-    }
-    int m = (segtree[root].l + segtree[root].r) / 2;
-    bool query = false;
-    if(l <= m) { query |= segtree_range_fill_empty(root * 2, l, r); }
-    if(r > m) { query |= segtree_range_fill_empty(root * 2 + 1, l, r); }
-    segtree_pushup(root);
-    return query;
-}
-
-int main() {
-    std::cin >> n >> q;
-    for(int i = 1; i <= q; ++i) {
-        std::cin >> q_seg[i][0] >> q_seg[i][1];
-        q_point[++q_point_count] = q_seg[i][0];
-        q_point[++q_point_count] = q_seg[i][1];
-    }
-    std::sort(q_point + 1, q_point + 1 + q_point_count);
-    n_id_count = std::unique(q_point + 1, q_point + 1 + q * 2) - (q_point + 1);
-    q_point[0] = q_point[1] - 1; // 本来需要储存上一个q_point的值q_point_last，现在令q_point[0]就是上一个q_point的值，使得q_point[1]对应的离散化编号为1
-    for(int i = 1; i <= n_id_count; ++i) {
-        if(q_point[i - 1] + 1 < q_point[i]) { ++n_id_max; }
-        q_id_map[q_point[i]] = ++n_id_max;
-    }
-    segtree_init(1, 1, n_id_max);
-    for(int i = q; i >= 1; --i) {
-        l_temp = q_id_map[q_seg[i][0]];
-        r_temp = q_id_map[q_seg[i][1]];
-        ans += segtree_range_fill_empty(1, l_temp, r_temp);
-    }
-    std::cout << ans;
-}
-```
+#### §7.4.3.2 zkw线段树
 
 ### §7.4.A 不可拆分性目标函数
 
@@ -11341,9 +11354,15 @@ int main() {
 
 #### §7.4.B.1 一次性颜色
 
-> [洛谷P3740](https://www.luogu.com.cn/problem/P3740)：给定`q<=`
+一个格子只能有一个颜色，每次涂的颜色均不相同。
+
+> [洛谷P3740](https://www.luogu.com.cn/problem/P3740)（`n<=1e6`弱化版）：为初始值均**无颜色**的序列`int a[1->n]`维护线段树，支持区间重置操作：第`i`条指令将闭区间`[l, r]`中的元素颜色重置为`i`。最后查询`[1, n]`中的不同的颜色数量（不计初始值的无颜色）。
+
+具体解题步骤参见[§7.4.1.2 离散化线段树](####§7.4.1.2 离散化线段树)一节的原始例题。
 
 #### §7.4.B.2 可重复颜色
+
+一个格子只能有一个颜色，每次涂的颜色可以是之前已使用过的颜色。
 
 > [洛谷P1558](https://www.luogu.com.cn/problem/P1558)：给定`T<=30`种编号从`1`开始递增的颜色，和`n`个排成一行的格子。格子初始颜色均为`1`号颜色，现需要支持两种操作。（1）将区间内的所有格子涂成`z_temp`号颜色；（2）查询区间内所有格子的不同颜色数量。
 
@@ -11431,6 +11450,89 @@ int main() {
 
 本题的颜色种类数进一步扩充到`1e9`，???????????????？？？？？？？？？？TODO
 
+#### §7.4.8.3 可混合颜色
+
+一个格子可以同时有多个颜色。每次涂色操作不会覆盖掉之前的颜色们。
+
+> [洛谷P2184](https://www.luogu.com.cn/problem/P2184)：为初始时无颜色的序列`a[1->n]`维护一个线段树，支持以下操作。（1）第`i`个操作在区间`[l, r]`内涂上第`i`种颜色，每次涂色不会覆盖掉之前的颜色们，之前的颜色依然在元素上。（2）查询`[l, r]`内总共有多少种颜色。
+
+**本题需要极强的洞察力**。如果颜色`i`存在于区间`[l, r]`上，则第`i`次涂色的区间`[l[i], r[i]]`一定属于下面四种情况：
+
+1. 涂色范围覆盖了查询区间的左子部分，即`l[i] <= l <= r[i] <= r`。
+2. 涂色范围覆盖了查询区间的右子部分，即`l <= l[i] <= r <= r[i]`。
+3. 涂色范围就在查询区间内部，即`l <= l[i] <= r[i] <= r`。
+4. 涂色范围横跨了整个查询区间，即`l[i] <= l <= r <= r[i]`。
+
+现在我们关心哪些变量共同决定了最终的答案。
+
+- 分析第2种和第4种情况，我们发现`l[i]`和`l`的大小关系并不影响最终答案
+- 分析第1种和第4种情况，我们发现`r[l]`和`r`的大小关系也不影响最终答案
+
+分析到这一步，容易发现：如果`r[i] < l`或`l[i] > r`，则涂色范围不可能与查询区间有任何交集。更进一步，对于一种颜色`i`来说，要让它出现在查询区间`[l, r]`中，满足`r[i] >= l`只是第一个条件，还要满足第二个条件`l[i] <= r`才行，接下来依次讨论这两个条件。**满足第二个条件颜色种类数，就是`[1, r]`内染色区间左端点的总数。在此基础上不满足第一个条件的颜色种类数，就是`[1, l)`内染色区间右端点的总数**。两者相减即为答案。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp;
+
+struct SegTree { int l, r; int v_sum[2]; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum[0] = segtree[root * 2].v_sum[0] + segtree[root * 2 + 1].v_sum[0];
+    segtree[root].v_sum[1] = segtree[root * 2].v_sum[1] + segtree[root * 2 + 1].v_sum[1];
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { return; }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_incre(const int root, const int &target, const int &type) {
+    if(segtree[root].l == segtree[root].r) {
+        ++segtree[root].v_sum[type];
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_incre(root * 2, target, type); }
+    if(target > m) { segtree_incre(root * 2 + 1, target, type); }
+    segtree_pushup(root);
+}
+int segtree_query(const int root, const int &l, const int &r, const int &type) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum[type]; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    int query = 0;
+    if(l <= m) { query += segtree_query(root * 2, l, r, type); }
+    if(r > m) { query += segtree_query(root * 2 + 1, l, r, type); }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            segtree_incre(1, x_temp, 0);
+            segtree_incre(1, y_temp, 1);
+        } else if(op_temp == 2) {
+            int a = segtree_query(1, 1, y_temp, 0);
+            int b = (x_temp == 1 ? 0 : segtree_query(1, 1, x_temp - 1, 1)); // 防止查询区间为[1,0]导致l>=r
+            std::cout << a - b << '\n';
+        }
+    }
+}
+```
+
+### §7.4.C 非恒等修改函数
+
+在之前的例题中，我们在进行区间修改时，修改后的值$v'=f(v)$使用的修改函数是一致的。本节将介绍不一致的修改函数。这类题的核心是找到一对函数$g(\cdot),h(\cdot)$满足$v'=h(g(v))$，其中$g(v)$是恒等的修改函数，令线段树维护的值从$v$变为$g(v)$。
+
+> [洛谷P1438](https://www.luogu.com.cn/problem/P1438)：给定数组`a[1->n]`，维护一个`long long int`线段树，支持两种操作。（1）给定一个首项为`k_temp`、公差为`d_temp`的等差数列，将其按顺序叠加到给定的`[l_temp, r_temp]`区间上；（2）单点查询某个元素的值。
+
+线段树存储的是原数组`a[]`的差分数组`a_delta[]`，维护区间和即可。TODO：？？？？？？？？？？？
+
+### §7.4.D 无需线段树的区间操作
+
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
 
 本题的条件十分优良，以至于我们可以不使用线段树。首先创建一个空数组`int count[]`，在批量加一时，只给`count[i]`加一。最后询问的时候，使用类似于前缀和的方式从`count[n]`开始向后累加（即`count[i-1]+=count[i]`），最终就得到了储存答案的数组。对于每个询问`i`，只需输出`count[i]`即可。
@@ -11443,14 +11545,6 @@ for(int i = 2; i <= n; ++i) {
     }
 }
 ```
-
-### §7.4.C 非恒等修改函数
-
-在之前的例题中，我们在进行区间修改时，修改后的值$v'=f(v)$使用的修改函数是一致的。本节将介绍不一致的修改函数。这类题的核心是找到一对函数$g(\cdot),h(\cdot)$满足$v'=h(g(v))$，其中$g(v)$是恒等的修改函数，令线段树维护的值从$v$变为$g(v)$。
-
-> [洛谷P1438](https://www.luogu.com.cn/problem/P1438)：给定数组`a[1->n]`，维护一个`long long int`线段树，支持两种操作。（1）给定一个首项为`k_temp`、公差为`d_temp`的等差数列，将其按顺序叠加到给定的`[l_temp, r_temp]`区间上；（2）单点查询某个元素的值。
-
-线段树存储的是原数组`a[]`的差分数组`a_delta[]`，维护区间和即可。TODO：？？？？？？？？？？？
 
 ## §7.5 树状数组
 
@@ -11630,17 +11724,19 @@ int main() {
 ### §7.6.5 斐波纳挈堆
 
 
-# §8 位运算
+# §8 数学
 
-## §8.1 相邻的`1`
+## §8.1 位运算
+
+### §8.1.1 相邻的`1`
 
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定一个数字`n`及其二进制字符串`s`，如果`s`中存在两个索引不同的字符`1`，其下标分别记为`s[i]`、`s[j]`，使得`i`和`j`之间的距离（即`std::abs(i-j)`）恰好`k`，则输出`true`；反之输出`false`。
 
 如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？#TODO：
 
-# §9 排列组合
+## §8.2 排列组合
 
-## §9.1 组合数
+### §8.2.1 组合数
 
 为了计算组合数$C_{n}^m$，我们常用恒等式$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$递推求得。具体证明详见组合计数章节。恒等式证明如下：
 
@@ -11660,7 +11756,7 @@ for(int i = 0; i <= n; ++i) {
 }
 ```
 
-## §9.1.2 广义组合数
+### §8.2.2 广义组合数
 
 如果使用$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$来求解$n=m$时的$C_{n}^{n}$，那么就会遇到$C_{n-1}^{n}$的情况，不在组合数的定义域内。在上面的代码中，为了避免这一情况，我们特地直接给出了$C_{n}^{n}=1$，不必使用该递推式求解，从而绕过了定义域的限制。本节将介绍广义组合数的概念，将$C_n^m$从$n\ge m > 0$推广到$n < m$、甚至$n, m < 0$的情况。
 
@@ -11711,9 +11807,9 @@ int main() {
 }
 ```
 
-# §10 数论
+## §8.3 数论
 
-## §10.1 模意义的运算
+### §8.3.1 模意义的运算
 
 - 模`p`加法分配率：$(a+b)\% p=(a\% p + b\% p)\% p$
 - 模`p`减法分配率：$(a-b)\% p=(a\% p - b\% p)\% p$
@@ -11722,7 +11818,7 @@ int main() {
 - 模`p`乘法结合律：$(a\cdot b)\%\ p = ((a\% p)\cdot b)\% p$
 - 正数模：$(a \% p + p) \% p$
 
-# §A 警钟长鸣
+# §A 技巧与警钟长鸣
 
 ## §A.1 Segment Fault
 
@@ -12029,7 +12125,7 @@ int main() {
 }
 ```
 
-下面的板子来源于[洛谷@oldyan](https://www.luogu.com.cn/record/151634839)，将`STDIN`映射到内存地址，使用`fwrite()`快写，使用析构函数保证执行`flush`操作。要注意每输入输出一个数都要重新获取一个实例，即调用`::get_instance()`方法。本代码必须使用C++20编译，**且不直接支持输出`long long int`，需要手动用`unsigned long long int`**转换并输出正负号**。
+下面的板子来源于[洛谷@oldyan](https://www.luogu.com.cn/record/151634839)，将`STDIN`映射到内存地址，使用`fwrite()`快写，使用析构函数保证执行`flush`操作。要注意每输入输出一个数都要重新获取一个实例，即调用`::get_instance()`方法。本代码必须使用C++20编译，**且不直接支持输出`long long int`，需要手动用`unsigned long long int`转换并输出正负号**。
 
 ```c++
 #include <bits/stdc++.h>
@@ -12239,4 +12335,16 @@ int main(){
 	mmap_cout << a;
 	// 不必手动flush()
 }
+```
+
+### §A.3.3 `#pragma`开`-O3`优化
+
+在程序开头添加以下头文件：
+
+```c++
+// #pragma GCC optimize(1)
+// #pragma GCC optimize(2)
+// #pragma GCC optimize(3)
+// #pragma GCC optimize("Ofast", "inline", "-ffast-math")
+// #pragma GCC target("avx,sse2,sse3,sse4,mmx")
 ```
