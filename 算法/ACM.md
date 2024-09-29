@@ -10442,7 +10442,7 @@ int main() {
 
 回想传统线段树的单点修改，我们需要先用$O(\log_2{n})$的时间查找到目标叶子节点，然后用$O(\log_2{n})$时间执行`segtree_pushup()`后向上回溯至根节点。然而在某种情况下，我们可以直接定位到所求的叶子节点，这种情况就是完全二叉树。
 
-在编程实现中，zkw线段树有两种建树方案：
+在网上鱼目混珠的各类编程实现中，zkw线段树有以下建树方案：
 
 ```mermaid
 %%{init:{'flowchart':{'nodeSpacing': 5, 'rankSpacing': 30}}}%%
@@ -10477,8 +10477,8 @@ flowchart TB
 ```
 
 1. 令维护的序列范围为`a[0->n-1]`，长度为`n`。于是开辟一个长度为$2n$的线段树节点数组`segtree[]`。令`segtree[0]`不使用，`segtree[1->n-1]`这`n-1`个节点用于储存区间合并后的节点信息，`segtree[n->2n-1]`这`n`个节点存储原始序列`a[0->n-1]`。**这种建树方案的各个原始序列对应的节点不一定在同一层，但能保证每个非叶子节点都有两个子节点**。[@Blibili 古城算法](https://www.bilibili.com/video/BV1gy4y1D7dx/?t=725)等人使用这种建树方案。**推荐使用**。
-2. 令维护的序列范围为`a[1->n]`，长度为`n`，开辟一个长度为$4n$的线段树节点数组。设$m=2^{\lceil\log_{2}n\rceil}$,令`segtree[0]`不使用，`segtree[1->m]`这`m`个节点用于储存区间合并后的节点信息，`segtree[m+1->m+n]`这`n`个节点用于存储原始序列`a[0->n-1]`。**网上的大部分实现都是这一版，但是只开了$2n+K$个空间。`segtree[m]`在`segtree_pushup()`时调用左右节点必然内存越界，必须至少开$1+2^{\lceil\log_{2}{n}\rceil}+n\le 4n$个空间才行**。所以网上大部分实现都额外预留了很多的常数空间$K$，**而且访问的越界节点还要注意初始化，不保证默认值就是正确的初始值，因此不推荐使用**。\
-   这里点名批评[@洛谷 Jμdge(uid:38576)](https://www.cnblogs.com/Judge/p/9514862.html)写的博客误人子弟，前文说要开$4n$个空间，后面代码却改开$2n$空间，但是靠着给`N_MAX`多加常数才侥幸避免数组越界。
+2. 令维护的序列范围为`a[1->n]`，长度为`n`，开辟一个长度为$4n$的线段树节点数组。设$m=2^{\lceil\log_{2}n\rceil}$,令`segtree[0]`不使用，`segtree[1->m]`这`m`个节点用于储存区间合并后的节点信息，`segtree[m+1->m+n]`这`n`个节点用于存储原始序列`a[0->n-1]`。**网上的大部分实现都是这一版，但是只开了$2n+K$个空间。`segtree[m]`在`segtree_pushup()`时调用左右节点必然内存越界，必须至少开$1+2^{\lceil\log_{2}{n}\rceil}+n\le 4n$个空间才行**。所以网上大部分实现都额外预留了很多的常数空间$K$，**而且访问的越界节点还要注意初始化，不保证默认值就是正确的初始值，因此不推荐使用**。\这里点名批评[@洛谷 Jμdge(uid:38576)](https://www.cnblogs.com/Judge/p/9514862.html)写的博客误人子弟，前文说要开$4n$个空间，后面代码却改开$2n$空间，但是靠着给`N_MAX`多加常数才侥幸避免数组越界。
+3. 令维护的序列范围为`a[1->n]`，长度为`n`，开辟一个长度为$4n+4$的线段树节点数组，不使用`segtree[0]`和`segtree[m]`，将最后`segtree[1->m-1]`这`m-1`个节点储存合并后的节点信息，`segtree[m+1->m+n]`这`n`个节点用于存储原始序列`a[1->n]`。[@洛谷 a41881147](https://www.luogu.com.cn/user/18141)等人使用这种做法。
 
 下面是第一种建表方法，维护原始序列`a[0->n-1]`（查询区间和、单点修改、单点自增）：
 
@@ -10502,13 +10502,89 @@ void segtree_reset(int i, T &reset) {
 }
 T segtree_range_query_sum(int l, int r) { // [l, r]必须在[0, n)的范围内
 	T res = 0;
-	for (l += n, r += n; l <= r; l /= 2, r /= 2) { // l <= r 可以换成 l ^ r ^ 1
-		if(l % 2 == 1) { res += segtree[l++].v_sum; } // 如果l是右子节点
-		if(r % 2 == 0) { res += segtree[r--].v_sum; } // 如果r是左子节点
+	for (l += n, r += n; l <= r; l /= 2, r /= 2) {
+		if(l % 2 == 1) { res += segtree[l++].v_sum; } // 如果l是右子节点，则直接计入这个孤立的节点，然后l++缩小待统计的左边界
+		if(r % 2 == 0) { res += segtree[r--].v_sum; } // 如果r是左子节点，则直接计入这个孤立的节点，然后r--缩小待统计的右边界
 	}
 	return res;
 }
 ```
+
+> [洛谷P3372](https://www.luogu.com.cn/problem/P3372)：为序列`a[1->n]`维护一个线段树，支持区间自增与查询区间总和。
+
+这里使用第3种建树方案。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, n_offset, op_temp, x_temp, y_temp; long long int z_temp;
+
+struct SegTree { int len; long long v_sum, v_incre; } segtree[N_MAX * 4 + 4];
+void segtree_init() {
+    n_offset = 1; while(n_offset <= n) { n_offset *= 2; }
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> segtree[i + n_offset].v_sum;
+        segtree[i + n_offset].len = 1;
+    }
+    for(int i = n_offset - 1; i >= 1; --i) {
+        segtree[i].v_sum = segtree[i * 2].v_sum + segtree[i * 2 + 1].v_sum;
+        segtree[i].len = segtree[i * 2].len + segtree[i * 2 + 1].len;
+    }
+}
+void segtree_range_incre(int l, int r, const long long int &incre) { // 编辑开区间(l, r)
+    int len_l = 0; // 当l为目前值l_now时，与原始值l_raw形成的(l_raw, l_now.r]区间一共有多少元素。即l的每次变动造成待查询区间缩小，总共排除了多少个已查询元素
+    int len_r = 0; // 当r为目前值r_now时，与原始值r_raw形成的[r_now.l, r_raw)区间一共有多少元素。即r的每次变动造成待查询区间缩小，总共排除了多少个已查询元素
+    for(l += n_offset, r += n_offset; l ^ r ^ 1; l >>= 1, r >>= 1) { // l和r是兄弟节点时，(l, r)已不含元素，停止遍历
+        segtree[l].v_sum += incre * len_l; // 必须先更新自己
+        if(l % 2 == 0) { // 如果l是左节点，下一次l/=2后，(l_new, r_new)将不再包含l+1，因此要即使传递懒标记
+            segtree[l + 1].v_incre += incre;
+            len_l += segtree[l + 1].len;
+            segtree[l + 1].v_sum += segtree[l + 1].len * incre;
+        } 
+        segtree[r].v_sum += incre * len_r;
+        if(r % 2 == 1) { // 如果r是右节点，下一次r/=2后，(l_new, r_new)将不再包含r-1，因此要即使传递懒标记
+            segtree[r - 1].v_incre += incre;
+            len_r += segtree[r - 1].len;
+            segtree[r - 1].v_sum += segtree[r - 1].len * incre;
+        }
+    }
+    for(; l >= 1 && r >= 1; l >>= 1, r >>= 1) // 注意这里,标记在上面打完了,但是修改sum要到顶...(显然呢...)
+        segtree[l].v_sum += incre * len_l, segtree[r].v_sum += incre * len_r;
+}
+long long int segtree_range_query_sum(int l, int r) { // 查询开区间(l, r)
+    long long ans = 0;
+    int len_l = 0; // 当l为目前值l_now时，与原始值l_raw形成的(l_raw, l_now.r]区间一共有多少元素。即l的每次变动造成待查询区间缩小，总共排除了多少个已查询元素
+    int len_r = 0; // 当r为目前值r_now时，与原始值r_raw形成的[r_now.l, r_raw)区间一共有多少元素。即r的每次变动造成待查询区间缩小，总共排除了多少个已查询元素
+    for(l += n_offset, r += n_offset; l ^ r ^ 1; l >>= 1, r >>= 1) { // l和r是兄弟节点时，(l, r)已不含元素，只需再加完此处懒标记即可
+        ans += segtree[l].v_incre * len_l + segtree[r].v_incre * len_r;
+        if(l % 2 == 0) { // 如果l是左节点，由于要查询(l, r)不包含l，因此ans直接加segtree[l+1]的值即可
+            ans += segtree[l + 1].v_sum;
+            len_l += segtree[l + 1].len;
+        }
+        if(r % 2 == 1) { // 如果r是左节点，由于要查询(l, r)不包含r，因此ans直接加segtree[r-1]的值即可
+            ans += segtree[r - 1].v_sum;
+            len_r += segtree[r - 1].len;
+        }
+    }
+    for(; l >= 1 && r >= 1; l >>= 1, r >>= 1) { // 当(l, r)不含待查询元素时，只需再加完此处与上层的懒标记即可，不必进行后续的l%2==0和r%2==1缩小带查询区间
+        ans += segtree[l].v_incre * len_l + segtree[r].v_incre * len_r;
+    }
+    return ans;
+}
+int main() {
+    std::cin >> n >> q;
+    segtree_init();
+    for(int i = 1; i <= q; i++) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 2) {
+            std::cout << segtree_range_query_sum(x_temp - 1, y_temp + 1) << '\n';
+        } else {
+            std::cin >> z_temp;
+            segtree_range_incre(x_temp - 1, y_temp + 1, z_temp);
+        }
+    }
+}
+```
+
 
 #### §7.4.3.3 可持久化线段树/主席树
 
