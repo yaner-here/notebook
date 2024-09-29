@@ -10447,20 +10447,30 @@ int main() {
 ```mermaid
 %%{init:{'flowchart':{'nodeSpacing': 5, 'rankSpacing': 30}}}%%
 flowchart TB
-	subgraph 建树方法2
+	subgraph "建树方法3($$m=2^k\ge n+1$$,开2m/4n空间)"
+		direction TB
+		c1["(1)"] --> c2["(2)"] & c3["(3)"]
+        c2 --> c4["(4)"] & c5["(5)"]
+        c3 --> c6["(6)"] & c7["←自此更新<br>(7)"]
+        c4 --> c8["(8)"] & c9["a[1]<br>(9)"]
+        c5 --> c10["a[2]<br>(10)"] & c11["a[3]<br>(11)"]
+        c6 --> c12["a[4]<br>(12)"] & c13["a[5]<br>(13)"]
+        c7 --> c14["(14)"] & c15["(15)"]
+	end
+	subgraph "建树方法2(开4n空间)"
 		direction TB
 		b1["(1)"] --> b2["(2)"] & b3["(3)"]
         b2 --> b4["(4)"] & b5["(5)"]
         b3 --> b6["(6)"] & b7["(7)"]
-        b4 --> b8["(8)"] & b9["a[1]<br>(9)"]
+        b4 --> b8["←自此更新<br>(8)"] & b9["a[1]<br>(9)"]
         b5 --> b10["a[2]<br>(10)"] & b11["a[3]<br>(11)"]
         b6 --> b12["a[4]<br>(12)"] & b13["a[5]<br>(13)"]
         b8 --> b16["(16)"] & b17["(17)"]
 	end
-	subgraph 建树方法1
+	subgraph "建树方法1(开2n空间)"
 		direction TB
 		a1["(1)"] --> a2["(2)"] & a3["(3)"]
-		a2 --> a4["(4)"] & a5["a[0]<br>(5)"]
+		a2 --> a4["←自此更新<br>(4)"] & a5["a[0]<br>(5)"]
 		a3 --> a6["a[1]<br>(6)"] & a7["a[2]<br>(7)"]
 		a4 --> a8["a[3]<br>(8)"] & a9["a[4]<br>(9)"]
 	end
@@ -10470,25 +10480,37 @@ flowchart TB
 2. 令维护的序列范围为`a[1->n]`，长度为`n`，开辟一个长度为$4n$的线段树节点数组。设$m=2^{\lceil\log_{2}n\rceil}$,令`segtree[0]`不使用，`segtree[1->m]`这`m`个节点用于储存区间合并后的节点信息，`segtree[m+1->m+n]`这`n`个节点用于存储原始序列`a[0->n-1]`。**网上的大部分实现都是这一版，但是只开了$2n+K$个空间。`segtree[m]`在`segtree_pushup()`时调用左右节点必然内存越界，必须至少开$1+2^{\lceil\log_{2}{n}\rceil}+n\le 4n$个空间才行**。所以网上大部分实现都额外预留了很多的常数空间$K$，**而且访问的越界节点还要注意初始化，不保证默认值就是正确的初始值，因此不推荐使用**。\
    这里点名批评[@洛谷 Jμdge(uid:38576)](https://www.cnblogs.com/Judge/p/9514862.html)写的博客误人子弟，前文说要开$4n$个空间，后面代码却改开$2n$空间，但是靠着给`N_MAX`多加常数才侥幸避免数组越界。
 
-下面是第一种建表方法：
+下面是第一种建表方法，维护原始序列`a[0->n-1]`（查询区间和、单点修改、单点自增）：
 
 ```c++
 int n, a[N_MAX]; // 对应左闭右开区间[0, n)和原始序列a[0->n-1]
 
-struct SegTree { T v; } segtree[N_MAX * 2];
+struct SegTree { T v_sum; } segtree[N_MAX * 2];
 inline void segtree_pushup(const int &root) {
-	segtree[root] = 区间信息合并函数(segtree[root * 2], segtree[root * 2 + 1]);
+	segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
 }
 void segtree_init(const int &n){
-	for(int i = n; i < n * 2; ++i) { segtree[root].v = a[i - n]; } // 输入原始序列
+	for(int i = n; i < n * 2; ++i) { segtree[i].v_sum = a[i - n]; } // 输入原始序列
 	for(int i = n - 1; i > 0; --i) { segtree_pushup(i); } // 自底向上更新
 }
-T segtree_range_query_sum() {
-
+void segtree_incre(int i, T &incre) {
+	for(i += n; i > 0; i /= 2) { segtree[i].v_sum += incre; }
+}
+void segtree_reset(int i, T &reset) {
+	int incre = reset - segtree[i + n].v_sum;
+	for(i += n; i > 0; i /= 2) { segtree[i].v_sum += incre; }
+}
+T segtree_range_query_sum(int l, int r) { // [l, r]必须在[0, n)的范围内
+	T res = 0;
+	for (l += n, r += n; l <= r; l /= 2, r /= 2) { // l <= r 可以换成 l ^ r ^ 1
+		if(l % 2 == 1) { res += segtree[l++].v_sum; } // 如果l是右子节点
+		if(r % 2 == 0) { res += segtree[r--].v_sum; } // 如果r是左子节点
+	}
+	return res;
 }
 ```
 
-#### §7.4.3.3 可持久化线段树/主席数
+#### §7.4.3.3 可持久化线段树/主席树
 
 
 
