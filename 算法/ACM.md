@@ -9492,11 +9492,237 @@ template<typename T> class LinkedDeque {
 };
 ```
 
-## §7.4 线段树
+## §7.4 树状数组
+
+**树状数组是一种维护前缀和的数据结构**。其支持的运算$f(\cdot)$需要满足结合律$f(f(x,y),z)=f(x,f(y,z))$、支持差分$y=f^{-1}(f(x,y),x)$，例如加法、乘法、异或等。然而$\max(\cdot)$、$\gcd(\cdot)$等函数不支持差分，因此无法直接用于树状数组。
+
+树状数组的空间复杂度为$O(n)$。单点修改、区间查询的时间复杂度均为$O(\log_{2}n)$。
+
+### §7.4.1 普通树状数组
+
+我们先定义`lowbit(x)`函数：给定`x`的二进制形式，从从低位开始向高位找到第一个出现的`1`，并忽略掉高位其余的所有`1`，得到的新二进制数字。在编程实现上，常用`lowbit(x)==(x&(~x+1))==(x&(-x))`。
+
+```c++
+inline int lowbit(int x) {
+	return x & -x;
+}
+```
+
+`lowbit(x)`函数有以下重要的性质：
+
+- 如果`x<=y`，则区间$A$`[x-lowbit(x)+1, x]`与区间$B$`[y-lowbit(y)+1, y]`要么$A\subset B$，要么$A\cap B=\varnothing$。
+- $\forall x\in[1,n]$，区间$A$`[x-lowbit(x)+1, x]`与区间$B$`[(x+lowbit(x)) - lowbit(x+lowbit(x)) + 1, x+lowbit(x)]`必定满足$A\subset B$。
+- $\forall y\in(x, x+\text{lowbit}(x))$，区间$A$`[x-lowbit(x)+1, x]`与区间$B$`[y-lowbit(y)+1, y]`必定满足$A\cap B=\varnothing$。
+
+对于原始序列`a[1->n]`，定义其树状数组`t[1->n]`为$\displaystyle \text{bit}[x]=\sum_{i=x-\text{lowbit}(x)+1}^{x}a[i]$。也就是说，`bit[x]`反映了以`x`为求和右边界，向左移动左边界，直到求和区间包含`lowbit(x)`个元素为止时的求和结果。
+
+#### §7.4.1.1 单点修改与区间查询
+
+现在考虑求前缀和操作。对于$\displaystyle\sum_{i=1}^{x}a[i]$而言，我们可以将`x`按二进制拆分成若干个`lowbit()`的值分别相加。例如$\displaystyle\sum_{i=1}^{5} a[i]$中的`x=5`，就可以拆成$5=(101)_2=(100)_2+(1)_2$两部分，于是原式变为$\displaystyle\sum_{i=1}^{4}a[i]+\sum_{i=5}^{5}a[i]=\text{bit}[4]+\text{bit}[5]$。在编程实现中，我们可以对`x`求完`lowbit(x)`后，为其减去这一部分`x -= lowbit(x)`，直到把`x`中的所有二进制`1`全减完为止。
+
+```c++
+int bit_prefixsum(int x) { // 查询[1, x]内的元素之和
+	int ans = 0;
+	while(x >= 1) { // 或x > 0
+		ans += bit[x];
+		x -= lowbit(x);
+	}
+	return ans;
+}
+int bit_query_range_sum(const int &l, const int &r) { // 查询[l, r]内的元素之和
+	return bit_prefixsum(r) - bit_prefixsum(l - 1);
+}
+```
+
+对于单点自增操作，我们注意到更改`a[x]`会导致所有包含`a[x]`的`bit[?]`全部受影响。具体来说，是下标恰好为`lowbit()`形式的，且大于等于`n`的`bit[?]`全部受影响。
+
+```c++
+int bit_incre(int x, const int &incre) {
+	while(x <= n) {
+		bit[x] += incre;
+		x += lowbit(x);
+	}
+}
+```
+
+> [洛谷P3374](https://www.luogu.com.cn/problem/P3374)：为原始序列`a[1->n]`维护一个树状数组，支持以下操作：（1）单点自增`y_temp`；（2）查询区间内的元素之和。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5;
+int n, q, op_temp, x_temp, y_temp;
+
+int bit[N_MAX + 1];
+inline int lowbit(int x) { return x & -x; }
+inline void bit_incre(int x, const int &incre) {
+    while(x <= n) {
+        bit[x] += incre;
+        x += lowbit(x);
+    }
+}
+inline int bit_query_prefixsum(int x) {
+    int ans = 0;
+    while(x >= 1) {
+        ans += bit[x];
+        x -= lowbit(x);
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> x_temp;
+        bit_incre(i, x_temp);
+    }
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            bit_incre(x_temp, y_temp);
+        } else if(op_temp == 2) {
+            std::cout << bit_query_prefixsum(y_temp) - bit_query_prefixsum(x_temp - 1) << '\n';
+        }
+    }
+}
+```
+
+#### §7.4.1.2 区间修改与单点查询
+
+树状数组本身并不支持区间修改。我们知道树状数组只能维护前缀和，然而使用差分数组，我们可以将区间修改转化为单点修改。令树状数组`bit[1->n]`维护`a[1->n]`的差分数组`a_delta[1->n]`，于是有：
+
+```c++
+void bit_range_incre(const int &l, const int &r) {
+	bit_incre(l, incre);
+	bit_incre(r + 1, -incre); // 为防止r+1>n越界，要么做特判不执行，要么多开一个空间
+}
+int bit_query(int x) {
+	return bit_range_query_sum(1, x);
+}
+```
+
+> [洛谷P3368](https://www.luogu.com.cn/problem/P3368)：为`int64_t a[1->n]`维护一个树状数组，支持以下操作：（1）区间自增`z_temp`；（2）单点查询。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5;
+int n, q, op_temp, x_temp, y_temp; long long int z_temp, a[N_MAX + 1];
+
+int bit[N_MAX + 1];
+inline int lowbit(const int x) { return x & -x; }
+inline void bit_incre(int x, const long long int &incre) {
+    while(x <= n) {
+        bit[x] += incre;
+        x += lowbit(x);
+    }
+}
+inline long long int bit_query_prefixsum(int x) {
+    long long int ans = 0;
+    while(x >= 1) {
+        ans += bit[x];
+        x -= lowbit(x);
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> a[i];
+        bit_incre(i, a[i] - a[i -1 ]);
+    }
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp >> y_temp >> z_temp;
+            bit_incre(x_temp, z_temp);
+            if(y_temp < n) { bit_incre(y_temp + 1, -z_temp); }
+        } else if(op_temp == 2) {
+            std::cin >> x_temp;
+            std::cout << bit_query_prefixsum(x_temp) << '\n';
+        }
+    }
+}
+```
+
+#### §7.4.1.3 区间修改与区间查询
+
+令树状数组`bit[1->n]`维护`a[1->n]`的差分数组`a_delta[1->n]`。考虑如下的区间查询：
+
+$$
+\begin{aligned}
+	\sum_{i=1}^{x}a[i] & = \sum_{i=1}^{x}\sum_{j=1}^{i}\text{a\_delta}[j] \\
+	& 每个\text{a\_delta}[i]被加了x-i+1次 \\
+	& = \sum_{i=1}^{x}(x-i+1)\cdot \text{a\_delta}[i] \\
+	& = (x+1)\left(\sum_{i=1}^{x}\text{a\_delta}[i]\right) - \left(\sum_{i=1}^{x}i\cdot\text{a\_delta}[i]\right)
+\end{aligned}
+$$
+
+这启示我们需要同时为`a_delta[i]`和`i*a_delta[i]`维护两个支持区间查询的差分数组。
+
+```c++
+int bit_a_delta[N + 1], bit_ia_delta[i][N + 1];
+void bit_incre(int x, const int &incre) {
+	while(x <= n) {
+		bit_a_delta[i] += incre;
+		bit_ia_delta[i] += x * incre; // 这里可以暂存x*incre的结果，留以复用，减少时间常数
+	}
+}
+int bit_query_prefixsum(int bit[], int x) {
+	int ans = 0;
+	while(x > 0) {
+		ans += bit[x];
+		x -= lowbit(x);
+	}
+	return ans;
+}
+void bit_range_incre(const int &l, const int &r, const int &incre) {
+	bit_incre(l, incre);
+	bit_incre(r + 1, -incre);
+}
+int bit_query_prefixsum(int x) {
+	return (x + 1) * bit_query_prefixsum(bit_a_delta, x) - x * bit_query_prefixsum(bit_ia_delta, x);
+}
+int bit_query_range_sum(const int &l, const int &r) {
+	return bit_query_prefixsum(r) - bit_query_prefixsum(l - 1);
+}
+```
+
+#### §7.4.1.4 建树
+
+一种显然的建树方法是：遍历`a[1->n]`中的各个元素，依次调用`bit_incre(i, a[i])`，时间复杂度为$O(n\log_{2}{n})$。
+
+```c++
+void bit_init(const int &n) {
+	for (int i = 1; i <= n; ++i) {
+		bit_incre(i, a[i]);
+	}
+}
+```
+
+一种优化方法是：注意到每一个节点的值`bit[x]`，既是由区间`[x-lowbit(x)+1, x]`内的`lowbit(x)`个值相加而来的，又可以是由众多`bit[lowbit()]`凑出来的。这意味着我们可以不必像$O(n\log_2{n})$那样，为`bit[x]`自增`lowbit(x)`次，最多只需自增$\log_2{x}$次即可。考虑树状数组的树状结构，我们只关心每个`bit[x]`的各个直系子节点，于是可以逆序更新。该方法的时间复杂度降为$O(2n-1)$：
+
+```c++
+void bit_init(const int &n) {
+	int j = i + lowbit(i);
+	for (int i = 1; i <= n; ++i) {
+		t[i] += a[i];
+		if (j <= n) { t[j] += t[i]; }
+	}
+}
+```
+
+另一种优化方法是：注意到`bit[x]`定义为$\displaystyle\sum_{i=x-\text{lowbit}[x]+1}^{x}a[i]$，于是可以使用前缀和预处理。前缀和与原序列可以共用同一个空间，时间复杂度为$O(2n)$。
+
+```c++
+void bit_init(cons int &n) {
+	for(int i = 1; i <= n; ++i) { a[i] += a[i - 1]; }
+	for(int i = 1; i <= n; ++i) { bit[i] = a[i] - a[i - lowbit(i)]; }
+}
+```
+
+## §7.5 线段树
 
 给定一段连续区间`a[1->n]`，线段树可以用$O(\log_{2}{n})$的时间维护任意连续子区间的目标函数值，包括单点修改、区间修改、区间查询。
 
-### §7.4.1 基础线段树
+### §7.5.1 基础线段树
 
 在实践中，我们开辟一段连续的结构体数组`SegTree[]`来模拟线段树的树上节点，每个`SegTree`结构体对应的节点存储着当前节点维护的子区间`[l, r]`边界与目标函数值`v`。目标函数是一种变长参数的函数，且必须满足可拆分性：即对于任意子区间`s`（包括原区间）的任意连续划分`s1, s2, ...`，`目标函数(s) == 目标函数(目标函数(s1), 目标函数(s2), ...)`恒成立。例如$f(s)=\displaystyle\sum_{\forall i\in s}{a[i]}$、$f(s)=\underset{\forall i \in s}{\text{min/max}}{(a[i])}$都是满足可拆分性的目标函数。
 
@@ -9702,7 +9928,7 @@ int main() {
 }
 ```
 
-#### §7.4.1.1 小清新线段树
+#### §7.5.1.1 小清新线段树
 
 如果线段树上对区间修改的恒等函数$f(\cdot)$在$k$次迭代的过程中，总存在一个迭代次数上界$k^*$，使得对于任意取值范围$\mathcal{V}$内的$v\in\mathcal{V}$，$f^{(k^*)}(v)$总为定值$v^*$，则这样的线段树称为“小清新线段树”。针对小清新线段树，我们可以实时记录区间内各个元素的最小迭代次数$k'$，如果$k'\ge k^*$，则不必再更新这段区间；也可以维护区间内的元素是否均为$v^*$，如果是，则不必再更新这段区间。因此**小清新线段树的本质是带有剪枝的线段树**。
 
@@ -9776,7 +10002,7 @@ int main() {
 
 
 
-#### §7.4.1.2 离散化线段树
+#### §7.5.1.2 离散化线段树
 
 我们知道对于长度为`n`的序列`a[1->n]`，传统线段树需要`4*n`个空间。如果$n$超过了$10^6$的数量级，那么空间和时间一定会炸。基于此，我们转而关注`q`次修改和查询中涉及的左右区间，于是只需对至多`Q_MAX * 2`个端点位置进行离散化即可。
 
@@ -9893,7 +10119,7 @@ int main() {
 }
 ```
 
-### §7.4.2 懒标记线段树
+### §7.5.2 懒标记线段树
 
 接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`bool lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。有时`v_delta`本身就可以反映出是否存在懒标记。
 
@@ -10017,7 +10243,7 @@ int main() {
 }
 ```
 
-#### §7.4.2.1 多重懒标记线段树
+#### §7.5.2.1 多重懒标记线段树
 
 给定线段树区间修改内的$k$种操作$f_1(l,r,\Delta v_1),f_2(l,r,\Delta v_2),\cdots, f_k(l,r,\Delta v_k)$（若$l=r$则简记为$f_i(\Delta v_i)$），则需要设置$k$个懒标记，并规定对应的运算优先级。不妨将这些操作按优先级排列，序号越大说明优先级越高，应该先执行。则优先级必须满足：**假设某节点同时有$k$种懒标记，在基础上额外再任意进行一次$f_p(l,r,\textcolor{red}{\Delta v_p})$（$1\le p\le k$）操作，则对于任意$k+1$元组$(\textcolor{red}{\Delta v_p}, \Delta v_1, \Delta v_2, \cdots, \Delta v_k)$，总存在对应的$k$元组**$(\Delta v'_1, \Delta v'_2, \cdots, \Delta v'_k)$，使得：
 
@@ -10432,11 +10658,11 @@ int main() {
 }
 ```
 
-### §7.4.3 其它改良线段树
+### §7.5.3 其它改良线段树
 
-#### §7.4.3.1 动态开点线段树
+#### §7.5.3.1 动态开点线段树
 
-#### §7.4.3.2 zkw线段树/非递归线段树
+#### §7.5.3.2 zkw线段树/非递归线段树
 
 相比于传统线段树而言，zkw线段树是一种基于差分思想的、码量较小、空间常数减半（从`N_MAX*4`减为`N_MAX*2`）、时间常数小（从递归改成循环）的改良版线段树，最先由清华姚班的张昆纬提出，故取首字母缩写为zkw线段树。
 
@@ -10585,11 +10811,11 @@ int main() {
 }
 ```
 
-#### §7.4.3.3 可持久化线段树/主席树
+#### §7.5.3.3 可持久化线段树/主席树
 
 
 
-### §7.4.A 不可拆分性目标函数
+### §7.5.A 不可拆分性目标函数
 
 如果线段树要查询的区间值使用一个不可拆分的目标函数$f(\cdot)$给出的，那么我们可以构造一个变量数恒定的函数$h(\cdot)$和一系列可拆分的函数$g_1(\cdot),g_2(\cdot),\cdots$，使得$f(\cdot)=h(g_1(\cdot),g_2(\cdot),\cdots)$。我们只须每次`segtree_pushdown()`时维护这些$g_i$变量，在`segtree_pushup()`时现场计算即可。
 
@@ -10778,7 +11004,7 @@ int main() {
 }
 ```
 
-#### §7.4.A.1 区间连续段拼接函数
+#### §7.5.A.1 区间连续段拼接函数
 
 > [洛谷P2894](https://www.luogu.com.cn/problem/P2894)：给定`n`个排成一行、初始为空的房间，支持以下操作。（1）从左开始查找第一个“连续`y_temp`个房间均为空”的区间，占用这些房间，并输出其左闭端点；（2）重置区间内的所有房间为空。
 
@@ -11170,7 +11396,7 @@ int main() {
 }
 ```
 
-#### §7.4.A.2 子区间全排列函数
+#### §7.5.A.2 子区间全排列函数
 
 > [洛谷P6225](https://www.luogu.com.cn/problem/P6225)：维护`int a[1->n]`上的`int`线段树，实现以下操作。（1）单点修改；（2）查询区间内所有子区间内所有元素的异或和的异或和$\displaystyle\bigoplus_{\forall [i,j]\subseteq[l, r]}\left(\bigoplus_{\forall k\in[i,j]}a[k]\right)$。
 
@@ -11508,17 +11734,17 @@ int main() {
 }
 ```
 
-### §7.4.B 区间染色数问题
+### §7.5.B 区间染色数问题
 
-#### §7.4.B.1 一次性颜色
+#### §7.5.B.1 一次性颜色
 
 一个格子只能有一个颜色，每次涂的颜色均不相同。
 
 > [洛谷P3740](https://www.luogu.com.cn/problem/P3740)（`n<=1e6`弱化版）：为初始值均**无颜色**的序列`int a[1->n]`维护线段树，支持区间重置操作：第`i`条指令将闭区间`[l, r]`中的元素颜色重置为`i`。最后查询`[1, n]`中的不同的颜色数量（不计初始值的无颜色）。
 
-具体解题步骤参见[§7.4.1.2 离散化线段树](####§7.4.1.2 离散化线段树)一节的原始例题。
+具体解题步骤参见[§7.5.1.2 离散化线段树](####§7.5.1.2 离散化线段树)一节的原始例题。
 
-#### §7.4.B.2 可重复颜色
+#### §7.5.B.2 可重复颜色
 
 一个格子只能有一个颜色，每次涂的颜色可以是之前已使用过的颜色。
 
@@ -11608,7 +11834,7 @@ int main() {
 
 本题的颜色种类数进一步扩充到`1e9`，???????????????？？？？？？？？？？TODO
 
-#### §7.4.8.3 可混合颜色
+#### §7.5.8.3 可混合颜色
 
 一个格子可以同时有多个颜色。每次涂色操作不会覆盖掉之前的颜色们。
 
@@ -11681,15 +11907,89 @@ int main() {
 }
 ```
 
-### §7.4.C 非恒等修改函数
+### §7.5.C 非恒等修改函数
 
 在之前的例题中，我们在进行区间修改时，修改后的值$v'=f(v)$使用的修改函数是一致的。本节将介绍不一致的修改函数。这类题的核心是找到一对函数$g(\cdot),h(\cdot)$满足$v'=h(g(v))$，其中$g(v)$是恒等的修改函数，令线段树维护的值从$v$变为$g(v)$。
 
 > [洛谷P1438](https://www.luogu.com.cn/problem/P1438)：给定数组`a[1->n]`，维护一个`long long int`线段树，支持两种操作。（1）给定一个首项为`k_temp`、公差为`d_temp`的等差数列，将其按顺序叠加到给定的`[l_temp, r_temp]`区间上；（2）单点查询某个元素的值。
 
-线段树存储的是原数组`a[]`的差分数组`a_delta[]`，维护区间和即可。TODO：？？？？？？？？？？？
+本题中的区间编辑操作，对每个元素的修改均不一样。于是考虑让线段树不维护`a[1->n]`，而是维护它的差分数组`a_delta[1->n]`。这样就把原区间上的等差非恒等自增，转换成差分数组上的恒等自增。
 
-### §7.4.D 无需线段树的区间操作
+在`a[l, r]`上自增首项为`k_temp`、公差为`d_temp`的等差数列，对应的差分数组`a_delta[1->n]`更改如下：
+
+- `a_delta[l]`自增`k_temp`。
+- `a_delta[l+1, r]`自增`d_temp`。这一步可能会遇到`l==r`的情况，直接忽略即可，不要漏掉特判。
+- `a_delta[r+1]`自减`k_temp + (r-l)*d_temp`。这一步可能会遇到`r=n`的情况，导致`r+1`越界，所以需要初始化时`n++`多开一个空间。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 1e5;
+int n, q, op_temp, x_temp, y_temp, a1_temp, d_temp, a[N_MAX + 1];
+
+struct SegTree { int l, r; long long int v_sum, v_incre; } segtree[(N_MAX + 1) * 4 + 1];
+inline void segtree_pushup(const int &root) { segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum; }
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].v_incre != 0) {
+        segtree[root * 2].v_sum += (segtree[root * 2].r - segtree[root * 2].l + 1) * segtree[root].v_incre;
+        segtree[root * 2].v_incre += segtree[root].v_incre;
+        segtree[root * 2 + 1].v_sum += (segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1) * segtree[root].v_incre;
+        segtree[root * 2 + 1].v_incre += segtree[root].v_incre;
+        segtree[root].v_incre = 0;
+    }
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_incre(const int root, const int &l, const int &r, const long long int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_sum += (segtree[root].r - segtree[root].l + 1) * incre;
+        segtree[root].v_incre += incre;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_incre(root * 2, l, r, incre); }
+    if(r > m) { segtree_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+long long int segtree_range_query_sum(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    long long int query = 0;
+    if(l <= m) { query += segtree_range_query_sum(root * 2, l, r); }
+    if(r > m) { query += segtree_range_query_sum(root * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = n; i >= 1; --i) { a[i] -= a[i - 1]; }
+    segtree_init(1, 1, n + 1); // 差分数组要维护[1, n + 1]
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp >> y_temp >> a1_temp >> d_temp;
+            segtree_range_incre(1, x_temp, x_temp, a1_temp);
+            if(x_temp < y_temp) { segtree_range_incre(1, x_temp + 1, y_temp, d_temp); }
+            segtree_range_incre(1, y_temp + 1, y_temp + 1, -((y_temp - x_temp) * d_temp + a1_temp));
+        } else if(op_temp == 2) {
+            std::cin >> x_temp;
+            std::cout << segtree_range_query_sum(1, 1, x_temp) << '\n';
+        }
+    }
+}
+```
+
+### §7.5.D 无需线段树的区间操作
 
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
 
@@ -12500,9 +12800,9 @@ int main(){
 在程序开头添加以下头文件：
 
 ```c++
-// #pragma GCC optimize(1)
-// #pragma GCC optimize(2)
-// #pragma GCC optimize(3)
-// #pragma GCC optimize("Ofast", "inline", "-ffast-math")
-// #pragma GCC target("avx,sse2,sse3,sse4,mmx")
+#pragma GCC optimize(1)
+#pragma GCC optimize(2)
+#pragma GCC optimize(3)
+#pragma GCC optimize("Ofast", "inline", "-ffast-math")
+#pragma GCC target("avx,sse2,sse3,sse4,mmx")
 ```
