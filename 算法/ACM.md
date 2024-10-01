@@ -10813,7 +10813,100 @@ int main() {
 
 #### §7.5.3.3 可持久化线段树/主席树
 
+### §7.5.4 权值线段树
 
+相比与传统线段树**按下标位置**维护`a[1->n]`，权值线段树**按值域**维护`a[1->n]`形成的计数桶。
+
+> [洛谷P3369](https://www.luogu.com.cn/problem/P3369)：维护一个权值线段树$S$，支持以下操作：（1）插入一个元素`x`；（2）删除**一个**元素`x`；（3）查询元素`x`从小到大的排名（从`1`开始数）；（4）查询$S$中排名为`k`的元素；（5）给定`x`（`x`不一定在$S$中），查询$\displaystyle\max_{\forall y\in S, y<x}y$；（6）给定`x`（`x`不一定在$S$中），查询$\displaystyle\min_{\forall y\in S, y>x}y$。
+
+本题先进行离散化。遍历所有可能用到的元素`x`（第4种操作除外，其值表示排名而非元素值），对其离散化。
+
+于是区间和`segtree_range_query_sum(1, 1, x-1)`表示元素`x`之前一共有多少个元素，则`x`的排名就是该值再加`1`。
+
+为了查询操作5，`y`这个值肯定符合`y<=x-1`，于是我们查询`segtree_range_query_sum(1, 1, x-1)`得到了最后一个元素的排名`query_index`，再反向查找这个排名对应的是哪个元素即可。
+
+为了查询操作6，`y`的排名肯定大于`x`的任何排名。因此我们查询`x`排名的可达上限`segtree_range_query_sum(1, 1, x)`，然后将其加`1`，得到新的排名，再反向查找这个排名对应的是哪个元素即可。**之所以操作6不能套用操作5的步骤，是因为操作6不能保证$x+1\in S$**。
+
+```c++
+const int Q_MAX = 1e5;
+int q, a[Q_MAX + 1], a_count;
+struct Query { int op, x; } query[Q_MAX + 1];
+
+struct SegTree { int l, r; int v_sum; } segtree[Q_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { return; }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+}
+void segtree_incre(const int root, const int &target, const int &incre) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_sum += incre;
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_incre(root * 2, target, incre); }
+    if(target > m) { segtree_incre(root * 2 + 1, target, incre); }
+    segtree_pushup(root);
+}
+int segtree_range_query_sum(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    int query = 0;
+    if(l <= m) { query += segtree_range_query_sum(root * 2, l, r); }
+    if(r > m) { query += segtree_range_query_sum(root * 2 + 1, l, r); }
+    return query;
+}
+int segtree_query_sum_index(const int root, const int l, const int r, const int &sum) { // 依据sum，在v_prefixsum[l->r]上对[l, r]二分查找
+    if(segtree[root].l == segtree[root].r) { return l; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(segtree[root * 2].v_sum >= sum) {
+        return segtree_query_sum_index(root * 2, l, m, sum);
+    } else {
+        return segtree_query_sum_index(root * 2 + 1, m + 1, r, sum - segtree[root * 2].v_sum);
+    }
+}
+
+int main() {
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> query[i].op >> query[i].x;
+        if(query[i].op != 4) { a[++a_count] = query[i].x; }
+    }
+    std::sort(a + 1, a + 1 + a_count, std::less<int>());
+    a_count = std::unique(a + 1, a + 1 + a_count) - (a + 1);
+    for(int i = 1; i <= q; ++i) {
+        if(query[i].op == 4) { continue; }
+        query[i].x = std::lower_bound(a + 1, a + 1 + a_count, query[i].x) - a;
+    }
+    segtree_init(1, 1, a_count);
+    for(int i = 1; i <= q; ++i) {
+        if(query[i].op == 1) {
+            segtree_incre(1, query[i].x, 1);
+        } else if(query[i].op == 2) {
+            segtree_incre(1, query[i].x, -1);
+        } else if(query[i].op == 3) {
+            if(query[i].x == 1) {
+                std::cout << "1\n";
+                continue;
+            }
+            std::cout << segtree_range_query_sum(1, 1, query[i].x - 1) + 1 << '\n';
+        } else if(query[i].op == 4) {
+            std::cout << a[segtree_query_sum_index(1, 1, a_count, query[i].x)] << '\n';
+        } else if(query[i].op == 5) {
+            int query_index = segtree_range_query_sum(1, 1, query[i].x - 1);
+            std::cout << a[segtree_query_sum_index(1, 1, a_count, query_index)] << '\n';
+        } else if(query[i].op == 6) {
+            int query_index = segtree_range_query_sum(1, 1, query[i].x) + 1;
+            std::cout << a[segtree_query_sum_index(1, 1, a_count, query_index)] << '\n';
+        }
+    }
+}
+```
 
 ### §7.5.A 不可拆分性目标函数
 
@@ -11834,7 +11927,7 @@ int main() {
 
 本题的颜色种类数进一步扩充到`1e9`，???????????????？？？？？？？？？？TODO
 
-#### §7.5.8.3 可混合颜色
+#### §7.5.B.3 可混合颜色
 
 一个格子可以同时有多个颜色。每次涂色操作不会覆盖掉之前的颜色们。
 
