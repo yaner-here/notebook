@@ -9718,9 +9718,153 @@ void bit_init(cons int &n) {
 }
 ```
 
+### §7.4.A 逆序对计数
+
+> [洛谷P1908](https://www.luogu.com.cn/problem/P1908)：给定序列`a[1->n<=5e5]`，每个元素`a[i]<=1e9`。若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。求序列`a[1->n]`的逆序对总数。
+
+从条件$i<j$出发，先考虑暴力解法：对`j:1->n`遍历，查找`i:[1, j)`中有多少个`i`满足`a[i]>a[j]`。容易发现，每轮操作都想查询`a[1->j-1]`构成的权值桶中，下标`k`大于`a[j]`的所有计数桶`bit[k]`之和，这就是**权值树状数组+区间求和**。
+
+**注意：`std::sort()`是不稳定排序，必须给`Comp comp(lhs, rhs)`指定明确的排序规则！**
+
+```c++
+const int N_MAX = 5e5;
+int n, rank[N_MAX + 1]; // 第i次操作涉及的元素值->元素值经过离散化后的升序排名，表示离散化后的新元素值
+struct Data { int i, v; } data[N_MAX + 1];
+
+int bit[N_MAX + 1];
+inline int lowbit(int x) { return x & -x; }
+inline void bit_incre(int x, const int &incre) {
+    while(x <= n) {
+        bit[x] += incre;
+        x += lowbit(x);
+    }
+}
+inline int bit_query_prefixsum(int x) {
+    int ans = 0;
+    while(x >= 1) {
+        ans += bit[x];
+        x -= lowbit(x);
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { data[i].i = i; std::cin >> data[i].v; }
+    std::sort(data + 1, data + 1 + n, [](const Data &lhs, const Data &rhs) {
+        if(lhs.v == rhs.v) { return lhs.i < rhs.i; }
+        return lhs.v < rhs.v;
+    });
+    for(int i = 1; i <= n; ++i) { rank[data[i].i] = i; }
+    long long int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        bit_incre(rank[i], 1); // rank[i]为第i次操作的原元素值对应的离散化元素值
+        ans += i - bit_query_prefixsum(rank[i]);
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P2448](https://www.luogu.com.cn/problem/P2448)：给定序列`a[1->n<=2e9]`，其中第`i`个元素初始时为`a[i]=i`。若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。现给定`k<=1e5`次交换`a[x[i]], a[y[i]]`操作，执行完毕后，求序列`a[1->n]`的逆序对总数。
+
+本题中的`n<=2e9`，因此不能简单地开一个长度为`n`的树状数组`bit[1->n]`。这启示我们对查询中出现的`2q<=2e5`个数进行离散化，然后拆分成若干小区间。每个查询值自成一个区间，其它连续区间保持不变。然后让树状数组维护这些小区间。
+
+初始时没有逆序对，只有交换时才会产生。令参与交换的最大下标为`k`，**容易发现下标大于`k`的`a[k+]`不可能参与逆序对的形成，因此在上述离散化过程中，我们可以放心地忽略大于`k`的下标**。
+
+例如对于输入`q=1`，交换`a[2]`和`a[5]`：
+
+$$
+\begin{aligned}
+	& \text{原始序列}: & \begin{array}{|c|c|c|c|c|c|c|}
+		\hline a[1] & a[\textcolor{red}{2}] & a[3] & a[4] & a[\textcolor{red}{5}] & a[6] & a[...] \\ \hline
+	\end{array} \\
+	\Rightarrow & \text{忽略}a[>5]: & \begin{array}{|c|c|c|c|c|}
+		\hline a[1] & a[\textcolor{red}{2}] & a[3] & a[4] & a[\textcolor{red}{5}] \\ \hline
+	\end{array} \\
+	\Rightarrow & \text{按查询值切分区间}: 
+		& \begin{array}{|c|}
+			\hline a[1] \\ \hline
+		\end{array} \  \begin{array}{|c|}
+			\hline a[\textcolor{red}{2}] \\ \hline
+		\end{array} \  \begin{array}{|c|c|}
+			\hline a[3] & a[4] \\ \hline
+		\end{array} \  \begin{array}{|c|}
+			\hline a[\textcolor{red}{5}] \\ \hline
+		\end{array} 
+	\\
+	\Rightarrow & \text{切分区间离散化}: & \begin{array}{|c|c|c|c|}
+		\hline s_1:a[1\rightarrow1] & s_\textcolor{red}{2}:a[2\rightarrow 2] & s_3:a[3\rightarrow 4] & s_\textcolor{red}{4}:a[5\rightarrow 5] \\ \hline
+	\end{array} \\
+	\Rightarrow & \text{交换}: & \begin{array}{|c|c|c|c|}
+		\hline s_1:a[1\rightarrow1] & s_\textcolor{red}{4}:a[5\rightarrow 5] & s_3:a[3\rightarrow 4] & s_\textcolor{red}{2}:a[2\rightarrow 2] \\ \hline
+	\end{array} \\
+	\Rightarrow & \text{统计逆序对数量}: & \begin{array}{|c|c|c|c|c|}
+		\hline \text{树状数组插入}s\text{的顺序} & s_1 & s_\textcolor{red}{4} & s_3 & s_\textcolor{red}{2} \\ 
+		\hline \text{新产生逆序对}(s_i,s_j)\text{数量} & 0 & 0 & 1\times 2 & 1\times(2+1) \\
+		\hline
+	\end{array} = 5
+\end{aligned}
+$$
+
+`2q`个值最多会产生`4q`个区间，因此要为区间开辟`4*Q_MAX`个空间。
+
+```c++
+const int Q_MAX = 1e5, N_MAX = 2 * Q_MAX;
+int q, a[N_MAX + 1], a_len;
+std::pair<int, int> query[Q_MAX + 1];
+int s_count; struct Seg { int i, l, len; } s[N_MAX * 2 + 1];
+
+long long int bit[N_MAX * 2 + 1];
+inline int lowbit(int x) { return x & -x; }
+inline void bit_incre(int x, const int &incre) {
+    while(x <= s_count) {
+        bit[x] += incre;
+        x += lowbit(x);
+    }
+}
+inline long long int bit_query_prefixsum(int x) {
+    long long int ans = 0;
+    while(x >= 1) {
+        ans += bit[x];
+        x -= lowbit(x);
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> query[i].first >> query[i].second;
+        a[++a_len] = query[i].first;
+        a[++a_len] = query[i].second;
+    }
+    std::sort(a + 1, a + 1 + a_len);
+    a_len = std::unique(a + 1, a + 1 + a_len) - (a + 1);
+
+    a[0] = 0; // 检测a[1->a_min-1]是否自成一个区间
+    for(int i = 1; i <= a_len; ++i) {
+        if(a[i] - a[i - 1] > 1) { ++s_count; s[s_count] = {.i = s_count, .l = a[i - 1] + 1, .len = a[i] - a[i - 1] - 1}; }
+        ++s_count; s[s_count] = {.i = s_count, .l = a[i], .len = 1};
+    }
+    for(int i = 1; i <= q; ++i) {
+        query[i].first = std::lower_bound(s + 1, s + 1 + s_count, query[i].first, [](const Seg &lhs, const int &rhs) { return lhs.l < rhs; }) - s;
+        query[i].second = std::lower_bound(s + 1, s + 1 + s_count, query[i].second, [](const Seg &lhs, const int &rhs) { return lhs.l < rhs; }) - s;
+    }
+    for(int i = 1; i <= q; ++i) {
+        std::swap(s[query[i].first], s[query[i].second]);
+    }
+    long long int ans = 0, len_sum = 0;
+    for(int i = 1; i <= s_count; ++i) {
+        bit_incre(s[i].i, s[i].len);
+        len_sum += s[i].len;
+        ans += s[i].len * (len_sum - bit_query_prefixsum(s[i].i));
+    }
+    std::cout << ans;
+}
+```
 ## §7.5 线段树
 
-给定一段连续区间`a[1->n]`，线段树可以用$O(\log_{2}{n})$的时间维护任意连续子区间的目标函数值，包括单点修改、区间修改、区间查询。
+给定一段连续区间`a[1->n]`，线段树可以用$O(\log_{2}{n})$的时间维护任意连续子区间的目标函数值，包括单点修改、区间修改、区间查询。**线段树比树状数组更加万能。树状数组能解决的问题，线段树都能解决，然而代价是四倍空间复杂度，和更大的时间复杂度常数**。
 
 ### §7.5.1 基础线段树
 
