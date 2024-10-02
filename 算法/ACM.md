@@ -9712,7 +9712,7 @@ void bit_init(const int &n) {
 另一种优化方法是：注意到`bit[x]`定义为$\displaystyle\sum_{i=x-\text{lowbit}[x]+1}^{x}a[i]$，于是可以使用前缀和预处理。前缀和与原序列可以共用同一个空间，时间复杂度为$O(2n)$。
 
 ```c++
-void bit_init(cons int &n) {
+void bit_init(const int &n) {
 	for(int i = 1; i <= n; ++i) { a[i] += a[i - 1]; }
 	for(int i = 1; i <= n; ++i) { bit[i] = a[i] - a[i - lowbit(i)]; }
 }
@@ -9767,7 +9767,7 @@ int main() {
 
 > [洛谷P2448](https://www.luogu.com.cn/problem/P2448)：给定序列`a[1->n<=2e9]`，其中第`i`个元素初始时为`a[i]=i`。若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。现给定`k<=1e5`次交换`a[x[i]], a[y[i]]`操作，执行完毕后，求序列`a[1->n]`的逆序对总数。
 
-本题中的`n<=2e9`，因此不能简单地开一个长度为`n`的树状数组`bit[1->n]`。这启示我们对查询中出现的`2q<=2e5`个数进行离散化，然后拆分成若干小区间。每个查询值自成一个区间，其它连续区间保持不变。然后让树状数组维护这些小区间。
+本题中的`n<=2e9`，因此不能简单地开一个长度为`n`的树状数组`bit[1->n]`。这启示我们对查询中出现的`2q<=2e5`个数进行离散化，然后拆分成若干小区间。每个查询值自成一个区间，其它连续区间保持不变。然后让树状数组维护这些小区间。套用逆序对模版即可。
 
 初始时没有逆序对，只有交换时才会产生。令参与交换的最大下标为`k`，**容易发现下标大于`k`的`a[k+]`不可能参与逆序对的形成，因此在上述离散化过程中，我们可以放心地忽略大于`k`的下标**。
 
@@ -9799,7 +9799,7 @@ $$
 		\hline s_1:a[1\rightarrow1] & s_\textcolor{red}{4}:a[5\rightarrow 5] & s_3:a[3\rightarrow 4] & s_\textcolor{red}{2}:a[2\rightarrow 2] \\ \hline
 	\end{array} \\
 	\Rightarrow & \text{统计逆序对数量}: & \begin{array}{|c|c|c|c|c|}
-		\hline \text{树状数组插入}s\text{的顺序} & s_1 & s_\textcolor{red}{4} & s_3 & s_\textcolor{red}{2} \\ 
+		\hline s\text{插入树状数组的顺序} & s_1 & s_\textcolor{red}{4} & s_3 & s_\textcolor{red}{2} \\ 
 		\hline \text{新产生逆序对}(s_i,s_j)\text{数量} & 0 & 0 & 1\times 2 & 1\times(2+1) \\
 		\hline
 	\end{array} = 5
@@ -9862,6 +9862,92 @@ int main() {
     std::cout << ans;
 }
 ```
+
+> [洛谷P3531](https://www.luogu.com.cn/problem/P3531)：给定两个长度均为`n`的、仅由大写字母构成的字符串`s_a[]`、`s_b[]`。定义一次字符串`s`的相邻交换操作为：交换`s`中相邻位置的两个字符。数据保证`s_a`可以经过若干次相邻交换操作变成`s_b`，求最少相邻交换次数。
+
+注意到`a`和`b`中的各个大写字母总数相同。**显然在次数最小的方案中，各个字符的相对排名不变**。形式化的表述为：令`c[m][k]`表示字符串`s`中字符`char m`在`s`中第`k`次出现的下标，`count[m]`表示字符`char m`在第`s_a`或`s_b`中的出现次数，则**交换次数最小的方案就是：$\forall m\in\{\text{A},\text{B},\cdots,\text{Z}\},\forall k\in [1, \text{count}[m]]$，把字符`s_a[c_sa[m][k]]`移动到`s_b[c_sb[m][k]]`**。
+
+$$
+\begin{aligned}
+	& c_s[m][k]: 字符m在字符串s中第k次出现的位置 \\ 
+	& \text{count}[m]: 字符m在字符串中的出现次数 \\
+	& \begin{array}{c|c|c|c|c|c|c|c|}
+		\hline 字符串s_a序号 & \cdots & c_{s_a}[A][1] & \cdots & c_{s_a}[A][2] & \cdots & c_{s_a}[A][\text{count}[A]] & \cdots \\
+		\hline 字符串s_a内容 & \cdots & \text{A} & \cdots & \text{A} & \cdots & \text{A} & \cdots \\
+		\hline
+	\end{array} \\
+	& \begin{array}{c|c|c|c|c|c|c|c|}
+		\hline 字符串s_b序号 & \cdots & c_{s_b}[A][1] & \cdots & c_{s_b}[A][2] & \cdots & c_{s_b}[A][\text{count}[A]] & \cdots \\
+		\hline 字符串s_b内容 & \cdots & \text{A} & \cdots & \text{A} & \cdots & \text{A} & \cdots \\
+		\hline
+	\end{array}
+\end{aligned}
+$$
+
+对`s_a`的各个字符标上从`1`递增的序号，我们的目标是将这些字符映射到`s_b`的各个字符，让`s_b`中各个字符的序号与`s_a`的含义一致。以`ABCCB`和`CBACB`为例：
+
+$$
+\begin{array}{c|c|c|c|c|c|}
+	\hline s_a序号 & 1 & 2 & 3 & 4 & 5 \\
+	\hline s_a内容 & \text{A}_1 & \text{B}_1 & \text{C}_1 & \text{C}_2 & \text{B}_2 \\
+	\hline s_b内容 & \text{C}_1 & \text{B}_1 & \text{A}_1 & \text{C}_2 & \text{B}_2 \\
+	\hline s_b序号 & 3 & 2 & 1 & 4 & 5 \\
+	\hline
+\end{array}
+$$
+
+在最优情况下，每次相邻交换操作都会消灭一个逆序对，于是问题转化为求`s_b`序号的逆序对个数即可。
+
+```c++
+const int N_MAX = 1e6, CHARSET_SIZE = 26;
+int n, c[CHARSET_SIZE][N_MAX + 1], count_a[CHARSET_SIZE], count_b[CHARSET_SIZE], s_b_id[N_MAX + 1]; // 如果要节省c[][]空间，可以使用std::vector
+char s_a[N_MAX + 2], s_b[N_MAX + 2];
+
+int bit[N_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+void bit_incre(const int &x, const int &incre) {
+    for(int i = x; i <= n; i += lowbit(i)) { bit[i] += incre; }
+}
+int bit_query_prefixsum(const int &x) {
+    int ans = 0;
+    for(int i = x; i >= 1; i -= lowbit(i)) { ans += bit[i]; }
+    return ans;
+}
+
+int main() {
+    std::cin >> n >> (s_a + 1) >> (s_b + 1);
+    for(int i = 1; i <= n; ++i) { s_a[i] -= 'A'; s_b[i] -= 'A'; }
+    
+    for(int i = 1; i <= n; ++i) { c[s_a[i]][++count_a[s_a[i]]] = i; }
+    for(int i = 1; i <= n; ++i) { s_b_id[i] = c[s_b[i]][++count_b[s_b[i]]]; }
+    
+    long long int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        bit_incre(s_b_id[i], 1);
+        ans += i - bit_query_prefixsum(s_b_id[i]);
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P1966](https://www.luogu.com.cn/problem/P1966)：给定两个长度均为`n<=1e5`，值域为`int`上恒正的序列`a[]`和`b[]`。定义一次序列`s`的相邻交换操作为：交换`s`中相邻位置的两个元素。对`a[]`进行若干次相邻交换操作，使得$\mathcal{L}(\mathbf{a},\mathbf{b})=\displaystyle\sum_{i=1}^{n}(a[i]-b[i])^2$取得最小值时，求操作次数的最小值，答案模`MOD`输出。
+
+注意到该最优化问题等价于：
+
+$$
+\begin{aligned}
+	\underset{\mathbf{a},\mathbf{b}}{\text{argmin}} \mathcal{L}(\mathbf{a},\mathbf{b}) & = \underset{\mathbf{a},\mathbf{b}}{\text{argmax}} \sum_{i=1}^{n}(a[i]-b[i])^2 \\
+	& = \underset{\mathbf{a},\mathbf{b}}{\text{argmin}} \sum_{i=1}^{n}(a[i]^2 - 2a[i]\cdot b[i] + b[i]^2) \\
+	& = \underset{\mathbf{a},\mathbf{b}}{\text{argmax}} \sum_{i=1}^{n}(a[i]\cdot b[i]) \\
+	& 引理: \begin{cases} a[2] \ge a[1] \ge 0 \\ b[2] \ge b[1] \ge 0 \end{cases} \overset{两侧分别乘}{\Longrightarrow} a[1] \cdot b[1] + a[2] \cdot b[2] \ge a[1] \cdot b[2] + a[2] \cdot b[1] \\ 
+	& 可以推广至n个数,即顺序和大于乱序和,这里的顺序为从小到大 \\
+	& = \underset{\mathbf{a},\mathbf{b}}{\text{argmax}} \sum_{i=1}^{n}(a_{\text{sorted}}[i] \cdot b_{\text{sorted}}[i]) = (\mathbf{a}_{\text{sorted}}, \mathbf{b}_{\text{sorted}})
+\end{aligned}
+$$
+
+
+
+
 ## §7.5 线段树
 
 给定一段连续区间`a[1->n]`，线段树可以用$O(\log_{2}{n})$的时间维护任意连续子区间的目标函数值，包括单点修改、区间修改、区间查询。**线段树比树状数组更加万能。树状数组能解决的问题，线段树都能解决，然而代价是四倍空间复杂度，和更大的时间复杂度常数**。
