@@ -9765,6 +9765,8 @@ int main() {
 }
 ```
 
+#### §7.4.A.1 离散化逆序对计数
+
 > [洛谷P2448](https://www.luogu.com.cn/problem/P2448)：给定序列`a[1->n<=2e9]`，其中第`i`个元素初始时为`a[i]=i`。若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。现给定`k<=1e5`次交换`a[x[i]], a[y[i]]`操作，执行完毕后，求序列`a[1->n]`的逆序对总数。
 
 本题中的`n<=2e9`，因此不能简单地开一个长度为`n`的树状数组`bit[1->n]`。这启示我们对查询中出现的`2q<=2e5`个数进行离散化，然后拆分成若干小区间。每个查询值自成一个区间，其它连续区间保持不变。然后让树状数组维护这些小区间。套用逆序对模版即可。
@@ -9930,7 +9932,7 @@ int main() {
 }
 ```
 
-> [洛谷P1966](https://www.luogu.com.cn/problem/P1966)：给定两个长度均为`n<=1e5`，值域为`int`上恒正的序列`a[]`和`b[]`。定义一次序列`s`的相邻交换操作为：交换`s`中相邻位置的两个元素。对`a[]`进行若干次相邻交换操作，使得$\mathcal{L}(\mathbf{a},\mathbf{b})=\displaystyle\sum_{i=1}^{n}(a[i]-b[i])^2$取得最小值时，求操作次数的最小值，答案模`MOD`输出。
+> [洛谷P1966](https://www.luogu.com.cn/problem/P1966)：给定两个长度均为`n<=1e5`，值域为`int`上恒正的序列`a[]`和`b[]`。定义一次序列`s`的相邻交换操作为：交换`s`中相邻位置的两个元素。对`a[]`和`b[]`进行若干次相邻交换操作，使得$\mathcal{L}(\mathbf{a},\mathbf{b})=\displaystyle\sum_{i=1}^{n}(a[i]-b[i])^2$取得最小值时，求操作次数的最小值，答案模`MOD`输出。
 
 注意到该最优化问题等价于：
 
@@ -9945,8 +9947,70 @@ $$
 \end{aligned}
 $$
 
+在本题中，我们分别对`a[]`和`b[]`进行离散化（从小到大标号），然后分别进行从小到大的排序。
 
+$$
+\begin{array}{c|c|c|c|c|c|}
+	\hline a[\cdot]序号 & 1 & 2 & 3 & 4 & 5 \\
+	\hline a[\cdot]值 & (10^4)_1 & (10^2)_2 & (10^5)_3 & (10^3)_4 & (10^1)_5 \\ 
+	\hline 离散化a[\cdot]值 & (4)_1 & (2)_2 & (5)_3 & (3)_4 & (1)_5 \\
+	\hline 离散化a[\cdot]序号 & 4 & 2 & 5 & 3 & 1 \\
+	\hline 离散化a[\cdot]重编号 & 1 & 2 & 3 & 4 & 5 \\
+	\hline
+\end{array} \quad
+\begin{array}{c|c|c|c|c|c|}
+	\hline b[\cdot]序号 & 1 & 2 & 3 & 4 & 5 \\
+	\hline b[\cdot]值 & (10^2)_1 & (10^1)_2 & (10^3)_3 & (10^5)_4 & (10^4)_5 \\ 
+	\hline 离散化b[\cdot]值 & (2)_1 & (1)_2 & (3)_3 & (5)_4 & (4)_5 \\
+	\hline 离散化b[\cdot]序号 & 2 & 1 & 3 & 5 & 4 \\
+	\hline 离散化b[\cdot]重编号 & 2 & 5 & 4 & 3 & 1 \\
+	\hline
+\end{array},
+$$
 
+于是问题转化成：**从"离散化$a[\cdot]$序号"转化为"离散化$b[\cdot]$序号"需要几次操作**，也就是**离散化$b[\cdot]$重编号的逆序对个数**。
+
+```c++
+const int N_MAX = 1e5, MOD = 1e8 - 3;
+int n;
+struct Data { int i, v; } a[N_MAX + 1], b[N_MAX + 1];
+int id_a_map[N_MAX + 1], id_b_map[N_MAX + 1], id_b[N_MAX + 1];
+
+int bit[N_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+inline void bit_incre(const int &x, const int &incre) {
+    for(int i = x; i <= n; i += lowbit(i)) { bit[i] += incre; }
+}
+inline int bit_query_prefixsum(const int &x) {
+    int ans = 0;
+    for(int i = x; i >= 1; i -= lowbit(i)) { ans += bit[i]; }
+    return ans;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { a[i].i = i; std::cin >> a[i].v; }
+    for(int i = 1; i <= n; ++i) { b[i].i = i; std::cin >> b[i].v; }
+    std::sort(a + 1, a + 1 + n, [](const Data &lhs, const Data &rhs) {
+        if(lhs.v == rhs.v) { return lhs.i < rhs.i; }
+        return lhs.v < rhs.v;
+    });
+    std::sort(b + 1, b + 1 + n, [](const Data &lhs, const Data &rhs) {
+        if(lhs.v == rhs.v) { return lhs.i < rhs.i; }
+        return lhs.v < rhs.v;
+    });
+    // a[].i和b[].i已排成离散化序号
+    for(int i = 1; i <= n; ++i) { id_a_map[a[i].i] = id_b_map[b[i].i] = i; }
+    for(int i = 1; i <= n; ++i) { id_b[b[id_a_map[i]].i] = i; }
+
+    long long int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        bit_incre(id_b[i], 1);
+        ans = (ans + i - bit_query_prefixsum(id_b[i])) % MOD;
+    }
+    std::cout << ans;
+}
+```
 
 ## §7.5 线段树
 
