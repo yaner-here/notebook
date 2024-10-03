@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "6a0c8e55ad4f2938",
+        "id": "ca6ab2af4d1b6da7",
         "type": "tabs",
         "children": [
           {
-            "id": "6276b527240cb561",
+            "id": "30382a5cb167da1b",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -99,8 +99,10 @@
       "command-palette:打开命令面板": false
     }
   },
-  "active": "6276b527240cb561",
+  "active": "cb9847649a182d9a",
   "lastOpenFiles": [
+    "算法/ACM.md",
+    "前端库.md",
     "Pasted image 20240927223432.png"
   ]
 }
