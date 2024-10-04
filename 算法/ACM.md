@@ -10012,6 +10012,151 @@ int main() {
 }
 ```
 
+#### §7.4.A.2 逆序对计数最优化
+
+> [洛谷P4280](https://www.luogu.com.cn/problem/P4280)：给定长度为`n`的序列`a[]`（`1<=a[i]<=k`或`a[i]==-1`）。当`a[i]==-1`时，说明这个元素是未知的，可以为`[1, k<=100]`中的任意一个正整数。求逆序对数量的最小值。
+
+本题中的逆序对由三部分构成：**第一部分**是已知元素之间构成的逆序对，**第二部分**是已知元素与未知元素构成的逆序对，**第三部分**是位置元素直接构成的逆序对。
+
+我们选取`a[1->n]`中的两个"相邻"的未知元素`a[i]`/`a[j]`（`i<j`），它们之间不包含未知元素，只包含`l_2`个已知元素。**令左侧未知元素的左边`l_1`个元素全部固定下来，右侧未知元素的右边`l_3`个元素全部固定下来**。这里的`l_1`、`l_2`、`l_3`均可以为`0`，取决于具体的输入。
+
+$$
+\begin{array}{c|c|c|c|c|c|c|}
+	\hline 下标序号 & \cdots & a_i & \cdots & a_j & \cdots \\
+	\hline a[]元素 & \cdots & -1 & \cdots & -1 & \cdots \\
+	\hline & \underset{l_1个元素}{\underbrace{已知/未知}} & \underset{1个元素}{\underbrace{未知}} & \underset{l_2个元素}{\underbrace{已知}} & \underset{1个元素}{\underbrace{未知}} & \underset{l_3个元素}{\underbrace{已知/未知}}
+\end{array}
+$$
+
+现在给定两个大小不一的数字$x>y$，一一分配给`a[i]`和`a[j]`，考虑两种不同的分配次序（`a[i]>a[j]`和`a[i]<=a[j]`）来回切换时对逆序对总数的影响：
+
+1. 第一部分逆序对显然不受影响，记为`C_1`。
+2. 第二部分逆序对会受到影响。具体来说，`l_1`/`l_3`对应的区间和`a[i]`/`a[j]`形成的逆序对个数不变，记为`C_2`，真正变化的是`l_2`对应的区间与`a[i]`/`a[j]`形成的逆序对个数。假设`l_2`对应的区间`a[i+1->j-1]`中，大于`z`的元素总数为`c_2(z)`，则显然有`c_2(x)<=c_2(y)`。
+3. 第三部分逆序对会受到影响。令`a[i]<=a[j]`时的数量记为`C_3`，则`a[i]>a[j]`时的数量为`C_3+1`，这个多出来的`1`个逆序对正是`(a[i], a[j])`自己。
+
+综上所述，`a[i]<=a[j]`和`a[j]>a[i]`的两种情况，对应的逆序对总数分别为$C_1+C_2+c_2(x)+C_3$和$C_1+C_2+c_2(y)+C_3+1$。显然等式左边严格小于右边，仅在$x=y$时取等（此时`C_3`不用`+1`）。
+
+除了`a[i]`和`a[j]`外，上面的证明过程不需要其它任何未知元素的参与。未知元素总有确定下来的一刻，只要确定下来，就能得出上面的结论，因此我们根本不在乎未知元素到底是什么值，结论总是成立。为原`a[]`中的所有未知元素都套用一次`a[i]`和`a[j]`，都能得出`a[i]<=a[j]`结论。**于是得证：给未知元素填入的所有值，必须是（非严格）单调自增的。若满足该条件，则逆序对的第三部分严格为`0`**。
+
+我们早已知道逆序对第一部分的数量是定值。要使得三个部分相加值最小，我们最后只需要研究第二部分如何取到最小值即可。我们随意选择一个未知元素`a[i]`，由于我们现在只研究逆序对第二部分，所以只需关注其它已知元素即可。
+
+$$
+\begin{array}{c|c|c|c|}
+	\hline 下标序号 & \cdots & a[i] & \cdots \\
+	\hline a[]元素 & \cdots & -1 & \cdots \\
+	\hline & \underset{l_1-(\#未知)_1个元素}{\underbrace{已知}} & \underset{1个元素}{\underbrace{未知}} & \underset{l_2-(\#未知)_2个元素}{\underbrace{已知}} \\
+\end{array}
+$$
+
+令`dp[i][j]`表示：当`a[1->i]`中的最后一个未知元素`a[k]`确定为`j`时，前面的未知元素已经取到最优解时，忽略`a[i+1->n]`中的所有未知元素时，逆序对第二部分的总数。
+
+- 若`a[i]`是已知元素，则相比于`dp[i-1][*]`的情况，`a[1->i]`中的最后一个未知元素`a[k]`并未改变，因此`dp[i][*]`就是`dp[i-1][*]`自己。
+- 若`a[i]`是未知元素，`a[1->i]`中的最后一个未知元素`a[k]`变成了`a[i]`本身。不妨设`a[i]`的最优解为`j`。由于未知元素是非严格单调递增的，所以`dp[i-1][*]`的第二维被`a[i]==j`限制，只有`dp[i][1->j]`是合法的状态。在`a[i]`被忽略以前，逆序对第二部分的总数最小值为$\displaystyle\min_{k\in[1,j]}\text{dp}[i][k]$；在`a[i]==j`出现以后，逆序对第二部分的数量要加上包含`a[i]`的第二部分逆序对。`a[i]`与`a[1->i-1]`和`a[i+1->n]`都有可能产生第二部分逆序对，数量分别为$\displaystyle\sum_{k\in[1,i),a[k]\neq -1}\mathbb{1}_{a[k]>a[i]}$和$\displaystyle\sum_{k\in(i,n],a[k]\neq -1}\mathbb{1}_{a[i]>a[k]}$。
+
+相应的状态转移方程如下所示：
+
+$$
+\text{dp}[i][j] = \begin{cases}
+	\text{dp}[i-1][j] & , a[i]\neq -1, 是已知元素 \\
+	\left(\displaystyle\min_{k\in[1,j]}\text{dp}[i-1][k]\right) + \left(\displaystyle\sum_{k\in[1,i),a[k]\neq -1}\mathbb{1}_{a[k]>\textcolor{red}{a[i]}}\right) + \left(\displaystyle\sum_{k\in(i,n],a[k]\neq -1}\mathbb{1}_{\textcolor{red}{a[i]}>a[k]}\right) & , a[i]=-1 \textcolor{red}{\rightarrow j}, 是未知元素	
+\end{cases}
+$$
+
+综上所述：逆序对第一部分由普通的区间查询求得；逆序对第二部分由$\displaystyle\min_{i\in[1,k]}\text{dp}[n][i]$求得；逆序对第三部分严格为`0`。三者相加即为答案。
+
+令未知元素的个数为`n'`。关于区间查询，由于值域`k<=100`较小，所以在区间查询时有两种方法：
+
+- 预处理区间的所有查询结果，存储在两个`bit_ans[i][j]`数组，分别表示从前/后开始延伸`i`个元素形成的区间中，大于/小于值`j`的元素个数。时间复杂度为$O(2nk+n'k)$，空间复杂度为$O(3nk)$。
+- 使用两个树状数组查询区间和，`bit_1[]`表示`a[1->i]`区间，`bit_2[]`表示`a[1->n]`的结果，两者相减就是`a[i+1->n]`的结果。时间复杂度为$O(2n'k\log_{2}k+2(n-n')k)$，空间复杂度为$O(nk)$。
+
+以下是使用两个树状数组查询区间和的C++代码实现：
+
+```c++
+const int N_MAX = 1e4, K_MAX = 1e2;
+int n, k, a[N_MAX + 1]; long long int dp[N_MAX + 1][K_MAX + 1], c_1, c_2, c_3;
+
+int bit_1[K_MAX + 1], bit_2[K_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+void bit_incre(int bit[K_MAX + 1], const int &x, const int &incre) {
+    for(int i = x; i <= k; i += lowbit(i)) { bit[i] += incre; }
+}
+long long int bit_query_prefixsum(const int bit[K_MAX + 1], const int &x) {
+    long long int ans = 0;
+    for(int i = x; i >= 1; i -= lowbit(i)) { ans += bit[i]; }
+    return ans;
+}
+
+int main() {
+    std::cin >> n >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { if(a[i] != -1) { bit_incre(bit_2, a[i], 1); } }
+    for(int i = 1; i <= n; ++i) {
+        if(a[i] == -1) {
+            long long int min_dp = INT64_MAX;
+            for(int j = 1; j <= k; ++j) {
+                min_dp = std::min(min_dp, dp[i - 1][j]);
+                dp[i][j] = min_dp + 
+                    (bit_query_prefixsum(bit_1, k) - bit_query_prefixsum(bit_1, j)) +
+                    (bit_query_prefixsum(bit_2, j - 1) - bit_query_prefixsum(bit_1, j - 1));
+            }
+        } else {
+            std::copy(dp[i - 1] + 1, dp[i - 1] + 1 + k, dp[i] + 1);
+            bit_incre(bit_1, a[i], 1);
+            c_1 += bit_query_prefixsum(bit_1, k) - bit_query_prefixsum(bit_1, a[i]);
+        }
+    }
+    c_2 = INT32_MAX;
+    for(int i = 1; i <= k; ++i) { c_2 = std::min(c_2, dp[n][i]); }
+
+    std::cout << c_1 + c_2 + c_3 << '\n';
+}
+```
+
+注意到`dp[i][*]`数组只用到了`dp[i-1][*]`的值，因此可以考虑使用滚动数组压缩成两行。此时`dp[i][j]`的`i`不再表示`a[1->i]`，而是表示遇到的第`i`个未知元素。
+
+```c++
+const int N_MAX = 1e4, K_MAX = 1e2;
+int n, k, a[N_MAX + 1], unknown_count; long long int dp[2][K_MAX + 1], c_1, c_2, c_3;
+
+int bit_1[K_MAX + 1], bit_2[K_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+void bit_incre(int bit[K_MAX + 1], const int &x, const int &incre) {
+    for(int i = x; i <= k; i += lowbit(i)) { bit[i] += incre; }
+}
+long long int bit_query_prefixsum(const int bit[K_MAX + 1], const int &x) {
+    long long int ans = 0;
+    for(int i = x; i >= 1; i -= lowbit(i)) { ans += bit[i]; }
+    return ans;
+}
+
+int main() {
+    std::cin >> n >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { if(a[i] != -1) { bit_incre(bit_2, a[i], 1); } }
+    for(int i = 1; i <= n; ++i) {
+        if(a[i] == -1) {
+            ++unknown_count;
+            std::copy(dp[(unknown_count - 1) % 2] + 1, dp[(unknown_count - 1) % 2] + 1 + k, dp[unknown_count % 2] + 1);
+            long long int min_dp = INT64_MAX;
+            for(int j = 1; j <= k; ++j) {
+                min_dp = std::min(min_dp, dp[(unknown_count - 1) % 2][j]);
+                dp[unknown_count % 2][j] = min_dp + 
+                    (bit_query_prefixsum(bit_1, k) - bit_query_prefixsum(bit_1, j)) +
+                    (bit_query_prefixsum(bit_2, j - 1) - bit_query_prefixsum(bit_1, j - 1));
+            }
+        } else {
+            bit_incre(bit_1, a[i], 1);
+            c_1 += bit_query_prefixsum(bit_1, k) - bit_query_prefixsum(bit_1, a[i]);
+        }
+    }
+
+    c_2 = INT32_MAX;
+    for(int i = 1; i <= k; ++i) { c_2 = std::min(c_2, dp[unknown_count % 2][i]); }
+
+    std::cout << c_1 + c_2 + c_3 << '\n';
+}
+```
+
 ## §7.5 线段树
 
 给定一段连续区间`a[1->n]`，线段树可以用$O(\log_{2}{n})$的时间维护任意连续子区间的目标函数值，包括单点修改、区间修改、区间查询。**线段树比树状数组更加万能。树状数组能解决的问题，线段树都能解决，然而代价是四倍空间复杂度，和更大的时间复杂度常数**。
