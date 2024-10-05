@@ -9720,7 +9720,19 @@ void bit_init(const int &n) {
 
 ### §7.4.A 逆序对计数
 
-> [洛谷P1908](https://www.luogu.com.cn/problem/P1908)：给定序列`a[1->n<=5e5]`，每个元素`a[i]<=1e9`。若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。求序列`a[1->n]`的逆序对总数。
+给定一个序列`a[1->n]`，若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。在介绍逆序对计数之前，先看下面这道DP题：
+
+> [洛谷P1521](https://www.luogu.com.cn/problem/P1521)：在`1~n`这`n`个数字的所有$A_n^n$种全排列中，逆序对数量恰好为`k`的排列方法有多少种？输入数据保证答案存在，且答案模`MOD`输出。
+
+令`dp[i][j]`表示在`1~i`这`i`个数字的所有$A_i^i$种全排列中，逆序对数量恰好为`j`的排列方法数。若已知`dp[i-1][*]`的各类值，我们不禁思考：新增加的`i`在哪个位置？如果在末尾`a[i]`，则`a[i]=i>a[1->i-1]`，不会新构成任何逆序对；如果放在`a[i-1]`处，则`a[i-1]=i>a[i]`，必定会形成`1`个新的逆序对......依次类推，我们可以把`i`放在`a[1],a[2],...,a[i-1]`两侧的任意位置，一共有`i`个位置可供选择，易得状态转移方程：
+
+$$
+\text{dp}[i][j] = \sum_{k=0}^{i-1}\text{dp}[i-1][j-k]
+$$
+
+初始时
+
+> [洛谷P1908](https://www.luogu.com.cn/problem/P1908)：给定序列`a[1->n<=5e5]`，每个元素`a[i]<=1e9`。求序列`a[1->n]`的逆序对总数。
 
 从条件$i<j$出发，先考虑暴力解法：对`j:1->n`遍历，查找`i:[1, j)`中有多少个`i`满足`a[i]>a[j]`。容易发现，每轮操作都想查询`a[1->j-1]`构成的权值桶中，下标`k`大于`a[j]`的所有计数桶`bit[k]`之和，这就是**权值树状数组+区间求和**。
 
@@ -10067,7 +10079,7 @@ $$
 令未知元素的个数为`n'`。关于区间查询，由于值域`k<=100`较小，所以在区间查询时有两种方法：
 
 - 预处理区间的所有查询结果，存储在两个`bit_ans[i][j]`数组，分别表示从前/后开始延伸`i`个元素形成的区间中，大于/小于值`j`的元素个数。时间复杂度为$O(2nk+n'k)$，空间复杂度为$O(3nk)$。
-- 使用两个树状数组查询区间和，`bit_1[]`表示`a[1->i]`区间，`bit_2[]`表示`a[1->n]`的结果，两者相减就是`a[i+1->n]`的结果。时间复杂度为$O(2n'k\log_{2}k+2(n-n')k)$，空间复杂度为$O(nk)$。
+- 使用两个树状数组查询区间和，`bit_1[]`表示`a[1->i]`区间，`bit_2[]`表示`a[1->n]`的结果，两者相减就是`a[i+1->n]`的结果。时间复杂度为$O(2n'k\log_{2}k+2(n-n')k)$，空间复杂度为$O(nk)$，压缩后可为$O(2k)$。
 
 以下是使用两个树状数组查询区间和的C++代码实现：
 
@@ -10156,6 +10168,84 @@ int main() {
     std::cout << c_1 + c_2 + c_3 << '\n';
 }
 ```
+
+#### §7.4.A.3 在线逆序对
+
+> [洛谷P3157](https://www.luogu.com.cn/problem/P3157)：给定一个`1~n<=1e5`的一个全排列序列`a[1->n]`，然后按顺序依次删除元素`b[1->m<=5e4]`。每删除一个元素之前，输出当前序列的逆序对个数。
+
+在传统的树状数组题目中，我们可以单个树状数组来查询`a[1->n]`这一单个区间内，大于/小于某个值的元素个数，**我们称这个树状数组维护的是值域**。本题的关键是**为多个子区间都维护这样的内部树状数组，每个区间都能方便地查询这一子区间内，大于/小于某个值的元素个数**，至于这些子区间如何安排呢？当然是按照外层树状数组进行划分，**我们称这个外部树状数组维护的是位置**。
+
+例如给定序列`a[1->5] = {1, 5, 3, 4, 2}`。要读入`a[3]=3`时，注意到`a[3]`的位置从属于`[3, 3]`和`[1, 4]`这两个树状数组区间，于是需要分别更新这两个区间的值域统计信息。
+
+本题的数据范围非常严苛。如果使用树状数组套树状数组，每个树状数组需要$O(n)$空间，则总空间复杂度飙升至为$O(n^2)$。注意到内部树状数组的数据非常稀疏。例如对于外部树状数组的`bit_index[7]`对应的区间`[7, 7]`而言，它只维护了一个元素`a[7]`，但是占用了$O(n)$的空间，造成了极大的浪费。**所以内部数据结构不能使用树状数组，而是使用同样支持区间查询的线段树来解决，而且必须是动态开点线段树**。对于上面的情况，维护`bit_index[7]`对应的区间`[7, 7]`只需要$O(\log_2{n})$空间。由于动态开点线段树进行`q`次操作只需要$O(\min(q\log_2{n},2n))$个空间，长度为`n/(2^i)`（进行`q`次建树元操作）的树状区间数量约为$O(2^i)$个，因此总空间复杂度为$O(\displaystyle\sum_{i=0}^{\lfloor\log_{2}{n}\rfloor}2^i\cdot\frac{n}{2^i}\log_{2}{n})=O(n\log_2^2n)$。
+
+除此以外，线段树节点内不存储左右闭区间端点`.l`/`.r`也能节省常数空间。
+
+```c++
+const int N_MAX = 1e5, N_LOG2_MAX = 22, M_MAX = 5e4;
+int n, m, a[N_MAX + 1], a_map[N_MAX + 1], b[M_MAX + 1];
+
+struct SegTree {
+    int lchild, rchild;
+    int v_sum;
+} segtree[N_MAX * N_LOG2_MAX * N_LOG2_MAX + 1];
+int segtree_count;
+void segtree_incre(int &root, const int &seg_l, const int &seg_r, const int &target, const int &incre) {
+    if(root == 0) { root = ++segtree_count; }
+    segtree[root].v_sum += incre; // incre只能为±1，因此v_sum可以这么写
+    if(seg_l == seg_r) { return; }
+    int seg_m = (seg_l + seg_r) / 2;
+    if(target <= seg_m) { segtree_incre(segtree[root].lchild, seg_l, seg_m, target, incre); }
+    if(target > seg_m) { segtree_incre(segtree[root].rchild, seg_m + 1, seg_r, target, incre); }
+}
+int segtree_query_range_sum(const int &root, const int &seg_l, const int &seg_r, const int &l, const int &r) {
+    if(root == 0) { ++segtree_count; }
+    if(l <= seg_l && r >= seg_r) { return segtree[root].v_sum; }
+    int seg_m = (seg_l + seg_r) / 2;
+    int query = 0;
+    if(l <= seg_m) { query += segtree_query_range_sum(segtree[root].lchild, seg_l, seg_m, l, r); }
+    if(r > seg_m) { query += segtree_query_range_sum(segtree[root].rchild, seg_m + 1, seg_r, l, r); }
+    return query;
+}
+
+int bit_segtree_root[N_MAX + 1]; // 存储a[i-lowbit(i)+1->i]区间对应的线段树根节点
+inline int lowbit(const int &x) { return x & -x; }
+void bit_incre(const int &x, const int &target, const int &incre) { // 给定x=i与target=a[i]，x决定更新哪些线段树，target决定更新线段树哪个节点的值
+    for(int i = x; i <= n; i += lowbit(i)) { segtree_incre(bit_segtree_root[i], 1, n, target, incre); }
+}
+int bit_query_range_sum(const int &seg_l, const int &seg_r, const int &l, const int &r) { // 查询a[seg_l->seg_r]中值位于`[l, r]`范围内的元素个数
+    if(l > r) { return 0; }
+    int query = 0;
+    for(int i = seg_r; i > 0; i -= lowbit(i)) { query += segtree_query_range_sum(bit_segtree_root[i], 1, n, l, r); }
+    for(int i = seg_l - 1; i > 0; i -= lowbit(i)) { query -= segtree_query_range_sum(bit_segtree_root[i], 1, n, l, r); }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_map[a[i]] = i; }
+    for(int i = 1; i <= m; ++i) { std::cin >> b[i]; }
+    
+    long long int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        bit_incre(i, a[i], 1);
+        ans += bit_query_range_sum(1, i, a[i] + 1, n); // 增加a[1->i]中能与a[i]构成逆序对的数量
+    }
+
+    for(int i = 1; i <= m; ++i) {
+        std::cout << ans << '\n';
+        ans -= bit_query_range_sum(1, a_map[b[i]], b[i] + 1, n); // 删除a[1->a_map[b[i]]]中能与a[i]构成逆序对的数量
+        ans -= bit_query_range_sum(a_map[b[i]], n, 1, b[i] - 1); // 删除a[a_map[b[i]]->n]中能与a[i]构成逆序对的数量
+        bit_incre(a_map[b[i]], b[i], -1);
+    }
+}
+```
+
+本题也有CDQ分治的离线做法，这里略。
+
+#### §7.4.A.4 第`k`大逆序对
+
+
 
 ## §7.5 线段树
 
@@ -10439,7 +10529,7 @@ int main() {
 
 > [洛谷P4681](https://www.luogu.com.cn/problem/P4681)：为已给定初值的序列`int64_t a[1->n]`维护一个线段树，**其中的每个元素均满足`0<=a[i]<MOD`**，支持如下操作：（1）对区间内的所有元素取其平方后对`MOD`取模；（2）查询区间内的各元素之和。
 
-
+TODO：？？？？？？？？？？？？？？？？？
 
 #### §7.5.1.2 离散化线段树
 
