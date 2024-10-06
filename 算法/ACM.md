@@ -12672,9 +12672,64 @@ for(int i = 2; i <= n; ++i) {
 
 分块本质上是分治后的暴力算法，支持单点和区间上的查询和修改。它将所有数据分成若干块，然后对每个连续的完整块使用前缀和，对每次残缺块块使用暴力。
 
-单点修改：
+> [洛谷P3374](https://www.luogu.com.cn/problem/P3374)：为原始序列`a[1->n]`维护一个树状数组，支持以下操作：（1）单点自增`y_temp`；（2）查询区间内的元素之和。
 
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5, N_SQRT_MAX = 708;
+int n, q, a[N_MAX + 1], op_temp, x_temp, y_temp; long long int k_temp;
 
+int block_count, block_length, block_map[N_MAX + 1];
+struct SqrtDecompose { int l, r; long long int v_sum, prefixsum; } block[N_SQRT_MAX + 1];
+inline void sqrt_decompose_init() {
+    block_length = std::sqrt(n);
+    block_count = (n - 1) / block_length + 1;
+    for(int i = 1; i <= block_count; ++i) {
+        block[i].l = block[i - 1].r + 1;
+        block[i].r = block[i].l + block_length - 1;
+    }
+    block[block_count].r = std::min(block[block_count].r, n); // 或者直接block[block_count] = n;
+    for(int i = 1; i <= block_count; ++i) {
+        for(int j = block[i].l; j <= block[i].r; ++j) {
+            block[i].v_sum += a[j];
+            block_map[j] = i;
+        }
+        block[i].prefixsum = block[i - 1].prefixsum + block[i].v_sum;
+    }
+}
+inline void sqrt_decompose_incre(const int &target, const long long int &incre) {
+    a[target] += incre;
+    block[block_map[target]].v_sum += incre;
+    for(int i = block_map[target]; i <= block_count; ++i) {
+        block[i].prefixsum += incre;
+    }
+}
+inline long long int sqrt_decompose_query_range_sum(const int &l, const int &r) {
+    if(block_map[l] == block_map[r]) {
+        return std::accumulate(a + l, a + r + 1, 0ll);
+    } else {
+        long long int query = block[block_map[r] - 1].prefixsum - block[block_map[l]].prefixsum;
+        query += std::accumulate(a + l, a + block[block_map[l]].r + 1, 0ll);
+        query += std::accumulate(a + block[block_map[r]].l, a + r + 1, 0ll);
+        return query;
+    }
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    sqrt_decompose_init();
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp >> k_temp;
+            sqrt_decompose_incre(x_temp, k_temp);
+        } else if(op_temp == 2) {
+            std::cin >> x_temp >> y_temp;
+            std::cout << sqrt_decompose_query_range_sum(x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
 
 ## §7.7 堆
 
@@ -12858,7 +12913,7 @@ int main() {
 
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定一个数字`n`及其二进制字符串`s`，如果`s`中存在两个索引不同的字符`1`，其下标分别记为`s[i]`、`s[j]`，使得`i`和`j`之间的距离（即`std::abs(i-j)`）恰好`k`，则输出`true`；反之输出`false`。
 
-如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？#TODO：
+如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？TODO：
 
 ## §8.2 排列组合
 
@@ -12939,10 +12994,14 @@ int main() {
 
 - 模`p`加法分配率：$(a+b)\% p=(a\% p + b\% p)\% p$
 - 模`p`减法分配率：$(a-b)\% p=(a\% p - b\% p)\% p$
-- 模`p`乘法分配率：$(a\cdot b)\%\ p = (a \% p \cdot b \% p) \% p$
+- **模`p`乘法分配率**：$(a\cdot b)\%\ p = (a \% p \cdot b \% p) \% p$
 - 模`p`加法结合律：$(a+b)\% p=((a\% p + b)\% p)$
-- 模`p`乘法结合律：$(a\cdot b)\%\ p = ((a\% p)\cdot b)\% p$
-- 正数模：$(a \% p + p) \% p$
+- **模`p`乘法结合律**：$(a\cdot b)\%\ p = ((a\% p)\cdot b)\% p$
+- **正数模**：$(a \% p + p) \% p$
+
+### §8.3.2 向上/向下取整
+
+若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以用`(a - 1) / b + 1`表示。**该式在`a==0`时不适用**。
 
 # §A 技巧与警钟长鸣
 
