@@ -12670,9 +12670,15 @@ for(int i = 2; i <= n; ++i) {
 
 ## §7.6 分块与莫队
 
-分块本质上是分治后的暴力算法，支持单点和区间上的查询和修改。它将所有数据分成若干块，然后对每个连续的完整块使用前缀和，对每次残缺块块使用暴力。
+分块本质上是分治后的暴力算法，支持单点和区间上的查询和修改，时间复杂度为$O(q\sqrt{n})$，劣于树状数组和线段树，但是**适用范围更广**。它将所有数据分成若干块，然后对每个连续的完整块使用预处理结果，对每次残缺块块使用暴力。具体来说，将`n`个元素拆成$\lfloor\sqrt{n}\rfloor$个块，每个块有$\displaystyle\left\lceil\frac{n}{\lfloor\sqrt{n}\rfloor}\right\rceil$个元素（最后一个块除外，因为可能填不满）。
 
 > [洛谷P3374](https://www.luogu.com.cn/problem/P3374)：为原始序列`a[1->n]`维护一个树状数组，支持以下操作：（1）单点自增`y_temp`；（2）查询区间内的元素之和。
+
+维护每个块内所有元素之和`.v_sum`，维护各个块之间关于`.v_sum`的前缀和`.prefixsum`。令`block_map[i]`表示元素`a[i]`被分配到了哪个块内。
+
+单点自增`+=incre`时，除了`a[i]`本身要自增`+=incre`以外，块内的`.v_sum`也要`+=incre`，该块以及之后所有块的`.prefixsum`也要`+=incre`。最坏情况为$O(\lfloor\sqrt{n}\rfloor)=O(\sqrt{n})$。
+
+区间查询时，如果`[l, r]`在同一个块内，直接暴力相加区间内的元素即可，时间复杂度最坏为$O\left(\displaystyle\left\lceil\frac{n}{\lfloor\sqrt{n}\rfloor}\right\rceil\right)=O(\sqrt{n})$；如果不在同一个块内，则暴力相加两侧的残缺块，并用前缀和求中间的完整块之和，时间复杂度最坏为$O\left(\displaystyle2\left\lceil\frac{n}{\lfloor\sqrt{n}\rfloor}\right\rceil+1\right)=O(2\sqrt{n})=O(\sqrt{n})$。综上所述，无论查询区间是什么，单次区间查询的时间复杂度都为$O(\sqrt{n})$。
 
 ```c++
 const int N_MAX = 5e5, Q_MAX = 5e5, N_SQRT_MAX = 708;
@@ -12723,6 +12729,80 @@ int main() {
         if(op_temp == 1) {
             std::cin >> x_temp >> k_temp;
             sqrt_decompose_incre(x_temp, k_temp);
+        } else if(op_temp == 2) {
+            std::cin >> x_temp >> y_temp;
+            std::cout << sqrt_decompose_query_range_sum(x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
+
+与线段树相似：对于区间修改和区间查询，我们也有懒标记分块：
+
+> [洛谷P3372](https://www.luogu.com.cn/problem/P3372)：维护一个`int64_t`的线段树，支持两种操作。（1）区间内所有元素都加`z_temp`；（2）查询区间内的元素之和。
+
+考虑区间编辑的懒区间。如果`a[i]`在区间编辑的完整块内，则懒标记块上的`.lazy_incre`；如果在区间编辑的残缺块内，则退化为单点修改，需要编辑`a[i]+=incre`。经过以上操作后，要及时更新块内的`.v_sum`和`.prefixsum`。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5, N_SQRT_MAX = 708;
+int n, q, a[N_MAX + 1], op_temp, x_temp, y_temp;
+long long int k_temp;
+
+int block_count, block_length, block_map[N_MAX + 1];
+struct SqrtDecompose { int l, r; long long int v_sum, prefixsum, lazy_incre; } block[N_SQRT_MAX + 1];
+inline void sqrt_decompose_init() {
+    block_length = std::sqrt(n);
+    block_count = (n - 1) / block_length + 1;
+    for(int i = 1; i <= block_count; ++i) {
+        block[i].l = block[i - 1].r + 1;
+        block[i].r = block[i].l + block_length - 1;
+    }
+    block[block_count].r = std::min(block[block_count].r, n);
+    for(int i = 1; i <= block_count; ++i) {
+        for(int j = block[i].l; j <= block[i].r; ++j) {
+            block[i].v_sum += a[j];
+            block_map[j] = i;
+        }
+        block[i].prefixsum = block[i - 1].prefixsum + block[i].v_sum;
+    }
+}
+inline void sqrt_decompose_range_incre(const int &l, const int &r, const long long int &incre) {
+    if(block_map[l] == block_map[r]) {
+        for(int i = l; i <= r; ++i) { a[i] += incre; }
+        block[block_map[l]].v_sum += incre * (r - l + 1);
+        for(int i = block_map[l]; i <= block_count; ++i) { block[i].prefixsum = block[i - 1].prefixsum + block[i].v_sum; }
+    } else {
+        for(int i = l; i <= block[block_map[l]].r; ++i) { a[i] += incre; }
+        block[block_map[l]].v_sum += incre * (block[block_map[l]].r - l + 1);
+        for(int i = block_map[l] + 1; i <= block_map[r] - 1; ++i) {
+            block[i].v_sum += block_length * incre;
+            block[i].lazy_incre += incre;
+        }
+        for(int i = block[block_map[r]].l; i <= r; ++i) { a[i] += incre; }
+        block[block_map[r]].v_sum += incre * (r - block[block_map[r]].l + 1);
+        for(int i = block_map[l]; i <= block_count; ++i) { block[i].prefixsum = block[i - 1].prefixsum + block[i].v_sum; }
+    }
+}
+inline long long int sqrt_decompose_query_range_sum(const int &l, const int &r) {
+    if(block_map[l] == block_map[r]) {
+        return std::accumulate(a + l, a + r + 1, 0ll) + block[block_map[l]].lazy_incre * (r - l + 1);
+    } else {
+        long long int query = block[block_map[r] - 1].prefixsum - block[block_map[l]].prefixsum;
+        query += std::accumulate(a + l, a + block[block_map[l]].r + 1, 0ll) + (block[block_map[l]].r - l + 1) * block[block_map[l]].lazy_incre;
+        query += std::accumulate(a + block[block_map[r]].l, a + r + 1, 0ll) + (r - block[block_map[r]].l + 1) * block[block_map[r]].lazy_incre;
+        return query;
+    }
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    sqrt_decompose_init();
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp >> y_temp >> k_temp;
+            sqrt_decompose_range_incre(x_temp, y_temp, k_temp);
         } else if(op_temp == 2) {
             std::cin >> x_temp >> y_temp;
             std::cout << sqrt_decompose_query_range_sum(x_temp, y_temp) << '\n';
