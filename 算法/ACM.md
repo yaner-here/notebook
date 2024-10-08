@@ -12668,9 +12668,11 @@ for(int i = 2; i <= n; ++i) {
 }
 ```
 
-## §7.6 分块与莫队
+## §7.6 分块
 
-分块本质上是分治后的暴力算法，支持单点和区间上的查询和修改，时间复杂度为$O(q\sqrt{n})$，劣于树状数组和线段树，但是**适用范围更广**。它将所有数据分成若干块，然后对每个连续的完整块使用预处理结果，对每次残缺块块使用暴力。具体来说，将`n`个元素拆成$\lfloor\sqrt{n}\rfloor$个块，每个块有$\displaystyle\left\lceil\frac{n}{\lfloor\sqrt{n}\rfloor}\right\rceil$个元素（最后一个块除外，因为可能填不满）。
+### §7.6.1 根号分块
+
+根号分块本质上是分治后的暴力算法，支持单点和区间上的查询和修改，时间复杂度为$O(q\sqrt{n})$，劣于树状数组和线段树，但是**适用范围更广**。它将所有数据分成若干块，然后对每个连续的完整块使用预处理结果，对每次残缺块块使用暴力。具体来说，将`n`个元素拆成$\lfloor\sqrt{n}\rfloor$个块，每个块有$\displaystyle\left\lceil\frac{n}{\lfloor\sqrt{n}\rfloor}\right\rceil$个元素（最后一个块除外，因为可能填不满）。
 
 > [洛谷P3374](https://www.luogu.com.cn/problem/P3374)：为原始序列`a[1->n]`维护一个树状数组，支持以下操作：（1）单点自增`y_temp`；（2）查询区间内的元素之和。
 
@@ -12808,6 +12810,69 @@ int main() {
             std::cout << sqrt_decompose_query_range_sum(x_temp, y_temp) << '\n';
         }
     }
+}
+```
+
+#### §7.6.1.1 时间复杂度折中思想
+
+分块的精髓是折中思想：如果对于给定的数据范围，两种方法均只能通过其中的一部分，则可以取两者交集，根据当前的一组输入判断选择哪种方法。于是最坏情况下的时间复杂度就是两种方法最坏情况下时间复杂度的最小值，可以降低时间复杂度。
+
+> [洛谷P8572](https://www.luogu.com.cn/problem/P8572)：给定二维数组`int64_t a[1->m<=5e5][1->n<=5e5]`，进行`q<=5e5`次区间询问。每次询问给定目标查询区间`[l, r]`，输出$\displaystyle\max_{i\in[1,m]}\left(\sum_{j\in[l,r]}a[i][j]\right)$。**本题数据范围为`n*k=t<=5e5`**。
+
+对于连续区间内的求和操作，我们很容易想到前缀和优化，预处理的时间复杂度为$O(nm)=O(t)\le O(5\cdot 10^5)$，可以接受。
+
+注意到本题的`n`和`k`大小关系不定。本题的关键在于：是否也要花费$O(n^2m)=O(tn)\le O(5\cdot 10^5 n)$的时间预处理所有区间结果？
+
+- 如果预处理区间查询的所有结果，则`q`次区间查询只需要查$O(q)$次表即可。于是总时间复杂度为$O(nm+n^2m+q)=O(t+tn+q)\le O(t^2)$。
+- 如果不预处理，则每次区间查询都需要查$O(k)$次表，`q`次区间查询总共需要查$O(qm)$次表。于是总时间复杂度为$O(nm+qm)=O(t+qm)\le O(t^2)$。
+
+容易发现，无论哪种做法都不能单独通过全部的测试点。**基于此，一种见招拆招的思想应运而生：针对这单独一组输入数据，哪个方法的时间复杂度小，就选哪种方法，即时间复杂度取两者最小值$O(\min(t+tn+q, t+qm))$**。
+
+- **当$n\le\sqrt{t},m\ge \sqrt{t}$时，预处理区间查询的所有结果**。此时时间复杂度为$O(t+tn+q)\le O(t+t\sqrt{t}+q)\approx O(t\sqrt{t})$。
+- **当$n\ge\sqrt{t},m\le\sqrt{t}$时，不预处理**。此时时间复杂度为$O(t+qm)\le O(t+q\sqrt{t})\approx O(q\sqrt{t})$。
+
+于是时间复杂度为$O(\min(t+tn+q, t+qm))\approx O(\max(q,t)\cdot\sqrt{t})$，可以通过本题。
+
+本题无法用`a[M_MAX][N_MAX]`存下所有数，所以要用一维数组模拟二维数组。这种情况下要在前缀和做差时，左边界进行特判，从而防止越界。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5, M_MAX = 5e5, N_M_MAX = 5e5, N_M_SQRT_MAX = 708;
+int n, m, q, x_temp, y_temp; long long int ans_temp, a[N_M_MAX + 1], ans[N_M_SQRT_MAX + 1][N_M_SQRT_MAX + 1];
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> m >> q;
+    for(int i = 0; i < m; ++i) {
+        for(int j = 0; j < n; ++j) { std::cin >> a[i * n + j]; }
+        for(int j = 1; j < n; ++j){a[i * n + j] += a[i * n + j - 1];}
+    }
+    if(n <= N_M_SQRT_MAX) {
+        for(int k = 0; k < m; ++k) {
+            for(int j = 0; j < n; ++j) { ans[0][j] = std::max(ans[0][j], a[k * n + j]); }
+            for(int i = 1; i < n; ++i) {
+                for(int j = i; j < n; ++j) {
+                    ans[i][j] = std::max(ans[i][j], a[k * n + j] - a[k * n + i - 1]);
+                }
+            }
+        }
+        for(int i = 1; i <= q; ++i) {
+            std::cin >> x_temp >> y_temp;
+            std::cout << ans[x_temp - 1][y_temp - 1] << '\n';
+        }
+    } else if(n > N_M_SQRT_MAX) {
+        for(int i = 1; i <= q; ++i) {
+            std::cin >> x_temp >> y_temp; --x_temp; --y_temp;
+            ans_temp = 0;
+            if(x_temp == 0) {
+                for(int k = 0; k < m; ++k) { ans_temp = std::max(ans_temp, a[k * n + y_temp]); }
+            } else if(x_temp >= 1) {
+                for(int k = 0; k < m; ++k) { ans_temp = std::max(ans_temp, a[k * n + y_temp] - a[k * n + x_temp - 1]); }
+            }
+            std::cout << ans_temp << '\n';
+        }
+    }    
 }
 ```
 
