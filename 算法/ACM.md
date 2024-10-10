@@ -10569,9 +10569,352 @@ int main() {
 }
 ```
 
-> [洛谷P4681](https://www.luogu.com.cn/problem/P4681)：为已给定初值的序列`int64_t a[1->n]`维护一个线段树，**其中的每个元素均满足`0<=a[i]<MOD`**，支持如下操作：（1）对区间内的所有元素取其平方后对`MOD`取模；（2）查询区间内的各元素之和。
+> [洛谷P4681](https://www.luogu.com.cn/problem/P4681)：为已给定初值的序列`int64_t a[1->n]`维护一个线段树，**其中的每个元素均满足`0<=a[i]<mod`**（`mod<=1e4`），支持如下操作：（1）对区间内的所有元素取其平方后对`mod`取模；（2）查询区间内的各元素之和。数据保证`mod`产生的循环节长度最大公倍数小于等于`LOOP_MAX=60`。
 
-TODO：？？？？？？？？？？？？？？？？？
+容易想到在`[0, mod)`的伽罗瓦域上，平方运算一定会出现循环节。一种朴素的想法是：处理涉及的循环节，查询时直接查表。然而要实现这个步骤有众多细节，编码较为繁琐。
+
+我们先考察循环节。以`mod==7`为例，伽罗瓦域`[0, 7)`上的七个元素构成了如下的有向图：
+
+```mermaid
+graph TB
+	0 --> 0
+	1 --> 1
+	2 --> 4
+	3 --> 2
+	4 --> 2
+	5 --> 4
+	6 --> 1
+```
+
+直观来看，只有形成自环的强连通分量，才有资格称为循环节。例如数字`6`虽然也是图论中的强连通分量，但是谈不上是循环。形式化地，**只有出度为`0`的强连通分量才是循环节**。
+
+一种朴素的想法是：循环节必然涉及取模。于是我们关心每个循环节的长度。以`mod==7`为例，每个元素的循环节长度为`loop[0->mod-1] = {1, 1, 2, NaN, 2. NaN, NaN}`。下面提供两种方法求解。
+
+暴力解法：注意到`mod<=1e4`，于是可以接受$O(\text{mod}^2)$的暴力解法。以[洛谷 @disposrestfully](https://www.luogu.com.cn/article/z6zw7jd3)的解法为例：遍历`[0, mod)`中的所有元素`i`，对于每个`i`从其自身开始，作为第`1`个被访问的元素，然后不断地平方取模，直到遇到之前遇到过的元素为止，表示发现了循环节。**令`j`表示当前已经探索了多少个元素，`loop_visited[k]`表示数字`k`是第几个被访问的元素**，于是就得到了这个被重复访问元素的所在循环节长度。如果一个元素在循环节中，则这个元素本身作为起点时一定能被更新；如果不在，则一定不会被更新（即循环节长度为`0`）。于是正确性证毕。最坏情况下，每次循环都转一大圈（经过所有的`mod`个元素）才回到自己，故**时间复杂度为$O(\text{mod}^2)$**。**`NaN`用`0`表示**。
+
+```c++
+int loop[MOD_MAX], loop_visited[MOD_MAX]; // 每次执行loop_init()时，loop_visited[]必须全为0，表示未曾访问过任何元素
+inline void loop_init(const int &x) {
+	for(int i = x, j = 1; true; i = i * i % mod, ++j) {
+		if(loop_visited[i] == 0) {
+			loop_visited[i] = j;
+		} else {
+			loop[i] = j - loop_visited[i];
+			break;
+		}
+	}
+	for(int i = x; loop_visited[i] != 0; i = i * i % mod) { loop_visited[i] = 0; } // 清空涉及到的loop_visited[]，保证loop_visited[]全为0，留给下一次运算。该行代码效果等价于直接全填充0。
+}
+```
+
+记忆化解法：注意到暴力解法中，如果探测到循环节，则可以一次性更新所有循环节中所有元素的`loop[]`。于是有下列朴素想法：（1）若发现可以形成新循环节，则更新循环节内的元素的`loop[]`为循环节长度，循环节外的元素的`loop[]`为`NaN`；（2）若发现已经探明循环节长度的元素，则说明之前经历的所有元素都不可能属于任何一个循环节，不然早被规则（1）更新了；（3）如果起点元素已探明循环节长度，则跳过。这样保证每个状态转移过程只被执行一次，故**时间复杂度为$O(\text{mod})$**。这里的`loop[]==0`表示循环节长度未探明，**`NaN`用`-1`表示**。
+
+```c++
+int loop[MOD_MAX], loop_visited[MOD_MAX]; // 每次执行loop_init()时，loop_visited[]必须全为0，表示未曾访问过任何元素
+inline void loop_init(const int &x) {
+    // 这层循环用于更新循环节内的元素为循环节长度
+    for(int i = x, j = 1; true; i = i * i % mod, ++j) {
+        if(loop[i] != 0) { break; } // 遇到了已探明循环节长度的元素，说明x肯定不在任何循环节内
+        if(loop_visited[i] != 0) {  // 探测到了新循环节，更新循环节内的元素loop[]为循环节长度
+            loop[i] = j - loop_visited[i];
+            for(int k = i * i % mod; k != i; k = k * k % mod) { loop[k] = loop[i]; }
+            break;
+        }
+        loop_visited[i] = j; // 不满足以上终止条件，需要继续向下探索
+    }
+    // 这层循环用于更新循环节外的元素为NaN(-1)
+    for(int i = x; loop[i] == 0; i = i * i % mod) { loop[i] = -1; }
+}
+```
+
+现在来到本题的重点：设计线段树的节点值与更新状态。先设想`[0, mod)`中的所有元素，一开始都落在循环节内。于是对这些叶子节点，我们可以预处理出循环节内的所有可能值，用`.v_sum[]`数组储存起来，其中$\text{v\_sum}[i]=\begin{cases}a[x] & ,i=0 \\ \text{v\_sum}[i-1]^2\%\text{mod} & ,i\ge1 \end{cases}$。
+
+考虑线段树的上推操作。假设两个互为兄弟的叶子节点`segtree[x]`、`segtree[y]`**起初都在循环节中**，循环节长度分别为`loop[a]`和`loop[b]`，则对其父节点进行任意次平方取模处理后，区间求和结果理论上只有$\text{lcm}(\text{loop}[a], \text{loop}[b])$种情况。这意味着我们需要在节点内部维护一个指针`.loop_pos`，用于向上层节点告知：本节点维护区间中的各元素之和，到底是`.v_sum[]`中的哪个值。**然而在`[0, mod)`中，并不是所有元素一开始都能落在循环节内**。若线段树的某个节点维护的区间混进了一个不在循环节内的元素，那么整个区间都会失去平方取模运算的循环性，`.v_sum[]`/`.loop_pos`将失去存在的意义，此时只能退化为单点修改。元素`i`是否在循环节内，判断依据是`loop[i]`是否大于等于`1`。
+
+```c++
+inline void segtree_pushup(const int &root) {
+    segtree[root].is_looped = segtree[root * 2].is_looped && segtree[root * 2 + 1].is_looped;
+    更新父节点循环节长度（可选）;
+    segtree[root].loop_pos = 0;
+    segtree[root].v_sum[0] = segtree[root * 2].v_sum[segtree[root * 2].loop_pos] + segtree[root * 2 + 1].v_sum[segtree[root * 2 + 1].loop_pos];
+    if(segtree[root].is_looped) {
+        const int &lchild_loop_pos = segtree[root * 2].loop_pos, &rchild_loop_pos = segtree[root * 2 + 1].loop_pos;
+        for(int i = 1; i < 父节点循环节长度; ++i) {
+            segtree[root].v_sum[i] = segtree[root * 2].v_sum[(lchild_loop_pos + i) % 左子节点循环节长度] + segtree[root * 2 + 1].v_sum[(rchild_loop_pos + i) % 右子节点循环节长度];
+        }
+    }
+}
+```
+
+考虑线段树的下推操作。**更新懒标记`.lazy_squaremod`时，我们必须保证当前节点已经在循环节内**。更新左右子节点的`.lazy_squaremod`和`.loop_pos`即可。
+
+```c++
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_squaremod > 0) {
+        segtree[root * 2].lazy_squaremod = (segtree[root * 2].lazy_squaremod + segtree[root].lazy_squaremod) % 左节点循环节长度;
+        segtree[root * 2].loop_pos = (segtree[root * 2].loop_pos + segtree[root].lazy_squaremod) % 左节点循环节长度;
+        segtree[root * 2 + 1].lazy_squaremod = (segtree[root * 2 + 1].lazy_squaremod + segtree[root].lazy_squaremod) % 右节点循环节长度;
+        segtree[root * 2 + 1].loop_pos = (segtree[root * 2 + 1].loop_pos + segtree[root].lazy_squaremod) % 右节点循环节长度;
+        segtree[root].lazy_squaremod = 0;
+    }
+}
+```
+
+考虑线段树的区间编辑操作。只有当前节点`segtree[root]`在循环节内，区间懒标记才是有意义的，不然只能退化到单点编辑。于是伪代码实现为：如果线段树节点区间是否被包含，且在循环节内，则打上区间懒标记，否则向下递归，对不在循环节内的节点，退化到单点编辑为止。容易发现，如果一个节点已经有懒标记，则必定满足进入"打上懒标记"分支的前提条件，必在循环节内。否则当前节点懒标记为`0`，下推操作实际上不会编辑子节点。这一机制保证了**更新懒标记`.lazy_squaremod`时，当前节点已经在循环节内**。
+
+对于`.v_sum[]`/`.loop_pos`的实现，这里提供两种方法：
+
+```c++
+void segtree_squaremod_range(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r && segtree[root].is_looped) {
+        segtree[root].lazy_squaremod = (segtree[root].lazy_squaremod + 1) % loop_lcm;
+        segtree[root].loop_pos = (segtree[root].loop_pos + 1) % loop_lcm;
+        return;
+    }
+    if(segtree[root].l == segtree[root].r) { // 对不在循环节内的节点，退化到单点编辑
+        segtree[root].v_sum[0] = segtree[root].v_sum[0] * segtree[root].v_sum[0] % mod;
+        segtree[root].is_looped = (loop[segtree[root].v_sum[0]] > 0);
+        if(segtree[root].is_looped) {
+            for(int i = 1; i < loop_lcm; ++i) { segtree[root].v_sum[i] = segtree[root].v_sum[i - 1] * segtree[root].v_sum[i - 1] % mod; }
+        }
+        segtree[root].loop_pos = 0;
+        // segtree[root]不在循环节内，因此懒标记segtree[root].lazysquaremod必为0，更改后也为0，故不用手动更新
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_squaremod_range(root * 2, l, r); }
+    if(r > m) { segtree_squaremod_range(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+```
+
+第一种方法是为`.v_sum[]`的长度取所有循环节最小公倍数。以[洛谷 @disposrestfully](https://www.luogu.com.cn/article/z6zw7jd3)的解法为例，前文提到，若两个兄弟节点的循环节长度分别为`loop[a]`和`loop[b]`，则父节点的循环节长度可取$\text{lcm}(\text{loop}[a], \text{loop}[b])$的任意正整数倍。一种无脑的方案是：让所有位于循环节内的节点，其循环节长度均取$\text{lcm}(\text{loop}[a],\text{loop}[b],\text{loop}[c],\cdots)$，不必为所有节点计算其自己独特的循环节长度`.loop`。这种一刀切的思路实现起来代码量少，线段树上的节点只有两种状态：要么不在循环节内，`.is_looped==false`，只用到`.v_sum[0]`；要么在循环节内，`.is_looped==true`，`.v_sum[]`统一用到循环节最小公倍数的位置，即`.v_sum[0 -> loop_lcm - 1]`。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 1e5, MOD_MAX = 1e5, LOOP_MAX = 60;
+int n, q, mod, a[N_MAX + 1], op_temp, x_temp, y_temp;
+
+int loop_lcm = 1, loop[MOD_MAX + 1], loop_visited[MOD_MAX + 1];
+inline void loop_init(const int &x) {
+    for(int i = x, j = 1; true; i = i * i % mod, ++j) {
+        if(loop[i] != 0) { break; }
+        if(loop_visited[i] != 0) {
+            loop[i] = j - loop_visited[i];
+            for(int k = i * i % mod; k != i; k = k * k % mod) { loop[k] = loop[i]; }
+            break;
+        }
+        loop_visited[i] = j;
+    }
+    for(int i = x; loop[i] == 0; i = i * i % mod) { loop[i] = -1; }
+}
+
+struct SegTree { int l, r; int loop_pos, lazy_squaremod; long long int v_sum[LOOP_MAX]; bool is_looped; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].is_looped = segtree[root * 2].is_looped && segtree[root * 2 + 1].is_looped;
+    segtree[root].loop_pos = 0;
+    segtree[root].v_sum[0] = segtree[root * 2].v_sum[segtree[root * 2].loop_pos] + segtree[root * 2 + 1].v_sum[segtree[root * 2 + 1].loop_pos];
+    if(segtree[root].is_looped) {
+        const int &lchild_loop_pos = segtree[root * 2].loop_pos, &rchild_loop_pos = segtree[root * 2 + 1].loop_pos;
+        for(int i = 1; i < loop_lcm; ++i) {
+            segtree[root].v_sum[i] = segtree[root * 2].v_sum[(lchild_loop_pos + i) % loop_lcm] + segtree[root * 2 + 1].v_sum[(rchild_loop_pos + i) % loop_lcm];
+        }
+    }
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_squaremod > 0) {
+        segtree[root * 2].lazy_squaremod = (segtree[root * 2].lazy_squaremod + segtree[root].lazy_squaremod) % loop_lcm;
+        segtree[root * 2].loop_pos = (segtree[root * 2].loop_pos + segtree[root].lazy_squaremod) % loop_lcm;
+        segtree[root * 2 + 1].lazy_squaremod = (segtree[root * 2 + 1].lazy_squaremod + segtree[root].lazy_squaremod) % loop_lcm;
+        segtree[root * 2 + 1].loop_pos = (segtree[root * 2 + 1].loop_pos + segtree[root].lazy_squaremod) % loop_lcm;
+        segtree[root].lazy_squaremod = 0;
+    }
+}
+void segtree_init(const int &root, const int &l, const int &r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum[0] = a[l];
+        segtree[root].is_looped = (loop[segtree[root].v_sum[0]] > 0);
+        if(segtree[root].is_looped) {
+            for(int i = 1; i < loop_lcm; ++i) { segtree[root].v_sum[i] = segtree[root].v_sum[i - 1] * segtree[root].v_sum[i - 1] % mod; }
+        }
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_squaremod_range(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r && segtree[root].is_looped) {
+        segtree[root].lazy_squaremod = (segtree[root].lazy_squaremod + 1) % loop_lcm;
+        segtree[root].loop_pos = (segtree[root].loop_pos + 1) % loop_lcm;
+        return;
+    }
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_sum[0] = segtree[root].v_sum[0] * segtree[root].v_sum[0] % mod;
+        segtree[root].is_looped = (loop[segtree[root].v_sum[0]] > 0);
+        if(segtree[root].is_looped) {
+            for(int i = 1; i < loop_lcm; ++i) { segtree[root].v_sum[i] = segtree[root].v_sum[i - 1] * segtree[root].v_sum[i - 1] % mod; }
+        }
+        segtree[root].loop_pos = 0;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_squaremod_range(root * 2, l, r); }
+    if(r > m) { segtree_squaremod_range(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+long long int segtree_query_range_sum(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum[segtree[root].loop_pos]; }
+    segtree_pushdown(root);
+    long long int query = 0;
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { query += segtree_query_range_sum(root * 2, l, r); }
+    if(r > m) { query += segtree_query_range_sum(root * 2 + 1, l, r); }
+    return query;
+}
+
+int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
+int lcm(int a, int b) { return (a * b) / gcd(a, b); }
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> q >> mod;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for(int i = 0; i < mod; ++i) { loop_init(i); }
+    for(int i = 0; i < mod; ++i) {
+        if(loop[i] > 0) { loop_lcm = lcm(loop_lcm, loop[i]); }
+    }
+
+    segtree_init(1, 1, n);
+    while(q--) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            segtree_squaremod_range(1, x_temp, y_temp);
+        } else if(op_temp == 2) {
+            std::cout << segtree_query_range_sum(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
+
+第二种方法是为所有节点计算其自己独特的循环节长度`.loop`，减少更新的`.v_sum[]`个数，节省时间常数。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 1e5, MOD_MAX = 1e5, LOOP_MAX = 60;
+int n, q, mod, a[N_MAX + 1], op_temp, x_temp, y_temp;
+
+int loop[MOD_MAX + 1], loop_visited[MOD_MAX + 1];
+inline void loop_init(const int &x) {
+    for(int i = x, j = 1; true; i = i * i % mod, ++j) {
+        if(loop[i] != 0) { break; }
+        if(loop_visited[i] != 0) {
+            loop[i] = j - loop_visited[i];
+            for(int k = i * i % mod; k != i; k = k * k % mod) { loop[k] = loop[i]; }
+            break;
+        }
+        loop_visited[i] = j;
+    }
+    for(int i = x; loop[i] == 0; i = i * i % mod) { loop[i] = -1; }
+}
+
+struct SegTree { int l, r; int loop, loop_pos, lazy_squaremod; long long int v_sum[LOOP_MAX]; bool is_looped; } segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].is_looped = segtree[root * 2].is_looped && segtree[root * 2 + 1].is_looped;
+    segtree[root].loop = lcm(segtree[root * 2].loop, segtree[root * 2 + 1].loop);
+    segtree[root].loop_pos = 0;
+    segtree[root].v_sum[0] = segtree[root * 2].v_sum[segtree[root * 2].loop_pos] + segtree[root * 2 + 1].v_sum[segtree[root * 2 + 1].loop_pos];
+    if(segtree[root].is_looped) {
+        const int &lchild_loop_pos = segtree[root * 2].loop_pos, &rchild_loop_pos = segtree[root * 2 + 1].loop_pos;
+        for(int i = 1; i < segtree[root].loop; ++i) {
+            segtree[root].v_sum[i] = segtree[root * 2].v_sum[(lchild_loop_pos + i) % segtree[root * 2].loop] + segtree[root * 2 + 1].v_sum[(rchild_loop_pos + i) % segtree[root * 2 + 1].loop];
+        }
+    }
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_squaremod > 0) {
+        segtree[root * 2].lazy_squaremod = (segtree[root * 2].lazy_squaremod + segtree[root].lazy_squaremod) % segtree[root * 2].loop;
+        segtree[root * 2].loop_pos = (segtree[root * 2].loop_pos + segtree[root].lazy_squaremod) % segtree[root * 2].loop;
+        segtree[root * 2 + 1].lazy_squaremod = (segtree[root * 2 + 1].lazy_squaremod + segtree[root].lazy_squaremod) % segtree[root * 2 + 1].loop;
+        segtree[root * 2 + 1].loop_pos = (segtree[root * 2 + 1].loop_pos + segtree[root].lazy_squaremod) % segtree[root * 2 + 1].loop;
+        segtree[root].lazy_squaremod = 0;
+    }
+}
+void segtree_init(const int &root, const int &l, const int &r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_sum[0] = a[l];
+        segtree[root].is_looped = (loop[segtree[root].v_sum[0]] > 0);
+        segtree[root].loop = (segtree[root].is_looped ? loop[segtree[root].v_sum[0]] : 1);
+        if(segtree[root].is_looped) {
+            for(int i = 1; i < segtree[root].loop; ++i) { segtree[root].v_sum[i] = segtree[root].v_sum[i - 1] * segtree[root].v_sum[i - 1] % mod; }
+        }
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_squaremod_range(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r && segtree[root].is_looped) {
+        segtree[root].lazy_squaremod = (segtree[root].lazy_squaremod + 1) % segtree[root].loop;
+        segtree[root].loop_pos = (segtree[root].loop_pos + 1) % segtree[root].loop;
+        return;
+    }
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_sum[0] = segtree[root].v_sum[0] * segtree[root].v_sum[0] % mod;
+        segtree[root].is_looped = (loop[segtree[root].v_sum[0]] > 0);
+        if(segtree[root].is_looped) {
+            for(int i = 1; i < segtree[root].loop; ++i) { segtree[root].v_sum[i] = segtree[root].v_sum[i - 1] * segtree[root].v_sum[i - 1] % mod; }
+        }
+        segtree[root].loop_pos = 0;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_squaremod_range(root * 2, l, r); }
+    if(r > m) { segtree_squaremod_range(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+long long int segtree_query_range_sum(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum[segtree[root].loop_pos]; }
+    segtree_pushdown(root);
+    long long int query = 0;
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { query += segtree_query_range_sum(root * 2, l, r); }
+    if(r > m) { query += segtree_query_range_sum(root * 2 + 1, l, r); }
+    return query;
+}
+
+int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
+int lcm(int a, int b) { return (a * b) / gcd(a, b); }
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> q >> mod;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for(int i = 0; i < mod; ++i) { loop_init(i); }
+
+    segtree_init(1, 1, n);
+    while(q--) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            segtree_squaremod_range(1, x_temp, y_temp);
+        } else if(op_temp == 2) {
+            std::cout << segtree_query_range_sum(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
 
 #### §7.5.1.2 离散化线段树
 
@@ -12833,7 +13176,7 @@ int main() {
 
 于是时间复杂度为$O(\min(t+tn+q, t+qm))\approx O(\max(q,t)\cdot\sqrt{t})$，可以通过本题。
 
-本题无法用`a[M_MAX][N_MAX]`存下所有数，所以要用一维数组模拟二维数组。这种情况下要在前缀和做差时，左边界进行特判，从而防止越界。
+本题无法用`a[M_MAX][N_MAX]`存下所有数，所以要用一维数组模拟二维数组。这种情况下要在前缀和做差时，对左边界进行特判，从而防止越界。
 
 ```c++
 const int N_MAX = 5e5, Q_MAX = 5e5, M_MAX = 5e5, N_M_MAX = 5e5, N_M_SQRT_MAX = 708;
