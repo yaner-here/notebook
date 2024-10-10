@@ -10803,7 +10803,7 @@ int main() {
 }
 ```
 
-第二种方法是为所有节点计算其自己独特的循环节长度`.loop`，即`.v_sum[0 -> .loop - 1]`。如果叶子节点已在循环节内，则直接置为`.loop=loop[叶子节点的值]`，若不在循环节，则置为`1`。父节点的`.loop`取两个字节点`.loop`的最小公倍数。这样可以减少更新的`.v_sum[]`次数，节省时间常数，关闭流同步即可干到全站第二，使用`getchar()`快读即可干到全站第一。
+第二种方法是为所有节点计算其自己独特的循环节长度`.loop`，即`.v_sum[0 -> .loop - 1]`。如果叶子节点已在循环节内，则直接置为`.loop=loop[叶子节点的值]`，若不在循环节，则置为`1`。父节点的`.loop`取两个子节点`.loop`的最小公倍数。这样可以减少更新的`.v_sum[]`次数，节省时间常数，关闭流同步即可干到全站第二，使用`getchar()`快读即可干到全站第一。
 
 ```c++
 const int N_MAX = 1e5, M_MAX = 1e5, MOD_MAX = 1e5, LOOP_MAX = 60;
@@ -13219,6 +13219,53 @@ int main() {
 }
 ```
 
+### §7.6.2 数列分块
+
+> [洛谷P4109](https://www.luogu.com.cn/problem/P4109)：给定一个十进制自然数`x`，定义$f(x)$为：从末尾开始去除所有字符`0`，直到末尾字符不是`0`为止，得到数字`x'`，令`x'`的长度为`len_x'`，则$f(x)$为`2 * len_x' - (x' % 10 == 5)`。给定`t`次区间查询`[l, r]`，每次输出$\displaystyle\underset{x\in[l, r]}{\text{argmin}}f(x)$。如果有多个$x\in[l, r]$均能使$f(x)$取得最小值，则输出最小的$x$。
+
+由于末尾的字符`0`会被忽略，所以`1`、`10`、`100`、...的$f(\cdot)$都是一样的。由于目标查询区间`[l, r]`已经固定，所以我们希望`x`尽可能凑整，末尾的`0`越多越好，最后位的非`0`数字为`5`则更好。于是区间分块的依据呼之欲出——以末尾`0`的个数为分界标准。
+
+给定一个区间`[l, r]`，我们希望从起点`x=l`开始，在`x`向后遍历并增长的过程中，给`x`凑出尽可能多的末尾字符`0`。由于`x`只能增长，所以我们可以不断地向上调整最后一个非`0`数字，直到它发生进位，退位后重新变成`0`，从而构造出尽可能多的末尾`0`。以`l=979`为例：
+
+```
+x = -0- -9- -7- -9-  [979, 980)内的f(x)最小值均为f(979)，末尾均有0个0
+x = -0- -9- -8- [0]  [980, 990)内的f(x)最小值均为f(980)，末尾均有1个0
+x = -0- -9- -9- [0]  [990, 1000)内的f(x)最小值均为f(990)，末尾均有2个0
+x = -1- [0] [0] [0]  [1000, 2000)内的f(x)最小值均为f(1000)，末尾均有3个0
+x = -2- [0] [0] [0]  ......
+```
+
+依此类推，我们可以将任意区间`[l, r]`划分成若干个互不相交的区间块`[l', r')`，每个区间块内的$\displaystyle\underset{x\in[l', r')}{\text{argmin}}f(x)$均为$f(l')$。
+
+```c++
+int t, x_temp, y_temp;
+constexpr int pow_init(int p) { return p == 0 ? 1 : 10 * pow_init(p - 1); }
+constexpr int pow_10[10] = {pow_init(0), pow_init(1), pow_init(2), pow_init(3), pow_init(4), pow_init(5), pow_init(6), pow_init(7), pow_init(8), pow_init(9)};
+
+int query(int l, int r) {
+    int ans_x = l, ans_f = INT32_MAX;
+    while(l <= r) {
+        int l_temp = l, suffix_0_count = 0, suffix_non0, prefix_non0_len = 0;
+        while(l_temp % 10 == 0) { ++suffix_0_count; l_temp /= 10; }
+        suffix_non0 = l_temp % 10;
+        while(l_temp > 0) { ++prefix_non0_len; l_temp /= 10; }
+        if(prefix_non0_len * 2 - (suffix_non0 == 5) < ans_f) {
+            ans_f = prefix_non0_len * 2 - (suffix_non0 == 5);
+            ans_x = l;
+        }
+        l += pow_10[suffix_0_count];
+    }
+    return ans_x;
+}
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> x_temp >> y_temp;
+        std::cout << query(x_temp, y_temp) << '\n';
+    }
+}
+```
+
 ## §7.7 堆
 
 堆的本质是一棵树，每个子节点都表示一个值，每个子节点都大于/小于其父亲节的值，称为小根堆/大根堆。小根堆/大根堆能够快速地插入、查询、删除值，支持多个堆之间的合并。
@@ -13490,6 +13537,8 @@ int main() {
 ### §8.3.2 向上/向下取整
 
 若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以用`(a - 1) / b + 1`表示。**该式在`a==0`时不适用**。
+
+# §9 模拟
 
 # §A 技巧与警钟长鸣
 
