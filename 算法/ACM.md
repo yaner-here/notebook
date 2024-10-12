@@ -435,8 +435,6 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n)$。
 
-TODO？？？？？？？？？？？完全背包也有类似的常数优化
-
 ```
     for (int i = 0; i < n; ++i) { // 遍历每种物品
         int itemCost = cost[i];
@@ -9701,9 +9699,9 @@ void bit_init(const int &n) {
 
 ```c++
 void bit_init(const int &n) {
-	int j = i + lowbit(i);
 	for (int i = 1; i <= n; ++i) {
 		t[i] += a[i];
+		int j = i + lowbit(i);
 		if (j <= n) { t[j] += t[i]; }
 	}
 }
@@ -10159,7 +10157,7 @@ int main() {
 }
 ```
 
-#### §7.4.A.3 在线逆序对
+#### §7.4.A.3 在线/离线逆序对
 
 > [洛谷P3157](https://www.luogu.com.cn/problem/P3157)：给定一个`1~n<=1e5`的一个全排列序列`a[1->n]`，然后按顺序依次删除元素`b[1->m<=5e4]`。每删除一个元素之前，输出当前序列的逆序对个数。
 
@@ -10233,6 +10231,12 @@ int main() {
 
 本题也有CDQ分治的离线做法，这里略。
 
+> [洛谷P6278](https://www.luogu.com.cn/problem/P6278)：给定序列`a[1->n<=1e5]<=A_MAX=1e5`，进行`q`次独立的查询操作：每次给定一个`0<=j<=A_MAX`，令新序列`a'[1->n]`由`a[i] = std::max(a[i], j)`定义，求`a'[1->n]`的逆序对数量。
+
+在线维护这种区间操作耗时极高，注意到`q`次查询的`j`最多只有`A_MAX+1 == 1e5+1`种情况，故可以考虑离线预处理所有查询结果。
+
+
+
 #### §7.4.A.4 逆序对排列方案
 
 > [洛谷P1521](https://www.luogu.com.cn/problem/P1521)/[洛谷P2513](https://www.luogu.com.cn/problem/P2513)：在`1~n`这`n<=1e2`/`n<=1e3`个数字的所有$A_n^n$种全排列中，逆序对数量恰好为`k`的排列方法有多少种？输入数据保证答案存在，且答案模`MOD`输出。
@@ -10288,6 +10292,20 @@ int main() {
 ```
 
 本题有[使用生成函数](https://www.luogu.com.cn/discuss/834810)的$O(n^2 \log_2{n})$的做法，这里略。
+
+> [洛谷P10497](https://www.luogu.com.cn/problem/P10497)：给定一个未知的`1~n`的排列`a[1->n]`，令$b[i]=\displaystyle\sum_{i\in[1,j)}\mathbb{1}_{a[j]<a[i]}$。请根据给定的`b[1->n]`还原出原始的`a[1->n]`。
+
+尝试手动模拟，容易发现从前往后复原会产生众多分支，从后往前则不会。于是考虑从后往前。以`b[1->5] = {0, 1, 2, 1, 0}`为例：
+
+1. 考虑`b[5]`。由于在`a[1->5]`中，不存在比`a[5]`更小的数，所以`a[5] == 1`就是最小的数。现在只剩`2, 3, 4`需要填。
+2. 考虑`b[4]`。由于在`a[1->4]`中，比`a[4]`还小的数只有一个，所以在剩余可填的数中，`3`符合要求，比它更大的数只有两个，符号要求，故`a[4] == 3`。
+3. ......依次类推，考虑`b[i]`。由于在`a[1->i]`中，比`a[i]`更小的数只有`b[i]`个，所以在剩余可填的数中，选择第`b[i]+1`小的数即可作为`a[i]`的值。
+
+使用树状数组维护"剩余可填数"集合，每次对前缀和使用二分查找即可找到第`k`小的数。
+
+```c++
+
+```
 
 ## §7.5 线段树
 
@@ -11727,6 +11745,8 @@ int main() {
 
 #### §7.5.3.3 可持久化线段树/主席树
 
+TODO：？？？？？？
+
 ### §7.5.4 权值线段树
 
 相比与传统线段树**按下标位置**维护`a[1->n]`，权值线段树**按值域**维护`a[1->n]`形成的计数桶。
@@ -11822,7 +11842,7 @@ int main() {
 }
 ```
 
-### §7.5.A 不可拆分性目标函数
+### §7.5.5 不可拆分性目标函数
 
 如果线段树要查询的区间值使用一个不可拆分的目标函数$f(\cdot)$给出的，那么我们可以构造一个变量数恒定的函数$h(\cdot)$和一系列可拆分的函数$g_1(\cdot),g_2(\cdot),\cdots$，使得$f(\cdot)=h(g_1(\cdot),g_2(\cdot),\cdots)$。我们只须每次`segtree_pushdown()`时维护这些$g_i$变量，在`segtree_pushup()`时现场计算即可。
 
@@ -12011,7 +12031,73 @@ int main() {
 }
 ```
 
-#### §7.5.A.1 区间连续段拼接函数
+> [洛谷P5094](https://www.luogu.com.cn/problem/P5094)：给定`a[1->n]`和`x[1->n]`两个序列（值域均为`[1, 5e4]`），定义区间查询函数$f(l, r) = \displaystyle\sum_{\forall i,j, l\le i< j\le r}\left({\max(a_i, a_j)\cdot |x_i-x_j|}\right)$。输出$f(1,n)$的值。
+
+本题只涉及到一次区间查询，所以可以考虑离线做法——将这`n`个元素逐个加入到线段树中，第`j`个添加的元素会与之前的`j-1`个已添加元素共同作用，将新增的贡献叠加到$f(l, r)$中。
+
+绝对值的$|x_i-x_j|$的正负号容易分类讨论，只要统计前`j-1`个已添加的元素中，哪些元素的`x`大于/小于第`j`个元素的`x`即可。真正棘手的是$\max(a_i,a_j)$，我们可以调整元素添加的顺序——对原始序列按`a[]`进行升序排序，这样就能保证`j>=i`时，`a[j]>=a[i]`，于是$\max(a_i,a_j)$退化为$a_j$。
+
+在代码实现上，先将`a[]`和`x[]`作为结构体，按`a[]`升序排序。考虑第`j`个元素加入时，设`sum_x_less`表示前`j-1`个元素中满足`i<j`且`x[i]<x[j]`的所有元素的`x`之和，即$\text{sum\_x\_less}_j = \displaystyle\sum_{\forall i \in [1, j), x[i]<x[j]} x[i]$。同理，设$\text{count\_less}_j = \displaystyle\sum_{\forall i\in[1, j)} \mathbb{1}_{x[i]<x[j]}$，$\text{sum\_x\_more}_j = \displaystyle\sum_{\forall i \in [1, j), x[i]>x[j]}x[i]$，$\text{count\_less}_j = \displaystyle\sum_{\forall i \in [1, j)}\mathbb{1}_{x[i]>x[j]}$。这些变量均涉及值域上的区间求和，用树状数组或线段树均可解决。本题值域较小，故不必离散化。
+
+```c++
+const int N_MAX = 5e4, X_MAX = 5e4, A_MAX = 5e4;
+int n, x_max; struct Point { int a, x; } point[N_MAX + 1];
+
+struct SegTree { int l, r; int v_count; long long int v_sum_x; } segtree[A_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_count = segtree[root * 2].v_count + segtree[root * 2 + 1].v_count;
+    segtree[root].v_sum_x = segtree[root * 2].v_sum_x + segtree[root * 2 + 1].v_sum_x;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { return; }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+}
+void segtree_incre(const int root, const int &target, const int &count_incre, const int &sum_x_incre) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_count += count_incre;
+        segtree[root].v_sum_x += sum_x_incre;
+        return;
+    }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_incre(root * 2, target, count_incre, sum_x_incre); }
+    if(target > m) { segtree_incre(root * 2 + 1, target, count_incre, sum_x_incre); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    const SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r);
+    return SegTree{.l = std::max(l, segtree[root].l), .r = std::min(r, segtree[root].r), .v_count = query_l.v_count + query_r.v_count, .v_sum_x = query_l.v_sum_x + query_r.v_sum_x};
+};
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> point[i].a >> point[i].x; x_max = std::max(x_max, point[i].x); }
+    std::sort(point + 1, point + 1 + n, [](const Point &lhs, const Point &rhs) { return lhs.a < rhs.a; });
+    segtree_init(1, 1, x_max);
+
+    long long int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        segtree_incre(1, point[i].x, 1, point[i].x);
+        if(point[i].x - 1 >= 1) {
+            const SegTree query_less = segtree_range_query(1, 1, point[i].x - 1);
+            ans += point[i].a * (static_cast<long long int>(query_less.v_count) * point[i].x - query_less.v_sum_x);
+        }
+        if(point[i].x + 1 <= x_max) {
+            const SegTree query_more = segtree_range_query(1, point[i].x + 1, x_max);
+            ans += point[i].a * (query_more.v_sum_x - static_cast<long long int>(query_more.v_count) * point[i].x);
+        }
+    }
+    std::cout << ans;
+}
+```
+
+#### §7.5.5.1 区间连续段拼接函数
 
 > [洛谷P2894](https://www.luogu.com.cn/problem/P2894)：给定`n`个排成一行、初始为空的房间，支持以下操作。（1）从左开始查找第一个“连续`y_temp`个房间均为空”的区间，占用这些房间，并输出其左闭端点；（2）重置区间内的所有房间为空。
 
@@ -12403,7 +12489,7 @@ int main() {
 }
 ```
 
-#### §7.5.A.2 子区间全排列函数
+#### §7.5.5.2 子区间全排列函数
 
 > [洛谷P6225](https://www.luogu.com.cn/problem/P6225)：维护`int a[1->n]`上的`int`线段树，实现以下操作。（1）单点修改；（2）查询区间内所有子区间内所有元素的异或和的异或和$\displaystyle\bigoplus_{\forall [i,j]\subseteq[l, r]}\left(\bigoplus_{\forall k\in[i,j]}a[k]\right)$。
 
@@ -12741,9 +12827,9 @@ int main() {
 }
 ```
 
-### §7.5.B 区间染色数问题
+### §7.5.6 区间染色数问题
 
-#### §7.5.B.1 一次性颜色
+#### §7.5.6.1 一次性颜色
 
 一个格子只能有一个颜色，每次涂的颜色均不相同。
 
@@ -12751,7 +12837,7 @@ int main() {
 
 具体解题步骤参见[§7.5.1.2 离散化线段树](####§7.5.1.2 离散化线段树)一节的原始例题。
 
-#### §7.5.B.2 可重复颜色
+#### §7.5.6.2 可重复颜色
 
 一个格子只能有一个颜色，每次涂的颜色可以是之前已使用过的颜色。
 
@@ -12841,7 +12927,7 @@ int main() {
 
 本题的颜色种类数进一步扩充到`1e9`，???????????????？？？？？？？？？？TODO
 
-#### §7.5.B.3 可混合颜色
+#### §7.5.6.3 可混合颜色
 
 一个格子可以同时有多个颜色。每次涂色操作不会覆盖掉之前的颜色们。
 
@@ -12914,7 +13000,7 @@ int main() {
 }
 ```
 
-### §7.5.C 非恒等修改函数
+### §7.5.7 非恒等修改函数
 
 在之前的例题中，我们在进行区间修改时，修改后的值$v'=f(v)$使用的修改函数是一致的。本节将介绍不一致的修改函数。这类题的核心是找到一对函数$g(\cdot),h(\cdot)$满足$v'=h(g(v))$，其中$g(v)$是恒等的修改函数，令线段树维护的值从$v$变为$g(v)$。
 
@@ -12996,7 +13082,125 @@ int main() {
 }
 ```
 
-### §7.5.D 无需线段树的区间操作
+### §7.5.8 线段树搜索
+
+> [洛谷P5584](https://www.luogu.com.cn/problem/P5584)：给定一个0/1序列`bool a[1->n]`，当其中的一个元素被删除时，后面的元素会向队头填补，下标也会减`1`。现在只允许删除当前下标为`2`的幂次（`1`、`2`、`4`、...）的元素，如果要删除所有`true`元素，至少要删除多少次？请输出每次删除的元素在`a[]`中的原始下标。
+
+首先需要注意到贪心性质：**删除次数最少的解法，一定是$2^k$位置上有`true`元素，则优先删除这个元素；如果多个$2^k$都有`true`元素，则删除下标最大的那个`true`元素**。该结论等价于：最优解法中的每个`true`（设为`a[i]`）一定在离他左边最近的$2^k$（$k=2^{\lfloor\log_2{i}\rfloor}$）处被删除。使用数学归纳法证明：
+
+- 当`a[1->n]`只有`1`个`true`元素时，结论显然成立，否则会浪费删除次数。
+- 设`a[1->n]`只有`k-1`个`true`元素时结论成立，则当`a[1->n]`有`k`个`true`元素时，考虑其最优策略最终按顺序删除的`k`个`true`元素，可以将它们分为两个阶段：删除了第一个`true`元素、删除了其余`k-1`个`true`元素。由假设可知，第二阶段中结论成立。所以在第一阶段中，只删除了一个元素，要想不浪费删除次数，只能选择离他左边最近的$2^k$处删除，结论也成立。**综上所述，当`a[1->n]`有`k`个`true`元素时，删除流程的每个阶段都符合结论，故证毕**。
+
+于是易得伪代码：
+
+```c++
+while(还有true元素未删除) {
+	if(现在没有true元素在2^k位置上) {
+		不断删除队首元素，直到2^k位置上存在true元素，每次删除都要记录原始位置;
+	}
+	int w_pending_delete_pointer = 存在true元素的最大2^k位置;
+	删除w_pending_delete_pointer对应的一个true元素，每次删除都要记录原始位置;
+}
+```
+
+要判断是否有`true`元素在$2^k$位置上，只需令`w_dis[]`表示所有`true`元素在离他左边最近的$2^k$（$k=2^{\lfloor\log_2{i}\rfloor}$）的距离，用线段树维护`w_dis[]`序列的区间最小值`.v_min`即可。如果`.v_min == 0`，则说明存在。每删除一个`true`元素，就需要让`w_dis[]`置为无穷大。
+
+```c++
+const int N_MAX = 3e6, W_COUNT_MAX = 1.5e6;
+int n, w, a_temp; bool a[N_MAX + 1];
+int w_pos[W_COUNT_MAX + 1], w_count, w_pointer, notw_pos[N_MAX + 1], notw_count, notw_pointer, w_dis[W_COUNT_MAX + 1];
+int delete_pos[N_MAX + 1], delete_count;
+
+struct SegTree { int l, r; int v_min; int lazy_incre; } segtree[W_COUNT_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_min = std::min(segtree[root * 2].v_min, segtree[root * 2 + 1].v_min);
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_incre != 0) {
+        segtree[root * 2].v_min += segtree[root].lazy_incre;
+        segtree[root * 2].lazy_incre += segtree[root].lazy_incre;
+        segtree[root * 2 + 1].v_min += segtree[root].lazy_incre;
+        segtree[root * 2 + 1].lazy_incre += segtree[root].lazy_incre;
+        segtree[root].lazy_incre = 0;
+    }
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_min = w_dis[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_incre(const int root, const int &l, const int &r, const int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r){
+        segtree[root].v_min += incre;
+        segtree[root].lazy_incre += incre;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_incre(root * 2, l, r, incre); }
+    if(r > m) { segtree_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+void segtree_reset(const int root, const int &target, const int &reset) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_min = reset;
+        segtree[root].lazy_incre = 0;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_reset(root * 2, target, reset); }
+    if(target > m) { segtree_reset(root * 2 + 1, target, reset); }
+    segtree_pushup(root);
+}
+int segtree_search_min_0(const int root, const int &l, const int &r) {
+    if(segtree[root].v_min > 0) { return -1; }
+    if(segtree[root].l == segtree[root].r) { return segtree[root].l; }
+    segtree_pushdown(root);
+    if(segtree[root * 2 + 1].v_min == 0) {
+        return segtree_search_min_0(root * 2 + 1, l, r);
+    } else {
+        return segtree_search_min_0(root * 2, l, r);
+    }
+}
+
+int main(){
+    std::cin >> n >> w;
+    for(int i = 1, j = 1; i <= n; ++i) {
+        std::cin >> a_temp;
+        a[i] = (a_temp == w);
+        if(a[i] == true) {
+            w_pos[++w_count] = i;
+            while(j * 2 <= i) { j *= 2; }
+            w_dis[w_count] = i - j;
+        } else {
+            notw_pos[++notw_count] = i;
+        }
+    }
+    segtree_init(1, 1, w_count);
+    for(int i = w_count; i >= 1; --i) {
+        if(segtree[1].v_min > 0) {
+            for(int j = 1; j <= segtree[1].v_min; ++j) { delete_pos[++delete_count] = notw_pos[++notw_pointer]; }
+            segtree_range_incre(1, 1, w_count, -segtree[1].v_min);
+        }
+        int w_pending_delete_pointer = segtree_search_min_0(1, 1, w_count);
+        assert(w_pending_delete_pointer != -1);
+        delete_pos[++delete_count] = w_pos[w_pending_delete_pointer];
+        segtree_reset(1, w_pending_delete_pointer, INT32_MAX);
+        if(w_pending_delete_pointer + 1 <= w_count) { segtree_range_incre(1, w_pending_delete_pointer + 1, w_count, -1); }
+    }
+    std::cout << delete_count << '\n';
+    for(int i = 1; i <= delete_count; ++i) { std::cout << delete_pos[i] << ' '; }
+}
+```
+
+### §7.5.A 无需线段树的区间操作
 
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
 
@@ -13287,7 +13491,7 @@ int main() {
 ```c++
 int n = 0;
 void heap_update_up(int x){ // 要向上更新的节点编号，把最大/小的数往上运
-	// 大根堆是heap[x/2]<heap[x]，小根堆是heap_[x/2]>heap[x]
+	// 大根堆是heap[x/2]<heap[x]，小根堆是heap[x/2]>heap[x]
 	while(x > 1 && heap[x / 2] < heap[x]){
 		std::swap(h[x / 2], h[x]);
 		x /= 2;
@@ -14070,3 +14274,15 @@ int main(){
 #pragma GCC optimize("Ofast", "inline", "-ffast-math")
 #pragma GCC target("avx,sse2,sse3,sse4,mmx")
 ```
+
+## §A.4 数据溢出
+
+### §A.4.1 `int×int`上溢
+
+**每次调用两个`int`相乘时，都要警惕是否会爆`int`上限**。
+
+> [洛谷P5094](https://www.luogu.com.cn/problem/P5094)：给定序列`a[1->n<=5e4]`。现取其中的某个元素`a[i]`，将其变为原来的`k<=n`倍，并将结果记为`a_sum`。请输出`a_sum`的值。
+
+我们都知道`k`和`a[i]`都在`int`范围之内，且`a_sum <= K_MAX * N_MAX = 2.5e9`必须用`int64_t`存储。于是一种错误的想法是令`int a[1->n], k;`和`int64_t a_sum`。**这样做会导致两个`int`相乘时就会爆上限，再转为`int64_t`已是无力回天**。
+
+正确的做法是：要么用`int64_t`存`a[]`或`k`，浪费空间；要么相乘前使用`(int64_t)`强制类型转换，浪费时间。
