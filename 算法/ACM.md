@@ -10235,7 +10235,46 @@ int main() {
 
 在线维护这种区间操作耗时极高，注意到`q`次查询的`j`最多只有`A_MAX+1 == 1e5+1`种情况，故可以考虑离线预处理所有查询结果。
 
-TODO：？？？？？？？？？
+不妨令`j`从`0`开始递增到`A_MAX`。考虑从`j-1`变成`j`时，新产生了哪些逆序对。这里的新逆序对`(x, y)`（`x<y`）指的是：
+
+1. 之前`(x,y)`不是逆序对。从`j-1`变成`j`时，`(x,y)`变成了逆序对。
+2. 由于`x`和`y`的相对大小不变，所以两者的值大小`a'[x]`、`a'[y]`的大小关系发生了突变。
+3. `j`是递增的。于是只能是`a'[y]`从这一刻起不再"生长"，`a'[x]`照常"生长"，才能造成`a'[x]`、`a'[y]`的大小关系发生突变。因为`a'[y]`从这一刻起不再增长，永远等于`a[y]`本身，所以`a[y] == j`。
+4. **在这一刻，能与`a'[y]`形成新逆序对的`a'[x]`，必定满足`a[x] > a[y]`**。问题转化为权值树状数组统计元素数量。
+
+令`bit[x]`表示：序列`a[1->n]`中，其元素值在闭区间`[x-lowbit(x), x]`内的元素数量。我们将`a[1->n]`依次插入到树状数组中，以确保逆序对生成条件中的下标大小关系。当插入第`i`个元素`a[i]`时，我们统计**已插入元素中，元素值大于`a[i]`的元素个数**（即`(i-1) - bit_query_prefixsum(a[i])`），这些元素记为$\{a[j] | j\in S\}$。**这说明$a[i]$和$\{a[j]|j\in S\}$之间一定会形成新逆序对，而且会在`j`增长到`a[i]+1`时形成**。令`count_delta[k]`表示当`j`增长到`k`时，新产生的逆序对数量。于是`a[i]`的贡献`(i-1) - bit_query_prefixsum(a[i])`就要叠加到`count_delta[a[i]+1]`上。
+
+本题中的`a[]`可以取到`0`，导致无法用树状数组维护权值。为避免这一现象，我们统一将其加`1`。
+
+```c++
+const int N_MAX = 1e5, A_MAX = N_MAX + 1;
+int n, a[N_MAX + 1]; long long int count_delta[A_MAX + 1];
+
+int bit[A_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+inline void bit_incre(const int &x, const int &incre) {
+    for(int i = x; i <= n + 1; i += lowbit(i)) { bit[i] += incre; }
+}
+inline int bit_query_prefixsum(const int &x) {
+    int query = 0;
+	for(int i = x; i >= 1; i -= lowbit(i)) { query += bit[i]; }
+	return query;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; ++a[i]; }
+    for(int i = 1; i <= n; ++i) {
+        count_delta[a[i]] += (i - 1) - bit_query_prefixsum(a[i]);
+        bit_incre(a[i], 1);
+    }
+    long long int ans = 0;
+    for(int i = 0; i < n; ++i) {
+        ans += count_delta[i];
+    	std::cout << ans << '\n';
+	}
+}
+```
 
 #### §7.4.A.4 逆序对排列方案
 
@@ -10293,7 +10332,7 @@ int main() {
 
 本题有[使用生成函数](https://www.luogu.com.cn/discuss/834810)的$O(n^2 \log_2{n})$的做法，这里略。
 
-> [洛谷P10497](https://www.luogu.com.cn/problem/P10497)：给定一个未知的`1~n`的排列`a[1->n]`，令$b[i]=\displaystyle\sum_{i\in[1,j)}\mathbb{1}_{a[j]<a[i]}$。请根据给定的`b[1->n]`还原出原始的`a[1->n]`。
+> [洛谷P10497](https://www.luogu.com.cn/problem/P10497)：给定一个未知的`1~n`的排列`a[1->n]`，令$b[j]=\displaystyle\sum_{i\in[1,j)}\mathbb{1}_{a[j]<a[i]}$。请根据给定的`b[1->n]`还原出原始的`a[1->n]`。
 
 尝试手动模拟，容易发现从前往后复原会产生众多分支，从后往前则不会。于是考虑从后往前。以`b[1->5] = {0, 1, 2, 1, 0}`为例：
 
@@ -10304,7 +10343,116 @@ int main() {
 使用树状数组维护"剩余可填数"集合，每次对前缀和使用二分查找即可找到第`k`小的数。
 
 ```c++
+const int N_MAX = 8000;
+int n, a[N_MAX + 1], b[N_MAX + 1];
 
+int bit[N_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+inline void bit_init() {
+    for(int i = 1; i <= n; ++i) {
+        bit[i] += 1;
+        int j = i + lowbit(i);
+        if(j <= n) { bit[j] += bit[i]; }
+    }
+}
+inline void bit_incre(const int &x, const int &incre) {
+    for(int i = x; i <= n; i += lowbit(i)) { bit[i] += incre; }
+}
+inline int bit_query_prefixsum(const int &x) {
+    int query = 0;
+    for(int i = x; i >= 1; i -= lowbit(i)) { query += bit[i]; }
+    return query;
+}
+inline int bit_search_prefixsum(const int &target) {
+    int left = 1, right = n, left_pointer = left - 1, right_pointer = right + 1;
+    while(left <= right) {
+        int mid = (left + right) / 2;
+        if(bit_query_prefixsum(mid) < target) {
+            left_pointer = mid;
+            left = mid + 1;
+        } else {
+            right_pointer = mid;
+            right = mid - 1;
+        }
+    }
+    return right_pointer;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 2; i <= n; ++i) { std::cin >> b[i]; }
+    bit_init();
+    for(int i = n; i >= 1; --i) {
+        a[i] = bit_search_prefixsum(b[i] + 1);
+        bit_incre(a[i], -1);
+    }
+    for(int i = 1; i <= n; ++i) {
+        std::cout << a[i] << '\n';
+    }
+}
+```
+
+> [洛谷P6035](https://www.luogu.com.cn/problem/P6035)：给定一个未知的`1~n`的排列`a[1->n]`，令$b[i]=\displaystyle\sum_{j\in(i,n]}\mathbb{1}_{a[i]>a[j]}$，**给定的`b[i]`并不完整，若`b[i]==-1`则说明该位置的`b[i]`未知**。请根据给定的残缺的`b[1->n]`还原出原始的`a[1->n]`的字典序最小版本，并输出总共可能的`a[1->n]`版本数（模`1e9+7`后输出）。若不存在满足条件的`a[1->n]`，则输出`0`。
+
+手动模拟输入样例`0 3 -1 0 0`：
+
+- `a[1]`后面不存在比它还小的数，因此`a[1]`本身就是最小的数，即`a[1]=1`。还剩下`2 3 4 5`四个数字可供选择。
+- `a[2]`后面存在`3`个比它还小的数，因此`a[2]`本身就是第`3+1=4`大的数，即`a[2]=5`。还剩下`2 3 4`三个数字可供选择。
+- `a[3]`信息未知，**这会导致最终的可能性增加，而且无论`a[3]`选择为什么数，总存在一种方案，使得`a[4->n]`的规则自洽**。因此`a[3]`有三种可能性。**题目要求输出字典序最小的，因此我们令`a[3]`为最小的数，即`a[3]==2`**。还剩下`3 4`两个数字可供选择。
+- 依次类推。
+
+综上所述，容易总结出规律：**如果`b[i]`已知，则`a[i]`的值为当前可选择数字中第`b[i]+1`小的数字；如果`b[i]`未知，则字典序最小的方案就是可选数字中最小的数字**。总方案数即为各未知`b[i]`产生的新情况数量之积。
+
+```c++
+const int N_MAX = 1e6, MOD = 1e9 + 7;
+int n, a[N_MAX + 1], b[N_MAX + 1]; long long int kind = 1;
+
+int bit[N_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+void bit_init(const int &n) {
+    for(int i = 1; i <= n; ++i) {
+        bit[i] += 1;
+        int j = i + lowbit(i);
+        if(j <= n) { bit[j] += bit[i]; }
+    }
+}
+void bit_incre(const int &x, const int &incre) {
+    for(int i = x; i <= n; i += lowbit(i)) { bit[i] += incre; }
+}
+int bit_query_prefixsum(const int &x) {
+    int query = 0;
+    for(int i = x; i >= 1; i -= lowbit(i)) { query += bit[i]; }
+    return query;
+}
+int bit_search_prefixsum(const int &target) {
+    int left = 1, right = n, left_pointer = left - 1, right_pointer = right + 1;
+    while(left <= right) {
+        int mid = (left + right) / 2;
+        if(bit_query_prefixsum(mid) < target) {
+            left_pointer = mid;
+            left = mid + 1;
+        } else {
+            right_pointer = mid;
+            right = mid - 1;
+        }
+    }
+    return right_pointer;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> b[i]; }
+    bit_init(n);
+    for(int i = 1; i <= n; ++i) {
+        int k = (b[i] != -1 ? b[i] + 1 : 1); // 查找剩余数字中第k小的数字
+        if(k > n - (i - 1)) { std::cout << "0\n"; return 0; }
+        a[i] = bit_search_prefixsum(k);
+        if(b[i] == -1) { kind = kind * (n - (i - 1)) % MOD; }
+        bit_incre(a[i], -1);
+    }
+    std::cout << kind << '\n';
+    for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; }
+}
 ```
 
 ## §7.5 线段树
@@ -13652,7 +13800,7 @@ int main() {
 
 > [洛谷P2704](https://www.luogu.com.cn/problem/P2704)：给定一个数字`n`及其二进制字符串`s`，如果`s`中存在两个索引不同的字符`1`，其下标分别记为`s[i]`、`s[j]`，使得`i`和`j`之间的距离（即`std::abs(i-j)`）恰好`k`，则输出`true`；反之输出`false`。
 
-如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。????????？？？？？？？？？？？？TODO：
+如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。
 
 ## §8.2 排列组合
 
