@@ -10265,7 +10265,7 @@ int main() {
     std::cin >> n;
     for(int i = 1; i <= n; ++i) { std::cin >> a[i]; ++a[i]; }
     for(int i = 1; i <= n; ++i) {
-        count_delta[a[i]] += (i - 1) - bit_query_prefixsum(a[i]);
+        count_delta[a[i]] += (i - 1) - bit_query_prefixsum(a[i]); // 当前树状数组中有i-1个元素
         bit_incre(a[i], 1);
     }
     long long int ans = 0;
