@@ -8362,14 +8362,18 @@ int main() {
 }
 ```
 
+> [洛谷P1340](https://www.luogu.com.cn/problem/P1340)：已知`n`个点和`m`条带权边构成的无向图。每次询问给定一个`1<=i<=m`，表示如果只给定第`1~i`条边，求其最小生成树的边权；如果无法形成生成树，则输出`-1`。
+
+本题显然是要多次求最小生成树。如果对`i`按`1->m`进行升序遍历，则每次判断新增的第`i`条边是否在新的最小生成树内，都必须重跑一次最小生成树，时间开销过大。
+
+不妨对`i`按`m->1`进行降序遍历，如果第`i+1`条边原先在最小生成树中，且在当前回合中被删除，才需要重跑一次最小生成树。
+
+
 ### §6.3.2 Prim算法
 
 Prim算法使用贪心思想，**每次添加邻边权值最小的相邻顶点**，使用`visited[]`防止成环。
 
-为了维护最小权值的邻边，我们可以使用以下编程实现：
-
-- 对于稀疏图，使用二叉堆（$O(n\log_2{n}+m\log_2{n})$）或斐波那契堆（$O(n\log_2{n}+m)$）。
-- 对于稠密图，例如完全图（$m=n^2$）而言，直接暴力遍历搜索（$O(2n^2)$）会更快。
+对于稀疏图，使用二叉堆（$O(n\log_2{n}+m\log_2{n})$）或斐波那契堆（$O(n\log_2{n}+m)$）：
 
 ```c++
 /* 伪代码 */
@@ -8405,6 +8409,37 @@ while(!prim_heap.empty()){
 }
 if(prim_count == n){ 所有的点都添加到了连通的生成树中; }
 else{ 无法得到连通的生成树; }
+```
+
+对于稠密图，例如完全图（$m=n^2$）而言，直接暴力遍历搜索（$O(2n^2)$）会更快。
+
+```c++
+const int N_MAX = 5000;
+int n;
+double prim_distance[N_MAX + 1], prim_visited[N_MAX + 1], ans;
+struct Point { double x, y; } point[N_MAX + 1];
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> point[i].x >> point[i].y; }
+    std::fill(prim_distance + 1, prim_distance + 1 + n, 1e18);
+    prim_distance[1] = 0; // 保证下面的循环会先把第1个点(起点)加入到Prim点集中
+    for(int i = 1; i <= n; ++i) {
+        double min_distance = 1e18; int min_point = 1;
+        for(int j = 1; j <= n; ++j) {
+            if(prim_visited[j] == false && prim_distance[j] < min_distance) {
+                min_point = j;
+                min_distance = prim_distance[j];
+            }
+        }
+        prim_visited[min_point] = true;
+        ans += min_distance;
+        for(int j = 1; j <= n; ++j) {
+            prim_distance[j] = std::min(prim_distance[j], std::hypot(point[j].x - point[min_point].x, point[j].y - point[min_point].y)); // 此处现算边代价
+		}
+    }
+    std::cout << std::fixed << std::setprecision(2) << ans;
+}
 ```
 
 > [洛谷P3366](https://www.luogu.com.cn/problem/P3366)：最小生成树的模板题。求最小生成树的边权之和最小值。
