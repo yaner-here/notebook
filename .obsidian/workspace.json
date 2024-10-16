@@ -19,19 +19,6 @@
                 "source": false
               }
             }
-          },
-          {
-            "id": "3809578a6371c788",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "CMake.md",
-                "mode": "source",
-                "backlinks": false,
-                "source": false
-              }
-            }
           }
         ]
       }
