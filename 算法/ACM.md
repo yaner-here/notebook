@@ -1946,6 +1946,16 @@ int main() {
 }
 ```
 
+### §2.1.18 顺序物品背包
+
+在一般的背包问题中，物品序列可以视为乱序，即无论如何排列选择物品的次序都不会影响最终答案。但在时间背包中，物品选择次序是固定的。即使背包容量充足，能否选择后面的物品也会取决于前面的物品的选择策略。
+
+> [洛谷P1717](https://www.luogu.com.cn/problem/P1717)：现给定有顺序的、不限量供应的`n`种物品，背包代价限额为`12*h`，每个物品的代价均为`1`。当第`i`种物品选择`k`件时，这种物品的总收益为关于`k`的等差数列$\{f[i]-d[i]\cdot(k-1)\}_{k=1}^{\infty}$的前`k`项和$(2f[i]+(k-1)\cdot d[i])\cdot\displaystyle\frac{k}{2}$，其中`d[i]>=0`。**现在只能从第`1`种物品开始向后移动，每次从第`i-1`个物品移动到第`i`个物品，就要在背包中填充代价为`t[i-1]`、价值为`0`的无用物品。只有当前在第`i`种物品的位置，才有资格选择第`i`种物品**。求背包最终总价值的最大值。
+
+本题的关键出在填充的无用物品上。设想这样一个场景——假设每个`t[]`都非常大，梭哈最后一种物品最划算，以至于前面的物品一概不选。但是要移动到最后一种物品所在的位置，会导致背包早已被无用物品填满。这意味着我们要维护“给定前`i`个物品、背包代价限额为`j`取得最优解时，背包中的代价总和”`cost_sum[i][j]`。以此是否超过背包原始代价限额，作为能否参与状态转移的依据。
+
+TODO：？？？？
+
 ### §2.1.x 转化为背包问题
 
 > [洛谷P1853](https://www.luogu.com.cn/problem/P1853)：给定`n`种无限供应的定期理财方案，每种定期理财方案的单位投入和单位纯收益分别为`price[i]`和`benefit[i]`，均耗时1个单位时间。现在总时间预算有`time_budget`个单位时间，初始资金为`money`，要求选择一种投资策略，使得最终资金最大化。（额外给定数据约束条件：`price[i]`必为1000的倍数，且`benefit[i]`不大于`price[i]`的10%，便于压缩状态。）
@@ -13930,6 +13940,66 @@ int main() {
 若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以用`(a - 1) / b + 1`表示。**该式在`a==0`时不适用**。
 
 # §9 模拟
+
+"与成功之差最后一步，卡在这里了"。
+
+## §9.1 建模
+
+> [洛谷P2308](https://www.luogu.com.cn/problem/P2308)：石子合并版本的区间DP问题。给定一个长度为`n<=20`的正整数序列`a[1->n]`，每相邻两个数`x, y`合并会产生`x+y`的代价。经过`n-1`次合并后，如何令产生的总代价最小？请输出对应的添加括号与加号后的表达式，并从里到外、从左到右地输出每次合并单独产生的代价。例如`a[1->4] = {4, 1, 2, 3}`对应的答案为`(4+((1+2)+3))`和`3 6 10`。
+
+区间DP大家都会做，我们有了最优合并解的所有信息。问题是如何输出表达式。我们隐约觉得中序表达式会构成一颗树，其中序遍历的结果就是表达式本身。由于单个数字两侧不需要加括号，所以得出结论：当中序遍历DFS进入`+`节点时需要输出`(`，遍历左子节点后输出`+`，再遍历右子节点，最后退出`+`节点时需要输出`)`。进入数字节点时需要输出对应的数字。
+
+```mermaid
+graph LR
+	plus1["+"] --> a1["4"] & plus2["+"]
+	plus2 --> plus3["+"] & a4["3"]
+	plus3 --> a2["1"] & a3["2"]
+```
+
+想法很好，但只剩一个问题：如何建树？受制于区间DP的过程，我们无法一次性建出符合最优解的树。**于是我们记录区间DP中的所有信息，包括区间`[i, j]`对应的分割点`k`（存储在`mid[i][j]`）和单次合并代价`dp[i][k] + dp[k+1][j]`（存储在`merge[i][j]`），在DFS过程中现场查表**。
+
+```c++
+const int N_MAX = 20;
+int n, a[N_MAX + 1], a_prefixsum[N_MAX + 1], dp[N_MAX + 1][N_MAX + 1], mid[N_MAX + 1][N_MAX + 1], merge[N_MAX + 1][N_MAX + 1];
+
+void print_expression_dfs(int i, int j) {
+    if(i == j) {
+        std::cout << a[i];
+    } else {
+        std::cout << '(';
+        print_expression_dfs(i, mid[i][j]);
+        std::cout << '+';
+        print_expression_dfs(mid[i][j] + 1, j);
+        std::cout << ')';
+    }
+}
+void print_merge_dfs(int i, int j) {
+    if(i == j) { return; }
+    print_merge_dfs(i, mid[i][j]);
+    print_merge_dfs(mid[i][j] + 1, j);
+    std::cout << merge[i][j] << ' ';
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { a_prefixsum[i] = a_prefixsum[i - 1] + a[i]; }
+    for(int len = 2; len <= n; ++len) {
+        for(int i = 1, j = i + len - 1; j <= n; ++i, ++j) {
+            dp[i][j] = INT32_MAX;
+            for(int k = i; k < j; ++k) {
+                if(dp[i][k] + dp[k + 1][j] + a_prefixsum[j] - a_prefixsum[i - 1] < dp[i][j]) {
+                    mid[i][j] = k;
+                    merge[i][j] = a_prefixsum[j] - a_prefixsum[i - 1];
+                    dp[i][j] = dp[i][k] + dp[k + 1][j] + merge[i][j];
+                }
+            }
+        }
+    }
+    print_expression_dfs(1, n); std::cout << '\n';
+    std::cout << dp[1][n] << '\n';
+    print_merge_dfs(1, n);       
+}
+```
 
 # §A 技巧与警钟长鸣
 
