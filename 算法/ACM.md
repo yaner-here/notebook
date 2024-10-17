@@ -4625,7 +4625,7 @@ int main() {
 
 在前面的例题中，`dp[i][j]`表示将闭区间`[i,j]`中的物品合并后的最大价值。然而本题开始对相邻物品的合成作出了条件限制，因此有些小状态无法转移到大状态。例如`3 3 2 4`，显然`dp[0][2]`不能合并成一个物品，因此转移关系`dp[0][3]=f(dp[0][2], dp[3][3])`不成立。这使得我们重新思考`dp[i][j]`的含义。在本类题型中，`dp[i][j]`的含义多了一层：如果闭区间`[i,j]`中的所有元素不能合并成一个物品，则置为0。
 
-```
+```c++
 const int N_MAX = 248;
 int n, a[N_MAX], dp[N_MAX][N_MAX];
 int main() {
@@ -4652,6 +4652,46 @@ int main() {
 ```
 
 事实上本题有时间更优的$O(40n\log{n})$DP做法，使用了倍增的思想，但这种做法太过特殊，不具有普适性。本节略，详见[洛谷题解](https://www.luogu.com.cn/article/3zhrb4e5)。
+
+> [P1622](https://www.luogu.com.cn/problem/P1622)：给定一个长度为`n`的全`true`布尔序列`{true, true, true, ..., true}`与`m`个待重置为`false`的位置`a[1->m]`。每当一个位置被重置为`false`时，以当前位置向两侧扩张至另一个`false`或序列尽头，统计一共能遇到多少个`true`元素，本次重置操作就会产生多少代价。要删除这`m`个位置的数字，求总代价最小值。
+
+为了简化操作，不妨在原始序列两侧同时添加一个`0`，于是越界判定转化为`0`判定。**令`dp[i][j]`表示在闭区间`[a[i], a[j]]`以外的重置操作全部执行完毕、以内的重置操作都没有执行的情况下，进行闭区间以内的重置操作产生的总代价最小值**。
+
+$$
+\begin{array}{c|c|c|c}
+	\hline \cdots & a[i-1] & \cdots & a[i] & \cdots & a[k] & \cdots & a[j] & \cdots & a[j+1] & \cdots \\
+	\hline 1 & 0 & 1 & 1 & 1 & \textcolor{red}{1\rightarrow 0} & 1 & 1 & 1 & 0 & 1 \\
+	\hline
+\end{array}
+$$
+
+如果首先对闭区间内的`a[k]`进行重置操作，则产生的代价为`a[j+1] - a[i-1] - 2`。自此划分成的两个子区间`[a[i], a[k-1]]`和`[a[k+1], a[j]]`互不影响，于是得到状态转移方程：
+
+$$
+\text{dp}[i][j] = \max_{k\in(i,j)} \left( \text{dp}[i][k-1] + \text{dp}[k+1][j] \right) + (a[j+1]-a[i-1]-2)
+$$
+
+根据定义，`len==1`时的`dp[i][j]`为`0`。然而上式并没有给出`len==2`时的状态转移方程。经过手动校验，我们发现$\displaystyle\max_{k\in(i,j)}$完全可以换成$\displaystyle\max_{k\in[i,j]}$，前提是接受`i>=j`时`dp[i][j]`一律为`0`。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e2;
+int n, m, a[M_MAX + 2], dp[M_MAX + 1][M_MAX + 1];
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> a[i]; }
+    a[0] = 0; a[m + 1] = n + 1;
+    for(int len = 1; len <= m; ++len) {
+        for(int i = 1, j = i + len - 1; j <= m; ++i, ++j) {
+            dp[i][j] = 1e9;
+            for(int k = i; k <= j; ++k) {
+                dp[i][j] = std::min(dp[i][j], dp[i][k - 1] + dp[k + 1][j] + (a[j + 1] - a[i - 1] - 2));
+            }
+        }
+    }
+    std::cout << dp[1][m];
+}
+```
 
 ### §2.9.2 不重叠区间优化DP
 
@@ -13836,6 +13876,125 @@ int main() {
 
 ### §7.7.5 斐波纳挈堆
 
+## §7.8 单调栈
+
+### §7.8.1 最大子矩形问题
+
+#### §7.8.1.1 最大子长方形
+
+> [洛谷P4147](https://www.luogu.com.cn/problem/P4147)：给定一个`n`行`m`列的布尔矩阵`a[i][j]`，要求从中框选一个仅包含`true`的子矩形，求子矩形的面积最大值。
+
+我们令`f[i][j]`表示从`(i, j)`处开始（包含`(i, j)`本身），向上能有多少个连续的`true`。`f[*][*]`容易通过$O(nm)$预处理得到。然后考虑一维数组`f[i][*]`：
+
+**如果`f[i][*]`宽松递增**，则在所有以第`i`行为底部的子矩形中，最大的符合条件的子矩形面积只有以下情况。以`f[i][1->6] = {1, 2, 2, 3, 3, 3}`为例，下图中未标数字的部分对应`false`，不同数字的本质都是`true`，仅用于标识，无实际意义。
+
+```
+      3 3 3      3 3 3      
+  2 2 3 3 3  ->  3 3 3  or  2 2 3 3 3  or  
+1 2 2 3 3 3      3 3 3      2 2 3 3 3      1 2 2 3 3 3
+
+{1, 2, 2, 3, 3, 3}  
+	->  {[1, 1], [2, 2], [3, 3]}  
+	->  3×(3)  or  2×(3+2)  or  1×(3+2+1)
+```
+
+形式化地，我们将宽松递增数列`f[i][*]`中的相同元素`h`，合并成一体，并用`count`表示个数。于是就得到了若干个`std::pair<h, count>`，将其塞进`std::pair<h, count> stack[1->p]`数组。则在所有以第`i`行为底部的子矩形中，最大的符合条件的子矩形面积为$\displaystyle\max_{k\in[1, p]}\left(\left(\sum_{i\in[k, p]}\text{stack}[i].\text{count}\right)\times\text{stack}[k].\text{h}\right)$。
+
+**如果不能保证`f[i][*]`宽松递增，则使用单调栈保证`std::pair<h, count> stack[1->p]`对`h`单调递增**。以`f[i][1->5] = {1, 3, 3, 3, 2}`为例，每次出栈时，都要在出栈前重复上面`f[i][*]`宽松递增时的步骤，**并且将出栈的元素"压平"到当前值，再压回栈中，与该元素合并**，直到栈重新变得为止。
+
+```
+  3 3 3              3 3 3
+  3 3 3 (new 2)  ->  3 3 3
+1 3 3 3 (new 2)      3 3 3 (没有1 3 3 3,因为已经形成单调栈)
+
+{1, 3, 3, 3, 2, 2}  
+	->  {[1, 1], [3, 3], new [2, 1]}  
+	->  {[1, 1], [2, 4]} // [3, 3]被压平了,已经形成单调栈
+	->  3×(3)
+```
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e3;
+int n, m;
+bool a[N_MAX + 1][M_MAX + 1]; char a_temp; int f[N_MAX + 1][M_MAX + 1];
+struct Node { int h, count; } stack[M_MAX + 1]; int stack_top, count_sum;
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            std::cin >> a_temp;
+            a[i][j] = (a_temp == 'F');
+            f[i][j] = (a[i][j] ? f[i - 1][j] + 1 : 0);
+        }
+    }
+    int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        stack_top = 0;
+        for(int j = 1; j <= m; ++j) {
+            count_sum = 0; // 统计出栈时会被"压平"的元素总数
+            while(stack_top > 0 && stack[stack_top].h >= f[i][j]) {
+                count_sum += stack[stack_top].count;
+                ans = std::max(ans, count_sum * stack[stack_top].h);
+                --stack_top;
+            }
+            stack[++stack_top] = {f[i][j], count_sum + 1};
+        }
+        count_sum = 0; // 清空栈时的元素总数后缀和
+        while(stack_top > 0) {
+            count_sum += stack[stack_top].count;
+            ans = std::max(ans, count_sum * stack[stack_top].h);
+            --stack_top;
+        }
+    }
+    std::cout << ans * 3;
+}
+```
+
+除了上面的单调栈做法，本题也有更容易理解的悬链线法。同样令`f[i][j]`表示从`(i, j)`处开始（包含`(i, j)`本身），向上能有多少个连续的`true`。**设想竖直方向的连续`true`元素构成一条悬链线，于是`f[i][j]`也可以等价地理解成以`(i, j)`为下端点的悬链线长度**。将这条线左右平移，保证线上的任何一点都不会碰到`false`或越界。令`l_line[i][j]`和`r_line[i][j]`表示左右平移的最大距离，于是`(i, j)`悬链线扫过的子矩形面积为$f[i][j]\cdot(\text{r\_line}[i][j]-\text{l\_line}[i][j]+1)$。枚举每个`(i, j)`点，求其子矩形面积最大值即可。
+
+为了求出悬链线的左右移动范围，我们需要预处理每个点的移动范围`l_point[*][*]`和`r_point[*][*]`。注意到在同一条悬链线上的点，位置越靠下，`l_line[i][j]`会越大，`r_line[i][j]`会越小。根据这个单调性，我们可以使用`l_line[i][j] = std::max(l_line[i-1][j], l_point[i][j])`和`r_line[i][j] = std::min(r_line[i-1][j], r_point[i][j]`。**我们不必在意`false`位置的正确性，反正遍历时也不会参与计算**。为了节省空间，可以将两个数组压在一起。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e3;
+int n, m;
+bool a[N_MAX + 1][M_MAX + 2]; char a_temp; int f[N_MAX + 1][M_MAX + 1], l[N_MAX + 1][M_MAX + 1], r[N_MAX + 1][M_MAX + 1];
+struct Node { int h, count; } stack[M_MAX + 1]; int stack_top, count_sum;
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            std::cin >> a_temp;
+            a[i][j] = (a_temp == 'F');
+            f[i][j] = (a[i][j] ? f[i - 1][j] + 1 : 0);
+        }
+    }
+    for(int i = 1; i <= n; ++i) {
+        // a[i][0]均初始化为false,因此越界等价于遇到false
+        for(int j = 1; j <= m; ++j) { l[i][j] = (a[i][j - 1] == true ? l[i][j - 1] : j); }
+        // a[i][m+1]均初始化为false,因此越界等价于遇到false
+        for(int j = m; j >= 1; --j) { r[i][j] = (a[i][j + 1] == true ? r[i][j + 1] : j); }
+    }
+    int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            if(a[i][j] == true && a[i - 1][j] == true) { // 如果在同一条悬链线上
+                l[i][j] = std::max(l[i][j], l[i - 1][j]);
+                r[i][j] = std::min(r[i][j], r[i - 1][j]);
+            }
+            if(a[i][j] == true) {
+                ans = std::max(ans, (r[i][j] - l[i][j] + 1) * f[i][j]);
+            }
+        }
+    }
+    std::cout << ans * 3;
+}
+```
+
+#### §7.8.1.2 最大子正方形
+
+
 
 # §8 数学
 
@@ -13847,7 +14006,7 @@ int main() {
 
 如果对每一位`s[i]`进行遍历，则每一位均需要检查左右两侧下标为`i±k`的字符，时间复杂度为$O(2|s|)$。这里介绍一种$O(1)$的位运算方法：只需计算`n & (n << k)`。对于`n`而言，它的每一位都需要和后面`k`位的数字对比；对于`n << k`而言，它的每一位都需要和前面`k`位的数字对比。
 
-### §8.1.2 `2`的幂\
+### §8.1.2 `2`的幂
 
 `(x & (x-1)) == 0`
 
