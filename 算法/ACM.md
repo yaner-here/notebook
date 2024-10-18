@@ -4356,7 +4356,7 @@ $$
 
 ## §2.8 体力DP
 
-> [洛谷P1353](https://www.luogu.com.cn/problem/P1353)：给定一段无穷长的直线跑道。选手如果在第`i`分钟选择前进，则这一分钟可以前进`distance[i]`米，同时疲劳值加一；如果在第`i`分钟选择休息，或疲劳值达到上线`fatigure_budget`而必须休息，则每分钟降低一个单位的疲劳值，且必须等到疲劳值恢复至0才能选择前进。给定`n`分钟的时间限制，还需保证时间耗尽时疲劳值恰好为0，求能前进的最大距离、
+> [洛谷P1353](https://www.luogu.com.cn/problem/P1353)：给定一段无穷长的直线跑道。选手如果在第`i`分钟选择前进，则这一分钟可以前进`distance[i]`米，同时疲劳值加一；如果在第`i`分钟选择休息，或疲劳值达到上线`fatigure_budget`而必须休息，则每分钟降低一个单位的疲劳值，且必须等到疲劳值恢复至0才能选择前进。给定`n`分钟的时间限制，还需保证时间耗尽时疲劳值恰好为0，求能前进的最大距离。
 
 本题容易想到的一种状态设计方案是：令`dp[i][j]`表示经过前`i`分钟，疲劳值恰好为`j`时能前进的最大距离。在本题所给的数据范围中，这种方案会占用约`1e7`个`int`，相当于`38.1MB`空间，所以在可以接受的范围之内。由题意可知`dp[i][j]`可由三种情况转移而来：
 
@@ -5449,7 +5449,74 @@ int main() {
 
 > [洛谷P3572](https://www.luogu.com.cn/problem/P3572)：给定`n`个排成一行的格子，每个格子含有属性`a[i]`。初始时从第一个格子出发，到达第`n`个格子结束。若某时刻已在第`i`个格子上，则下一刻可以到$j\in[i+1,i+k]$中的任意一个格子。在移动的过程中，若格子上的属性值大于等于所处前一个格子的属性值，则总代价加`1`。求总代价最小值。
 
-#TODO：？？？？？？ 
+令`dp[i]`表示走到第`i`个格子所需的最小代价。易得状态转移方程：
+
+$$
+\text{dp}[i] = \min_{j\in[i-k,i-1]} \left( \text{dp}[\textcolor{red}{j}] + \mathbb{1}_{a[\textcolor{red}{j}]\le a[i]} \right)
+$$
+
+本题的难点在于：我们无法干净地分离状态转移方程中的`j`。如果把$\mathbb{1}_{a[j]\le a[i]}$也纳入到单调队列中，则单调队列内部的值会随着`j`的位置而动态变化。归根结底，只有$\text{dp}[j]$宽松递增，而$\mathbb{1}_{a[j]<a[i]}$没有单调性。
+
+如何让$\mathbb{1}_{a[j]<a[i]}$具有相同的单调性呢？我们需要谨慎选择`j`的遍历范围。原先只有遍历下标`j`本身具有单调性，**现在还需要保证`a[j]`也具有单调性，最好是呈递减趋势**。这样就能让$\mathbb{1}_{a[j]<a[i]}$呈上升趋势。为了避免`i`的出现导致单调队列中的值发生变化，我们将其剔除在外。**此时，如果`dp[j]`取到最小值，那么$\mathbb{1}_{a[j]<a[i]}$也必取得最小值，所以整体`dp[i]`也取到最小值**。
+
+不妨设想在上面的状态转移方程中，有多个`j`都能让$\text{dp}[j]+\mathbb{1}_{a[j]<a[i]}$取到最大值，那么应该让谁保留在单调队列里呢？**根据贪心思想，我们不想让后面产生不得不选的上升代价，就必须让当前位置的`a[j]`尽可能高。所以应该保留`a[j]`更大的`j`**。当`dp[j] + (a[j]<a[i])`和`a[j]`均取得最大值时，都取得如此良好的性质时，我们希望`j`越大越好，因为它更新，更晚才被踢出单调队列，尽量延长其利用时间。**这说明如果单调队列中的相邻两项相等，则选择后者，两者不能共存。于是`a[j]`严格递减**。
+
+综上所述，$\{j_1, j_2, \cdots\} \subseteq [i-k,i-1]$，对$j_1, j_2, \cdots$排序，先按`\text{dp}[j]`递减，再按`a[j]`递减。状态转移方程改写为：
+
+$$
+\begin{align}
+	\text{dp}[i] & = \min_{j\in[i-k,i-1]} \left( \text{dp}[{j}] + \mathbb{1}_{a[{j}]\le a[i]} \right) \\
+	& = \min_{j\in[i-k,i-1]} (\text{dp}[j]) + \min_{j\in[i-k,i-1]} (\mathbb{1}_{a[j]\le a[i]}) \\
+	& = \min_{i\in[j+1,j+k]}(\text{ds}_j[i]) + \min_{j\in[i-k,i-1]} (\mathbb{1}_{a[j]\le a[i]}) \\
+	& = \text{ds\_min}_j[i] + \mathbb{1}_{a[j]\le a[i]}\big{|}_{j=\underset{j\in[i-k,i-1]}{\text{argmin}}\ \text{dp}[j]}
+\end{align}
+$$
+
+单调队列的更新逻辑如下所示：
+
+```c++
+给定第i个物品:
+	while(deque_head < deque_tail && deque[deque_head] < i - k) { 
+		++deque_head; 
+	}
+	dp[i] = dp[deque[deque_head]] + (a[deque[deque_head]] <= a[i]);
+	while(
+		deque_head < deque_tail && (
+			dp[deque[deque_tail - 1]] > dp[i] || 
+			(dp[deque[deque_tail - 1]] == dp[i] && a[deque[deque_tail - 1]] <= a[i])
+		)
+	) {
+		--deque_tail;
+	}
+	deque[deque_tail++] = i;
+```
+
+当`i==1`时，注意到单调队列中并无元素，却引用了`deque[deque_head]`的值。为避免这一情况，我们手动处理`i==1`时的情况，将该循环拖到`i:2->n`处理。
+
+```c++
+const int N_MAX = 1e6;
+int n, q, k, a[N_MAX + 1], dp[N_MAX + 1];
+int deque[N_MAX + 1], deque_head, deque_tail;
+
+int main(){
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    a[0] = INT32_MAX;
+    std::cin >> q;
+    while(q--) {
+        std::cin >> k;
+        deque_head = 0; deque_tail = 0;
+        deque[deque_tail++] = 1; dp[1] = 0;
+        for(int i = 2; i <= n; ++i) {
+            while(deque_head < deque_tail && deque[deque_head] < i - k) { ++deque_head; }
+            dp[i] = dp[deque[deque_head]] + (a[deque[deque_head]] <= a[i]);
+            while(deque_head < deque_tail && (dp[deque[deque_tail - 1]] > dp[i] || (dp[deque[deque_tail - 1]] == dp[i] && a[deque[deque_tail - 1]] <= a[i]))) { --deque_tail; }
+            deque[deque_tail++] = i;
+        }
+        std::cout << dp[n] << '\n';
+    }
+}
+```
 
 > [洛谷P2627](https://www.luogu.com.cn/problem/P2627)：给定一个长度为`n`数组`a[]`，从中选出某个子序列（可以不连续地选），要求子序列中的数字在原数组中连续相同部分的长度最大为`k`。在所有符合条件的子序列中，求子序列各元素之和的最大值。
 
@@ -5633,7 +5700,7 @@ int main() {
 
 接下来考虑状态转移方程：
 
-- 对于`dp[i][j][0]`而言，最后一个数填入了`a[]`的末尾。那么撤销这部操作，容易发现`dp[i-1][j][?]`可以转移到`dp[i][j][?]`。
+- 对于`dp[i][j][0]`而言，最后一个数填入了`a[]`的末尾。那么撤销这步操作，容易发现`dp[i-1][j][?]`可以转移到`dp[i][j][?]`。
 	- `dp[i-1][j][0]`转移到`dp[i][j][0]`。如果`a[i-1]==a[i]`，则对奇偶性的要求相同，在`a[i]`填入的数字只能比`a[i-1]`还大`2`；如果`a[i-1]!=a[i]`，则对奇偶性要求不同，只需大`1`即可。
 	- `dp[i-1][j][1]`转移到`dp[i][j][0]`。同理，`b[j]==a[i]`时加`2`，`b[j]!=a[i]`时加`1`。
 - 对于`dp[i][j][1]`而言，最后一个数填入了`b[]`的末尾。同理可得：
@@ -5669,6 +5736,44 @@ int main() {
         }
     }
     std::cout << std::min(dp[len_a][len_b][0], dp[len_a][len_b][1]);
+}
+```
+
+> [洛谷P1651](https://www.luogu.com.cn/problem/P1651)：给定`n>=1`个物品，每个物品的价值为`v[i]`。现从中挑出物品，**允许最终剩余某些物品未使用**，汇成两组，请问能否使其总价值相同？如果能，请输出某组物品总价值最大值，反之输出`-1`。
+
+令`dp[i][j]`表示给定前`i`个物品，从中挑选物品汇成两组，左组与右组的物品总价值之差为`j`时，左组总价值的最大值。问题转化为求解`dp[n][0]`。每次给定新的第`i`个物品，都有三种选择策略：
+
+$$
+\text{dp}[i][j] = \text{max}\begin{cases}
+	\text{dp}[i-1][j] & , 不使用第i个物品 \\
+	\text{dp}[i-1][j-v[i]] + v[i] & , 把第i个物品放在左组 \\
+	\text{dp}[i-1][j+v[i]] & , 把第i个物品放在右组 \\
+\end{cases}
+$$
+
+初始时，除了`dp[0][0] = 0`以外，其余`dp[i][j]`均为负无穷大，表示不可能达到该状态。由于`dp[i][j]`中的`j`可能为负数，所以编程实现时要给这一维度加上`V_OFFSET`的偏移量。为防止状态转移方程中出现`j-v[i]<=-V_SUM_MAX`或`j+v[i]>=V_SUM_MAX`的情形导致数组越界，需要让`dp[i-1][越界]`返回负无穷大。
+
+```c++
+const int N_MAX = 50, V_SUM_MAX = 5e5, V_OFFSET = V_SUM_MAX;
+int n, v[N_MAX + 1], dp[2][V_SUM_MAX * 2 + 1];
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> v[i]; }
+    std::fill(dp[0], dp[0] + 2 * (V_SUM_MAX * 2 + 1), INT32_MIN);
+    dp[0][V_OFFSET] = 0;
+    int v_min = 0, v_max = 0;
+    for(int i = 1; i <= n; ++i) {
+        v_min -= v[i]; v_max += v[i];
+        for(int j = v_min; j <= v_max; ++j) {
+            dp[i % 2][V_OFFSET + j] = std::max({
+                dp[(i - 1) % 2][V_OFFSET + j],
+                j - v[i] >= v_min ? dp[(i - 1) % 2][V_OFFSET + j - v[i]] + v[i] : INT32_MIN, 
+                j + v[i] <= v_max ? dp[(i - 1) % 2][V_OFFSET + j + v[i]] : INT32_MIN
+            });
+        }
+    }
+    std::cout << (dp[n % 2][V_OFFSET] > 0 ? dp[n % 2][V_OFFSET] : -1) << std::endl;
 }
 ```
 
@@ -13994,7 +14099,40 @@ int main() {
 
 #### §7.8.1.2 最大子正方形
 
+## §7.9 哈希
 
+哈希的本质是对状态的非连续离散化编号。
+
+> [洛谷P2843](https://www.luogu.com.cn/problem/P2843)：给定`n`个物品排成的序列`a[1->n]`，每个物品`a[i]`包含`k`种属性`a[i][1->k]`。请找到序列`a[]`中的一段连续闭区间`a[l->r]`，使得这`r-l+1`个物品的各个属性值相加均相同。形式化地，求解$\forall l, r\in[1, n], r-l+1=\text{len}, \text{ Solve: } \displaystyle\underset{\text{len}}{\text{argmax}}\left(\forall j\in[1, k], \sum_{\forall i\in[l,r]}{a[i][j]}均相同\right)$。
+
+定义前缀和数组$\text{a\_prefixsum}[i][j] = \displaystyle\sum_{i'\in[1,i]}a[i'][j]$，表示`a[1->i]`中的所有物品第`j`个属性的属性值之和。如果真的存在符合要求的连续闭区间，那么`a_prefixsum[i]`的各项前缀和必然获得了相等的增量，**也就是说`a_prefixsum[i]`中的`k`项前缀和之差构成的`k-1`项差分值均相同**。对这个`k-1`维的差分值求其哈希值，用`std::map<hash, i>`记录其第一次出现的时候，记为`l+1`。当使用了第`r`个物品后再次出现相同的哈希值，则可以判定`[l + 1, r]`即为所求的闭区间。使用`ans`维护该闭区间的最大长度`r - (l + 1) + 1 == r - l`即可。
+
+特殊地，当什么物品也不使用时（`i==0`），哈希值为`0`，也要将这种情况添加到`std::map`中。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 30;
+int n, k, a[N_MAX + 1], k_sum[M_MAX + 1]; std::map<int64_t, int> delta_hash_map;
+
+int main() {
+    std::cin >> n >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    delta_hash_map.insert({0, 0});
+    int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; a[i] != 0; ++j, a[i] >>= 1) { k_sum[j] += a[i] & 1; }
+        int64_t delta_hash = 0;
+        for(int j = 2; j <= k; ++j) {
+            delta_hash = delta_hash * 131 + (k_sum[j] - k_sum[j - 1]);
+        }
+        if(delta_hash_map.count(delta_hash) == 0) {
+            delta_hash_map[delta_hash] = i;
+        } else {
+            ans = std::max(ans, i - delta_hash_map[delta_hash]);
+        }
+    }
+    std::cout << ans;
+}
+```
 
 # §8 数学
 
