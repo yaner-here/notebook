@@ -6008,11 +6008,65 @@ int main() {
 }
 ```
 
+> [洛谷P10389](https://www.luogu.com.cn/problem/P10389)：给定序列`a[1->n]`。从中抽取一个子序列`a[1->m]`，如果这`m`个数中存在`k`个数，使得这`k`个数的方差小于给定的阈值`T`，求`m`的最小值。若不存在这样的`m`，则输出`-1`。
+
+**注意到：如果`k`个数方差最小，则它们彼此之间挨得很近，也就是说排序后它们也连在一起**。将方差展开成$\displaystyle\frac{\sum{X^2} - \frac{(\sum{X})^2}{k}}{k}$，用前缀和求解即可。
+
+显然对`m`在`[k, n]`上二分，要枚举$O(\log_2{(n-k)})$次。设单次枚举的`m`为`i`，则处理两个前缀和`a_prefixsum[1->i]`和`a_square_prefixsum[1->i]`的时间复杂度为$O(2i)$，排序的时间复杂度为$O(i\log_2{i})$，`i-k`次长度为`k`的滑动窗口的时间复杂度为$O(i-k)$。综上所述，二分的总时间复杂度为：
+
+$$
+\begin{align}
+O(\log_2{(n-k)})\cdot\sum_{i\in\{1,2,4,...,n\}}(i\log_2{i}) & = 
+O(\log_2{(n-k)})\cdot\sum_{i\in[1,\log_2{n}]}(2^i\cdot{i}) \\
+& = O(\log_2{(n-k)})\cdot\int_{1}^{\log_2{n}}{2^i\cdot i} \text{d}i \\
+& = O(\log_2{(n-k)})\cdot O(n\log_2n) \\
+& = O(n\log_2^2{n})
+\end{align}
+$$
+
+```c++
+const int N_MAX = 1e5, K_MAX = 1e5;
+int n, k, T; double a[N_MAX + 1], a_copy[N_MAX + 1], a_prefixsum[N_MAX + 1], a_square_prefixsum[N_MAX + 1];
+
+bool check(int ans) {
+    std::copy(a + 1, a + ans + 1, a_copy + 1);
+    std::sort(a_copy + 1, a_copy + ans + 1);
+    for(int i = 1; i <= ans; ++i) {
+        a_prefixsum[i] = a_prefixsum[i - 1] + a_copy[i];
+        a_square_prefixsum[i] = a_square_prefixsum[i - 1] + a_copy[i] * a_copy[i];
+    }
+    for(int i = 1, j = k; j <= ans; ++i, ++j) {
+        if((a_square_prefixsum[j] - a_square_prefixsum[i - 1] - (a_prefixsum[j] - a_prefixsum[i - 1]) * (a_prefixsum[j] - a_prefixsum[i - 1]) / k) / k < T) {
+            return true;
+        }
+    }
+    return false;
+}
+int main() {
+    std::cin >> n >> k >> T;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    int left = k, right = n, left_pointer = left - 1, right_pointer = right + 1;
+    while(left <= right) {
+        int mid = (left + right) / 2;
+        if(!check(mid)) {
+            left_pointer = mid;
+            left = mid + 1;
+        } else {
+            right_pointer = mid;
+            right = mid - 1;
+        }
+    }
+    std::cout << (right_pointer == n + 1 ? -1 : right_pointer);
+}
+```
+
 ## §3.3 贪心
+
+### §3.3.1 充要条件证明法
 
 > [洛谷P8775](https://www.luogu.com.cn/problem/P8775)：给定`n`个排成一行的格子及其序列`a[1->n]`，其中`a[0]`与`a[n+1]`均为无穷大。每次离开某个格子`i`，都会导致`a[i]--`。当`a[i]<=0`时，该格子不能再踏入。若某时刻在第`i`个格子上，则接下来可以往前进方向跳到`[i+1, i+k]`中的任意位置。现在从起点`a[0]`出发，到`a[n+1]`为止，再调换起点和终点，回到`a[0]`。如果能重复该路程共`x`次往返，则求`k`的最小值。
 
-首先注意到：`x`次双向往返完全等价于`2x`次单向前进。这里我们直接给出本题的答案：$\underset{r-l+1}{\text{argmin}}\left(\forall l \le r \in[1, n], \displaystyle\sum_{i\in[l, r]}{a[i]}\ge 2x\right)$，使用双指针即可求解。
+首先注意到：`x`次双向往返完全等价于`2x`次单向前进。这里我们直接给出本题的答案：$\displaystyle\min_{\forall l \le r \in[1, n], \sum_{i\in[l, r]}{a[i]}\ge 2x}(r-l+1)$，使用双指针即可求解。
 
 证明如下：
 
@@ -6027,9 +6081,10 @@ int main() {
     std::cin >> n >> x; x *= 2; --n;
     for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
     int ans = 0;
-    for(int i = 1, j = 0; j <= n; a_sum_temp -= a[i++]) {
-        while(j <= n && a_sum_temp < x) { a_sum_temp += a[++j]; }
+    for(int i = 1, j = 0; j <= n; a_sum_temp -= a[i++]) { // a_sum_temp表示a[i->j]内的元素之和
+        while(j <= n && a_sum_temp < x) { a_sum_temp += a[++j]; } // 向右移动j
         ans = std::max(ans, j - i + 1);
+        // 在for(<1>;<2>;<3>)的<3>中向右移动i
     }
     std::cout << ans;
 }
