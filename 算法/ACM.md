@@ -86,9 +86,9 @@ STL提供了以下预置的比较函数：
 如果要在不使用STL的情况下，或者无法使用迭代器时，为了查找二分查找的左指针和右指针，我们给出以下模版：
 
 $$
-\begin{array}{|c|c|c|c|c|c|}
-	\hline \text{true} & \text{true} & \text{true} & \text{false} & \text{false} & \text{false} \\
-	\hline & & \underset{\text{左指针}}{\uparrow} & \underset{\text{右指针}}{\uparrow} & & \\
+\begin{array}{c|c|c|c|c|c|c|}
+	\hline \text{valid()}返回值 & \text{true} & \text{true} & \text{true} & \text{false} & \text{false} & \text{false} \\
+	\hline & & & \underset{\text{左指针}}{\uparrow} & \underset{\text{右指针}}{\uparrow} & & \\
 	\hline
 \end{array}
 $$
@@ -5777,9 +5777,11 @@ int main() {
 }
 ```
 
-# §3 搜索
+# §3 基础算法
 
-## §3.1 DFS
+## §3.1 搜索
+
+### §3.1.1 DFS
 
 深度优先搜索板子：
 
@@ -5830,7 +5832,7 @@ int main(){
 }
 ```
 
-## §3.2 BFS
+### §3.1.2 BFS
 
 广度优先搜素板子：
 
@@ -5865,7 +5867,7 @@ void bfs_floodfill(long long int i, long long int j){
 }
 ```
 
-## §3.3 剪枝
+### §3.1.3 剪枝
 
 剪枝是DFS中常用的一种技术。当DFS进入到一种不可能触及目标的状态时，就可以舍弃掉该状态下的子树代表的状态空间。
 
@@ -5894,7 +5896,7 @@ bool dfs(int i, int l1, int l2, int l3, int l4){
 2. 如果某个长木棍（`l1`、`l2`、`l1`、`l4`）的长度大于`sum / 4`，则该木棍的长度不可能与其它木棍长度相同，即“一山不容二虎”。
 3. 为了让第二条更快地触及“一山不容二虎”，我们想一开始就让各个长木棍的长度冲破`sum / 4`这个上线。为此可以将`n`个木棍长度降序排序。
 
-## §3.4 棋盘搜索
+### §3.1.4 棋盘搜索
 
 > [洛谷P1123](https://www.luogu.com.cn/problem/P1123)：给定`n×m`个数字，要求上下左右斜向不相邻地选出若干个数字，使其之和最大。
 
@@ -5942,7 +5944,7 @@ int main() {
 
 除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
 
-## §3.5 表达式插入运算符
+### §3.1.5 表达式插入运算符
 
 > [洛谷P1874]()：给定一个十进制数字字符串`s`，可以在任意字符之间添加`+`号，使最后的表达式计算结果恰好为`n`。请输出需要添加`+`号的最少数量，如果不存在这样的添加方法，则输出`-1`。本题中的所有数字均可以携带任意个前导零。
 
@@ -5951,6 +5953,87 @@ TODO：？？？？
 > [洛谷P1473](https://www.luogu.com.cn/problem/P1473)：给定一个从首字符`1`起向后数字逐渐递增至`n`的字符串（即`"1234...n"`），其中$3\le n\le 9$。每两个数字之间可以添加`+`或`-`号，添加空格表示相邻两个数字构成一个更大的十进制数。按字典序输出最后构造的所有表达式，使其运算结果恰为0。
 
 TODO：？？？？
+
+## §3.2 二分
+
+有些题目满足这些特征：要直接求解答案很难，但是验证某个答案是否正确却很简单。**二分的魅力在于：我们不直接求解答案，而是用二分猜答案**。由于二分是对数级别的时间复杂度，因此我们可以猜很大的范围。
+
+> [洛谷P1281](https://www.luogu.com.cn/problem/P1281)：给定序列`int a[1->n<=5e2]`，将其划分成互不相交的、连续的`k`段子序列（允许子序列为空）。将每个子序列中的元素相加，得到`k<=5e2`个总和。求一种划分策略，使得这`k`个总和的最大值取得最小值，并输出对应的区间端点。**如果有多种划分方式均能取得最小值，则选择使得靠前区间的元素总和更小的方案**。
+
+如果使用区间DP，令`dp[1][i][j]`表示区间`[1, i]`内划分`j`段互不相交的连续子序列对应的答案，则需要固定区间左端点为`1`，枚举右端点`i`，枚举`[1, i]`内的分割点`t`，枚举划分区间数`j`，所以时间复杂度为$O(n^2k)$，**虽然本题数据范围非常宽松，但不是时间上最优的解法**。
+
+**注意到答案具有单调性， 不妨尝试对答案进行二分查找**。令答案的取值范围为$[1, s]\subseteq [1, 2^{64})$，则共要查找$\log_2{s}$次，每次查找都按贪心的思路遍历一遍序列，故总时间复杂度为$O(n\log_2{s})\le O(64n)$。
+
+具体来说，每次查找使用的判定函数，使用了贪心的思路——定义双指针`x, y`表示划分子序列`a[x->y-1]`的首尾位置，**不断向后**移动`y`，直到`a[x->y-1]`内的元素之和恰好不大于`mid`为止，将这段区间定义为一个符合要求的子序列，然后将`x`移动到`y`的位置，开始下一轮循环。如果产生的子序列总数小于等于`k`，则说明`mid`符合条件。
+
+下面证明贪心一定能取得最优解：
+
+- 令最优解$S_0$的划分策略为`[l[1], r[1]], [l[2], r[2]],..., [l[k], r[k]]`，其中`l[1]==1`、`r[k]==n`。使用反证法：如果贪心无法得到最优解，则说明最优解中存在一个划分区间`[l[i], r[i]]`，给定贪心起点`l[i]`，得到的贪心终点为`r'[i]`，且两者并不相同。由于`r'[i]`本身就是最大的极限，所以`r[i] < r'[i]`。我们把`a[r'[i]+1 -> r[i]]`内的元素重新分配给第`i`个区间，有贪心可知，第`i`个区间的元素之和并未超出`mid`限制，第`i+1`个区间的元素之和因此减小，也不会超出`mid`限制。所以我们用这种方式构造了一个新的最优解$S_1$。
+- 令最优解$S_1$的划分策略为......，如果贪心无法得到最优解，则......，我们用相同的方法干掉这个不符合贪心条件的区间，得到了一个新的最优解$S_2$。
+- 依次类推，由于区间数量有限，因此不符合贪心条件的区间总有被干完的一天。令最终的最优解为$S_m$，则$S_m$中的所有区间都符合贪心条件，故与假设矛盾，证毕。
+
+然而本题要求：**如果有多种划分方式均能取得最小值，则选择使得靠前区间的元素总和更小的方案**。上面的贪心做法选择的是**总和更大**的方案。该怎么办呢？**只需要让贪心的搜索方向变为"从后往前"即可，让后面区间的元素总和尽可能大**。
+
+```c++
+const int N_MAX = 500, K_MAX = 500;
+int n, k, a[N_MAX + 1], l[K_MAX + 1], r[K_MAX + 1];
+
+bool check(int ans) {
+    int k_count = 0, x = n, y = n, sum_temp = 0;
+    while(x >= 1) { // 开始遍历一个新的连续子区间
+        sum_temp = a[y];
+        while(x >= 1 && sum_temp <= ans) { sum_temp += a[--x]; }
+        if(x == y && sum_temp > ans) { return false; } // 特判单个元素就大于ans的情况
+        ++k_count; l[k_count] = x + 1; r[k_count] = y; y = x; // 超过ans,保存当前贪心子区间[x, y),开启下一轮循环
+    }
+    for(int i = k_count + 1; i <= k; ++i) { l[i] = r[i] = 0; }
+    return k_count <= k;
+}
+int main() {
+    std::cin >> n >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    int left = 1, right = 1e9, left_pointer = left, right_pointer = right;
+    while(left <= right) {
+        int mid = (left + right) / 2;
+        if(!check(mid)) {
+            left_pointer = mid;
+            left = mid + 1;
+        } else {
+            right_pointer = mid;
+            right = mid - 1;
+        }
+    }
+    check(right_pointer); // right_pointer即为所求的minmax,现在用check()将区间端点写入l[]/r[]中
+    for(int i = k; i >= 1; --i) { std::cout << l[i] << ' ' << r[i] << '\n'; }
+}
+```
+
+## §3.3 贪心
+
+> [洛谷P8775](https://www.luogu.com.cn/problem/P8775)：给定`n`个排成一行的格子及其序列`a[1->n]`，其中`a[0]`与`a[n+1]`均为无穷大。每次离开某个格子`i`，都会导致`a[i]--`。当`a[i]<=0`时，该格子不能再踏入。若某时刻在第`i`个格子上，则接下来可以往前进方向跳到`[i+1, i+k]`中的任意位置。现在从起点`a[0]`出发，到`a[n+1]`为止，再调换起点和终点，回到`a[0]`。如果能重复该路程共`x`次往返，则求`k`的最小值。
+
+首先注意到：`x`次双向往返完全等价于`2x`次单向前进。这里我们直接给出本题的答案：$\underset{r-l+1}{\text{argmin}}\left(\forall l \le r \in[1, n], \displaystyle\sum_{i\in[l, r]}{a[i]}\ge 2x\right)$，使用双指针即可求解。
+
+证明如下：
+
+- 充分性：对于任意区间`[l, l+k]`，任何情况都不能一次性跨过这个范围，因为它必被经过`2x`次。没被经过一次就会导致整体之和减`1`，所以$\displaystyle\sum_{i\in[l, l+k]}{a[i]}\ge 2x$必成立。
+- 必要性：如果一个区间`[l, r]`满足$\displaystyle\sum_{i\in[l, r]}{a[i]}\ge 2x$，则它一定能承受住`2x`次的、初始位置为`a[l-1]`的、终点为`a[r+1]`的路程。同理，如果所有区间都满足上面的条件，那么这些区间的并集形成的全集`[1, n]`也一定能承受住`2x`次的、初始位置为`a[0]`的、终点为`a[n+1]`的路程。
+
+```c++
+const int N_MAX = 1e5;
+int n, x, a[N_MAX + 1], a_sum_temp;
+
+int main() {
+    std::cin >> n >> x; x *= 2; --n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    int ans = 0;
+    for(int i = 1, j = 0; j <= n; a_sum_temp -= a[i++]) {
+        while(j <= n && a_sum_temp < x) { a_sum_temp += a[++j]; }
+        ans = std::max(ans, j - i + 1);
+    }
+    std::cout << ans;
+}
+```
 
 # §4 字符串
 
@@ -8716,7 +8799,7 @@ int main() {
 
 https://www.luogu.com.cn/article/h041rvt9
 
-# §7 高级数据结构
+# §7 数据结构
 
 ## §7.1 前缀和
 
@@ -14128,6 +14211,47 @@ int main() {
             delta_hash_map[delta_hash] = i;
         } else {
             ans = std::max(ans, i - delta_hash_map[delta_hash]);
+        }
+    }
+    std::cout << ans;
+}
+```
+
+## §7.10 Multiset
+
+Multiset允许存储多个`value`相同的元素。
+
+> [洛谷P10429](https://www.luogu.com.cn/problem/P10429)：给定序列`a[1->n<=1e3]`，求其中的两个互不相交的非空连续子序列`a[l1->r1], a[l2->r2]`（`l1<=r1<l2<=r2`），使得这两个子序列各自的元素之和，做差的绝对值取得最小值。
+
+对`i:1->n`进行枚举，枚举符合`l1<=i`的左区间`S1: [l1, i]`，在`[i+1, n]`中查找与`S1`元素之和最接近的子序列（包括恰好大于等于、恰好小于）。要完成这个查找操作，我们可以使用`std::multiset.lower_bound()`操作，单次耗时$O(\log_2{n^2})=O(2\log_2{n})$。于是总时间复杂度为$O(2n^2\log_2{n})$。
+
+```c++
+const int N_MAX = 1000;
+int n, a[N_MAX + 1]; int64_t a_prefixsum[N_MAX + 1];
+std::multiset<int64_t> set;
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_prefixsum[i] = a_prefixsum[i - 1] + a[i]; }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = i; j <= n; ++j) {
+            set.insert(a_prefixsum[j] - a_prefixsum[i - 1]);
+        }
+    }
+    int64_t ans = INT32_MAX;
+    for(int i = 1; i <= n; ++i) {
+        for(int r_2 = i; r_2 <= n; ++r_2) {
+            set.erase(set.find(a_prefixsum[r_2] - a_prefixsum[i - 1]));
+        }
+        for(int l_1 = 1; l_1 <= i; ++l_1) {
+            int64_t sum_temp = a_prefixsum[i] - a_prefixsum[l_1 - 1];
+            std::multiset<int64_t>::iterator iter = set.lower_bound(sum_temp);
+            if(iter != set.end()) { // 如果sum_temp不是最大值
+                ans = std::min(ans, std::abs(*iter - sum_temp));
+            }
+            if(iter != set.begin()) { // 如果sum_temp不是最小值,则找到恰好比它小的值*(iter-1)
+                ans = std::min(ans, std::abs(*(std::prev(iter)) - sum_temp));
+            }
         }
     }
     std::cout << ans;
