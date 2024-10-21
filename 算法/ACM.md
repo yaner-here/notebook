@@ -3674,7 +3674,7 @@ int main() {
 
 ### §2.5.3 区间计数
 
-> [洛谷P3205](https://www.luogu.com.cn/problem/P3205)：给定一个长度为`n`、元素狐疑的数组`a[]`，对其中的元素从`a[0]`到`a[i-1]`，依次通过以下操作转换成数组`b[]`：对于`a[0]`，直接插入到空白的数组`b`中；对于后面的数`a[i]`，如果它小于插入的前一个数`a[i-1]`，就插入到数组`b`的最左边，如果大于就插入到最右边。现在已给定数组`b[]`，求有多少个数组`a[]`经过上述操作后可以转换为数组`b[]`。最终答案模`MOD`后输出。
+> [洛谷P3205](https://www.luogu.com.cn/problem/P3205)：给定一个长度为`n`、元素互异的数组`a[]`，对其中的元素从`a[0]`到`a[i-1]`，依次通过以下操作转换成数组`b[]`：对于`a[0]`，直接插入到空白的数组`b`中；对于后面的数`a[i]`，如果它小于插入的前一个数`a[i-1]`，就插入到数组`b`的最左边，如果大于就插入到最右边。现在已给定数组`b[]`，求有多少个数组`a[]`经过上述操作后可以转换为数组`b[]`。最终答案模`MOD`后输出。
 
 本题应用到了区间DP的思想——将区间的两个端点视为一种状态。令`dp_left[i][j]`表示在`b[]`对应的区间中，最后一个插入的数`a[?]`从最左边进入的方案数（此时这个最后插入的数必定为`b[i]`）；`dp_right[i][j]`表示在`b[]`对应的区间中，最后一个插入的数`a[?]`从最右边进入的方案数（此时这个最后插入的数必定为`b[j]`）。
 
@@ -6062,6 +6062,99 @@ int main() {
 
 ## §3.3 贪心
 
+“Attention is all you need.”
+
+> [洛谷P8719](https://www.luogu.com.cn/problem/P8719)：给定字符集`[a-z]`及其字典序规定的全序关系（字符集规模为$S=26$），请输出逆序对个数恰好为`m`的、长度最短的（记为`n`）、如果有多个长度最短则字典序最小的字符串`s`。
+
+引理一：当长度为`x`的字符串`s`的逆序对数量达到最大值时，`s`一定是宽松递减的。利用反证法易证：如果存在某个严格递增子序列，则在这一段内交换位置，能产生更多的逆序对，因此原字符串的逆序对数量不是最大的，矛盾，证毕。
+
+引理二：记长度为`x`的字符串的逆序对最大数量为$f(x)$，则长度为`x`的字符串的逆序对数量取值范围一定为`[0, f(x)]`，也就是说可以取到该区间中的任意值。证明如下：逆序对本身就等价于冒泡排序的交换次数，消灭一个逆序对就等价于进行了一次冒泡排序的交还。考虑其逆向步骤，于是产生一个逆序对的过程可以视作一步逆向交换，于是逆序对的取值范围一定是连续的，证毕。**依据该引理，所求字符串的最短长度就是$\underset{m\le f(x)}{\text{min}}x$**。
+
+引理三：当$x\ge 26$时，如果字符串$s_{x+1}$、$s_{x}$的逆序对数量分别为$f(x+1)$、$f(x)$，且字典序均取得最小值，则$s_{x}$一定能通过在其自身基础上添加一个字符变为$s_{x+1}$。证明如下：首先易证`s_x`一定可以添加一个字符形成$s'_{x+1}$，使得$s'_{x+1}$的逆序对数量达到$f(x+1)$，现在只需证明$s'_{x+1}$的字典序可以达到最小即可。根据引理一，$s_{x+1}$和$s_{x}$都是宽松递减的。使用数学归纳法。当`x==26`时，显然`f(27)`一定使用完`26`种字符，导致出现重复的字符，而`f(26)`中每种字符恰好出现一次，故成立。当`x>26`时，`f(x)`可以视为在`f(26)`的基础上添加了`x-26`个字符而成，`f(x-1)`同理。假设对于任意`x∈[26,x]`，`f(x)`均可以添加一个字符转移到`f(x+1)`，则`f(x+1)`添加一个字符，等价于`f(x)`添加两个字符，可以转移到`f(x+2)`，这其中每一个字符串的字典序均为最小值，故证毕。
+
+先考虑长度最短。现在考虑`f(x)`的具体表达式。字符集只有`26`个字符。当`x<=26`时，字符串`s`内的每一个字符都可以是不同的，此时能产生最多的逆序对，于是$f(x)=\frac{x(x-1)}{2}, x\le 26$。当`x>26`时，`s`中一定会出现重复的字符。我们将`s`拆为三部分：开头的相同字符`char c1`们、末尾的相同字符`char c2`们、夹在中间的其它字符。现在要在其中某个位置添加一个字符`char c3`，使得逆序对数量最多，容易发现最优的添加位置就是“抱团”，即`s`中`c3`所在的区间，会额外产生$x-\#(\mathrm{c_3})$个逆序对。为了让产生的逆序对数量最大化，我们希望$\#(\mathrm{c_3})$越小越好。**也就是说，我们希望字符串中各字符的数量尽可能相等**。
+
+$$
+\underset{字符数量}{字符串}:
+\begin{array}
+	 & 
+		\underset{\text{count}[\mathrm{z}]}{\underbrace{\mathrm{z\cdots z}}} & 
+		\underset{\text{count}[\mathrm{y}]}{\underbrace{\mathrm{y\cdots y}}} & 
+		\cdots & 
+		\underset{\text{count}[\mathrm{c_3}]}{\underbrace{\mathrm{c_3\cdots c_3}}} & 
+		\cdots & 
+		\underset{\text{count}[\mathrm{b}]}{\underbrace{\mathrm{b\cdots b}}} & 
+		\underset{\text{count}[\mathrm{a}]}{\underbrace{\mathrm{a\cdots a}}} \\
+\end{array}
+$$
+
+综上所述，$f(x)=\begin{cases}f(x-1)+(x-1)或\frac{x(x-1)}{2} &,x\le 26 \\ f(x-1)+\min_{\mathrm{c_3}}\#_{s_{x-1}}(\mathrm{c_3})或f(x-1)+(x-1-(x-1)\%26)&,x>26\end{cases}$。根据$m \le f(n_\text{max})$、$m\le 10000$可解得$n\le 145$。$f(x)$对应的最小字典序$s_x$为：
+
+$$
+\begin{align}
+	& s_1=\mathrm{\textcolor{red}{a}} & s_{27}=\mathrm{zyx\cdots cb\textcolor{red}{aa}} \\
+	& s_2=\mathrm{\textcolor{red}{b}a} & s_{28}=\mathrm{zyx\cdots c\textcolor{red}{bb}aa} \\
+	& s_3=\mathrm{\textcolor{red}{c}ba} & s_{29}=\mathrm{zyx\cdots \textcolor{red}{cc}bbaa} \\
+	& \cdots & \cdots \\
+	& s_{26}=\mathrm{\textcolor{red}{z}yx\cdots cba} & s_{52}=\mathrm{\textcolor{red}{zz}yyxx\cdots ccbbaa} \\
+\end{align}
+$$
+
+再考虑字典序最小。由于我们已经确定了$n$，且$m\in[0, f(n)]$，所以可以继续使用贪心：我们从前往后确定`n`位字符串`s`的各位字符（即`s[i:1->n]`地遍历）。依据字典序的贪心思想，我们希望`s[i]`尽可能小，但它又不能特别小，否则无法形成足够数量的逆序对。于是我们可以让`s[i]`恰好增长到符合要求的那一刻，**指望调整后面的`s[i+1->n]`部分以取得最多的逆序对**，即$s[i]=\underset{\max(\#_{s[i]确定后,s整体能形成的逆序对})\ge m}{\text{min}}({s[i]})$。当`s[i]`确定后，`s`能形成的逆序对个数取值范围会进一步收窄，但是`m`始终在这个范围内。根据引理一，我们总能保证可以让逆序对个数恰好为`m`，所以贪心一定能找到解。
+
+引理四：**指望调整后面的`s[i+1->n]`部分以取得最多的逆序对**，只需要**忽略未确定字符的存在**，依次引入`s[i+1]`、`s[i+2]`、...、`s[n]`时，保证每一次引入都取得了最多的逆序对即可。证明略。
+
+在编程实践中，为了计算调整后面的`s[i+1->n]`部分以取得的逆序对数量最大值，我们将逆序对分成三部分：构成逆序对的元素中最靠前的那个元素在`s[1->i-1]`内、在`s[i]`上、在`s[i+1->n]`内。第一部分`m_pre`可以从上一状态转移而来；第二部分`m_curr`需要统计`s[1->i-1]`中的字符数量`count_pre['a'->'z']`，由$\displaystyle\sum_{\text{ch\_step}\in[\text{ch+1}, \mathrm{z}]}\text{count\_pre}[\text{ch\_step}]$给出；第三部分`m_post`使用引理四的结论，当`s[i]`确定后，对剩余的长度为`n_pending = n-i`的`s[i+1->n]`部分从前往后逐个遍历即可。容易发现第三部分由`n_pending`个部分组成，每次确定一个字符都要将本次结果叠加到`m_post`上。假设已经确定了前`l-1`个部分，要求解第`l`个部分时，由于**后面的部分均未确定，需要忽略它们的存在**，于是只需要考虑引入第`l`个部分`s[i+l+1] == ch_step`产生的逆序对：在`s[i+1->i+l]`中，自己不能和自己产生逆序对（需要减`1`），与自己是同一个字符的位置不能产生逆序对（需要减`count_post[ch_step]`）；在`s[i]`中，需要手动判断`ch > ch_step`是否成立，实践中合并到第一部分；在`s[1->i-1]`中，需要计算$\displaystyle\sum_{i\in[\text{ch\_step}+1, \mathrm{z}]}\text{count\_pre[i]}$。
+
+本方法的时间复杂度为$O(n^2S^2)\le O(145^2 26^2)$。
+
+```c++
+const int M_MAX = 2e5, N_MAX = 500, CHARSET_SIZE = 26; // 本题数据范围有坑,存在输入大于10000的评测点
+int n, m, m_pre, count_pre[CHARSET_SIZE + 1], count_post[CHARSET_SIZE + 1], f[N_MAX + 1];
+
+void init_f() {
+    for(int i = 1; i <= 26; ++i) { f[i] = f[i - 1] + i - 1; }
+    for(int i = 27; i <= N_MAX; ++i) { f[i] = f[i - 1] + (i - 1 - (i - 1) / 26); }
+}
+bool check(int ch, int n_pending) {
+    int m_curr = std::accumulate(count_pre + (ch + 1), count_pre + 1 + CHARSET_SIZE, 0);
+    ++count_pre[ch]; // 令s[i] = ch
+    std::fill(count_post, count_post + 1 + CHARSET_SIZE, 0);
+    int m_post = 0;
+    for(int l = 1; l <= n_pending; ++l) {
+        int m_post_step = -1, ch_max_step = -1, m_post_part3_step = 0;
+        for(int ch_step = 26; ch_step >= 1; --ch_step) {
+            if(m_post_step < l - 1 - count_post[ch_step] + m_post_part3_step) {
+                m_post_step = l - 1 - count_post[ch_step] + m_post_part3_step;
+                ch_max_step = ch_step;
+            }
+            m_post_part3_step += count_pre[ch_step];
+        }
+        m_post += m_post_step;
+        ++count_post[ch_max_step];
+    }
+    if(m_pre + m_curr + m_post >= m) {
+        m_pre += m_curr;
+        return true;
+    } else {
+        --count_pre[ch]; // 发现s[i]不满足要求，只能撤回
+        return false;
+    }
+}
+int main() {
+    std::cin >> m;
+    init_f(); n = std::upper_bound(f + 1, f + N_MAX + 1, m, std::less_equal<int>()) - f;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= 26; ++j) {
+            if(check(j, n - i)) {
+                std::cout << static_cast<char>(j - 1 + 'a');
+                break;
+            }
+        }
+    }
+}
+```
+
 ### §3.3.1 充要条件证明法
 
 > [洛谷P8775](https://www.luogu.com.cn/problem/P8775)：给定`n`个排成一行的格子及其序列`a[1->n]`，其中`a[0]`与`a[n+1]`均为无穷大。每次离开某个格子`i`，都会导致`a[i]--`。当`a[i]<=0`时，该格子不能再踏入。若某时刻在第`i`个格子上，则接下来可以往前进方向跳到`[i+1, i+k]`中的任意位置。现在从起点`a[0]`出发，到`a[n+1]`为止，再调换起点和终点，回到`a[0]`。如果能重复该路程共`x`次往返，则求`k`的最小值。
@@ -7289,7 +7382,7 @@ int main() {
 }
 ```
 
-> [洛谷P1140]：给定两个仅由`A`、`T`、`G`、`C`四种字符构成的字符串`a[]`和`b[]`。现在可以在两个字符串中插入空格，使得两个字符串长度相等，且插入空格后的字符串不存在一个位置`i`，使得`a[i]`和`b[i]`同时为空格。定义两个等长字符串的相似度为$\sum_{i=1}^{\text{strlen}(a)}\text{map}(a[i],b[i])$，其中`map(a[i],b[i])`的映射关系由二维数组给出。求插入空格的策略，使得相似度取得最大值。
+> [洛谷P1140](https://www.luogu.com.cn/problem/P1140)：给定两个仅由`A`、`T`、`G`、`C`四种字符构成的字符串`a[]`和`b[]`。现在可以在两个字符串中插入空格，使得两个字符串长度相等，且插入空格后的字符串不存在一个位置`i`，使得`a[i]`和`b[i]`同时为空格。定义两个等长字符串的相似度为$\sum_{i=1}^{\text{strlen}(a)}\text{map}(a[i],b[i])$，其中`map(a[i],b[i])`的映射关系由二维数组给出。求插入空格的策略，使得相似度取得最大值。
 
 本题的难点在于定义DP的状态，这里我们直接给出答案：令`dp[i][j]`表示原始字符串`a[]`和`b[]`分别给定前`i`个字符和前`j`个字符时，能获得的最大相似度。
 
@@ -12111,7 +12204,7 @@ flowchart TB
 ```
 
 1. 令维护的序列范围为`a[0->n-1]`，长度为`n`。于是开辟一个长度为$2n$的线段树节点数组`segtree[]`。令`segtree[0]`不使用，`segtree[1->n-1]`这`n-1`个节点用于储存区间合并后的节点信息，`segtree[n->2n-1]`这`n`个节点存储原始序列`a[0->n-1]`。**这种建树方案的各个原始序列对应的节点不一定在同一层，但能保证每个非叶子节点都有两个子节点**。[@Blibili 古城算法](https://www.bilibili.com/video/BV1gy4y1D7dx/?t=725)等人使用这种建树方案。**推荐使用**。
-2. 令维护的序列范围为`a[1->n]`，长度为`n`，开辟一个长度为$4n$的线段树节点数组。设$m=2^{\lceil\log_{2}n\rceil}$,令`segtree[0]`不使用，`segtree[1->m]`这`m`个节点用于储存区间合并后的节点信息，`segtree[m+1->m+n]`这`n`个节点用于存储原始序列`a[0->n-1]`。**网上的大部分实现都是这一版，但是只开了$2n+K$个空间。`segtree[m]`在`segtree_pushup()`时调用左右节点必然内存越界，必须至少开$1+2^{\lceil\log_{2}{n}\rceil}+n\le 4n$个空间才行**。所以网上大部分实现都额外预留了很多的常数空间$K$，**而且访问的越界节点还要注意初始化，不保证默认值就是正确的初始值，因此不推荐使用**。\这里点名批评[@洛谷 Jμdge(uid:38576)](https://www.cnblogs.com/Judge/p/9514862.html)写的博客误人子弟，前文说要开$4n$个空间，后面代码却改开$2n$空间，但是靠着给`N_MAX`多加常数才侥幸避免数组越界。
+2. 令维护的序列范围为`a[1->n]`，长度为`n`，开辟一个长度为$4n$的线段树节点数组。设$m=2^{\lceil\log_{2}n\rceil}$,令`segtree[0]`不使用，`segtree[1->m]`这`m`个节点用于储存区间合并后的节点信息，`segtree[m+1->m+n]`这`n`个节点用于存储原始序列`a[0->n-1]`。**网上的大部分实现都是这一版，但是只开了$2n+K$个空间。`segtree[m]`在`segtree_pushup()`时调用左右节点必然内存越界，必须至少开$1+2^{\lceil\log_{2}{n}\rceil}+n\le 4n$个空间才行**。所以网上大部分实现都额外预留了很多的常数空间$K$，**而且访问的越界节点还要注意初始化，不保证默认值就是正确的初始值，因此不推荐使用**。这里点名批评[@洛谷 Jμdge(uid:38576)](https://www.cnblogs.com/Judge/p/9514862.html)写的博客误人子弟，前文说要开$4n$个空间，后面代码却改开$2n$空间，但是靠着给`N_MAX`多加常数才侥幸避免数组越界。
 3. 令维护的序列范围为`a[1->n]`，长度为`n`，开辟一个长度为$4n+4$的线段树节点数组，不使用`segtree[0]`和`segtree[m]`，将最后`segtree[1->m-1]`这`m-1`个节点储存合并后的节点信息，`segtree[m+1->m+n]`这`n`个节点用于存储原始序列`a[1->n]`。[@洛谷 a41881147](https://www.luogu.com.cn/user/18141)等人使用这种做法。
 
 下面是第一种建表方法，维护原始序列`a[0->n-1]`（查询区间和、单点修改、单点自增）：
