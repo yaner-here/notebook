@@ -41,12 +41,15 @@
             "id": "003690ee0ef01c8b",
             "type": "leaf",
             "state": {
-              "type": "release-notes",
+              "type": "markdown",
               "state": {
-                "currentVersion": "1.7.4"
+                "file": "未命名.md",
+                "mode": "source",
+                "backlinks": false,
+                "source": false
               },
               "icon": "lucide-file",
-              "title": "Release Notes 1.7.4"
+              "title": "未命名"
             }
           }
         ]
@@ -135,9 +138,10 @@
       "command-palette:打开命令面板": false
     }
   },
-  "active": "7023c7e7e5649851",
+  "active": "cb9847649a182d9a",
   "lastOpenFiles": [
     "前端库.md",
+    "未命名.md",
     "算法/ACM.md",
     "CMake.md",
     "Pasted image 20240927223432.png"
