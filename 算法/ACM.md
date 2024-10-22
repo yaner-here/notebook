@@ -9911,6 +9911,22 @@ template<typename T> class LinkedDeque {
 };
 ```
 
+> [洛谷P3594](https://www.luogu.com.cn/problem/P3594)：给定自然数序列`a[1->n]`，然后选择其中任意一段长度小于等于`d`的区间，将其中的元素全部置为`0`，形成序列`a'[1->n]`。对于`a'[1->n]`中所有区间，在其中的元素之和小于等于`p`的前提下，求该区间的长度最大值。
+
+首先`a[1->n]`中的元素均大于等于`0`，因此容易想到贪心——尽可能地扩大重置区间。基于此容易想到贪心的双指针解法：设当前区间为`[i, j]`，每回合后`++j`，每回合中不停地`++i`，直到$\displaystyle\sum_{k\in[i,j]}a[k]-\max_{i\le i'\le j'\le j, j'-i'+1\le d}\sum_{k\in[i',j']}a[k]\le p$为止。每经过一回合，就能求出以`j`为右端点的、符合条件的最长区间`[i, j]`。使用`ans`动态维护区间长度`r - l + 1`的最大值即可。
+
+接下来考虑如何计算$\displaystyle\max_{i\le i'\le j'\le j, j'-i'+1\le d}\sum_{k\in[i',j']}a[k]$。注意到`i`和`j`都是递增的，因此可以使用单调队列维护这一最大值。我们用`deque_j[]`/`deque_d_sum[]`维护单调队列中元素`[i', j']`对应的右指针/最大的长度为`d`的区间和。队头`deque_head`的出队条件是不满足`i <= deque_i[deque_head]`，其中`deque_j[deque_head] - deque_i[deque_head] + 1 == d`，整理化简得出队条件为满足`i > deque_j[deque_head] - d + 1`；出队条件为不满足单调递减队列的性质，即满足`deque_d_sum[deque_tail] <= 待入队元素`；每次的待入队元素为以`j`为右端点的、长度为`d`的区间`[i', j']`内的元素之和，用前缀和可求。
+
+$$
+\begin{array}{cc|c|c|c|c|c|c|c|cc}
+	\hline & \cdots & a_{\cdots} & a_{\cdots} & a_{\cdots} & a_{\cdots} & a_{\cdots} & a_{\cdots} & a_{\cdots} & \cdots & \\
+	\hline & & \underset{i}{\uparrow} & & \underset{\text{deque\_i}[\text{deque\_head}]}{\uparrow,临时i'} & & \underset{\text{deque\_j}[\text{deque\_head}]}{\uparrow,临时j'} & & \underset{j}{\uparrow} \\
+	\hline
+\end{array}
+$$
+
+时间复杂度为$O(n)$。
+
 ## §7.4 树状数组
 
 **树状数组是一种维护前缀和的数据结构**。其支持的运算$f(\cdot)$需要满足结合律$f(f(x,y),z)=f(x,f(y,z))$、支持差分$y=f^{-1}(f(x,y),x)$，例如加法、乘法、异或等。然而$\max(\cdot)$、$\gcd(\cdot)$等函数不支持差分，因此无法直接用于树状数组。
