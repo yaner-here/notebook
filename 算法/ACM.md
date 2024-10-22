@@ -6183,6 +6183,113 @@ int main() {
 }
 ```
 
+## §3.4 差分
+
+### §3.4.1 高维差分
+
+#### §3.4.1.1 一维差分
+
+考虑关于一维数组`a[1->n]`的差分数组`a_delta[1->n]`。对定义式$a[i] = \displaystyle\sum_{p\in[1, i]}\text{a\_delta}[p]$两侧同时做差分可得：
+
+```c++
+for(int i = 1; i <= n; ++i) {
+	a_delta[i] = a[i] - a[i-1];
+}
+```
+
+进行一次`[l, r]`（`l<=r`）上的区间编辑，需要进行以下操作：
+
+```c++
+a_delta[l] += C;
+a_delta[r+1] -= C
+```
+
+在`a_dalta[]`的原空间上重建`a[]`的操作如下所示：
+
+```c++
+for(int i = 1; i <= n; ++i) {
+	a_delta[i] = a_delta[i] + a_delta[i - 1];
+}
+```
+
+#### §3.4.1.2 二维差分
+
+考虑关于二维数组`a[1->n][1->m]`的差分数组`a_delta[1->n][1->m]`。对定义式$a[i][j] = \displaystyle\sum_{p\in[1,i]}\sum_{q\in[1,j]}\text{a\_delta}[p][q]$两侧同时做差分可得：
+
+```c++
+for(int i = 1; i <= n; ++i) {
+	for(int j = 1; j <= m; ++j) {
+		a_delta[i][j] = a[i][j] - a[i-1][j] - a[i][j-1] + a[i-1][j-1];
+	}
+}
+```
+
+进行一次`[x1, y1] -> [x2, y2]`（`x1<=x2, y1<=y2`）上的区域编辑，需要执行以下操作：
+
+```c++
+a_delta[x1][y1] += C;
+a_delta[x1][y2+1] -= C;
+a_delta[x2+1][y1] -= C;
+a_delta[x2+1][y2+1] += C;
+```
+
+在`a_dalta[][]`的原空间上重建`a[][]`的操作如下所示：
+
+```c++
+for(int i = 1; i <= n; ++i) {
+	for(int j = 1; j <= m; ++j) {
+		a_delta[i][j] = a_delta[i][j] 
+			+ a_delta[i-1][j] + a_delta[i][j-1]
+			- a_delta[i-1][j-1];
+	}
+}
+```
+
+### §3.4.1.3 三维差分
+
+考虑关于三维数组`a[1->n][1->m][1->o]`的差分数组`a_delta[1->n][1->m][1->o]`。对定义式$a[i][j][k] = \displaystyle\sum_{p\in[1,i]}\sum_{q\in[1,j]}\sum_{r\in[1,k]}\text{a\_delta}[p][q][r]$两侧同时做差分可得：
+
+```c++
+for(int i = 1; i <= n; ++i) {
+	for(int j = 1; j <= m; ++j) {
+		for(int k = 1; k <= o; ++k) {
+			a_delta[i][j][k] = a[i][j][k] 
+				- a[i-1][j][k] - a[i][j-1][k] - a[i][j][k-1] 
+				+ a[i-1][j-1][k] + a[i-1][j][k-1] + a[i][j-1][k-1]
+				- a[i-1][j-1];
+		}
+	}
+}
+```
+
+进行一次`[x1, y1, z1] -> [x2, y2, z2]`（`x1<=x2, y1<=y2, z1<=z2`）上的区块编辑，需要执行以下操作：
+
+```c++
+a_delta[x1][y1][z1] += C;
+a_delta[x2+1][y1][z1] -= C;
+a_delta[x1][y2+1][z1] -= C;
+a_delta[x1][y1][z2+1] -= C;
+a_delta[x2+1][y1][z2+1] += C;
+a_delta[x2+1][y2+1][z1] += C;
+a_delta[x1][y2+1][z2+1] += C;
+a_delta[x2+1][y2+1][z2+1] -= C`
+```
+
+在`a_dalta[][]`的原空间上重建`a[][]`的操作如下所示：
+
+```c++
+for(int i = 1; i <= n; ++i) {
+	for(int j = 1; j <= m; ++j) {
+		for(int k = 1; k <= o; ++k) {
+			a_delta[i][j][k] = a_delta[i][j][k] 
+				+ a[i-1][j][k] + a[i][j-1][k] + a[i][j][k-1] 
+				- a[i-1][j-1][k] - a[i-1][j][k-1] - a[i][j-1][k-1]
+				+ a[i-1][j-1][k];
+		}
+	}
+}
+```
+
 # §4 字符串
 
 ## §4.1 KMP算法
@@ -9926,6 +10033,28 @@ $$
 $$
 
 时间复杂度为$O(n)$。
+
+```c++
+const int N_MAX = 2e6;
+int n, d; long long int p, a[N_MAX + 1];
+int deque_j[N_MAX + 1], deque_head = 1, deque_tail = 0; long long int deque_d_sum[N_MAX + 1]; // [ , ]
+
+int main(){
+    std::cin >> n >> p >> d;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a[i] += a[i - 1]; }
+    int ans = 0;
+    for(int i = 1, j = d; j <= n; ++j) {
+        while(deque_tail >= deque_head && deque_d_sum[deque_tail] <= a[j] - a[j - d]) { --deque_tail; } // 队尾出队
+        ++deque_tail; deque_j[deque_tail] = j; deque_d_sum[deque_tail] = a[j] - a[j - d]; // 队尾入队
+        while(a[j] - a[i - 1] - deque_d_sum[deque_head] > p) { // 右移左指针(++i)
+            ++i;
+            while(deque_tail >= deque_head && i > deque_j[deque_head] - d + 1) { ++deque_head; } // 队头出队,及时更新队头表示的max,作为下一次判断是否需要++i的依据
+        }
+        ans = std::max(ans, j - i + 1);
+    }
+    std::cout << ans;
+}
+```
 
 ## §7.4 树状数组
 
