@@ -22,6 +22,18 @@ cout << fixed << setprecision(位数) << 值;
 
 `std::sort(Iterator begin, Iterator end)`使用的是内省排序，默认从小到大排序。
 
+该函数的完整签名为：
+
+```c++
+void std::sort(
+	Iterator begin, 
+	Iterator end,
+	std::function(bool<const T &pre, const T &post>) comp; // pre是否应该在post的前面
+);
+```
+
+`comp(pre, post)`接受两个形参，`pre`表示在序列中比较靠前/`begin`的元素，`post`表示在序列中比较靠后/`end`的元素。如果`comp()`返回`true`，则说明`pre`应该排在前面；如果返回`false`，则说明`post`应该排在前面。缺省时为`std::less<T>()`，表示升序输出。
+
 ### §1.2.2 容器二分查找
 
 > [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound(Iterator begin, Iterator end, T value)`返回非严格单调递增容器从`begin`到`end`遍历，找到第一个大于等于`value`的位置，并返回这个位置的迭代器。
@@ -114,11 +126,11 @@ std::cout << left_pointer << '\n';
 std::cout << right_pointer << '\n';
 ```
 
-### §1.2.3 二叉堆
+### §1.2.3 `std::*_heap()`
 
 C++11提供了一系列关于二叉堆的算法。传统二叉堆并不使用容器的第一个空间`heap[0]`，因此使用`2*i`和`2*i+1`获取`i`的左右子节点，然而STL提供的算法并不浪费任何空间，使用`2*i+1`和`2*i+2`获取`i`的左右子节点，因此额外引入了一次加法的时间常数。
 
-`std::make_heap()`用于建立二叉堆。其中`Compare comp`等价于`bool comp(const T &child, const T &root)`，默认为`std::less`。**时间复杂度为$O(3n)$，远大于自己手写的$O(\frac{1}{2}n)$板子**。
+`std::make_heap()`用于建立二叉堆。**其中`Compare comp`等价于`bool comp(const T &child, const T &root)`，默认为`std::less<T>()`**。
 
 ```c++
 void std::make_heap(Iter first, Iter last); // 访问范围为[first, last)
@@ -5781,8 +5793,6 @@ int main() {
 
 ## §3.1 搜索
 
-### §3.1.1 DFS
-
 深度优先搜索板子：
 
 ```c++
@@ -5832,8 +5842,6 @@ int main(){
 }
 ```
 
-### §3.1.2 BFS
-
 广度优先搜素板子：
 
 ```c++
@@ -5867,7 +5875,7 @@ void bfs_floodfill(long long int i, long long int j){
 }
 ```
 
-### §3.1.3 剪枝
+### §3.1.1 剪枝
 
 剪枝是DFS中常用的一种技术。当DFS进入到一种不可能触及目标的状态时，就可以舍弃掉该状态下的子树代表的状态空间。
 
@@ -5896,7 +5904,7 @@ bool dfs(int i, int l1, int l2, int l3, int l4){
 2. 如果某个长木棍（`l1`、`l2`、`l1`、`l4`）的长度大于`sum / 4`，则该木棍的长度不可能与其它木棍长度相同，即“一山不容二虎”。
 3. 为了让第二条更快地触及“一山不容二虎”，我们想一开始就让各个长木棍的长度冲破`sum / 4`这个上线。为此可以将`n`个木棍长度降序排序。
 
-### §3.1.4 棋盘搜索
+### §3.1.2 棋盘搜索
 
 > [洛谷P1123](https://www.luogu.com.cn/problem/P1123)：给定`n×m`个数字，要求上下左右斜向不相邻地选出若干个数字，使其之和最大。
 
@@ -5944,7 +5952,7 @@ int main() {
 
 除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
 
-### §3.1.5 表达式插入运算符
+### §3.1.3 表达式插入运算符
 
 > [洛谷P1874]()：给定一个十进制数字字符串`s`，可以在任意字符之间添加`+`号，使最后的表达式计算结果恰好为`n`。请输出需要添加`+`号的最少数量，如果不存在这样的添加方法，则输出`-1`。本题中的所有数字均可以携带任意个前导零。
 
@@ -5953,6 +5961,47 @@ TODO：？？？？
 > [洛谷P1473](https://www.luogu.com.cn/problem/P1473)：给定一个从首字符`1`起向后数字逐渐递增至`n`的字符串（即`"1234...n"`），其中$3\le n\le 9$。每两个数字之间可以添加`+`或`-`号，添加空格表示相邻两个数字构成一个更大的十进制数。按字典序输出最后构造的所有表达式，使其运算结果恰为0。
 
 TODO：？？？？
+
+### §3.1.4 正则匹配
+
+> [洛谷P8650](https://www.luogu.com.cn/problem/solution/P8650)：给定一个只由`x`、`(`、`)`、`|`构成的正则表达式`s`，求其能匹配的最长字符串的长度。例如`x((x|xx)|xxx)`的最长匹配字符串长度为`4`。
+
+假设读取字符串到了`char *c`的位置，令`regex_dfs()`表示当前括号层级内的最长长度`len_max`，我们不妨考虑其DFA：
+
+- 如果`*c == 'x'`，则所求的最长长度可以加`1`，即`++len_max`。
+- 如果`*c == '\0'`，则说明当前层级遇到了尽头，应该结束并`return len_max`。
+
+有了以上规则，我们已经能处理不带括号的情形，例如`xxx`。
+
+- 如果`*c == '('`，则说明当前层级需要更深一步才能求解，求解完毕后应该与之前求解的部分叠加长度，也就是说`len_max += regex_dfs()`。
+- 如果`*c == ')'`，则说明当前层级遇到了尽头，应该结束并`return len_max`。
+
+有了以上规则，我们已经能括号嵌套的情形，例如`((x)x)x`。
+
+- 如果`*c == '|'`，则说明后面的部分可以单独成一个平行层级，后面的部分计算完毕后，与前面的部分取`max`就可以直接`return std::max(len_max, regex_dfs())`了。**这里千万不能`len_max = std::max(len_max, regex_dfs())`。以输入`(x|)`为例，导致`|`被返回的是`)`，它被用与回溯`|`后，就没有与`(`配对的右括号了，从而导致越界**。
+
+有了以上规则，我们就完成了本题。例如`x|xx|xxx`就会被等价地处理为`max(x, max(xx, xxx))`。
+
+```c++
+const int S_LEN_MAX = 100;
+char s[S_LEN_MAX + 2]; char const *c = s;
+int regex_dfs() {
+    int len_max = 0;
+    while(true) {
+        ++c;
+        if(*c == 'x') { ++len_max; continue; }
+        if(*c == '\0') { break; }
+        if(*c == '(') { len_max += regex_dfs(); continue; }
+        if(*c == ')') { break; }
+        if(*c == '|') { return std::max(len_max, regex_dfs()); }
+    }
+    return len_max;
+}
+int main() {
+    std::cin >> (s + 1);
+    std::cout << regex_dfs();
+}
+```
 
 ## §3.2 二分
 
@@ -6060,6 +6109,69 @@ int main() {
 }
 ```
 
+> [洛谷P8666](https://www.luogu.com.cn/problem/P8666)：给定一个三维数组`a[1->A][1->B][1->C]`（$A,B,C\le 10^6, n=ABC\le 10^6$），现按顺序执行`q<=1e6`次区块编辑，每次区块编辑让区块`a[x1->x2][y1->y2][z1->z2]`中的元素同时自减`h`（`h>=0`）。求至少执行完第几次区块编辑后，`a[][][]`中出现负数元素？输出该次数`q'`。
+
+注意到随着`q'`的增长，`a[][][]`中会突然出现小于`0`的元素。于是考虑对`q'`进行二分。每次二分判断函数`check()`使用三维差分数组维护区块编辑操作，时间复杂度为$O(q'+n)$。于是时间均摊复杂度为$O((q+n)\log_2(q))$。
+
+```c++
+const int A_B_C_MAX = 1e6, A_AVG_MAX = 1e2, B_AVG_MAX = 1e2, C_AVG_MAX = 1e2, A_B_C_AVG_MAX = (A_AVG_MAX + 1) * (B_AVG_MAX + 1) * (C_AVG_MAX + 1), Q_MAX = 1e6;
+// 即ABC<=1e6,则(A+1)(B+1)(C+1)<=(1e2+1)^3
+int a, b, c, q; int64_t map_array[A_B_C_AVG_MAX + 1], map_delta_array[A_B_C_AVG_MAX + 1];
+struct Edit { int x1, x2, y1, y2, z1, z2, v; } edit[Q_MAX + 1];
+inline int64_t &map(int i, int j, int k) { return map_array[(i * b + j) * c + k]; }
+inline int64_t &map_delta(int i, int j, int k) { return map_delta_array[(i * b + j) * c + k]; }
+bool check(int q) {
+    std::fill(map_delta_array, map_delta_array + A_B_C_AVG_MAX + 1, 0);
+    for(int i = 1; i <= q; ++i) {
+        map_delta(edit[i].x1, edit[i].y1, edit[i].z1) += edit[i].v;
+        map_delta(edit[i].x2 + 1, edit[i].y1, edit[i].z1) -= edit[i].v;
+        map_delta(edit[i].x1, edit[i].y2 + 1, edit[i].z1) -= edit[i].v;
+        map_delta(edit[i].x1, edit[i].y1, edit[i].z2 + 1) -= edit[i].v;
+        map_delta(edit[i].x2 + 1, edit[i].y2 + 1, edit[i].z1) += edit[i].v;
+        map_delta(edit[i].x2 + 1, edit[i].y1, edit[i].z2 + 1) += edit[i].v;
+        map_delta(edit[i].x1, edit[i].y2 + 1, edit[i].z2 + 1) += edit[i].v;
+        map_delta(edit[i].x2 + 1, edit[i].y2 + 1, edit[i].z2 + 1) -= edit[i].v;
+    }
+    for(int i = 1; i <= a; ++i) {
+        for(int j = 1; j <= b; ++j) {
+            for(int k = 1; k <= c; ++k) {
+                map_delta(i, j, k) = map_delta(i, j, k)
+                    + map_delta(i - 1, j, k) + map_delta(i, j - 1, k) + map_delta(i, j, k - 1)
+                    - map_delta(i - 1, j - 1, k) - map_delta(i - 1, j, k - 1) - map_delta(i, j - 1, k - 1)
+                    + map_delta(i - 1, j - 1, k - 1);
+                if(map_delta(i, j, k) > map(i, j, k)) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+int main() {
+    std::cin >> a >> b >> c >> q;
+    for(int i = 1; i <= a; ++i) {
+        for(int j = 1; j <= b; ++j) {
+            for(int k = 1; k <= c; ++k) {
+                std::cin >> map_array[(i * b + j) * c + k];
+            }
+        }
+    }
+    for(int i = 1; i <= q; ++i) { std::cin >> edit[i].x1 >> edit[i].x2 >> edit[i].y1 >> edit[i].y2 >> edit[i].z1 >> edit[i].z2 >> edit[i].v; }
+    int left = 0, right = q, left_pointer = left - 1, right_pointer = right + 1;
+    while(left <= right) {
+        int mid = (left + right) / 2;
+        if(check(mid)) {
+            left_pointer = mid;
+            left = mid + 1;
+        } else {
+            right_pointer = mid;
+            right = mid - 1;
+        }
+    }
+    std::cout << right_pointer;
+}
+```
+
 ## §3.3 贪心
 
 “Attention is all you need.”
@@ -6155,7 +6267,57 @@ int main() {
 }
 ```
 
-### §3.3.1 充要条件证明法
+### §3.3.1 逆序贪心
+
+> [洛谷P8769](https://www.luogu.com.cn/problem/P8769)：给定`n`种物品的数量`.count`、单价`.cost`和保质期`.t`，若当前时间`t`大于保质期，则不能选择该物品。现在请为时刻`1~t_total`分别选择一件物品，使得总价格最小。若选不够`t`个物品，则输出`-1`。
+
+本题乍一看，每天只需要选择数量大于`0`、未过保质期、单价最小的物品即可，用堆即可维护。然而这种正序贪心不能保证得到最优解。例如下面这组样例：
+
+```
+为时刻1~2分别选择物品
+物品1: 数量1, 单价1, 保质期2
+物品2: 数量1, 单价2, 保质期1
+物品3: 数量+∞, 单价+∞，保质期+∞
+```
+
+容易发现，最优解是给`t==1`选择物品`2`，给`t==2`选择物品`1`。然而按照正序贪心`t: 1->t_total`的策略，我们在`t==1`选择物品`1`，会导致`t==2`只能选择物品`3`。因此正序贪心会导致因小失大。
+
+不妨考虑逆序贪心，考虑分别给`t: t_total->1`的`t_total`个时刻分配物品。用堆维护数量大于`0`、"重返"保质期的物品。逆序贪心从时间上杜绝了这种“机不可失，时不再来”的遗憾，因为**我们一直在获得物品选择权，而不是因过期而失去物品选择权**。
+
+```c++
+const int N_MAX = 1e5, T_MAX = 1e5;
+int t_total, n, heap_size = 0, stuff_tail = 1;
+struct Stuff {
+    int count, t;
+    long long int cost;
+    friend bool operator>(const Stuff &lhs, const Stuff &rhs) { return lhs.cost > rhs.cost; }
+} stuff[N_MAX + 1], stuff_heap[N_MAX];
+long long int cost_sum;
+
+int main() {
+    std::cin >> t_total >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> stuff[i].cost >> stuff[i].t >> stuff[i].count; }
+    std::sort(stuff + 1, stuff + 1 + n, [](const Stuff &lhs, const Stuff &rhs) { return lhs.t > rhs.t; });
+    for(int t = t_total; t >= 1; --t) {
+        while(stuff_tail <= n && stuff[stuff_tail].t >= t) { // 在heap中加入"重返保质期"的物品
+            stuff_heap[heap_size++] = stuff[stuff_tail++];
+            std::push_heap(stuff_heap, stuff_heap + heap_size, std::greater<Stuff>());
+        }
+        while(heap_size > 0 && stuff_heap[0].count <= 0) { // 防止选择当前类物品的数量为0
+            std::pop_heap(stuff_heap, stuff_heap + heap_size--, std::greater<Stuff>());
+        }
+        if(heap_size == 0) {
+            std::cout << -1;
+            return 0;
+        }
+        --stuff_heap[0].count;
+        cost_sum += stuff_heap[0].cost;
+    }
+    std::cout << cost_sum;
+}
+```
+
+### §3.3.2 充要条件证明法
 
 > [洛谷P8775](https://www.luogu.com.cn/problem/P8775)：给定`n`个排成一行的格子及其序列`a[1->n]`，其中`a[0]`与`a[n+1]`均为无穷大。每次离开某个格子`i`，都会导致`a[i]--`。当`a[i]<=0`时，该格子不能再踏入。若某时刻在第`i`个格子上，则接下来可以往前进方向跳到`[i+1, i+k]`中的任意位置。现在从起点`a[0]`出发，到`a[n+1]`为止，再调换起点和终点，回到`a[0]`。如果能重复该路程共`x`次往返，则求`k`的最小值。
 
@@ -11765,6 +11927,10 @@ int main() {
 }
 ```
 
+#### §7.5.1.3 势能线段树
+
+
+
 ### §7.5.2 懒标记线段树
 
 接下来讨论区间修改。如果将区间`[l, r]`包含的叶子节点全修改一遍，则单次区间修改的时间复杂度为$O(n)$，这是我们无法接受的。这里我们为每个节点引入懒标记`bool lazy`，推迟更改子节点的信息，除非必须访问子节点，从而减小单次区间修改的时间开销。这里的`v_delta`指的是将要更改子节点时使用的值，该节点本身早已被更改。有时`v_delta`本身就可以反映出是否存在懒标记。
@@ -14361,8 +14527,6 @@ int main() {
 
 ### §7.8.1 最大子矩形问题
 
-#### §7.8.1.1 最大子长方形
-
 > [洛谷P4147](https://www.luogu.com.cn/problem/P4147)：给定一个`n`行`m`列的布尔矩阵`a[i][j]`，要求从中框选一个仅包含`true`的子矩形，求子矩形的面积最大值。
 
 我们令`f[i][j]`表示从`(i, j)`处开始（包含`(i, j)`本身），向上能有多少个连续的`true`。`f[*][*]`容易通过$O(nm)$预处理得到。然后考虑一维数组`f[i][*]`：
@@ -14473,7 +14637,53 @@ int main() {
 }
 ```
 
-#### §7.8.1.2 最大子正方形
+> [洛谷P1169](https://www.luogu.com.cn/problem/P1169)：给定一个`n`行`m`列的`0/1`棋盘，求其中`0/1`间隔排布的最大子矩形、最大子正方形的面积。
+
+无脑悬链线法。求正方形的面积，只需取长方形的最短边长再平方即可。
+
+```c++
+const int N_MAX = 2e3, M_MAX = 2e3;
+int n, m, up[N_MAX + 2][M_MAX + 2], left[N_MAX + 2][M_MAX + 2], right[N_MAX + 2][M_MAX + 2]; bool map[N_MAX + 2][M_MAX + 2];
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> map[i][j]; } }
+    /*  *为map[1->n][1->m]，其余部分为边缘填充
+         ---
+        -***-
+        -***-
+        -***-
+         ---
+    */
+    std::copy(map[1] + 1, map[1] + m + 1, map[0] + 1);
+    for(int i = 1; i <= n; ++i) { map[i][0] = map[i][1]; map[i][m + 1] = map[i][m]; }
+    std::copy(map[n] + 1, map[n] + m + 1, map[n + 1] + 1);
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) { up[i][j] = (map[i][j] != map[i - 1][j] ? up[i - 1][j] + 1 : 1); }
+        for(int j = 1; j <= m; ++j) { left[i][j] = (map[i][j] != map[i][j - 1] ? left[i][j - 1] + 1 : 1); }
+        for(int j = m; j >= 1; --j) { right[i][j] = (map[i][j] != map[i][j + 1] ? right[i][j + 1] + 1 : 1); }
+    }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            if(map[i][j] != map[i - 1][j]) {
+                left[i][j] = std::min(left[i][j], left[i - 1][j]);
+                right[i][j] = std::min(right[i][j], right[i - 1][j]);
+            }
+        }
+    }
+    int ans_rectangle = 0, ans_square = 0;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            const int &width_temp = left[i][j] + right[i][j] - 1;
+            const int &height_temp = up[i][j];
+            const int &border_min_temp = std::min(width_temp, height_temp);
+            ans_square = std::max(ans_square, border_min_temp * border_min_temp);
+            ans_rectangle = std::max(ans_rectangle, width_temp * height_temp);
+        }
+    }
+    std::cout << ans_square << '\n' << ans_rectangle;
+}
+```
 
 ## §7.9 哈希
 
@@ -14709,7 +14919,7 @@ int main() {
 }
 ```
 
-本题也可以直接用勾长公示。由于公式中出现了分数，所以需要手动模拟分子和分母，每进行一次运算后就要除以两者的最大公因数，防止溢出。
+本题也可以直接用勾长公式。由于公式中出现了分数，所以需要手动模拟分子和分母，每进行一次运算后就要除以两者的最大公因数，防止溢出。
 
 ```c++
 const int K_MAX = 5, N_MAX = 30;
