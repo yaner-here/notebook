@@ -6275,7 +6275,7 @@ a_delta[x1][y2+1][z2+1] += C;
 a_delta[x2+1][y2+1][z2+1] -= C`
 ```
 
-在`a_dalta[][]`的原空间上重建`a[][]`的操作如下所示：
+在`a_dalta[][][]`的原空间上重建`a[][][]`的操作如下所示：
 
 ```c++
 for(int i = 1; i <= n; ++i) {
@@ -6284,7 +6284,7 @@ for(int i = 1; i <= n; ++i) {
 			a_delta[i][j][k] = a_delta[i][j][k] 
 				+ a[i-1][j][k] + a[i][j-1][k] + a[i][j][k-1] 
 				- a[i-1][j-1][k] - a[i-1][j][k-1] - a[i][j-1][k-1]
-				+ a[i-1][j-1][k];
+				+ a[i-1][j-1][k-1];
 		}
 	}
 }
@@ -14635,6 +14635,102 @@ int main() {
         count += a_valid * c_valid;
     }
     std::cout << count;
+}
+```
+
+### §8.2.3 杨氏矩阵
+
+设想现在有`k`张横向排列的一维格子纸条，它们的长度`l[i]`依次宽松递减。现在将第`i`张横向纸条排在第`i`上，各个纸条之间左对齐，形成格子阵列$Y:=\{(i, j)|j\le l[i]\}$。现在给每个格子赋值，如果形成的格子阵列同时满足：
+
+1. $\forall i,j, (i,j)\in Y,(i+1, j)\in Y$，则必有$Y_{i, j} > Y_{i+1, j}$。
+2. $\forall i, j, (i, j)\in Y, (i, j + 1)\in Y$，则必有$Y_{i,j} > Y_{i,j+1}$。
+
+则称$Y$为杨氏矩阵。
+
+```
+第1张格子纸条长度为5  [9][8][7][6][5]
+第2张格子纸条长度为4  [8][3][2][1]
+第3张格子纸条长度为1  [4]
+```
+
+#### §8.2.3.1 勾长
+
+定义杨氏矩阵中的某个格子$x\in Y$的**勾长**$\text{hook}(x)$为：该格子右边和下边（包含自己）的格子总数。**勾长公式**指出：将$\displaystyle\sum_{i=1}^{k}l[i]$个互异数字填入杨氏矩阵中，总共的方案数为$\displaystyle\frac{n!}{\displaystyle\prod_{\forall x\in Y}\text{hook}(x)}$。
+
+> [洛谷P2132](https://www.luogu.com.cn/problem/P2132)：给定总共包含`k<=5`行的、每行长度为`l[]`的杨氏矩阵$Y$。现要求将数字`1~n`（$n=\displaystyle\sum_{i=1}^{k}l[i]\le 30$）填入$Y$，求方案总数。
+
+本题的通用解法为动态规划。注意到`k<=5`，所以令`dp[a1][a2][a3][a4][a5]`表示总共包含`5`行的、每行长度为$a_i$的杨氏矩阵，填入$n=\displaystyle\sum_{i=1}^{5}a_i$个互异数字的方案总数。设想已经知道某个杨氏矩阵$Y$的答案，现在考虑在不破坏行长宽松递减的前提下，为某一行添加一格，变成$Y'$，**容易发现$Y$的任意状态都能转移到$Y'$**。对每一行都这么操作，于是有**填表法**状态转移方程：
+
+$$
+\underset{0\le a_1\le a_2 \le a_3 \le a_4 \le a_5\le n}{\text{dp}[a_1][a_2][a_3][a_4][a_5]} = \sum \begin{cases}
+	\text{dp}[a_1-1][a_2][a_3][a_4][a_5] &, \text{only if }a_1>a_2 \\
+	\text{dp}[a_1][a_2-1][a_3][a_4][a_5] &, \text{only if }a_2>a_3 \\
+	\text{dp}[a_1][a_2][a_3-1][a_4][a_5] &, \text{only if }a_3>a_4 \\
+	\text{dp}[a_1][a_2][a_3][a_4-1][a_5] &, \text{only if }a_4>a_5 \\
+	\text{dp}[a_1][a_2][a_3][a_4][a_5-1] &, \text{only if }a_5>0
+\end{cases}
+$$
+
+或者**刷表法**状态转移方程：
+
+$$
+ \begin{cases}
+	\text{dp}[a_1+1][a_2][a_3][a_4][a_5] &, \text{only if }l_1>a_1\\
+	\text{dp}[a_1][a_2+1][a_3][a_4][a_5] &, \text{only if }l_2>a_2, a_1>a_2 \\
+	\text{dp}[a_1][a_2][a_3+1][a_4][a_5] &, \text{only if }l_3>a_3, a_2>a_3\\
+	\text{dp}[a_1][a_2][a_3][a_4+1][a_5] &, \text{only if }l_4>a_4, a_3>a_4\\
+	\text{dp}[a_1][a_2][a_3][a_4][a_5+1] &, \text{only if }l_5>a_5, a_4>a_5
+\end{cases} \text{ += } \underset{0\le a_1\le a_2 \le a_3 \le a_4 \le a_5\le n}{\text{dp}[a_1][a_2][a_3][a_4][a_5]}
+$$
+
+
+注意到`dp[][][][][] > 0`恒成立，所以可以令`0`表示状态未更新，进行DFS记忆化搜索。
+
+```c++
+const int K_MAX = 5, N_MAX = 30;
+int k, n, l[K_MAX + 1]; int64_t dp[N_MAX + 1][N_MAX + 1][N_MAX + 1][N_MAX + 1][N_MAX + 1];
+int64_t dp_dfs(const int &a1, const int &a2, const int &a3, const int &a4, const int &a5) {
+    if(a1 < 0 || a2 < 0 || a3 < 0 || a4 < 0 || a5 < 0) { return 0; }
+    if(dp[a1][a2][a3][a4][a5] == 0) {
+        if(a1 > a2) { dp[a1][a2][a3][a4][a5] += dp_dfs(a1 - 1, a2, a3, a4, a5); }
+        if(a2 > a3) { dp[a1][a2][a3][a4][a5] += dp_dfs(a1, a2 - 1, a3, a4, a5); }
+        if(a3 > a4) { dp[a1][a2][a3][a4][a5] += dp_dfs(a1, a2, a3 - 1, a4, a5); }
+        if(a4 > a5) { dp[a1][a2][a3][a4][a5] += dp_dfs(a1, a2, a3, a4 - 1, a5); }
+        if(a5 > 0 ) { dp[a1][a2][a3][a4][a5] += dp_dfs(a1, a2, a3, a4, a5 - 1); }
+    }
+    return dp[a1][a2][a3][a4][a5];
+}
+int main() {
+    std::cin >> k;
+    for(int i = 1; i <= k; ++i) { std::cin >> l[i]; }
+    n = std::accumulate(l + 1, l + 1 + k, 0);
+    dp[0][0][0][0][0] = 1;
+    std::cout << dp_dfs(l[1], l[2], l[3], l[4], l[5]);
+}
+```
+
+本题也可以直接用勾长公示。由于公式中出现了分数，所以需要手动模拟分子和分母，每进行一次运算后就要除以两者的最大公因数，防止溢出。
+
+```c++
+const int K_MAX = 5, N_MAX = 30;
+int k, n, l[K_MAX + 1], right[K_MAX + 1][N_MAX + 1], down[K_MAX + 1][N_MAX + 1];
+int64_t ans_numerator = 1, ans_denominator = 1;
+
+int main() {
+    std::cin >> k;
+    for(int i = 1; i <= k; ++i) { std::cin >> l[i]; }
+    n = std::accumulate(l + 1, l + 1 + k, 0);
+    for(int i = 1; i <= k; ++i) { for(int j = l[i]; j >= 1; --j) { right[i][j] = l[i] - j; } }
+    for(int i = k - 1; i >= 1; --i) { for(int j = 1; j <= l[i]; ++j) { down[i][j] = (j > l[i + 1] ? 0 : down[i + 1][j] + 1); }     }
+    int count = 0;
+    for(int i = 5; i >= 1; --i) {
+        for(int j = l[i]; j >= 1; --j) {
+            ans_numerator *= ++count; ans_denominator *= down[i][j] + right[i][j] + 1;
+            int64_t gcd_temp = gcd(ans_numerator, ans_denominator);
+            ans_numerator /= gcd_temp; ans_denominator /= gcd_temp;
+        }
+    }
+    std::cout << ans_numerator / ans_denominator;
 }
 ```
 
