@@ -1962,6 +1962,44 @@ int main() {
 
 在一般的背包问题中，物品序列可以视为乱序，即无论如何排列选择物品的次序都不会影响最终答案。但在时间背包中，物品选择次序是固定的。即使背包容量充足，能否选择后面的物品也会取决于前面的物品的选择策略。
 
+> [洛谷P8803](https://www.luogu.com.cn/problem/P8803)：给定`n`个物品，它们的价值和日期分别为`.v`和`.t`。现要求选出若干个物品，在总价值不超过`m`的情况下，且**任意两个物品的时间满足$|t_i-t_j|\ge k$**，求总价值的最大值。
+
+不妨将物品按时间升序排序，则选择的物品会构成一个子序列，于是题目条件翻译为子序列中的相邻两项时间之差大于等于`k`。令`dp[i][j]`表示给定前`i`个物品，背包容量为`j`的情况下，能选择的物品最大总价值。
+
+现考虑`dp[i][j]`的状态转移：
+
+- 如果不选择第`i`个物品，直接可以从`dp[i-1][j]`转移而来。
+- 如果选择了第`i`个物品，则令**在它左边第一个不会发生时间冲突的物品编号为`pre_stuff[i]`，可以从`dp[pre_stuff[i]][j - stuff[i].v] + stuff[i].v`转移而来**。
+
+于是易得状态转移方程——取两种情况的最大值即可。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 5e3, K_MAX = 50;
+int day_map[13] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+int n, m, k, month_temp, day_temp, pre_stuff_pointer, dp[N_MAX + 1][M_MAX + 1];
+struct Stuff { int t, v; } stuff[N_MAX + 1]; int pre_stuff[N_MAX + 1];
+int main() {
+    for(int i = 1; i <= 12; ++i) { day_map[i] += day_map[i - 1]; }
+    std::cin >> n >> m >> k;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> month_temp >> day_temp >> stuff[i].v;
+        stuff[i].t = day_map[month_temp - 1] + day_temp;
+    }
+    std::sort(stuff + 1, stuff + 1 + n, [](const Stuff &lhs, const Stuff &rhs) { return lhs.t < rhs.t; });
+    stuff[0].t = INT32_MIN;
+    for(int i = 1; i <= n; ++i) {
+        while(stuff[pre_stuff_pointer + 1].t + k <= stuff[i].t) { ++pre_stuff_pointer; }
+        pre_stuff[i] = pre_stuff_pointer;
+    }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = m; j >= stuff[i].v; --j) {
+            dp[i][j] = std::max(dp[i - 1][j], dp[pre_stuff[i]][j - stuff[i].v] + stuff[i].v);
+        }
+    }
+    std::cout << dp[n][m];
+}
+```
+
 > [洛谷P1717](https://www.luogu.com.cn/problem/P1717)：现给定有顺序的、不限量供应的`n`种物品，背包代价限额为`12*h`，每个物品的代价均为`1`。当第`i`种物品选择`k`件时，这种物品的总收益为关于`k`的等差数列$\{f[i]-d[i]\cdot(k-1)\}_{k=1}^{\infty}$的前`k`项和$(2f[i]+(k-1)\cdot d[i])\cdot\displaystyle\frac{k}{2}$，其中`d[i]>=0`。**现在只能从第`1`种物品开始向后移动，每次从第`i-1`个物品移动到第`i`个物品，就要在背包中填充代价为`t[i-1]`、价值为`0`的无用物品。只有当前在第`i`种物品的位置，才有资格选择第`i`种物品**。求背包最终总价值的最大值。
 
 本题的关键出在填充的无用物品上。设想这样一个场景——假设每个`t[]`都非常大，梭哈最后一种物品最划算，以至于前面的物品一概不选。但是要移动到最后一种物品所在的位置，会导致背包早已被无用物品填满。这意味着我们要维护“给定前`i`个物品、背包代价限额为`j`取得最优解时，背包中的代价总和”`cost_sum[i][j]`。以此是否超过背包原始代价限额，作为能否参与状态转移的依据。
