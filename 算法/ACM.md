@@ -1962,7 +1962,7 @@ int main() {
 
 在一般的背包问题中，物品序列可以视为乱序，即无论如何排列选择物品的次序都不会影响最终答案。但在时间背包中，物品选择次序是固定的。即使背包容量充足，能否选择后面的物品也会取决于前面的物品的选择策略。
 
-> [洛谷P8803](https://www.luogu.com.cn/problem/P8803)：给定`n`个物品，它们的价值和日期分别为`.v`和`.t`。现要求选出若干个物品，在总价值不超过`m`的情况下，且**任意两个物品的时间满足$|t_i-t_j|\ge k$**，求总价值的最大值。
+> [洛谷P8803](https://www.luogu.com.cn/problem/P8803)：给定`n`个物品，它们的价值和日期分别为`.v`和`.t`。现要求选出若干个物品，在总价值不超过`m`的情况下，且要求选择的**任意两个物品的时间满足$|t_i-t_j|\ge k$**，求总价值的最大值。
 
 不妨将物品按时间升序排序，则选择的物品会构成一个子序列，于是题目条件翻译为子序列中的相邻两项时间之差大于等于`k`。令`dp[i][j]`表示给定前`i`个物品，背包容量为`j`的情况下，能选择的物品最大总价值。
 
@@ -7777,9 +7777,9 @@ int main() {
 }
 ```
 
-## §4.4 字符串最优转换
+## §4.4 字符串最优修改
 
-### §4.4.1 回文串转换
+### §4.4.1 修改为回文串
 
 > [洛谷P1435](https://www.luogu.com.cn/problem/P1435)：给定一个长度为`n`的字符串`s`，至少需要插入多少字符，才能让`s`变成回文串？
 
@@ -7865,6 +7865,49 @@ int main() {
         }
     }
     std::cout << dp[1][m];
+}
+```
+
+### §4.4.2 修改为子序列
+
+> [洛谷P8703](https://www.luogu.com.cn/problem/P8703)：给定两个字符串`a`、`b`（`a`的长度大于等于`b`）。请问至少要更改`a`中的多少个字符，才能让`b`是`a`的子串？
+
+令`dp[i][j]`表示给定字符串`a[1->i]`、`b[1->j]`时的字符最少更改数。考虑其状态转移：
+
+- 如果`a[i]==b[j]`，那么不需要额外更改任何字符，直接从`dp[i-1][j-1]`转移过来即可。
+- 如果`a[i]!=b[j]`：取下列两种
+	- 如果`b[1->j]`已经是`a[1->i-1]`的子序列，那么`a[i]`也没有必要存在了，直接从`dp[i-1][j]`转移过来即可。
+	- 如果`b[1->j]`不是`a[1->i-1]`的子序列，那么只能更改`a[i]`了，需要从`dp[i-1][j-1] + 1`转移过来。
+
+根据以上分析，我们希望：如果`b[1->j]`不是`a[1->j]`的子序列，则`dp[i][j]`应该记为无穷大。**反之，如果`dp[i][j]`为无穷大，则`b[1->j]`不是`a[1->j]`的子序列。借助这个特性，我们就可以在状态转移方程中判断是否早已出现子序列包含了，无穷大的`dp[][]`值会自动被`min()`干掉**。因此初始化时，`dp[0->len_a][1->len_b]`均为无穷大，`dp[0->len_a][0]`初始化为`0`。
+
+$$
+\underset{\forall i \le j}{\text{dp}[i][j]} = \begin{cases}
+	\text{dp}[i-1][j-1] & , a[i]=b[j] \\
+	\min(\text{dp}[i-1][j], \text{dp}[i-1][j-1]+1) & , a[i]\neq b[j]
+\end{cases}
+$$
+
+```c++
+const int STR_LEN_MAX = 1e3;
+char a[STR_LEN_MAX + 2], b[STR_LEN_MAX + 1];
+int len_a, len_b, dp[STR_LEN_MAX + 1][STR_LEN_MAX + 1];
+
+int main() {
+    std::cin >> (a + 1) >> (b + 1);
+    len_a = std::strlen(a + 1); len_b = std::strlen(b + 1);
+    std::fill(*dp, *dp + (STR_LEN_MAX + 1) * (STR_LEN_MAX + 1), 1e9);
+    for(int i = 0; i <= len_a; ++i) { dp[i][0] = 0; }
+    for(int i = 1; i <= len_a; ++i) {
+        for(int j = 1; j <= i && j <= len_b; ++j) {
+            if(a[i] == b[j]) {
+                dp[i][j] = dp[i - 1][j - 1];
+            } else if (a[i] != b[j]) {
+                dp[i][j] = std::min(dp[i - 1][j], dp[i - 1][j - 1] + 1);
+            }
+        }
+    }
+    std::cout << dp[len_a][len_b];
 }
 ```
 
@@ -9253,6 +9296,82 @@ int main() {
 ### §6.3.3 Sollin算法
 
 https://www.luogu.com.cn/article/h041rvt9
+
+## §6.4 DFS生成树
+
+> [洛谷P3465](https://www.luogu.com.cn/problem/P3465)：给定一个无向图$\mathcal{G}$，询问是否存在一个**无向生成子图$\mathcal{G'}$**，使得将$\mathcal{G'}$中的无向边一一替换为有向边（任选方向），得到的有向图$\mathcal{G''}$中的所有顶点入度均为`1`？如果存在，则输出各个顶点入度边的起点编号。
+
+本题的关键是判定条件是什么。我们先考虑$\mathcal{G}$为连通图的简单情形。随意选择一个顶点$v_i$并考虑其DFS生成树，容易发现：**树上的所有非根节点入度均为`1`，所以只需要存在一条指向根节点的反祖边即可。进一步考虑，任意节点都可以作为DFS生成树的根节点，因此只需要存在一条反祖边即可，它指向哪个节点$v_j$，哪个节点$v_j$就能成为新的生成树根节点**。然后将靠近根节点的有向边全部翻转即可。
+
+```mermaid
+graph TB
+	subgraph sub_b["After"]
+		direction LR
+		b2["2"] --"树边"--> c2["3"] --"树边"--> d2["4"] --"树边"--> b2
+		b2["2<br>ans根节点"] =="逆转树边"==> a2["1<br>DFS根节点"]
+		a2 --> e2["5"]
+	end
+	subgraph sub_a["Before"]
+		direction LR
+		a1["1<br>DFS根节点"] --"树边"--> b1["2<br>ans根节点"] --"树边"--> c1["3"] --"树边"--> d1["4"] -."返祖边".-> b1
+		a1 --> e1["5"]
+	end
+```
+
+在代码实现中，我们用`vertex_dfs_father[]`记录以$v_i$为根节点的DFS生成树中，是哪个节点指向了当前节点；用`vertex_ans_father[]`记录以$v_j$为根节点的DFS生成树中，对`vertex_dfs_father[]`中的有向边进行反转修正后的最终答案。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 2e5 * 2;
+int n, m, u_temp, v_temp, vertex_visited[N_MAX + 1], vertex_dfs_father[N_MAX + 1], vertex_ans_father[N_MAX + 1];
+
+int edge_count, edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1];
+void edge_add(const int &u, const int &v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+bool is_dfs_valid; // 本次DFS生成树是否遇到了反祖边
+void dfs(const int &root) {
+    vertex_visited[root] = true;
+    for(int i = edge_first[root]; i != 0; i = edge_next[i]) {
+        int child = edge_to[i];
+        if(child == vertex_dfs_father[root]) { continue; }
+        if(vertex_visited[child] == false) { // 树边
+            vertex_dfs_father[child] = root;
+            vertex_ans_father[child] = root;
+            dfs(child);
+        } else if(vertex_visited[child] == true && is_dfs_valid == false) {
+            is_dfs_valid = true;
+            vertex_ans_father[child] = root; // 修正返祖边终点child的入度边
+            while(child != 0) { // 逆转沿DFS向上的有向边
+                vertex_ans_father[vertex_dfs_father[child]] = child;
+                child = vertex_dfs_father[child];
+            }
+        }
+    }
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        edge_add(u_temp, v_temp);
+        edge_add(v_temp, u_temp);
+    }
+    for(int i = 1; i <= n; ++i) {
+        if(vertex_visited[i] == true) { continue; }
+        is_dfs_valid = false;
+        dfs(i);
+        if(is_dfs_valid == false) {
+            std::cout << "NIE";
+            return 0;
+        }
+    }
+    std::cout << "TAK\n";
+    for(int i = 1; i <= n; ++i) { std::cout << vertex_ans_father[i] << '\n'; }
+}
+```
 
 # §7 数据结构
 
