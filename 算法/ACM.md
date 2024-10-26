@@ -4,7 +4,7 @@
 
 ## §1.1 `<iomainip>`
 
-众所周知，在 `algorithm` 库中有一个 `max` 函数，但你不知道的是 `ISO c++11` 中 `max` 可以接受多个参数，前提是要用花括号括起来，如：
+C++11起，`std::max` 可以接受多个参数，前提是要用花括号括起来，如：
 
 ```cpp
 int a = max({9, 9, 12, 97301, 937});
@@ -5831,6 +5831,10 @@ int main() {
 
 ## §3.1 搜索
 
+### §3.1.1 搜索算法
+
+#### §3.1.1.1 深度优先搜索（DFS）
+
 深度优先搜索板子：
 
 ```c++
@@ -5880,6 +5884,8 @@ int main(){
 }
 ```
 
+#### §3.1.1.2 广度优先搜索（BFS）
+
 广度优先搜素板子：
 
 ```c++
@@ -5913,7 +5919,27 @@ void bfs_floodfill(long long int i, long long int j){
 }
 ```
 
-### §3.1.1 剪枝
+#### §3.1.1.3 双向广度优先搜索（BBFS）
+
+设BFS进行`x`次迭代的时间复杂度为$O(f(x))$，则BBFS的时间复杂度为$O\left(2f\left(\displaystyle\frac{x}{2}\right)\right)$，$f(x)$增长越快，BBFS就优化得越明显。
+
+#### §3.1.1.4 `A*`搜索
+
+给定起始状态$s_1$，则当前状态$x$到目标状态$s_2$的代价可以表示为$f(x)=g(x)+h(x)$，其中$g(x)$表示起始状态到当前状态的代价，$h(x)$表示当前状态到目标状态的代价。在实际的搜索过程中，我们只知道$g(x)$，而不知道$h(x)$的确切表达式，所以我们常用自定义的$h^*(x)$估计。
+
+| 大小关系          | 搜索范围 | 搜索效率 | 能否保证最优解 |
+| ------------- | ---- | ---- | ------- |
+| $h(x)>h^*(x)$ | 大    | ❌    | ✔       |
+| $h(x)=h^*(x)$ | 中    | ✔    | ✔       |
+| $h(x)<h^*(x)$ | 小    | ✔    | ❌       |
+
+我们常设计$h^*(x)\le h(x)$，以保证绝对能找到最优解，又让$h^*(x)$尽可能地大，以提高搜索效率。在实际编程中，我们可以给自定义函数乘以一个系数，使得同时满足上面的两点要求。
+
+> [洛谷P5507](https://www.luogu.com.cn/problem/P5507)：给定模`m`意义的序列`int a[1->n]`。现允许执行若干次单点操作，每次针对`a[i]`的单点操作都会让`a[i]`和`a[trans_table[i][a[i]]]`同时自增`1`后对`m`取模。请问至少要经过多少次这样的操作，才能让`a[1->n]`全都是`0`？请输出每次单点操作的元素下标，保证答案存在，且答案长度小于等于`PATH_LEN_MAX == 17`。
+
+考虑如何设计$h^*(x)$函数。在不考虑`++a[trans_table[i][a[i]]]`的情况下，每次让一个元素`a[i]`变成`0`，需要进行`(m - a[i]) % m`次操作。现在考虑`++a[trans_table[i][a[i]]]`的存在，颇有"一虎杀两羊"的效果，一次操作造成两个元素自增。因此，最优情况下，即$h(x)$的下确界为$\displaystyle\frac{1}{2}\displaystyle\sum_{i=1}^{12}(m-a[i])\%m$，令该式为$h^*(x)$即可。
+
+### §3.1.2 剪枝
 
 剪枝是DFS中常用的一种技术。当DFS进入到一种不可能触及目标的状态时，就可以舍弃掉该状态下的子树代表的状态空间。
 
@@ -5942,7 +5968,7 @@ bool dfs(int i, int l1, int l2, int l3, int l4){
 2. 如果某个长木棍（`l1`、`l2`、`l1`、`l4`）的长度大于`sum / 4`，则该木棍的长度不可能与其它木棍长度相同，即“一山不容二虎”。
 3. 为了让第二条更快地触及“一山不容二虎”，我们想一开始就让各个长木棍的长度冲破`sum / 4`这个上线。为此可以将`n`个木棍长度降序排序。
 
-### §3.1.2 棋盘搜索
+### §3.1.3 棋盘搜索
 
 > [洛谷P1123](https://www.luogu.com.cn/problem/P1123)：给定`n×m`个数字，要求上下左右斜向不相邻地选出若干个数字，使其之和最大。
 
@@ -5990,7 +6016,7 @@ int main() {
 
 除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
 
-### §3.1.3 表达式插入运算符
+### §3.1.4 表达式插入运算符
 
 > [洛谷P1874]()：给定一个十进制数字字符串`s`，可以在任意字符之间添加`+`号，使最后的表达式计算结果恰好为`n`。请输出需要添加`+`号的最少数量，如果不存在这样的添加方法，则输出`-1`。本题中的所有数字均可以携带任意个前导零。
 
@@ -6000,7 +6026,7 @@ TODO：？？？？
 
 TODO：？？？？
 
-### §3.1.4 正则匹配
+### §3.1.5 正则匹配
 
 > [洛谷P8650](https://www.luogu.com.cn/problem/solution/P8650)：给定一个只由`x`、`(`、`)`、`|`构成的正则表达式`s`，求其能匹配的最长字符串的长度。例如`x((x|xx)|xxx)`的最长匹配字符串长度为`4`。
 
@@ -6209,6 +6235,12 @@ int main() {
     std::cout << right_pointer;
 }
 ```
+
+> [洛谷P2898](https://www.luogu.com.cn/problem/P2898)：给定一个未知的序列`a[1->n<=1e6]`，按顺序依次施加`q_total`个限制条件，第`i`个条件要求$\displaystyle\min_{i\in[l_i,r_i]}a[i]=x_i$。请问施加到哪一条条件时，会发生矛盾？如果没有矛盾，则输出`0`。
+
+显然对`q`在`[1, q]`范围内二分。
+
+接下来考虑单次二分的判定函数。令`master_q[i:1->n]`表示`a[i]`已经被哪条规则限制。这些最小值限制条件在什么情况下会产生矛盾呢？**我们敏锐地观察到：如果某个条件规定的`[l[i], r[i]]`内的所有元素，都已经被前面的某条规则限制，且前面的规则都不会出现**
 
 ## §3.3 贪心
 
@@ -7890,7 +7922,7 @@ $$
 
 ```c++
 const int STR_LEN_MAX = 1e3;
-char a[STR_LEN_MAX + 2], b[STR_LEN_MAX + 1];
+char a[STR_LEN_MAX + 2], b[STR_LEN_MAX + 2];
 int len_a, len_b, dp[STR_LEN_MAX + 1][STR_LEN_MAX + 1];
 
 int main() {
@@ -9745,6 +9777,41 @@ int main() {
 }
 ```
 
+> [洛谷P2391](https://www.luogu.com.cn/problem/P2391)：给定长度为`n<=1e6`的序列`a[1->n]`，初始时格子上没有任何颜色，记为`0`。现进行`q<=1e7`次区间操作，第`i`次操作会用第`i`种颜色覆盖`[l_i, r_i]`上原有的颜色。求最终序列的颜色总数（不包括无色）。
+
+如果说上题还能用线段树卡过，这道题的`q<=1e7`则彻底封死了$O(q\log_2{n})$的线段树。本题的正解依然是并查集。
+
+在线维护具有相同颜色的格子集合，需要涉及大量的拆分，因为格子的颜色会被多次覆盖。然而并查集易于合并，但是难以拆分。**不妨逆序涂色，此时颜色不能被覆盖，于是每个格子只会被涂一次颜色**。利用`dsu_next[i]`表示第`i`个格子右边的第一个未被涂色的格子编号，该数组由`dsu_find()`维护。起初，每个格子都未被染色，所以`dsu_next[i]`就是`i`自己。第`i`个格子被染色后，我们需要更新`dsu_next[i]`为`dsu_find(i+1)`。**这样做会导致存在`dsu_next[?]`的值为`n+1`，从而使得`dsu_find()`访问`dsu_next[n+1]`发生数组越界，所以要多开一个空间。**
+
+```c++
+const int N_MAX = 1e6, q_MAX = 1e7;
+int n, q, k_1, k_2, x_temp, y_temp, current_temp;
+
+int dsu_next[N_MAX + 2], dsu_color[N_MAX + 2];
+int dsu_find(const int &x) {
+    return dsu_next[x] == x ? x : dsu_next[x] = dsu_find(dsu_next[x]);
+}
+
+int main() {
+    std::cin >> n >> q >> k_1 >> k_2;
+    std::iota(dsu_next + 1, dsu_next + 1 + n + 1, 1);
+    for(int i = q; i >= 1; --i) {
+        x_temp = ((i * k_1) + k_2) % n + 1;
+        y_temp = ((i * k_2) + k_1) % n + 1;
+        if(x_temp > y_temp) { std::swap(x_temp, y_temp); }
+        while(true) {
+            x_temp = dsu_find(x_temp);
+            if(x_temp > y_temp) { break; }
+            dsu_color[x_temp] = i;
+            dsu_next[x_temp] = dsu_find(x_temp + 1);
+        }
+    }
+    for(int i = 1; i <= n; ++i) {
+        std::cout << dsu_color[i] << '\n';
+    }
+}
+```
+
 ### §7.2.2 带权并查集
 
 在并查集中，如果属于同一种类的元素具有公共的属性，则称为带权并查集。例如统计种类的元素个数`dsu_size[]`就是一种权重。
@@ -10185,7 +10252,7 @@ int main() {
 }
 ```
 
-## §7.3 双端队列
+## §7.3 队列/单调队列
 
 ```c++
 /**
@@ -10372,6 +10439,168 @@ int main(){
         ans = std::max(ans, j - i + 1);
     }
     std::cout << ans;
+}
+```
+
+## §7.8 栈/单调栈
+
+### §7.8.1 最大子矩形问题
+
+> [洛谷P4147](https://www.luogu.com.cn/problem/P4147)：给定一个`n`行`m`列的布尔矩阵`a[i][j]`，要求从中框选一个仅包含`true`的子矩形，求子矩形的面积最大值。
+
+我们令`f[i][j]`表示从`(i, j)`处开始（包含`(i, j)`本身），向上能有多少个连续的`true`。`f[*][*]`容易通过$O(nm)$预处理得到。然后考虑一维数组`f[i][*]`：
+
+**如果`f[i][*]`宽松递增**，则在所有以第`i`行为底部的子矩形中，最大的符合条件的子矩形面积只有以下情况。以`f[i][1->6] = {1, 2, 2, 3, 3, 3}`为例，下图中未标数字的部分对应`false`，不同数字的本质都是`true`，仅用于标识，无实际意义。
+
+```
+      3 3 3      3 3 3      
+  2 2 3 3 3  ->  3 3 3  or  2 2 3 3 3  or  
+1 2 2 3 3 3      3 3 3      2 2 3 3 3      1 2 2 3 3 3
+
+{1, 2, 2, 3, 3, 3}  
+	->  {[1, 1], [2, 2], [3, 3]}  
+	->  3×(3)  or  2×(3+2)  or  1×(3+2+1)
+```
+
+形式化地，我们将宽松递增数列`f[i][*]`中的相同元素`h`，合并成一体，并用`count`表示个数。于是就得到了若干个`std::pair<h, count>`，将其塞进`std::pair<h, count> stack[1->p]`数组。则在所有以第`i`行为底部的子矩形中，最大的符合条件的子矩形面积为$\displaystyle\max_{k\in[1, p]}\left(\left(\sum_{i\in[k, p]}\text{stack}[i].\text{count}\right)\times\text{stack}[k].\text{h}\right)$。
+
+**如果不能保证`f[i][*]`宽松递增，则使用单调栈保证`std::pair<h, count> stack[1->p]`对`h`单调递增**。以`f[i][1->5] = {1, 3, 3, 3, 2}`为例，每次出栈时，都要在出栈前重复上面`f[i][*]`宽松递增时的步骤，**并且将出栈的元素"压平"到当前值，再压回栈中，与该元素合并**，直到栈重新变得为止。
+
+```
+  3 3 3              3 3 3
+  3 3 3 (new 2)  ->  3 3 3
+1 3 3 3 (new 2)      3 3 3 (没有1 3 3 3,因为已经形成单调栈)
+
+{1, 3, 3, 3, 2, 2}  
+	->  {[1, 1], [3, 3], new [2, 1]}  
+	->  {[1, 1], [2, 4]} // [3, 3]被压平了,已经形成单调栈
+	->  3×(3)
+```
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e3;
+int n, m;
+bool a[N_MAX + 1][M_MAX + 1]; char a_temp; int f[N_MAX + 1][M_MAX + 1];
+struct Node { int h, count; } stack[M_MAX + 1]; int stack_top, count_sum;
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            std::cin >> a_temp;
+            a[i][j] = (a_temp == 'F');
+            f[i][j] = (a[i][j] ? f[i - 1][j] + 1 : 0);
+        }
+    }
+    int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        stack_top = 0;
+        for(int j = 1; j <= m; ++j) {
+            count_sum = 0; // 统计出栈时会被"压平"的元素总数
+            while(stack_top > 0 && stack[stack_top].h >= f[i][j]) {
+                count_sum += stack[stack_top].count;
+                ans = std::max(ans, count_sum * stack[stack_top].h);
+                --stack_top;
+            }
+            stack[++stack_top] = {f[i][j], count_sum + 1};
+        }
+        count_sum = 0; // 清空栈时的元素总数后缀和
+        while(stack_top > 0) {
+            count_sum += stack[stack_top].count;
+            ans = std::max(ans, count_sum * stack[stack_top].h);
+            --stack_top;
+        }
+    }
+    std::cout << ans * 3;
+}
+```
+
+除了上面的单调栈做法，本题也有更容易理解的悬链线法。同样令`f[i][j]`表示从`(i, j)`处开始（包含`(i, j)`本身），向上能有多少个连续的`true`。**设想竖直方向的连续`true`元素构成一条悬链线，于是`f[i][j]`也可以等价地理解成以`(i, j)`为下端点的悬链线长度**。将这条线左右平移，保证线上的任何一点都不会碰到`false`或越界。令`l_line[i][j]`和`r_line[i][j]`表示左右平移的最大距离，于是`(i, j)`悬链线扫过的子矩形面积为$f[i][j]\cdot(\text{r\_line}[i][j]-\text{l\_line}[i][j]+1)$。枚举每个`(i, j)`点，求其子矩形面积最大值即可。
+
+为了求出悬链线的左右移动范围，我们需要预处理每个点的移动范围`l_point[*][*]`和`r_point[*][*]`。注意到在同一条悬链线上的点，位置越靠下，`l_line[i][j]`会越大，`r_line[i][j]`会越小。根据这个单调性，我们可以使用`l_line[i][j] = std::max(l_line[i-1][j], l_point[i][j])`和`r_line[i][j] = std::min(r_line[i-1][j], r_point[i][j]`。**我们不必在意`false`位置的正确性，反正遍历时也不会参与计算**。为了节省空间，可以将两个数组压在一起。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e3;
+int n, m;
+bool a[N_MAX + 1][M_MAX + 2]; char a_temp; int f[N_MAX + 1][M_MAX + 1], l[N_MAX + 1][M_MAX + 1], r[N_MAX + 1][M_MAX + 1];
+struct Node { int h, count; } stack[M_MAX + 1]; int stack_top, count_sum;
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            std::cin >> a_temp;
+            a[i][j] = (a_temp == 'F');
+            f[i][j] = (a[i][j] ? f[i - 1][j] + 1 : 0);
+        }
+    }
+    for(int i = 1; i <= n; ++i) {
+        // a[i][0]均初始化为false,因此越界等价于遇到false
+        for(int j = 1; j <= m; ++j) { l[i][j] = (a[i][j - 1] == true ? l[i][j - 1] : j); }
+        // a[i][m+1]均初始化为false,因此越界等价于遇到false
+        for(int j = m; j >= 1; --j) { r[i][j] = (a[i][j + 1] == true ? r[i][j + 1] : j); }
+    }
+    int ans = 0;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            if(a[i][j] == true && a[i - 1][j] == true) { // 如果在同一条悬链线上
+                l[i][j] = std::max(l[i][j], l[i - 1][j]);
+                r[i][j] = std::min(r[i][j], r[i - 1][j]);
+            }
+            if(a[i][j] == true) {
+                ans = std::max(ans, (r[i][j] - l[i][j] + 1) * f[i][j]);
+            }
+        }
+    }
+    std::cout << ans * 3;
+}
+```
+
+> [洛谷P1169](https://www.luogu.com.cn/problem/P1169)：给定一个`n`行`m`列的`0/1`棋盘，求其中`0/1`间隔排布的最大子矩形、最大子正方形的面积。
+
+无脑悬链线法。求正方形的面积，只需取长方形的最短边长再平方即可。
+
+```c++
+const int N_MAX = 2e3, M_MAX = 2e3;
+int n, m, up[N_MAX + 2][M_MAX + 2], left[N_MAX + 2][M_MAX + 2], right[N_MAX + 2][M_MAX + 2]; bool map[N_MAX + 2][M_MAX + 2];
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> map[i][j]; } }
+    /*  *为map[1->n][1->m]，其余部分为边缘填充
+         ---
+        -***-
+        -***-
+        -***-
+         ---
+    */
+    std::copy(map[1] + 1, map[1] + m + 1, map[0] + 1);
+    for(int i = 1; i <= n; ++i) { map[i][0] = map[i][1]; map[i][m + 1] = map[i][m]; }
+    std::copy(map[n] + 1, map[n] + m + 1, map[n + 1] + 1);
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) { up[i][j] = (map[i][j] != map[i - 1][j] ? up[i - 1][j] + 1 : 1); }
+        for(int j = 1; j <= m; ++j) { left[i][j] = (map[i][j] != map[i][j - 1] ? left[i][j - 1] + 1 : 1); }
+        for(int j = m; j >= 1; --j) { right[i][j] = (map[i][j] != map[i][j + 1] ? right[i][j + 1] + 1 : 1); }
+    }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            if(map[i][j] != map[i - 1][j]) {
+                left[i][j] = std::min(left[i][j], left[i - 1][j]);
+                right[i][j] = std::min(right[i][j], right[i - 1][j]);
+            }
+        }
+    }
+    int ans_rectangle = 0, ans_square = 0;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            const int &width_temp = left[i][j] + right[i][j] - 1;
+            const int &height_temp = up[i][j];
+            const int &border_min_temp = std::min(width_temp, height_temp);
+            ans_square = std::max(ans_square, border_min_temp * border_min_temp);
+            ans_rectangle = std::max(ans_rectangle, width_temp * height_temp);
+        }
+    }
+    std::cout << ans_square << '\n' << ans_rectangle;
 }
 ```
 
@@ -14680,168 +14909,6 @@ int main() {
 
 ### §7.7.5 斐波纳挈堆
 
-## §7.8 单调栈
-
-### §7.8.1 最大子矩形问题
-
-> [洛谷P4147](https://www.luogu.com.cn/problem/P4147)：给定一个`n`行`m`列的布尔矩阵`a[i][j]`，要求从中框选一个仅包含`true`的子矩形，求子矩形的面积最大值。
-
-我们令`f[i][j]`表示从`(i, j)`处开始（包含`(i, j)`本身），向上能有多少个连续的`true`。`f[*][*]`容易通过$O(nm)$预处理得到。然后考虑一维数组`f[i][*]`：
-
-**如果`f[i][*]`宽松递增**，则在所有以第`i`行为底部的子矩形中，最大的符合条件的子矩形面积只有以下情况。以`f[i][1->6] = {1, 2, 2, 3, 3, 3}`为例，下图中未标数字的部分对应`false`，不同数字的本质都是`true`，仅用于标识，无实际意义。
-
-```
-      3 3 3      3 3 3      
-  2 2 3 3 3  ->  3 3 3  or  2 2 3 3 3  or  
-1 2 2 3 3 3      3 3 3      2 2 3 3 3      1 2 2 3 3 3
-
-{1, 2, 2, 3, 3, 3}  
-	->  {[1, 1], [2, 2], [3, 3]}  
-	->  3×(3)  or  2×(3+2)  or  1×(3+2+1)
-```
-
-形式化地，我们将宽松递增数列`f[i][*]`中的相同元素`h`，合并成一体，并用`count`表示个数。于是就得到了若干个`std::pair<h, count>`，将其塞进`std::pair<h, count> stack[1->p]`数组。则在所有以第`i`行为底部的子矩形中，最大的符合条件的子矩形面积为$\displaystyle\max_{k\in[1, p]}\left(\left(\sum_{i\in[k, p]}\text{stack}[i].\text{count}\right)\times\text{stack}[k].\text{h}\right)$。
-
-**如果不能保证`f[i][*]`宽松递增，则使用单调栈保证`std::pair<h, count> stack[1->p]`对`h`单调递增**。以`f[i][1->5] = {1, 3, 3, 3, 2}`为例，每次出栈时，都要在出栈前重复上面`f[i][*]`宽松递增时的步骤，**并且将出栈的元素"压平"到当前值，再压回栈中，与该元素合并**，直到栈重新变得为止。
-
-```
-  3 3 3              3 3 3
-  3 3 3 (new 2)  ->  3 3 3
-1 3 3 3 (new 2)      3 3 3 (没有1 3 3 3,因为已经形成单调栈)
-
-{1, 3, 3, 3, 2, 2}  
-	->  {[1, 1], [3, 3], new [2, 1]}  
-	->  {[1, 1], [2, 4]} // [3, 3]被压平了,已经形成单调栈
-	->  3×(3)
-```
-
-```c++
-const int N_MAX = 1e3, M_MAX = 1e3;
-int n, m;
-bool a[N_MAX + 1][M_MAX + 1]; char a_temp; int f[N_MAX + 1][M_MAX + 1];
-struct Node { int h, count; } stack[M_MAX + 1]; int stack_top, count_sum;
-
-int main() {
-    std::cin >> n >> m;
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            std::cin >> a_temp;
-            a[i][j] = (a_temp == 'F');
-            f[i][j] = (a[i][j] ? f[i - 1][j] + 1 : 0);
-        }
-    }
-    int ans = 0;
-    for(int i = 1; i <= n; ++i) {
-        stack_top = 0;
-        for(int j = 1; j <= m; ++j) {
-            count_sum = 0; // 统计出栈时会被"压平"的元素总数
-            while(stack_top > 0 && stack[stack_top].h >= f[i][j]) {
-                count_sum += stack[stack_top].count;
-                ans = std::max(ans, count_sum * stack[stack_top].h);
-                --stack_top;
-            }
-            stack[++stack_top] = {f[i][j], count_sum + 1};
-        }
-        count_sum = 0; // 清空栈时的元素总数后缀和
-        while(stack_top > 0) {
-            count_sum += stack[stack_top].count;
-            ans = std::max(ans, count_sum * stack[stack_top].h);
-            --stack_top;
-        }
-    }
-    std::cout << ans * 3;
-}
-```
-
-除了上面的单调栈做法，本题也有更容易理解的悬链线法。同样令`f[i][j]`表示从`(i, j)`处开始（包含`(i, j)`本身），向上能有多少个连续的`true`。**设想竖直方向的连续`true`元素构成一条悬链线，于是`f[i][j]`也可以等价地理解成以`(i, j)`为下端点的悬链线长度**。将这条线左右平移，保证线上的任何一点都不会碰到`false`或越界。令`l_line[i][j]`和`r_line[i][j]`表示左右平移的最大距离，于是`(i, j)`悬链线扫过的子矩形面积为$f[i][j]\cdot(\text{r\_line}[i][j]-\text{l\_line}[i][j]+1)$。枚举每个`(i, j)`点，求其子矩形面积最大值即可。
-
-为了求出悬链线的左右移动范围，我们需要预处理每个点的移动范围`l_point[*][*]`和`r_point[*][*]`。注意到在同一条悬链线上的点，位置越靠下，`l_line[i][j]`会越大，`r_line[i][j]`会越小。根据这个单调性，我们可以使用`l_line[i][j] = std::max(l_line[i-1][j], l_point[i][j])`和`r_line[i][j] = std::min(r_line[i-1][j], r_point[i][j]`。**我们不必在意`false`位置的正确性，反正遍历时也不会参与计算**。为了节省空间，可以将两个数组压在一起。
-
-```c++
-const int N_MAX = 1e3, M_MAX = 1e3;
-int n, m;
-bool a[N_MAX + 1][M_MAX + 2]; char a_temp; int f[N_MAX + 1][M_MAX + 1], l[N_MAX + 1][M_MAX + 1], r[N_MAX + 1][M_MAX + 1];
-struct Node { int h, count; } stack[M_MAX + 1]; int stack_top, count_sum;
-
-int main() {
-    std::cin >> n >> m;
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            std::cin >> a_temp;
-            a[i][j] = (a_temp == 'F');
-            f[i][j] = (a[i][j] ? f[i - 1][j] + 1 : 0);
-        }
-    }
-    for(int i = 1; i <= n; ++i) {
-        // a[i][0]均初始化为false,因此越界等价于遇到false
-        for(int j = 1; j <= m; ++j) { l[i][j] = (a[i][j - 1] == true ? l[i][j - 1] : j); }
-        // a[i][m+1]均初始化为false,因此越界等价于遇到false
-        for(int j = m; j >= 1; --j) { r[i][j] = (a[i][j + 1] == true ? r[i][j + 1] : j); }
-    }
-    int ans = 0;
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            if(a[i][j] == true && a[i - 1][j] == true) { // 如果在同一条悬链线上
-                l[i][j] = std::max(l[i][j], l[i - 1][j]);
-                r[i][j] = std::min(r[i][j], r[i - 1][j]);
-            }
-            if(a[i][j] == true) {
-                ans = std::max(ans, (r[i][j] - l[i][j] + 1) * f[i][j]);
-            }
-        }
-    }
-    std::cout << ans * 3;
-}
-```
-
-> [洛谷P1169](https://www.luogu.com.cn/problem/P1169)：给定一个`n`行`m`列的`0/1`棋盘，求其中`0/1`间隔排布的最大子矩形、最大子正方形的面积。
-
-无脑悬链线法。求正方形的面积，只需取长方形的最短边长再平方即可。
-
-```c++
-const int N_MAX = 2e3, M_MAX = 2e3;
-int n, m, up[N_MAX + 2][M_MAX + 2], left[N_MAX + 2][M_MAX + 2], right[N_MAX + 2][M_MAX + 2]; bool map[N_MAX + 2][M_MAX + 2];
-
-int main() {
-    std::cin >> n >> m;
-    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> map[i][j]; } }
-    /*  *为map[1->n][1->m]，其余部分为边缘填充
-         ---
-        -***-
-        -***-
-        -***-
-         ---
-    */
-    std::copy(map[1] + 1, map[1] + m + 1, map[0] + 1);
-    for(int i = 1; i <= n; ++i) { map[i][0] = map[i][1]; map[i][m + 1] = map[i][m]; }
-    std::copy(map[n] + 1, map[n] + m + 1, map[n + 1] + 1);
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) { up[i][j] = (map[i][j] != map[i - 1][j] ? up[i - 1][j] + 1 : 1); }
-        for(int j = 1; j <= m; ++j) { left[i][j] = (map[i][j] != map[i][j - 1] ? left[i][j - 1] + 1 : 1); }
-        for(int j = m; j >= 1; --j) { right[i][j] = (map[i][j] != map[i][j + 1] ? right[i][j + 1] + 1 : 1); }
-    }
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            if(map[i][j] != map[i - 1][j]) {
-                left[i][j] = std::min(left[i][j], left[i - 1][j]);
-                right[i][j] = std::min(right[i][j], right[i - 1][j]);
-            }
-        }
-    }
-    int ans_rectangle = 0, ans_square = 0;
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            const int &width_temp = left[i][j] + right[i][j] - 1;
-            const int &height_temp = up[i][j];
-            const int &border_min_temp = std::min(width_temp, height_temp);
-            ans_square = std::max(ans_square, border_min_temp * border_min_temp);
-            ans_rectangle = std::max(ans_rectangle, width_temp * height_temp);
-        }
-    }
-    std::cout << ans_square << '\n' << ans_rectangle;
-}
-```
-
 ## §7.9 哈希
 
 哈希的本质是对状态的非连续离散化编号。
@@ -15115,6 +15182,143 @@ int main() {
 ### §8.3.2 向上/向下取整
 
 若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以用`(a - 1) / b + 1`表示。**该式在`a==0`时不适用**。
+
+## §8.4 快速幂/矩阵快速幂
+
+快速幂$a^b$的核心思想是：将`b`拆成二进制，于是$a^b$等价于$a^1$、$a^2$、$a^4$、...、$a^{2^{k}}$的线性相乘组合。时间复杂度从恒定的$O(b)$降为最坏情况下的$O(2\log_2{b})$。
+
+```c++
+// 快速幂
+inline long long int fast_power(long long int base, long long int power) {
+    long long int result = 1;
+    while(power > 0) {
+        if(power % 2) { result *= base; }
+        base = base * base;
+        power /= 2;
+    }
+    return result;
+}
+
+// 带有取模的快速幂
+inline long long int fast_power(long long int base, long long int power, long long int mod) {
+    long long int result = 1;
+    base %= mod;
+    while(power > 0) {
+        if(power % 2) { result = (result * base) % mod; }
+        base = (base * base) % mod;
+        power /= 2;
+    }
+    return result;
+}
+```
+
+矩阵快速幂的思想与之类似，只不过乘法作用的变量变为了自己封装的矩阵结构体。
+
+```c++
+const int N_MAX = 100, M_MAX = 100, MOD = 1e9 + 7;
+int n, m; long long int k;
+
+struct Matrix {
+    int n, m;
+    long long int data[N_MAX + 1][M_MAX + 1];
+    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.m == rhs.n);
+        Matrix ans;
+        std::fill(*ans.data, *ans.data + (N_MAX + 1) * (M_MAX + 1), 0);
+        ans.n = lhs.n, ans.m = rhs.m;
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                for(int k = 1; k <= lhs.m; ++k) {
+                    ans.data[i][j] = ans.data[i][j] + lhs.data[i][k] * rhs.data[k][j];
+                    ans.data[i][j] = (ans.data[i][j] % MOD + MOD) % MOD;
+                }
+            }
+        }
+        return ans;
+    }
+    Matrix operator*=(const Matrix &rhs) { return *this = *this * rhs; }
+} a;
+inline Matrix fast_matrix_power(Matrix base, long long int power) {
+    assert(base.n == base.m);
+    Matrix ans;
+    std::fill(*ans.data, *ans.data + (N_MAX + 1) * (M_MAX + 1), 0);
+    for(int i = 1; i <= base.n; ++i) { ans.data[i][i] = 1; }
+    ans.n = ans.m = base.n;
+    while(power > 0) {
+        if(power & 1) { ans *= base; }
+        base *= base;
+        power /= 2;
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> n >> k; m = n;
+    a.n = n, a.m = m;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            std::cin >> a.data[i][j];
+        }
+    }
+    a = fast_matrix_power(a, k);
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            std::cout << a.data[i][j] << ' ';
+        }
+        std::cout << '\n';
+    }
+}
+```
+
+> [洛谷P1962](https://www.luogu.com.cn/problem/P1962)：给定斐波那契数列的通项公式$f(n)=f(n-1)+f(n-2)$与初值条件$f(1)=f(2)=1$，求$f(n)$的值，模`MOD`输出。
+
+令矩阵$\mathbf{F}(n)=\left[\begin{matrix}f(n) \\ f(n-1)\end{matrix}\right]$，于是有递推公式$\mathbf{F}(n)=\left[\begin{matrix}1 & 1 \\ 0 & 1\end{matrix}\right]\mathbf{F}(n-1)$，化简得到通式$\mathbf{F}(n)=\left[\begin{matrix}1 & 1 \\ 0 & 1\end{matrix}\right]^n\mathbf{F}(0)$。由斐波那契数列通项公式可得$f(0)=0$，$f(-1)=1$，于是$\mathbf{F}(0)=\left[\begin{matrix} 0 \\ 1 \end{matrix}\right]$。直接套矩阵快速幂的板子，输出$\mathbf{F}(n)[1][1]$即可。
+
+```c++
+const int N_MAX = 2, M_MAX = 2, MOD = 1e9 + 7;
+long long int p;
+
+struct Matrix {
+    int n, m;
+    long long int data[N_MAX + 1][M_MAX + 1];
+    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.m == rhs.n);
+        Matrix ans;
+        std::fill(*ans.data, *ans.data + (N_MAX + 1) * (M_MAX + 1), 0);
+        ans.n = lhs.n, ans.m = rhs.m;
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                for(int k = 1; k <= lhs.m; ++k) {
+                    ans.data[i][j] = (ans.data[i][j] + lhs.data[i][k] * rhs.data[k][j]) % MOD;
+                }
+            }
+        }
+        return ans;
+    }
+    Matrix operator*=(const Matrix &rhs) { return *this = *this * rhs; }
+};
+inline Matrix fast_matrix_power(Matrix base, long long int power) {
+    assert(base.n == base.m);
+    Matrix ans;
+    std::fill(*ans.data, *ans.data + (N_MAX + 1) * (M_MAX + 1), 0);
+    for(int i = 1; i <= base.n; ++i) { ans.data[i][i] = 1; }
+    ans.n = ans.m = base.n;
+    while(power > 0) {
+        if(power & 1) { ans *= base; }
+        base *= base;
+        power /= 2;
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> p;
+    Matrix a; std::fill(*a.data, *a.data + (N_MAX + 1) * (M_MAX + 1), 0); a.n = a.m = 2; a.data[1][1] = a.data[1][2] = a.data[2][1] = 1;
+    Matrix f_0; std::fill(*f_0.data, *f_0.data + (N_MAX + 1) * (M_MAX + 1), 0); f_0.n = 2; f_0.m = 1; f_0.data[2][1] = 1;
+    Matrix ans = fast_matrix_power(a, p) * f_0;
+    std::cout << ans.data[1][1];
+}
+```
 
 # §9 模拟
 
