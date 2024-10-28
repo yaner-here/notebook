@@ -14468,7 +14468,7 @@ int main(){
 
 吉司机线段树的核心思想是：**通过不断的区间最值操作，消灭序列`a[1->n]`中的元素值多样性，直至每次区间最值编辑操作均能剪枝为止**。
 
-> [HDU5306](https://acm.hdu.edu.cn/showproblem.php?pid=5306)：给定序列`a[1->n]`，支持以下操作。（1）将`[l, r]`内的所有元素执行`a[i] = std::min(a[i], v)`；（2）查询`[l, r]`内的元素最大值；（3）查询`[l, r]`内的元素之和。
+> [HDU5306](https://acm.hdu.edu.cn/showproblem.php?pid=5306)：给定序列`a[1->n]`，支持以下操作。（1）将`[l, r]`内的所有元素执行`a[i] = std::min(a[i], z_temp)`；（2）查询`[l, r]`内的元素最大值；（3）查询`[l, r]`内的元素之和。
 
 本题的难点在于区间最值编辑操作无法用懒标记维护，单次区间最值编辑操作只能退化为若干个单点修改。为避免这一问题，吉如一线段树**令区间内的元素最大值为`.v_max1`、严格次大值为`.v_max2`（特殊地，如果没有严格次大值，则记为负无穷大）**，使用了以下两种剪枝策略：
 
@@ -14478,7 +14478,132 @@ int main(){
 
 如果只使用第一种剪枝，会存在一种`std::min(a[?], v)`中的`v`逐渐减小的最坏情况，每次区间最值编辑都会退化成单点编辑，从而超时。而第二种剪枝的引入则避免了这一问题——当某个区间在某次区间最值编辑操作后，出现了元素值均相等的情况，则该区间的`.v_max2`会被更新为`-∞`，因此后续的最值编辑操作会始终落入第一种或第二种剪枝的情形，避免了向下递归。
 
-现在分析该算法的时间复杂度，这里我们需要用到标签回收模型与势能分析。
+现在分析该算法的时间复杂度，这里我们需要用到标签回收模型与势能分析。特别感谢[Bilibili @左程云](https://www.bilibili.com/video/BV1HK421a75t/)的讲解。
+
+- 如果线段树中的某个节点的`.v_max1`不等于它的父节点的`.v_max1`，则给这个节点打上"代价标签"。特殊地，我们认为根节点的父节点的`.v_max`为`+∞`，因此父节点永远有"代价标签"。
+- **如果线段树上的某棵子树中的节点都没有"代价标签"，则区间最值编辑操作遍历到这棵子树的根节点时，一定会落入第一种或第二种剪枝中**。证明如下——假设前提成立，则这棵子树中所有节点的`.v_max1`均为根节点的`.v_max1`。而叶子节点的`.v_max2`恒为`-∞`，所以`pushup()`会使得所有节点的`.v_max2`均为`-∞`。于是这颗子树最坏情况下也只会落入到第二种剪枝，而不会沦落到向下递归。
+- 考察二叉树中的任意一对兄弟节点，最多只有一个可以有"代价标签"。数学上可以证明，代价标签数量的上确界为$n$。如果线段树中的某个节点沦落到了向下递归的情况，那么按照定义，一定有`.v_max2 >= v`成立。这说明严格次大值`.v_max2`不是`-∞`，所以严格次大值存在，于是`.v_max1 > .v_max2`，**这说明原先两个兄弟节点至少有一个带有"代价标签"**。区间最小值编辑操作会导致该节点的两个兄弟节点的`.v_max1`均变为`.v`，经`pushup()`上推更新后，该节点的`.v_max`也变为`.v`。**因此之后两个兄弟节点都不会带有"代价标签"，也就是说，一次到底的向下递归保证能严格保证干掉一个"代价标签"**。
+- 一次到底的向下递归的最坏时间复杂度为树的高度$O(\log_2{n})$，前文提到"代价标签"的数量为$O(n)$个，于是总时间复杂度为$O(n\log_2{n})$。
+
+`segtree_pushup()`的逻辑容易设计：
+
+```c++
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_max1 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max1);
+    if(segtree[root * 2].v_max1 > segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count;
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max1);
+    } else if(segtree[root * 2].v_max1 < segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max1_count = segtree[root * 2 + 1].v_max1_count;
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max2);
+    } else {
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count + segtree[root * 2 + 1].v_max1_count;
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max2);
+    }
+}
+```
+
+重点在于如何设计`segtree_pushdown()`。**每当`segtree_update_range_min(max_temp)`执行下推操作时，我们必须确保本次操作只会影响区间内值为`.v_sum1`的元素，也就是说`max_temp > 子节点.v_sum2`，这样才能`子节点.v_sum += (父节点.v_sum1 - 子节点.v_sum) * 子节点.v_sum1_count`实现$O(1)$编辑**。如果不满足这个条件，就向下递归，直到满足为止。
+
+```c++
+const int N_MAX = 1e6, Q_MAX = 1e6; const long long int NAGETIVE_MAX = -1e18;
+int n, q, a[N_MAX + 1], op_temp, x_temp, y_temp; long long int z_temp;
+
+struct SegTree {
+    int l, r, len;
+    long long int v_sum, v_max1, v_max2, v_max1_count;
+} segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_max1 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max1);
+    if(segtree[root * 2].v_max1 > segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count;
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max1);
+    } else if(segtree[root * 2].v_max1 < segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max1_count = segtree[root * 2 + 1].v_max1_count;
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max2);
+    } else {
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count + segtree[root * 2 + 1].v_max1_count;
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max2);
+    }
+}
+inline void segtree_update_lazytag(const int &child, const long long int &lazy_max1) {
+    if(lazy_max1 < segtree[child].v_max1) {
+        segtree[child].v_sum += (lazy_max1 - segtree[child].v_max1) * segtree[child].v_max1_count;
+        segtree[child].v_max1 = lazy_max1;
+    }
+}
+inline void segtree_pushdown(const int &root) {
+    segtree_update_lazytag(root * 2, segtree[root].v_max1);
+    segtree_update_lazytag(root * 2 + 1, segtree[root].v_max1);
+    // .v_max1既是值，也是懒标记，不用清空
+}
+void segtree_init(const int &root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r; segtree[root].len = r - l + 1;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        segtree[root].v_max1 = a[l];
+        segtree[root].v_max2 = NAGETIVE_MAX;
+        segtree[root].v_max1_count = 1;
+        return;
+    }
+    int mid = (l + r) / 2;
+    segtree_init(root * 2, l, mid);
+    segtree_init(root * 2 + 1, mid + 1, r);
+    segtree_pushup(root);
+}
+void segtree_update_range_min(const int &root, const int &l, const int &r, const long long int &max_temp) {
+    if(max_temp >= segtree[root].v_max1) { return; }
+    if(l <= segtree[root].l && r >= segtree[root].r && max_temp > segtree[root].v_max2) {
+        segtree_update_lazytag(root, max_temp);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_min(root * 2, l, r, max_temp); }
+    if(r > mid) { segtree_update_range_min(root * 2 + 1, l, r, max_temp); }
+    segtree_pushup(root);
+}
+long long int segtree_query_range_sum(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    long long int query = 0;
+    if(l <= mid) { query += segtree_query_range_sum(root * 2, l, r); }
+    if(r > mid) { query += segtree_query_range_sum(root * 2 + 1, l, r); }
+    return query;
+}
+long long int segtree_query_range_max(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_max1; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    long long int query = NAGETIVE_MAX;
+    if(l <= mid) { query = std::max(query, segtree_query_range_max(root * 2, l, r)); }
+    if(r > mid) { query = std::max(query, segtree_query_range_max(root * 2 + 1, l, r)); }
+    return query;
+}
+
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_update_range_min(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            std::cout << segtree_query_range_max(1, x_temp, y_temp) << '\n';
+        } else if(op_temp == 3) {
+            std::cout << segtree_query_range_sum(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
+
+> 给定序列`a[1->n]`，支持以下操作。（1）区间内所有元素自增`z_temp`；（2）将`[l, r]`内的所有元素执行`a[i] = std::min(a[i], z_temp)`；（3）查询`[l, r]`内的元素最大值；（4）查询`[l, r]`内的元素之和。
+
 
 ### §7.5.A 无需线段树的区间操作
 
