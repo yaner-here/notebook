@@ -14602,8 +14602,155 @@ int main() {
 }
 ```
 
-> 给定序列`a[1->n]`，支持以下操作。（1）区间内所有元素自增`z_temp`；（2）将`[l, r]`内的所有元素执行`a[i] = std::min(a[i], z_temp)`；（3）查询`[l, r]`内的元素最大值；（4）查询`[l, r]`内的元素之和。
+> [洛谷P6242](https://www.luogu.com.cn/problem/P6242)：给定序列`a[1->n]`，支持以下操作。（1）区间内所有元素自增`z_temp`；（2）将`[l, r]`内的所有元素执行`a[i] = std::min(a[i], z_temp)`；（3）查询`[l, r]`内的元素之和；（4）查询`[l, r]`内的元素最大值；（5）查询`[l, r]`内的各个"元素历史最大值"的最大值。
 
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5; const int64_t NAGETIVE_MAX = -1e18;
+int n, q, a[N_MAX + 1], op_temp, x_temp, y_temp; int64_t z_temp;
+
+struct SegTree {
+    int l, r, len;
+    int64_t v_max1, v_max2, v_sum, v_max1_count, v_max1_history;
+    int64_t lazy_max1_incre, lazy_max1_history_incre, lazy_nonmax1_incre, lazy_nonmax1_history_incre;
+} segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_max1 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max1);
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_max1_history = std::max(segtree[root * 2].v_max1_history, segtree[root * 2 + 1].v_max1_history);
+    if(segtree[root * 2].v_max1 == segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max2);
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count + segtree[root * 2 + 1].v_max1_count;
+    } else if(segtree[root * 2].v_max1 > segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max1);
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count;
+    } else if(segtree[root * 2].v_max1 < segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max2);
+        segtree[root].v_max1_count = segtree[root * 2 + 1].v_max1_count;
+    }
+}
+inline void segtree_modify_lazytag(const int &child, const int64_t &root_max1_incre, const int64_t &root_max1_history_incre, const int64_t &root_nonmax1_incre, const int64_t &root_nonmax1_history_incre) {
+    segtree[child].v_sum += segtree[child].v_max1_count * root_max1_incre + (segtree[child].len - segtree[child].v_max1_count) * root_nonmax1_incre;
+    segtree[child].v_max1_history = std::max(segtree[child].v_max1_history, segtree[child].v_max1 + root_max1_history_incre); // 只有"最大值+最大值提升的历史最大幅度"才有能力冲击历史最佳值
+    segtree[child].v_max1 += root_max1_incre;
+    if(segtree[child].v_max2 != NAGETIVE_MAX) { segtree[child].v_max2 += root_nonmax1_incre; } // 保证-∞自增任何数还是-∞
+    segtree[child].lazy_max1_history_incre = std::max(segtree[child].lazy_max1_history_incre, segtree[child].lazy_max1_incre + root_max1_history_incre); // 
+    segtree[child].lazy_max1_incre += root_max1_incre ;
+    segtree[child].lazy_nonmax1_history_incre = std::max(segtree[child].lazy_nonmax1_history_incre, segtree[child].lazy_nonmax1_incre + root_nonmax1_history_incre);
+    segtree[child].lazy_nonmax1_incre += root_nonmax1_incre;
+}
+inline void segtree_pushdown(const int &root) {
+    int64_t max_temp = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max1);
+    segtree_modify_lazytag(
+        root * 2,
+        segtree[root * 2].v_max1 == max_temp ? segtree[root].lazy_max1_incre : segtree[root].lazy_nonmax1_incre, 
+        segtree[root * 2].v_max1 == max_temp ? segtree[root].lazy_max1_history_incre : segtree[root].lazy_nonmax1_history_incre, 
+        segtree[root].lazy_nonmax1_incre,
+        segtree[root].lazy_nonmax1_history_incre
+    );
+    segtree_modify_lazytag(
+        root * 2 + 1,
+        segtree[root * 2 + 1].v_max1 == max_temp ? segtree[root].lazy_max1_incre : segtree[root].lazy_nonmax1_incre, 
+        segtree[root * 2 + 1].v_max1 == max_temp ? segtree[root].lazy_max1_history_incre : segtree[root].lazy_nonmax1_history_incre, 
+        segtree[root].lazy_nonmax1_incre,
+        segtree[root].lazy_nonmax1_history_incre
+    );
+    segtree[root].lazy_max1_incre = 0;
+    segtree[root].lazy_max1_history_incre = 0;
+    segtree[root].lazy_nonmax1_incre = 0;
+    segtree[root].lazy_nonmax1_history_incre = 0;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r; segtree[root].len = r - l + 1;
+    if(l == r) {
+        segtree[root].v_max1 = a[l];
+        segtree[root].v_max2 = NAGETIVE_MAX;
+        segtree[root].v_sum = a[l];
+        segtree[root].v_max1_count = 1;
+        segtree[root].v_max1_history = a[l];
+        return;
+    }
+    int mid = (l + r) / 2;
+    segtree_init(root * 2, l, mid);
+    segtree_init(root * 2 + 1, mid + 1, r);
+    segtree_pushup(root);
+}
+void segtree_update_range_incre(const int root, const int &l, const int &r, const int64_t &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree_modify_lazytag(root, incre, incre, incre, incre);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_incre(root * 2, l, r, incre); }
+    if(r > mid) { segtree_update_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+void segtree_update_range_min(const int root, const int &l, const int &r, const int64_t &max_temp) {
+    if(max_temp >= segtree[root].v_max1) { return; }
+    if(l <= segtree[root].l && r >= segtree[root].r && max_temp > segtree[root].v_max2) {
+        segtree_modify_lazytag(root, max_temp - segtree[root].v_max1, max_temp - segtree[root].v_max1, 0, 0);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_min(root * 2, l, r, max_temp); }
+    if(r > mid) { segtree_update_range_min(root * 2 + 1, l, r, max_temp); }
+    segtree_pushup(root);
+}
+int64_t segtree_query_range_max(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_max1; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query = INT64_MIN;
+    if(l <= mid) { query = std::max(query, segtree_query_range_max(root * 2, l, r)); }
+    if(r > mid) { query = std::max(query, segtree_query_range_max(root * 2 + 1, l, r)); }
+    return query;
+}
+int64_t segtree_query_range_sum(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query = 0;
+    if(l <= mid) { query += segtree_query_range_sum(root * 2, l, r); }
+    if(r > mid) { query += segtree_query_range_sum(root * 2 + 1, l, r); }
+    return query;
+}
+int64_t segtree_query_range_history_max(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_max1_history; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query = INT64_MIN;
+    if(l <= mid) { query = std::max(query, segtree_query_range_history_max(root * 2, l, r)); }
+    if(r > mid) { query = std::max(query, segtree_query_range_history_max(root * 2 + 1, l, r)); }
+    return query;
+}
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    while(q--) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_update_range_incre(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            std::cin >> z_temp;
+            segtree_update_range_min(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 3) {
+            std::cout << segtree_query_range_sum(1, x_temp, y_temp) << '\n';
+        } else if(op_temp == 4) {
+            std::cout << segtree_query_range_max(1, x_temp, y_temp) << '\n';
+        } else if(op_temp == 5) {
+            std::cout << segtree_query_range_history_max(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
 
 ### §7.5.A 无需线段树的区间操作
 
