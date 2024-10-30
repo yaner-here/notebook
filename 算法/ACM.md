@@ -14604,6 +14604,65 @@ int main() {
 
 > [洛谷P6242](https://www.luogu.com.cn/problem/P6242)：给定序列`a[1->n]`，支持以下操作。（1）区间内所有元素自增`z_temp`；（2）将`[l, r]`内的所有元素执行`a[i] = std::min(a[i], z_temp)`；（3）查询`[l, r]`内的元素之和；（4）查询`[l, r]`内的元素最大值；（5）查询`[l, r]`内的各个"元素历史最大值"的最大值。
 
+先介绍本题中用到的各项变量：
+
+| 变量定义域                      | 变量名                               | 作用                                                         |
+| -------------------------- | --------------------------------- | ---------------------------------------------------------- |
+| `SegTree::`                | `.v_max1`                         | 线段树节点对应区间内的元素最大值                                           |
+| `SegTree::`                | `.v_max2`                         | 线段树节点对应区间内的元素严格次大值，缺省为`-∞`                                 |
+| `SegTree::`                | `.v_sum`                          | 线段树节点对应区间内的元素总和                                            |
+| `SegTree::`                | `.v_max1_count`                   | 线段树节点对应区间内的取得最大值的元素个数                                      |
+| `SegTree::`                | `.v_max1_history`                 | 线段树节点对应区间内的元素历史最大值                                         |
+| `SegTree::`                | `.lazy_max1_incre`                | 线段树节点懒标记，表示`.v_max1`的增量                                    |
+| `SegTree::`                | `.lazy_max1_history_incre`        | 线段树节点懒标记，表示`.v_max1_history`的增量                            |
+| `SegTree::`                | `.lazy_nonmax1_incre`             | 线段树节点懒标记，表示`.v_max2`在内的其它元素值的增量                            |
+| `SegTree::`                | `.lazy_nonmax1_history_incre`     | 线段树节点懒标记，表示`.v_max2_history`的增量<br>（因为非最大值的元素的最大值，就是次大值本身） |
+| `segtree_modify_lazytag()` | `root_lazy_max1_incre`            | 懒标记下推时，子节点`.lazy_max1_incre`的增量                            |
+| `segtree_modify_lazytag()` | `root_lazy_max1_hisotry_incre`    | 懒标记下推时，子节点`.lazy_max1_history_incre`的增量                    |
+| `segtree_modify_lazytag()` | `root_lazy_nonmax1_incre`         | 懒标记下推时，子节点`.lazy_nonmax1_incre`的增量                         |
+| `segtree_modify_lazytag()` | `root_lazy_nonmax1_history_incre` | 懒标记下推时，子节点`.lazy_nonmax1_history_incre`的增量                 |
+
+`segtree_pushup()`容易维护各项`.v_*`信息。重点是如何设计`segtree_pushdown()`。我们知道它肯定包含三部分：下推懒标记到左子节点、下推懒标记到右子节点、清空当前节点懒标记。懒标记一共有四个，因此`segtree_modify_lazytag()`也要传递四个懒标记。至于`segtree_modify_lazytag()`如何按照`.lazy_*`更新`.v_*`，我们先按下不表，我们先考虑应该传入什么样的懒标记。**由于子节点的`.v_max1`不一定是父节点的`.v_max1`，因此父节点的`.lazy_max1_incre`/`.lazy_max1_history_incre`不一定能直接作用到子节点上，因此需要额外判断**。由于父节点的`.v_max1`已经被更新，所以我们只能用未被更新过的子节点的`.v_max1`现推原始最大值`max_temp`，来表示父节点之前的`.v_max1`，并将其作为判断依据。
+
+```c++
+inline void segtree_pushdown(const int &root) {
+    int64_t max_temp = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max1);
+    // 下推懒标记到左子节点
+    segtree_modify_lazytag(
+        root * 2,
+        segtree[root * 2].v_max1 == max_temp ? segtree[root].lazy_max1_incre : segtree[root].lazy_nonmax1_incre, 
+        segtree[root * 2].v_max1 == max_temp ? segtree[root].lazy_max1_history_incre : segtree[root].lazy_nonmax1_history_incre, 
+        segtree[root].lazy_nonmax1_incre,
+        segtree[root].lazy_nonmax1_history_incre
+    );
+    // 下推懒标记到右子节点
+    segtree_modify_lazytag(
+        root * 2 + 1,
+        segtree[root * 2 + 1].v_max1 == max_temp ? segtree[root].lazy_max1_incre : segtree[root].lazy_nonmax1_incre, 
+        segtree[root * 2 + 1].v_max1 == max_temp ? segtree[root].lazy_max1_history_incre : segtree[root].lazy_nonmax1_history_incre, 
+        segtree[root].lazy_nonmax1_incre,
+        segtree[root].lazy_nonmax1_history_incre
+    );
+	// 清空懒标记，此处略
+}
+```
+
+现在考虑`segtree_modify_lazytag()`的设计。对于`.v_max1_history`、`.lazy_max1_history_incre`、`.lazy_nonmax1_history_incre`的更新，谨记一句原则：`.?`的历史最大值，有可能被当前情况刷新，当前情况是"原始`.?`值"加上"父节点在当前`.?`原始值的基础上的增量`.lazy_?`"。**除此之外，还要警惕变量的更新顺序**。
+
+```c++
+inline void segtree_modify_lazytag(const int &child, const int64_t &root_max1_incre, const int64_t &root_max1_history_incre, const int64_t &root_nonmax1_incre, const int64_t &root_nonmax1_history_incre) {
+    segtree[child].v_sum += segtree[child].v_max1_count * root_max1_incre + (segtree[child].len - segtree[child].v_max1_count) * root_nonmax1_incre;
+    segtree[child].v_max1_history = std::max(segtree[child].v_max1_history, segtree[child].v_max1 + root_max1_history_incre); // 只有"最大值+最大值提升的历史最大幅度"才有能力冲击历史最佳值
+    segtree[child].v_max1 += root_max1_incre;
+    if(segtree[child].v_max2 != NAGETIVE_MAX) { segtree[child].v_max2 += root_nonmax1_incre; } // 保证-∞自增任何数还是-∞
+    segtree[child].lazy_max1_history_incre = std::max(segtree[child].lazy_max1_history_incre, segtree[child].lazy_max1_incre + root_max1_history_incre); // 
+    segtree[child].lazy_max1_incre += root_max1_incre ;
+    segtree[child].lazy_nonmax1_history_incre = std::max(segtree[child].lazy_nonmax1_history_incre, segtree[child].lazy_nonmax1_incre + root_nonmax1_history_incre);
+    segtree[child].lazy_nonmax1_incre += root_nonmax1_incre;
+}
+```
+
+综上所述，C++代码如下所示：
 
 ```c++
 const int N_MAX = 5e5, Q_MAX = 5e5; const int64_t NAGETIVE_MAX = -1e18;
