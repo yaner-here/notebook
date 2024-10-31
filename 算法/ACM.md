@@ -14662,7 +14662,7 @@ inline void segtree_modify_lazytag(const int &child, const int64_t &root_max1_in
 }
 ```
 
-综上所述，C++代码如下所示：
+最后进行时间复杂度分析。在上一道题的基础上，我们注意到区间自增操作会增加线段树的势能。具体来说，`[l, r]`中间的部分都会因为被剪枝拦截，于是不产生"代价标签"，只有两侧的部分会因为递归而增加子区间内元素值的多样性。最坏情况下，左右两侧的两条递归路径上的节点都会带有"代价标签"，最坏情况下会产生$O(2\log_2{n})$个"代价标签"，每次消灭一个"代价标签"在最坏情况下的时间复杂度为树的高度$O(\log_2{n})$。因此要消灭单次区间自增编辑的势能，需要的时间复杂度为$O(2\log_2^2{n})$。本题中有$q$次这样的操作，因此总时间复杂度为$O(2q\log_2^2{n})$。
 
 ```c++
 const int N_MAX = 5e5, Q_MAX = 5e5; const int64_t NAGETIVE_MAX = -1e18;
@@ -14806,6 +14806,198 @@ int main() {
             std::cout << segtree_query_range_max(1, x_temp, y_temp) << '\n';
         } else if(op_temp == 5) {
             std::cout << segtree_query_range_history_max(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
+
+> [洛谷P10639](https://www.luogu.com.cn/problem/P10639)：给定序列`a[1->n]`，支持以下操作。（1）区间自增`z_temp`；（2）区间最小值推平为`z_temp`；（3）区间最大值推平为`z_temp`；（4）查询区间内的元素之和；（5）查询区间内的最小值；（6）查询区间内的最大值。
+
+根据[洛谷P6242](https://www.luogu.com.cn/problem/P6242)的经验，我们为线段树节点定义`v_sum, v_max1, v_max2, v_min1, v_min2, v_max1_count, v_min1_count`变量。上推函数容易维护这些信息，这里略。
+
+本题我们为三种区间操作定义三种懒标记：`lazy_incre, lazy_max, lazy_min`，现在需要确定它们的运算优先级。**不妨先计算自增，再计算最大值限制，最后计算最小值限制**。根据多重懒标记线段树的定义，该问题形式化地等价于：
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5;
+int n, q, a[N_MAX + 1], op_temp, x_temp, y_temp;
+int64_t z_temp;
+
+struct SegTree {
+    int l, r, len;
+    int64_t v_sum, v_max1, v_max2, v_min1, v_min2, v_max1_count, v_min1_count;
+    int64_t lazy_incre, lazy_max, lazy_min;
+} segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_sum = segtree[root * 2].v_sum + segtree[root * 2 + 1].v_sum;
+    segtree[root].v_max1 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max1);
+    if(segtree[root * 2].v_max1 == segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max2);
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count + segtree[root * 2 + 1].v_max1_count;
+    } else if(segtree[root * 2].v_max1 > segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max2, segtree[root * 2 + 1].v_max1);
+        segtree[root].v_max1_count = segtree[root * 2].v_max1_count;
+    } else if(segtree[root * 2].v_max1 < segtree[root * 2 + 1].v_max1) {
+        segtree[root].v_max2 = std::max(segtree[root * 2].v_max1, segtree[root * 2 + 1].v_max2);
+        segtree[root].v_max1_count = segtree[root * 2 + 1].v_max1_count;
+    }
+    segtree[root].v_min1 = std::min(segtree[root * 2].v_min1, segtree[root * 2 + 1].v_min1);
+    if(segtree[root * 2].v_min1 == segtree[root * 2 + 1].v_min1) {
+        segtree[root].v_min2 = std::min(segtree[root * 2].v_min2, segtree[root * 2 + 1].v_min2);
+        segtree[root].v_min1_count = segtree[root * 2].v_min1_count + segtree[root * 2 + 1].v_min1_count;
+    } else if(segtree[root * 2].v_min1 < segtree[root * 2 + 1].v_min1) {
+        segtree[root].v_min2 = std::min(segtree[root * 2].v_min2, segtree[root * 2 + 1].v_min1);
+        segtree[root].v_min1_count = segtree[root * 2].v_min1_count;
+    } else if(segtree[root * 2].v_min1 > segtree[root * 2 + 1].v_min1) {
+        segtree[root].v_min2 = std::min(segtree[root * 2].v_min1, segtree[root * 2 + 1].v_min2);
+        segtree[root].v_min1_count = segtree[root * 2 + 1].v_min1_count;
+    }
+}
+inline void segtree_modify_lazytag(const int &child, const int64_t &root_lazy_incre, const int64_t &root_lazy_min, const int64_t &root_lazy_max) {
+    if(root_lazy_incre != 0) {
+        segtree[child].v_sum += segtree[child].len * root_lazy_incre;
+        segtree[child].v_max1 += root_lazy_incre;
+        if(segtree[child].v_max2 != INT64_MIN) { segtree[child].v_max2 += root_lazy_incre; }
+        segtree[child].v_min1 += root_lazy_incre;
+        if(segtree[child].v_min2 != INT64_MAX) { segtree[child].v_min2 += root_lazy_incre; }
+        segtree[child].lazy_incre += root_lazy_incre;
+        if(segtree[child].lazy_min != INT64_MIN) { segtree[child].lazy_min += root_lazy_incre; }
+        if(segtree[child].lazy_max != INT64_MAX) { segtree[child].lazy_max += root_lazy_incre; }
+    }
+    if(root_lazy_min > segtree[child].v_min1) {
+        segtree[child].v_sum += (root_lazy_min - segtree[child].v_min1) * segtree[child].v_min1_count;
+        // 由于.v_min1 != .v_min2，所以以下两个分支只能触发一个
+        if(segtree[child].v_min2 == segtree[child].v_max1) { segtree[child].v_max2 = root_lazy_min; } // 如果segtree[child]只有两种数
+        if(segtree[child].v_min1 == segtree[child].v_max1) { segtree[child].v_max1 = root_lazy_min; } // 如果segtree[child]只有一种数
+        segtree[child].v_min1 = root_lazy_min; // .v_min1必须最后更新，防止影响上两行的分支判断
+        segtree[child].lazy_min = root_lazy_min;
+        segtree[child].lazy_max = std::max(segtree[child].lazy_max, root_lazy_min);
+    }
+    if(root_lazy_max < segtree[child].v_max1) {
+        segtree[child].v_sum += (root_lazy_max - segtree[child].v_max1) * segtree[child].v_max1_count;
+        // 由于.v_min1 != .v_min2，所以以下两个分支只能触发一个
+        if(segtree[child].v_min2 == segtree[child].v_max1) { segtree[child].v_min2 = root_lazy_max; } // 如果segtree[child]只有两种数
+        if(segtree[child].v_min1 == segtree[child].v_max1) { segtree[child].v_min1 = root_lazy_max; } // 如果segtree[child]只有一种数
+        segtree[child].v_max1 = root_lazy_max; // .v_max1必须最后更新，防止影响上两行的分支判断
+        segtree[child].lazy_min = std::min(segtree[child].lazy_min, root_lazy_max);
+        segtree[child].lazy_max = root_lazy_max;
+    }
+}
+inline void segtree_pushdown(const int &root) {
+    segtree_modify_lazytag(root * 2, segtree[root].lazy_incre, segtree[root].lazy_min, segtree[root].lazy_max);
+    segtree_modify_lazytag(root * 2 + 1, segtree[root].lazy_incre, segtree[root].lazy_min, segtree[root].lazy_max);
+    segtree[root].lazy_incre = 0;
+    segtree[root].lazy_max = INT64_MAX;
+    segtree[root].lazy_min = INT64_MIN;
+}
+void segtree_init(const int &root, const int &l, const int &r) {
+    segtree[root].l = l;
+    segtree[root].r = r;
+    segtree[root].len = r - l + 1;
+    segtree[root].lazy_max = INT64_MAX;
+    segtree[root].lazy_min = INT64_MIN;
+    if(l == r) {
+        segtree[root].v_sum = a[l];
+        segtree[root].v_max1 = a[l];
+        segtree[root].v_max2 = INT64_MIN;
+        segtree[root].v_min1 = a[l];
+        segtree[root].v_min2 = INT64_MAX;
+        segtree[root].v_max1_count = 1;
+        segtree[root].v_min1_count = 1;
+        return;
+    }
+    int mid = (l + r) / 2;
+    segtree_init(root * 2, l, mid);
+    segtree_init(root * 2 + 1, mid + 1, r);
+    segtree_pushup(root);
+}
+void segtree_update_range_incre(const int &root, const int &l, const int &r, const int64_t &incre) {
+    if(l <= segtree[root].l && segtree[root].r <= r) {
+        segtree_modify_lazytag(root, incre, INT64_MIN, INT64_MAX);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_incre(root * 2, l, r, incre); }
+    if(r > mid) { segtree_update_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+void segtree_update_range_min(const int &root, const int &l, const int &r, const int64_t &min_temp) {
+    if(segtree[root].v_min1 >= min_temp) return;
+    if(l <= segtree[root].l && segtree[root].r <= r && segtree[root].v_min2 > min_temp) {
+        segtree_modify_lazytag(root, 0, min_temp, INT64_MAX);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_min(root * 2, l, r, min_temp); }
+    if(r > mid) { segtree_update_range_min(root * 2 + 1, l, r, min_temp); }
+    segtree_pushup(root);
+}
+void segtree_update_range_max(const int &root, const int &l, const int &r, const int64_t &max_temp) {
+    if(max_temp >= segtree[root].v_max1) { return; }
+    if(l <= segtree[root].l && r >= segtree[root].r && max_temp > segtree[root].v_max2) {
+        segtree_modify_lazytag(root, 0, INT64_MIN, max_temp);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_max(root * 2, l, r, max_temp); }
+    if(r > mid) { segtree_update_range_max(root * 2 + 1, l, r, max_temp); }
+    segtree_pushup(root);
+}
+int64_t segtree_query_range_sum(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_sum; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query = 0;
+    if(l <= mid) { query += segtree_query_range_sum(root * 2, l, r); }
+    if(r > mid) { query += segtree_query_range_sum(root * 2 + 1, l, r); }
+    return query;
+}
+int64_t segtree_query_range_max(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_max1; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query = INT64_MIN;
+    if(l <= mid) { query = std::max(query, segtree_query_range_max(root * 2, l, r)); }
+    if(r > mid) { query = std::max(query, segtree_query_range_max(root * 2 + 1, l, r)); }
+    return query;
+}
+int64_t segtree_query_range_min(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_min1; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query = INT64_MAX;
+    if(l <= mid) { query = std::min(query, segtree_query_range_min(root * 2, l, r)); }
+    if(r > mid) { query = std::min(query, segtree_query_range_min(root * 2 + 1, l, r)); }
+    return query;
+}
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_update_range_incre(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            std::cin >> z_temp;
+            segtree_update_range_min(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 3) {
+            std::cin >> z_temp;
+            segtree_update_range_max(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 4) {
+            std::cout << segtree_query_range_sum(1, x_temp, y_temp) << '\n';
+        } else if(op_temp == 5) {
+            std::cout << segtree_query_range_max(1, x_temp, y_temp) << '\n';
+        } else if(op_temp == 6) {
+            std::cout << segtree_query_range_min(1, x_temp, y_temp) << '\n';
         }
     }
 }
