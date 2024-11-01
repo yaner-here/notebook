@@ -6415,6 +6415,26 @@ int main() {
 }
 ```
 
+### §3.3.3 反证法
+
+> [洛谷P2431](https://www.luogu.com.cn/problem/P2431)：给定闭区间`[l, r]`，求$\displaystyle\max_{i\in[l, r]}\text{popcount}(i)$。
+
+这里我们直接给出答案：从`l`的末位开始向高位遍历，贪心地将每个遇到的`0`数码变为`1`，直到恰好小于等于`r`为止。
+
+反证法证明如下——假设用上述策略得到的二进制数字`i`拥有`popcount(i)`个数码`1`，且没有达到理论最大值`popcount(i) + k`（`k>=1`），则假设`i'`达到了理论最大值。考虑`i'`和`i`的区别：由于`i`的贪心策略已经使其低位全部变成`1`，所以`i'`多出来的`k`位数码`1`必须放在高位，这会使得`i' > r`超出范围，矛盾，故证毕。
+
+```c++
+uint64_t l, r;
+int main(){
+    std::cin >> l >> r;
+    uint64_t ans = l;
+    while((ans | (ans + 1)) <= r) {
+        ans |= (ans + 1);
+    }
+    std::cout << popcount(ans);
+}
+```
+
 ## §3.4 差分
 
 ### §3.4.1 高维差分
@@ -14815,7 +14835,29 @@ int main() {
 
 根据[洛谷P6242](https://www.luogu.com.cn/problem/P6242)的经验，我们为线段树节点定义`v_sum, v_max1, v_max2, v_min1, v_min2, v_max1_count, v_min1_count`变量。上推函数容易维护这些信息，这里略。
 
-本题我们为三种区间操作定义三种懒标记：`lazy_incre, lazy_max, lazy_min`，现在需要确定它们的运算优先级。**不妨先计算自增，再计算最大值限制，最后计算最小值限制**。根据多重懒标记线段树的定义，该问题形式化地等价于：
+本题我们为三种区间操作定义三种懒标记：`lazy_incre, lazy_max, lazy_min`，现在需要确定它们的运算优先级。**不妨先计算自增，再计算最大值限制，最后计算最小值限制**。根据多重懒标记线段树的定义，需要形式化地证明：给定$f_1(\Delta v_1, a)=a+v_1$、$f_2(\Delta v_2, a)=\max(a,\Delta v_2)$、$f_3(\Delta v_3, a)=\min(a, \Delta v_3)$，求证对于任意$f_i\in\{f_1, f_2, f_3\}$，总存在关于$(\Delta v_i, \Delta v_1, \Delta v_2, \Delta v_3)$的三元组$(\Delta v'_1, \Delta v'_2, \Delta v'_3)$，使得$f_i(\Delta v_i, f_3(\Delta v_3, f_2(\Delta v_2, f_1(\Delta v_1, a))))=f_3(\Delta v'_3, f_2(\Delta v'_2, f_3(\Delta v'_3, a)))$成立。
+
+证明如下：将上式展开得到$f_3(\Delta v_3, f_2(\Delta v_2, f_3(\Delta v_3, a))) = \min(\Delta v_3, \max(\Delta v_2, a + \Delta v_1))$，于是有：
+
+$$
+\begin{aligned}
+	& \begin{aligned}
+		当f_i=f_1时, \text{LHS} & = \Delta v_i + \min(\Delta v_3, \max(\Delta v_2, a + \Delta v_1)) \\
+		& = \min(\textcolor{red}{\Delta v_i + \Delta v_3}, \max(\textcolor{red}{\Delta v_i + \Delta v_2}, a + \textcolor{red}{\Delta v_i + \Delta v_1})) \\
+		& = f_3(\textcolor{red}{\Delta v'_3}, f_2(\textcolor{red}{\Delta v'_2}, f_3(\textcolor{red}{\Delta v'_1}, a))) = \text{RHS} \\
+	\end{aligned} \\
+	& \begin{aligned}
+		当f_i=f_2时, \text{LHS} & = \max(\Delta v_i , \min(\Delta v_3, \max(\Delta v_2, a + \Delta v_1))) \\
+		& = \min(\textcolor{red}{\Delta v_3}, \max(\textcolor{red}{\max(\Delta v_i, \Delta v_2)}, a + \textcolor{red}{\Delta v_1})) \\
+		& = f_3(\textcolor{red}{\Delta v'_3}, f_2(\textcolor{red}{\Delta v'_2}, f_3(\textcolor{red}{\Delta v'_1}, a))) = \text{RHS} \\
+	\end{aligned} \\
+	& \begin{aligned}
+		当f_i=f_3时, \text{LHS} & = \min(\Delta v_i , \min(\Delta v_3, \max(\Delta v_2, a + \Delta v_1))) \\
+		& = \min(\textcolor{red}{\min(\Delta v_i, \Delta v_3)}, \max(\textcolor{red}{\Delta v_2}, a + \textcolor{red}{\Delta v_1})) \\
+		& = f_3(\textcolor{red}{\Delta v'_3}, f_2(\textcolor{red}{\Delta v'_2}, f_3(\textcolor{red}{\Delta v'_1}, a))) = \text{RHS} \\
+	\end{aligned}
+\end{aligned}
+$$
 
 ```c++
 const int N_MAX = 5e5, Q_MAX = 5e5;
@@ -14998,6 +15040,145 @@ int main() {
             std::cout << segtree_query_range_max(1, x_temp, y_temp) << '\n';
         } else if(op_temp == 6) {
             std::cout << segtree_query_range_min(1, x_temp, y_temp) << '\n';
+        }
+    }
+}
+```
+
+> [洛谷P10638](https://www.luogu.com.cn/problem/P10638)：给定序列`a[1->n]>=0`，实现以下操作。（1）区间重置为`z_temp >= 0`；（2）区间取`a[i] = std::max(a[i] + z_temp, 0)`；（3）查询区间内值为`0`的元素数量。
+
+本题中的第二种操作可以视为"先区间自增，再推平最小值"。
+
+针对第三种查询，你可能想维护线段树节点的`.v_0_count`，但是有一个问题：`pushdown()`自增时如何维护`.v_0_count`？，毕竟值为`-incre`的元素可以成为新的`0`。**然而注意到本题中的所有数据和操作，都能保证`a[i]`大于等于`0`**，因此一旦自增直接置`.v_0_count = 0`即可。另一种方法是，区间内值为`0`的元素数量，可以视为`.v_min1 == 0`时的`.v_min1_count`。下面的代码使用第二种方法。
+
+```c++
+const int N_MAX = 3e5, Q_MAX = 3e5;
+int n, q, op_temp, x_temp, y_temp; int64_t a[N_MAX + 1], z_temp;
+
+struct SegTree {
+    int l, r, len;
+    int64_t v_min1, v_min2, v_min1_count;
+    bool lazy_flag_reset; int64_t lazy_reset, lazy_incre, lazy_min;
+} segtree[N_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_min1 = std::min(segtree[root * 2].v_min1, segtree[root * 2 + 1].v_min1);
+    if(segtree[root * 2].v_min1 == segtree[root * 2 + 1].v_min1) {
+        segtree[root].v_min2 = std::min(segtree[root * 2].v_min2, segtree[root * 2 + 1].v_min2);
+        segtree[root].v_min1_count = segtree[root * 2].v_min1_count + segtree[root * 2 + 1].v_min1_count;
+    } else if(segtree[root * 2].v_min1 < segtree[root * 2 + 1].v_min1) {
+        segtree[root].v_min2 = std::min(segtree[root * 2].v_min2, segtree[root * 2 + 1].v_min1);
+        segtree[root].v_min1_count = segtree[root * 2].v_min1_count;
+    } else if(segtree[root * 2].v_min1 > segtree[root * 2 + 1].v_min1) {
+        segtree[root].v_min2 = std::min(segtree[root * 2].v_min1, segtree[root * 2 + 1].v_min2);
+        segtree[root].v_min1_count = segtree[root * 2 + 1].v_min1_count;
+    }
+}
+inline void segtree_modify_lazytag(const int &child, const bool root_lazy_flag_reset, const int64_t &root_lazy_reset, const int64_t &root_lazy_incre, const int64_t &root_lazy_min) {
+    if(root_lazy_flag_reset == true) {
+        segtree[child].v_min1 = root_lazy_reset;
+        segtree[child].v_min2 = INT64_MAX;
+        segtree[child].v_min1_count = segtree[child].len;
+        segtree[child].lazy_flag_reset = true;
+        segtree[child].lazy_reset = root_lazy_reset;
+        segtree[child].lazy_incre = 0;
+        segtree[child].lazy_min = INT64_MIN;
+    }
+    if(root_lazy_incre != 0) {
+        segtree[child].v_min1 += root_lazy_incre;
+        if(segtree[child].v_min2 != INT64_MAX) { segtree[child].v_min2 += root_lazy_incre; }
+        if(segtree[child].lazy_min != INT64_MIN) { segtree[child].lazy_min += root_lazy_incre; }
+        segtree[child].lazy_incre += root_lazy_incre;
+    }
+    if(root_lazy_min > segtree[child].v_min1) {
+        segtree[child].v_min1 = root_lazy_min;
+        segtree[child].lazy_min = root_lazy_min;
+    }
+}
+inline void segtree_pushdown(const int &root) {
+    segtree_modify_lazytag(root * 2, segtree[root].lazy_flag_reset, segtree[root].lazy_reset, segtree[root].lazy_incre, segtree[root].lazy_min);
+    segtree_modify_lazytag(root * 2 + 1, segtree[root].lazy_flag_reset, segtree[root].lazy_reset, segtree[root].lazy_incre, segtree[root].lazy_min);
+    segtree[root].lazy_flag_reset = false;
+    segtree[root].lazy_incre = 0;
+    segtree[root].lazy_min = INT64_MIN;
+}
+void segtree_init(const int &root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r; segtree[root].len = r - l + 1;
+    if(l == r) {
+        segtree[root].v_min1 = a[l];
+        segtree[root].v_min2 = INT64_MAX;
+        segtree[root].v_min1_count = 1;
+        return;
+    }
+    int mid = (l + r) / 2;
+    segtree_init(root * 2, l, mid);
+    segtree_init(root * 2 + 1, mid + 1, r);
+    segtree_pushup(root);
+}
+void segtree_update_range_reset(const int &root, const int &l, const int &r, const int64_t &reset) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree_modify_lazytag(root, true, reset, 0, INT64_MIN);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_reset(root * 2, l, r, reset); }
+    if(r > mid) { segtree_update_range_reset(root * 2 + 1, l, r, reset); }
+    segtree_pushup(root);
+}
+void segtree_update_range_incre(const int &root, const int &l, const int &r, const int64_t &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r){
+        segtree_modify_lazytag(root, false, 0, incre, INT64_MIN);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_incre(root * 2, l, r, incre); }
+    if(r > mid) { segtree_update_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+void segtree_update_range_min(const int &root, const int &l, const int &r, const int64_t &min_temp) {
+    if(min_temp <= segtree[root].v_min1) { return; }
+    if(l <= segtree[root].l && r >= segtree[root].r && min_temp < segtree[root].v_min2){
+        segtree_modify_lazytag(root, false, 0, 0, min_temp);
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_min(root * 2, l, r, min_temp); }
+    if(r > mid) { segtree_update_range_min(root * 2 + 1, l, r, min_temp); }
+    segtree_pushup(root);
+}
+int segtree_query_range_0_count(const int &root, const int &l, const int &r) {
+    if(0 < segtree[root].v_min1) { return 0; } // 实际上这一行永远不可能被触发，因为a[i]>=0恒成立
+    if(l <= segtree[root].l && r >= segtree[root].r && 0 == segtree[root].v_min1) {
+        return segtree[root].v_min1_count;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int query = 0;
+    if(l <= mid) { query += segtree_query_range_0_count(root * 2, l, r); }
+    if(r > mid) { query += segtree_query_range_0_count(root * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            std::cin >> z_temp;
+            segtree_update_range_reset(1, x_temp, y_temp, z_temp);
+        } else if(op_temp == 2) {
+            std::cin >> z_temp;
+            segtree_update_range_incre(1, x_temp, y_temp, z_temp);
+            segtree_update_range_min(1, x_temp, y_temp, 0);
+        } else if(op_temp == 3) {
+            std::cout << segtree_query_range_0_count(1, x_temp, y_temp) << '\n';
         }
     }
 }
@@ -15534,7 +15715,72 @@ int main() {
 
 ### §8.1.2 `2`的幂
 
-`(x & (x-1)) == 0`
+`2`的幂在二进制中只有一个`1`数码。利用这一特点，我们可以使用`(x & (x-1)) == 0`判断`x`是否为`2`的幂。
+
+### §8.1.3 `lowbit_1`
+
+要获取二进制数`x`最低位的`1`数码，可以使用`x & (-x)`/`x & (~x + 1)`得到最低位`1`数码的权重。
+
+如果要将`x`最低位的`1`数码置为`0`，可以使用`x - lowbit_1(x)`。
+
+### §8.1.4 `lowbit_0`
+
+要获取二进制数`x`最低位的`0`数码，可以使用`x & (x + 1)`得到最低位`0`数码的权重。
+
+如果要将`x`最低位的`0`数码置为`1`，可以使用`x | (x + 1)`。
+
+### §8.1.5 `popcount`
+
+`popcount(x)`用于统计二进制数字`x`有多少个`1`数码。
+
+$O(\log_2{x})$的循环板子**易于记忆**，如下所示：
+
+```c++
+template<typename T> static inline T popcount(T x) {
+    T ans = 0;
+    while(x > 0) {
+        ans += x & 1;
+        x >>= 1;
+    }
+    return ans;
+}
+```
+
+$O(\log_2{x})$常数优化的循环板子如下所示，能保证每次循环必干掉一个`1`数码：
+
+```c++
+template<typename T> static inline T popcount(T x) {
+    T ans = 0;
+    while(x > 0) {
+        ++ans;
+        x -= lowbit_1(x); // 即 x -= (x & -x)
+    }
+    return ans;
+}
+```
+
+$O(1)$的位运算板子如下所示：
+
+```c++
+static inline uint32_t popcount(uint32_t x) {
+    x = (x & 0x55555555u) + ((x >> 1) & 0x55555555u);
+    x = (x & 0x33333333u) + ((x >> 2) & 0x33333333u);
+    x = (x & 0x0F0F0F0Fu) + ((x >> 4) & 0x0F0F0F0Fu);
+    x = (x & 0x00FF00FFu) + ((x >> 8) & 0x00FF00FFu);
+    x = (x & 0x0000FFFFu) + ((x >> 16) & 0x0000FFFFu);
+    return x;
+}
+static inline uint64_t popcount(uint64_t x) {
+    constexpr uint64_t m1 = 0x5555555555555555ull;
+    constexpr uint64_t m2 = 0x3333333333333333ull;
+    constexpr uint64_t m4 = 0x0F0F0F0F0F0F0F0Full;
+    constexpr uint64_t h01 = 0x0101010101010101ull;
+    x -= (x >> 1) & m1;
+    x = (x & m2) + ((x >> 2) & m2);
+    x = (x + (x >> 4)) & m4;
+    return (x * h01) >> 56;
+}
+```
 
 ## §8.2 排列组合
 
