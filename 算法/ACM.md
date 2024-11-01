@@ -15184,6 +15184,93 @@ int main() {
 }
 ```
 
+### §7.5.10 扫描线问题
+
+扫描线用到了二维积分或祖暅原理的思路，将所求不规则图形的面积或周长，转化为某条扫描线产生截面的长度或面积，乘以这条扫描线经过的长度。于是问题转化为：如何维护某条扫描线产生截面的长度，也就是维护若干区间并集的总长度。这个信息可以用线段树维护。我们将`x`个不同刻度构成的`x-1`个区间，用线段树上的`x-1`个叶子节点来表示即可。
+
+> [洛谷P5490](https://www.luogu.com.cn/problem/P5490)：在二维平面上，给定`n`个各边均平行于`X/Y`轴的矩形（以`(x1, y1, x2, y2)`四个坐标的形式给出），这些矩形的并集是一个不规则图形，求其面积。
+
+```c++
+const int N_MAX = 1e5, N_DISCRETE_MAX = N_MAX * 2;
+int n, tick_y_count; int64_t x_1_temp, y_1_temp, x_2_temp, y_2_temp, tick_y[N_DISCRETE_MAX + 1], x_pre, ans;
+struct Event { int64_t x, y_min, y_max; int incre; } event[N_MAX * 2 + 1];
+
+struct SegTree {
+    int l, r; int64_t v_len, v_cover_len, v_cover_count;
+} segtree[(N_DISCRETE_MAX - 1) * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_len = segtree[root * 2].v_len + segtree[root * 2 + 1].v_len;
+    segtree[root].v_cover_len = (segtree[root].v_cover_count > 0 ? segtree[root].v_len : segtree[root * 2].v_cover_len + segtree[root * 2 + 1].v_cover_len);
+}
+inline void segtree_pushdown(const int &root) {}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_len = tick_y[l + 1] - tick_y[l];
+        return;
+    }
+    int mid = (l + r) / 2;
+    segtree_init(root * 2, l, mid);
+    segtree_init(root * 2 + 1, mid + 1, r);
+    segtree_pushup(root);
+}
+void segtree_update_range_incre(const int root, const int &l, const int &r, const int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_cover_count += incre;
+        if(segtree[root].v_cover_count > 0) {
+            segtree[root].v_cover_len = segtree[root].v_len;
+        } else if(segtree[root].l < segtree[root].r) {
+            segtree[root].v_cover_len = segtree[root * 2].v_cover_len + segtree[root * 2 + 1].v_cover_len;
+        } else {
+            segtree[root].v_cover_len = 0;
+        }
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_incre(root * 2, l, r, incre); }
+    if(r > mid) { segtree_update_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+int64_t segtree_query_range_cover_len(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_cover_len; }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { return segtree_query_range_cover_len(root * 2, l, r); }
+    if(r > mid) { return segtree_query_range_cover_len(root * 2 + 1, l, r); }
+    return 0;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> x_1_temp >> y_1_temp >> x_2_temp >> y_2_temp;
+        if(x_1_temp > x_2_temp) { std::swap(x_1_temp, x_2_temp); }
+        if(y_1_temp > y_2_temp) { std::swap(y_1_temp, y_2_temp); }
+        event[i] = {x_1_temp, y_1_temp, y_2_temp, 1};
+        event[i + n] = {x_2_temp, y_1_temp, y_2_temp, -1};
+        tick_y[i] = y_1_temp;
+        tick_y[i + n] = y_2_temp;
+    }
+    std::sort(event + 1, event + 1 + 2 * n, [](const Event &lhs, const Event &rhs) { return (lhs.x != rhs.x) ? (lhs.x < rhs.x) : (lhs.incre > rhs.incre); });
+    std::sort(tick_y + 1, tick_y + 1 + 2 * n);
+    tick_y_count = std::unique(tick_y + 1, tick_y + 1 + 2 * n) - (tick_y + 1);
+    for(int i = 1; i <= 2 * n; ++i) {
+        event[i].y_max = std::lower_bound(tick_y + 1, tick_y + 1 + tick_y_count, event[i].y_max) - tick_y;
+        event[i].y_min = std::lower_bound(tick_y + 1, tick_y + 1 + tick_y_count, event[i].y_min) - tick_y;
+    }
+    segtree_init(1, 1, tick_y_count - 1);
+    x_pre = event[1].x;
+    for(int i = 1; i <= 2 * n; ++i) {
+        ans += (event[i].x - x_pre) * segtree_query_range_cover_len(1, 1, tick_y_count - 1);
+        x_pre = event[i].x;
+        assert(event[i].y_max > event[i].y_min);
+        segtree_update_range_incre(1, event[i].y_min, event[i].y_max - 1, event[i].incre);
+    }
+    std::cout << ans;
+}
+```
+
 ### §7.5.A 无需线段树的区间操作
 
 > [洛谷P2733](https://www.luogu.com.cn/problem/P2733)：维护一种数据结构。进行如下操作：输入若干个`i`（`i<=n`），对区间`[1, i]`内的元素批量加一。最后给定若干关于`i:2->n`的询问，询问`[i, n]`内的各元素之和。
