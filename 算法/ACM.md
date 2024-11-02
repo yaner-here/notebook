@@ -6435,6 +6435,17 @@ int main(){
 }
 ```
 
+### §3.3.4 邻项交换法
+
+邻项交换法使用以下方法确定任意两个选项的交换次序：令先`A`后`B`时可以达到更优，而先`B`后`A`时不能达到更优，这两条规则分别对应着两个约束条件，解不等式即可得到判定更优的依据。
+
+> [洛谷P3619](https://www.luogu.com.cn/problem/P3619)：给定`n`个物品，选择第`i`个物品会获得权值`b[i]`，初始权值为`v`。只有当目前权值之和满足`v > a[i]`时才能选择第`i`个物品。请问是否存在一种物品选择次序，可以选择全部的物品？
+
+本题要为物品分成两类：`b[i]>=0`和`b[i]<0`。
+
+- 首先我们希望`v`越大越好，因此需要先处理`b[i] >= 0`的物品。对于`b[i]>=0`的物品而言，显然可以贪心地对`a[i]`升序排序，然后依次选择这些物品。假如选择过程中出现`v <= a[i]`的情况，则说明无法选择所有`b[i] >= 0`的物品。
+- 然后需要确定选择`b[i]<=0`的策略。使用邻项交换法——令当前权值之和为`v`，现给定两个不同的物品`i`和`j`。假设先选`i`再选`j`可以选完所有物品，而先选`j`再选`i`不能选完所有物品，则这两条规则分别对应着`v + b[i] > a[j]`和`v + b[j] <= a[i]`，消除`v`解不等式组易得`a[i] + b[i] >= a[j] + b[j]`，这就是我们所求的贪心顺序判定条件。对`b[i]<=0`的物品按`a[i] + b[i]`降序排序，并按该顺序贪心即可。假如选择过程中出现`v <= a[i]`的情况，则说明无法选择所有`b[i] < 0`的物品。
+
 ## §3.4 差分
 
 ### §3.4.1 高维差分
@@ -15190,6 +15201,8 @@ int main() {
 
 > [洛谷P5490](https://www.luogu.com.cn/problem/P5490)：在二维平面上，给定`n`个各边均平行于`X/Y`轴的矩形（以`(x1, y1, x2, y2)`四个坐标的形式给出），这些矩形的并集是一个不规则图形，求其面积。
 
+想像一条平行于`Y`轴的扫描线从左到右划过这个不规则图形，于是`n`个矩形一共有`2n`条竖边，对应着`2n`个关于扫描线的事件`Event`。由于面积计算具有后滞性，即必须知道`event[i+1]`对应的`.x`，才能计算这一部分的面积`(event[i+1].x - event[i].x) * (执行event[i]后的长度)`，所以在设计程序时，需要先统计之前扫过的一部分面积（`(event[i].x - event[i-1].x) * (执行event[i-1]后的长度)`），再执行当前事件`event[i]`。
+
 ```c++
 const int N_MAX = 1e5, N_DISCRETE_MAX = N_MAX * 2;
 int n, tick_y_count; int64_t x_1_temp, y_1_temp, x_2_temp, y_2_temp, tick_y[N_DISCRETE_MAX + 1], x_pre, ans;
@@ -15267,6 +15280,122 @@ int main() {
         assert(event[i].y_max > event[i].y_min);
         segtree_update_range_incre(1, event[i].y_min, event[i].y_max - 1, event[i].incre);
     }
+    std::cout << ans;
+}
+```
+
+> [洛谷P1856](https://www.luogu.com.cn/problem/P1856)：在二维平面上，给定`n`个各边均平行于`X/Y`轴的矩形（以`(x1, y1, x2, y2)`四个坐标的形式给出），这些矩形的并集是一个不规则图形，求其周长。
+
+由于周长计算没有后滞性，执行当前事件`event[i]`后，当场就能直到周长的增量，所以在设计程序时，需要先执行当前事件`event[i]`，再统计现在增加的周长（`std::abs(执行完event[i]后的长度 - 执行event[i]之前的长度)`）。
+
+沿着`X`、`Y`轴用扫描线扫两次，分别统计竖边和横边的总长度即可。
+
+```c++
+const int N_MAX = 5e3;
+int n; int64_t x_1_temp, y_1_temp, x_2_temp, y_2_temp, tick_x[N_MAX * 2 + 1], tick_y[N_MAX * 2 + 1], tick_x_cnt, tick_y_cnt;
+int64_t pre_query, ans;
+struct EventX { int64_t x, y_min, y_max; int incre; } event_x[N_MAX * 2 + 1];
+struct EventY { int64_t y, x_min, x_max; int incre; } event_y[N_MAX * 2 + 1];
+
+struct SegTree { int l, r; int64_t v_len, v_cover_len, v_cover_cnt; } segtree[(N_MAX * 2 - 1) * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_len = segtree[root * 2].v_len + segtree[root * 2 + 1].v_len;
+    if(segtree[root].v_cover_cnt > 0) {
+        segtree[root].v_cover_len = segtree[root].v_len;
+    } else if(segtree[root].l < segtree[root].r) {
+        segtree[root].v_cover_len = segtree[root * 2].v_cover_len + segtree[root * 2 + 1].v_cover_len;
+    } else {
+        segtree[root].v_cover_len = 0;
+    }
+}
+inline void segtree_pushdown(const int &root) {}
+void segtree_init(const int root, const int l, const int r, const int64_t a[(N_MAX * 2 - 1) * 4 + 1]) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) {
+        segtree[root].v_len = a[l + 1] - a[l];
+        segtree[root].v_cover_cnt = 0;
+        segtree[root].v_cover_len = 0;
+        return;
+    }
+    int mid = (l + r) / 2;
+    segtree_init(root * 2, l, mid, a);
+    segtree_init(root * 2 + 1, mid + 1, r, a);
+    segtree_pushup(root);
+}
+void segtree_update_range_incre(const int root, const int &l, const int &r, const int &incre) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        segtree[root].v_cover_cnt += incre;
+        if(segtree[root].v_cover_cnt > 0) {
+            segtree[root].v_cover_len = segtree[root].v_len;
+        } else if(segtree[root].l < segtree[root].r) {
+            segtree[root].v_cover_len = segtree[root * 2].v_cover_len + segtree[root * 2 + 1].v_cover_len;
+        } else {
+            segtree[root].v_cover_len = 0;
+        }
+        return;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= mid) { segtree_update_range_incre(root * 2, l, r, incre); }
+    if(r > mid) { segtree_update_range_incre(root * 2 + 1, l, r, incre); }
+    segtree_pushup(root);
+}
+int64_t segtree_query_range_cover_len(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        return segtree[root].v_cover_len;
+    }
+    segtree_pushdown(root);
+    int mid = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query = 0;
+    if(l <= mid) { query += segtree_query_range_cover_len(root * 2, l, r); }
+    if(r > mid) { query += segtree_query_range_cover_len(root * 2 + 1, l, r); }
+    return query;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> x_1_temp >> y_1_temp >> x_2_temp >> y_2_temp;
+        event_x[i] = {x_1_temp, y_1_temp, y_2_temp, 1};
+        event_x[i + n] = {x_2_temp, y_1_temp, y_2_temp, -1};
+        event_y[i] = {y_1_temp, x_1_temp, x_2_temp, 1};
+        event_y[i + n] = {y_2_temp, x_1_temp, x_2_temp, -1};
+        tick_x[i] = x_1_temp; tick_x[i + n] = x_2_temp;
+        tick_y[i] = y_1_temp; tick_y[i + n] = y_2_temp;
+    }
+    std::sort(event_x + 1, event_x + 2 * n + 1, [](const EventX &lhs, const EventX &rhs) { return lhs.x < rhs.x; });
+    std::sort(event_y + 1, event_y + 2 * n + 1, [](const EventY &lhs, const EventY &rhs) { return lhs.y < rhs.y; });
+    std::sort(tick_x + 1, tick_x + n * 2 + 1);
+    std::sort(tick_y + 1, tick_y + n * 2 + 1);
+    tick_x_cnt = std::unique(tick_x + 1, tick_x + n * 2 + 1) - (tick_x + 1);
+    tick_y_cnt = std::unique(tick_y + 1, tick_y + n * 2 + 1) - (tick_y + 1);
+    for(int i = 1; i <= 2 * n; ++i) {
+        event_x[i].y_min = std::lower_bound(tick_y + 1, tick_y + 1 + tick_y_cnt, event_x[i].y_min) - tick_y;
+        event_x[i].y_max = std::lower_bound(tick_y + 1, tick_y + 1 + tick_y_cnt, event_x[i].y_max) - tick_y;
+        event_y[i].x_min = std::lower_bound(tick_x + 1, tick_x + 1 + tick_x_cnt, event_y[i].x_min) - tick_x;
+        event_y[i].x_max = std::lower_bound(tick_x + 1, tick_x + 1 + tick_x_cnt, event_y[i].x_max) - tick_x;
+    }
+
+    // 计算竖边长度
+    segtree_init(1, 1, tick_y_cnt - 1, tick_y);
+    pre_query = 0;
+    for(int i = 1; i <= n * 2; ++i) {
+        assert(event_x[i].y_max > event_x[i].y_min);
+        segtree_update_range_incre(1, event_x[i].y_min, event_x[i].y_max - 1, event_x[i].incre);
+        ans += std::abs(segtree_query_range_cover_len(1, 1, tick_y_cnt - 1) - pre_query);
+        pre_query = segtree_query_range_cover_len(1, 1, tick_y_cnt - 1);
+    }
+
+    // 计算横边长度
+    segtree_init(1, 1, tick_x_cnt - 1, tick_x);
+    pre_query = 0;
+    for(int i = 1; i <= n * 2; ++i) {
+        assert(event_y[i].x_max > event_y[i].x_min);
+        segtree_update_range_incre(1, event_y[i].x_min, event_y[i].x_max - 1, event_y[i].incre);
+        ans += std::abs(segtree_query_range_cover_len(1, 1, tick_x_cnt - 1) - pre_query);
+        pre_query = segtree_query_range_cover_len(1, 1, tick_x_cnt - 1);
+    }
+
     std::cout << ans;
 }
 ```
