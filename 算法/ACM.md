@@ -18,7 +18,7 @@ cout << fixed << setprecision(位数) << 值;
 
 ## §1.2 `<algorithm>`
 
-### §1.2.1 内省排序
+### §1.2.1 `std::sort()`
 
 `std::sort(Iterator begin, Iterator end)`使用的是内省排序，默认从小到大排序。
 
@@ -34,7 +34,7 @@ void std::sort(
 
 `comp(pre, post)`接受两个形参，`pre`表示在序列中比较靠前/`begin`的元素，`post`表示在序列中比较靠后/`end`的元素。如果`comp()`返回`true`，则说明`pre`应该排在前面；如果返回`false`，则说明`post`应该排在前面。缺省时为`std::less<T>()`，表示升序输出。
 
-### §1.2.2 容器二分查找
+### §1.2.2 `std::lower_bound()`/`std::upper_bound()`
 
 > [CppReference](https://zh.cppreference.com/w/cpp/algorithm/lower_bound)：`std::lower_bound(Iterator begin, Iterator end, T value)`返回非严格单调递增容器从`begin`到`end`遍历，找到第一个大于等于`value`的位置，并返回这个位置的迭代器。
 
@@ -174,7 +174,7 @@ void std::sort_heap(Iter first, Iter last);
 void std::sort_heap(Iter first, Iter last, Compare comp);
 ```
 
-### §1.2.4 相邻元素去重
+### §1.2.4 `std::unique()`
 
 `T* std::unique(Iter first, Iter last)`用于将`[first, last)`中的相邻重复元素移动到容器末尾，并返回一个新的`T* unique_last`指针，表示相邻元素去重后的结果存放在`[first, unique_last)`中。**通常配合`std::sort()`预处理后，做整体去重，而非仅仅是相邻重复元素的去重**。
 
@@ -234,6 +234,42 @@ extern "C++" class ios_base : public _Iosb<int> {
 | `explicit T func() { ... }`          | C++20及以后 |
 
 当`std::cin`读到EOF或不符合格式的数据时，其`fail()`会返回`true`，于是`bool(std::cin)`返回`false`，可以作为终止输入的依据。
+
+## §1.4 `<queue>`
+
+### §1.4.1 `std::priority_queue`
+
+STL将堆进一步封装成优先队列。
+
+```c++
+std::queue<class T, class Container = std::vector<T>, std::function<bool(T&, T&)> Compare = std::less<T>> queue(
+	T,
+	std::vector<T>,
+	[](const T &child, const T &root){ return true; } // 返回true时,root在堆顶
+);
+```
+
+这里的`Compare`是类，而不是实例化的可调用对象，也不是函数指针。
+
+```c++
+// 方法一: Lambda表达式变量
+auto comp = [](const Stuff &child, const Stuff &root){ return ...; };
+std::priority_queue<Stuff, std::vector<Stuff>, decltype(comp)> queue(comp);
+
+// 方法二: Lambda表达式
+std::priority_queue<Stuff, std::vector<Stuff>, std::function<bool(Stuff&, Stuff&)>> queue(
+	[](const Stuff &lhs, const Stuff &rhs){ return ...;}
+);
+
+// 方法三：重载仿函数bool Stuff(&lhs, &rhs);
+struct Stuff {
+	inline bool operator(const Stuff &lhs, const Stuff &rhs){
+		return ...;
+	}
+}
+std::priority_queue(Stuff, std::vector<Stuff>, Stuff) queue;
+
+```
 
 # §2 动态规划
 
@@ -6439,12 +6475,88 @@ int main(){
 
 邻项交换法使用以下方法确定任意两个选项的交换次序：令先`A`后`B`时可以达到更优，而先`B`后`A`时不能达到更优，这两条规则分别对应着两个约束条件，解不等式即可得到判定更优的依据。
 
-> [洛谷P3619](https://www.luogu.com.cn/problem/P3619)：给定`n`个物品，选择第`i`个物品会获得权值`b[i]`，初始权值为`v`。只有当目前权值之和满足`v > a[i]`时才能选择第`i`个物品。请问是否存在一种物品选择次序，可以选择全部的物品？
+> [洛谷P3619](https://www.luogu.com.cn/problem/P3619)：给定`n`个物品，选择第`i`个物品会获得权值`b[i]`，初始权值为`v`。只有当目前权值之和满足`v > a[i]`时才能选择第`i`个物品，且要求任何时刻必须有`v > 0`。请问是否存在一种物品选择次序，可以选择全部的物品？**数据`b[i]`范围有正有负**。
 
-本题要为物品分成两类：`b[i]>=0`和`b[i]<0`。
+本题要为物品分成两类：`b[i]>=0`（即`stuff_1[]`）和`b[i]<0`（即`stuff_0[]`）。
 
 - 首先我们希望`v`越大越好，因此需要先处理`b[i] >= 0`的物品。对于`b[i]>=0`的物品而言，显然可以贪心地对`a[i]`升序排序，然后依次选择这些物品。假如选择过程中出现`v <= a[i]`的情况，则说明无法选择所有`b[i] >= 0`的物品。
 - 然后需要确定选择`b[i]<=0`的策略。使用邻项交换法——令当前权值之和为`v`，现给定两个不同的物品`i`和`j`。假设先选`i`再选`j`可以选完所有物品，而先选`j`再选`i`不能选完所有物品，则这两条规则分别对应着`v + b[i] > a[j]`和`v + b[j] <= a[i]`，消除`v`解不等式组易得`a[i] + b[i] >= a[j] + b[j]`，这就是我们所求的贪心顺序判定条件。对`b[i]<=0`的物品按`a[i] + b[i]`降序排序，并按该顺序贪心即可。假如选择过程中出现`v <= a[i]`的情况，则说明无法选择所有`b[i] < 0`的物品。
+
+```c++
+const int N_MAX = 1e5, Q_MAX = 10;
+int n, q, stuff_0_cnt, stuff_1_cnt; int64_t v, a_temp, b_temp;
+struct Stuff { int64_t a, b, a_b_sum; } stuff_0[N_MAX + 1], stuff_1[N_MAX + 1];
+
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> n >> v;
+        stuff_0_cnt = stuff_1_cnt = 0;
+        for(int i = 1; i <= n; ++i) {
+            std::cin >> a_temp >> b_temp;
+            if(b_temp >= 0) { stuff_1[++stuff_1_cnt] = {a_temp, b_temp, a_temp + b_temp}; }
+            if(b_temp < 0) { stuff_0[++stuff_0_cnt] = {a_temp, b_temp, a_temp + b_temp}; }
+        }
+        std::sort(stuff_1 + 1, stuff_1 + 1 + stuff_1_cnt, [](const Stuff &lhs, const Stuff &rhs) { return lhs.a < rhs.a; });
+        std::sort(stuff_0 + 1, stuff_0 + 1 + stuff_0_cnt, [](const Stuff &lhs, const Stuff &rhs) { return lhs.a_b_sum > rhs.a_b_sum; });
+        bool is_success = true;
+        for(int i = 1; i <= stuff_1_cnt; ++i) {
+            if(v <= stuff_1[i].a) { is_success = false; break; }
+            v += stuff_1[i].b;
+        }
+        for(int i = 1; i <= stuff_0_cnt; ++i) {
+            if(v <= stuff_0[i].a) { is_success = false; break; }
+            v += stuff_0[i].b;
+            if(v <= 0) { is_success = false; break; }
+        }
+        std::cout << (is_success ? "+1s" : "-1s") << '\n';
+    }
+}
+```
+
+> [洛谷P7095](https://www.luogu.com.cn/problem/P7095)：给定`n`个物品，选择第`i`个物品`Stuff {int64_t a_limit, b_limit, a_incre, b_incre}`会获得A类权值`a_incre[i]`和B类权值`b_incre[i]`。只有当目前权值之和`a`、`b`同时满足`a>=a_limit[i]`和`b>=b_limit[i]`时才能选择第`i`个物品。请问初始权值`a_init`、`b_init`至少为多少，才能保证存在某种物品选择次序，使得可以选完所有的物品？请输出优先A类权值最小的答案，如果在此基础上有多个答案，则输出B类权值最小的答案。**数据保证`*_incre[*]>=0`**。
+
+本题涉及到两个维度的限制。一种错误的思路是同时考虑这两个维度——分别按`a_limit`、`b_limit`升序排序，然后从头便利一遍物品，缺多少补多少。这种思路是错误的，因为它的排序策略不是正确的贪心策略。以`{0, 2, 0, 0}`、`{2, 0, 0, 0}`、`{1, 1, 9, 9}`这三个物品为例，显然最佳策略是先选第三个物品，获取充足的`a`和`b`，再"零元购"第一个和第二个物品。然而按照错误的排序策略，无论把谁作为优先排序依据，都不会先选第三个物品。
+
+既然同时考虑这两个维度难度很高，我们不妨将两者解耦——**先考虑只有`a`限制时的`a_init`最小值，保证答案的第一条优先级；再以`a = a_init`的前提下考虑只有`b`限制时的`b_init`最小值，保证答案的第二条优先级**。
+
+```c++
+const int N_MAX = 1e5;
+int q, n; int64_t a_init, b_init, a, b;
+struct Stuff { int64_t a_limit, b_limit, a_incre, b_incre; } stuff[N_MAX + 1];
+
+int main() {
+    std::cin >> q >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> stuff[i].a_limit >> stuff[i].b_limit >> stuff[i].a_incre >> stuff[i].b_incre; }
+    std::sort(stuff + 1, stuff + 1 + n, [](const Stuff &lhs, const Stuff &rhs) {
+        if(lhs.a_limit != rhs.a_limit) { return lhs.a_limit < rhs.a_limit; }
+        return lhs.b_limit < rhs.b_limit;
+    });
+    a = 0; // 开始第一轮
+    for(int i = 1; i <= n; ++i) {
+        if(a < stuff[i].a_limit) {
+            a_init += (stuff[i].a_limit - a);
+            a = stuff[i].a_limit;
+        }
+        a += stuff[i].a_incre;
+    }
+    a = a_init; b = 0; int stuff_pointer = 1; // 开始第二轮，将[1, i)区间中的物品加入到优先队列中
+    std::priority_queue<Stuff, std::vector<Stuff>, std::function<bool(Stuff&, Stuff&)>> queue([](const Stuff &child, const Stuff &root) { return child.b_limit > root.b_limit; });
+    for(int i = 1; i <= n ; ++i) { // 每个回合消耗一个物品
+        while(stuff_pointer <= n && a >= stuff[stuff_pointer].a_limit) {
+            queue.push(stuff[stuff_pointer++]);
+        }
+        Stuff stuff_temp = queue.top(); queue.pop();
+        if(b < stuff_temp.b_limit) {
+            b_init += (stuff_temp.b_limit - b);
+            b = stuff_temp.b_limit;
+        }
+        a += stuff_temp.a_incre;
+        b += stuff_temp.b_incre;
+    }
+    std::cout << a_init << ' ' << b_init << '\n';
+}
+```
 
 ## §3.4 差分
 
