@@ -3653,9 +3653,46 @@ int main() {
 
 ## §2.4 数位DP
 
-> ？？？？？？？？？？
+对于数位DP问题而言，用DP思路解决反而很麻烦，因此我们首选记忆化搜索。数位DP问题不允许数字中含有前导零。因此在记忆化搜索的`dfs(pos, *, zero, free)`中，`pos`表示当前从高位向低位搜索到的数位，我们**至少**需要`bool zero`和`bool free`这两个状态转移变量，它们分别表示：当前搜索过的数字是否有前导零、当前搜索过的数字是否没有紧贴上界。
 
-令`dp[i]`表示所有长度为`i`、带有前导零填充的十进制数$\displaystyle[\underset{i个}{\underbrace{00\cdots0}},\underset{i个}{\underbrace{99\cdots9}}]$的这$10^i$个数中，各个数位出现的次数。由于每个数位出现的次数相等，所以我们只需记任意一个即可。接下来考虑`dp[i]`的递推式，我们将数位分成以下两类：
+| 给定的上界   | 目前`dfs()`的状态        | 目前`dfs()`状态的`zero` | 目前`dfs()`状态的`free` | 状态含义                              |
+| ------- | ------------------- | ------------------ | ------------------ | --------------------------------- |
+| `30201` | `?????`（确定为`<=5`位数） | `true`             | `false`            | ①在首位，是初始状态                        |
+| `30201` | `2????`（确定为`5`位数）   | `false`            | `true`             | ②高位选择的数码小于上界，本位可以在`0~9`中随便选       |
+| `30201` | `3????`（确定为`5`位数）   | `false`            | `false`            | ③高位选择的数码均与上界一致，本位不能超过`digit[pos]` |
+| `30201` | `0????`（确定为`<=4`位数） | `true`             | `true`             | ④高位均未选，来到了第`pos`位                 |
+
+于是`(zero, free, *)`等**至少两个状态变量**构成的DFA**至少为**：
+
+```mermaid
+graph TB
+	A["①初始状态<br>zero==true, free==false"]
+	B["②高位已选,本位任选<br>zero==false, free==true"]
+	C["③高位已选且紧贴上界<br>zero==false, free==false"]
+	D["④高位未选<br>zero==true, free==true"]
+	A --"本位不选"--> D
+	A --"本位选[1, digit[pos]-1]"--> B
+	A --"本位选digit[pos]" --> C
+	B --"本位选[0, 9]"--> B
+	C --"本位选[0, digit[pos]-1]"--> B
+	C --"本位选digit[pos]" --> C
+	D --"本位选[1, 9]" --> B
+	D --"本位不选" --> D
+	E[("直到所有数位均已确定,即pos==0")]
+```
+
+这样写出来的`dfs()`会产生四种分支。你当然可以把他们压缩成一个复杂的、`zero`和`free`均由复杂的逻辑表达式构成的单分支，但是这样做会降低可阅读性。
+
+对于区间`[l, r]`内的计数查询，我们有两种策略：
+
+1. 前缀和：`f(l,r) = f(1,r) - f(1,l-1)`。**适用于`l`可以减`1`的情况，例如`int64_t`、高精度**。
+2. 特判前缀和：`f(l,r) = f(1,r) - f(1,l) + bool_check(l)`。**适用于`l`无法直接操作的情况，例如$10^{\textcolor{red}{\le10^{6}}}$**。
+
+> [洛谷P2602](https://www.luogu.com.cn/problem/P2602)：求`[a, b]`内的所有正整数的十进制形式中，`0`~`9`这十个数码分别出现了多少次。
+
+将问题转化为`[1, b]`内的答案减`[1, a-1]`内的答案即可。接下来我们将介绍两种方法：动态规划与记忆化搜索。
+
+**在动态规划做法中**：令`dp[i]`表示所有**允许带有前导零填充的、长度为`i`的**十进制数$\displaystyle[\underset{i个}{\underbrace{00\cdots0}},\underset{i个}{\underbrace{99\cdots9}}]$的这$10^i$个数中，各个数位出现的次数。由于每个数位出现的次数相等，所以我们只需记任意一个即可。接下来考虑`dp[i]`的递推式，我们将数位分成以下两类：
 
 - 在`1`位出现的数位。固定好第`1`位的数位后，剩余的后`i-1`个位可以随意变化，总共能创造出$10^{i-1}$个不同的数字，因此这部分的出现次数为$10^{i-1}$。
 - 在后`i-1`个位中出现的数位。由于第`1`个数位有10种可能，因此由`dp`数组定义知，这部分的出现次数为`10×dp[i-1]`。
@@ -3671,21 +3708,184 @@ $$
 \end{cases}
 $$
 
-给定任意无前导零填充的十进制数字`x`，假设它的长度为`l`，各位的数位为`x[i]`。
+```c++
+const int DIGIT_LEN_MAX = 18;
+int64_t a, b, pow_10[DIGIT_LEN_MAX + 1], dp[DIGIT_LEN_MAX + 1];
+std::array<int64_t, 10> ans_a, ans_b, ans;
 
-**以下是一种错误的做法：**
+void init() {
+    pow_10[0] = 1;
+    dp[0] = 0;
+    for(int i = 1; i <= DIGIT_LEN_MAX; ++i) {
+        pow_10[i] = pow_10[i - 1] * 10;
+        dp[i] = dp[i - 1] * 10 + pow_10[i - 1]; // [1, i)数位的数码总数 + i数位的数码总数
+    }
+}
+std::array<int64_t, 10> solve(int64_t x) {
+    std::array<int64_t, 10> ans = {};
+    std::array<int, DIGIT_LEN_MAX + 1> digit = {};
+    int digit_cnt = 0;
+    while(x > 0) {
+        digit[++digit_cnt] = x % 10;
+        x /= 10;
+    }
+    for(int i = digit_cnt; i >= 1; --i) {
+        // 处理i位数在第[1, i-1]位出现的数码次数
+        for(int j = 0; j <= 9; ++j) { ans[j] += digit[i] * dp[i - 1]; }
 
-1. 在`l`个数位的后`l-1`个数位中的情况
-   - 能填满$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},\underset{l-1个}{\underbrace{99\cdots9}}]$区间的`l-1`个数位,对应着第`1`个数位的数值一定小于`x[1]`。之前我们已经能推出$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},\underset{l-1个}{\underbrace{99\cdots9}}]$对应的`dp[l-1]`的值，而`x`一共能凑出`x[1]`个完整的`dp[l-1]`对应的区间，分别是第`1`位恰好是`0`、`1`、...、`x[1]-1`的情况。这一部分的出现次数为`x[1]×dp[l-1]`。
-   - 不能填满$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},\underset{l-1个}{\underbrace{99\cdots9}}]$区间的`l-1`个数位,对应着第`1`个数位的数值一定等于`x[1]`。问题转化为后`l-1`个数字构成的**含有前导0**的十进制数。<u>这导致求解受阻。</u>
-2. 在`l`个数位的在第`1`位出现的情况
-   - 对于数字`0`，由于不能有前导零，所以这一部分的出现次数为0。除非`x`就是个位数，导致`dp[1]==0`不能被视为前导零，对应的出现次数为1，这里需要做特判。
-   - 对于小于`x[1]`且不为0的数字，`dp[i-1]`的每个情况都会让这个数字出现一次，因此这一部分的出现次数为`dp[i-1]`次。
-   - 对于等于`x[1]`的数字，我们将`x`第一位砍去，记为`y`，它只对应着$\displaystyle[\underset{l-1个}{\underbrace{00\cdots0}},y]$的区间，因此这一部分的出现次数为`y+1`次。
+        // 处理i位数在第i位出现的数码次数
+        if(digit[i] == 0) { ans[0] -= pow_10[i - 1]; } // 特判0数码: 如果digit[i]=0，则第i位(即数码0)与[1, i-1]构成的数字均含前导零而非法
+        for(int j = 1; j < digit[i]; ++j) { ans[j] += pow_10[i - 1]; } // 特判[1, digit[i] - 1]数码
+        int64_t temp = 0; for(int j = i - 1; j >= 1; --j) { temp = temp * 10 + digit[j]; } ans[digit[i]] += temp + 1; // 特判digit[i]数码，可以在[i, digit_cnt]均与x保持一致的情况下，均为合法情况(包括digit[i]=0)
+    }
+    return ans;
+}
+int main() {
+    init();
+    std::cin >> a >> b;
+    ans_b = solve(b); ans_a = solve(a - 1);
+    for(int i = 0; i <= 9; ++i) { ans[i] = ans_b[i] - ans_a[i]; }
+    for(int i = 0; i <= 9; ++i) { std::cout << ans[i] << ' '; }
+}
+```
 
-下面给出正确的做法：
+在记忆化搜索做法中，我们从高位至低位不断搜索。`dfs()`中的`target_digit`表示要搜索的数码，`pos`表示目前正在搜索从低到高数的第`pos`位，`is_limit`表示之前搜索确定的`[pos+1, digit_cnt]`是否与原数字保持一致，`has_prefix0`表示目前搜索的`[1, digit_cnt]`构成的数字是否含有前导`0`。
 
-1. #TODO:？？？？？？？？
+```c++
+const int DIGIT_LEN_MAX = 18;
+int64_t a, b, pow_10[DIGIT_LEN_MAX + 1], dp[DIGIT_LEN_MAX + 1][DIGIT_LEN_MAX + 1][2][2];
+std::array<int, DIGIT_LEN_MAX + 1> digit_a, digit_b; int digit_a_len, digit_b_len;
+std::array<int64_t, 10> ans_a, ans_b;
+
+int64_t dfs(const std::array<int, DIGIT_LEN_MAX + 1> &digit, int target_digit, int pos, int sum, bool is_limit, bool has_prefix0) {
+    if(pos == 0) { return sum; }
+    if(dp[pos][sum][is_limit][has_prefix0] != -1) { return dp[pos][sum][is_limit][has_prefix0]; }
+    int64_t ans = 0;
+    for(int i = 0; i <= (is_limit ? digit[pos] : 9); ++i) {
+        ans += dfs(digit, target_digit,
+            pos - 1,
+            sum + ((has_prefix0 == false || i > 0) && (i == target_digit)), // 无前导0时可以选，或者从这一位起不再有前导0
+            is_limit && (i == digit[pos]),
+            has_prefix0 == true && (i == 0)
+        );
+    }
+    dp[pos][sum][is_limit][has_prefix0] = ans;
+    return ans;
+}
+int main() {
+    std::cin >> a >> b; --a;
+
+    while(a > 0) { digit_a[++digit_a_len] = a % 10; a /= 10; }
+    for(int i = 0; i <= 9; ++i) {
+        std::fill(dp[0][0][0], dp[0][0][0] + (DIGIT_LEN_MAX + 1) * (DIGIT_LEN_MAX + 1) * 2 * 2, -1);
+        ans_a[i] = dfs(digit_a, i, digit_a_len, 0, true, true);
+    }
+    
+    while(b > 0) { digit_b[++digit_b_len] = b % 10; b /= 10; }
+    for(int i = 0; i <= 9; ++i) {
+        std::fill(dp[0][0][0], dp[0][0][0] + (DIGIT_LEN_MAX + 1) * (DIGIT_LEN_MAX + 1) * 2 * 2, -1);
+        ans_b[i] = dfs(digit_b, i, digit_b_len, 0, true, true);
+    }
+    
+    for(int i = 0; i <= 9; ++i) { std::cout << ans_b[i] - ans_a[i] << ' '; }
+}
+```
+
+> [洛谷P2657](https://www.luogu.com.cn/problem/P2657)：给定$\mathbb{N}^+$上的闭区间`[a, b]`，求其中不含前导零且相邻两个数字之差至少为`2`的正整数个数。
+
+本题可以使用记忆化搜索。具体来说，我们对`[1, x]`中的数，按照十进制长度`digit_tmp_len`划分成`digit_tmp_len`种情况分类讨论。`dfs()`中的`pos`表示从高位向低位遍历，遍历到了从低位开始数的第`pos`位；`pre`表示上一个数码（特殊地，令`pre==10`表示什么也没选，甚至不是前导`0`）；`is_limit`表示前面的`[pos+1, digit_tmp_len]`数位是否与`x`保持一致；`has_prefix0`表示是否有前导`0`。本题添加了“相邻数字之差”的限制条件。这说明我们在`dfs()`要传递上一位选的数`pre`。
+
+**下面这种做法中，`solve()`内`ans`每次`+=dfs()`时，都表示在十进制长度恰好为`i`的所有数字中的搜索结果**。
+
+```c++
+const int DIGIT_LEN_MAX = 18;
+int64_t a, b, dp[DIGIT_LEN_MAX + 1][11][2][2];
+std::array<int, DIGIT_LEN_MAX + 1> digit_tmp; int digit_tmp_len;
+
+int64_t dfs(const std::array<int, DIGIT_LEN_MAX + 1> &digit, int pos, int pre, bool is_limit, bool has_prefix0) {
+    if(dp[pos][pre][is_limit][has_prefix0] != -1) { return dp[pos][pre][is_limit][has_prefix0]; }
+    if(pos == 0) { return 1; }
+    int64_t ans = 0, i_min = (has_prefix0 ? 1 : 0), i_max = (is_limit ? digit[pos] : 9);
+    for(int i = i_min; i <= i_max; ++i) {
+        if(pre == 10 || std::abs(i - pre) >= 2) {
+            ans += dfs(digit, pos - 1, i, is_limit && (i == i_max), 0);
+        }
+    }
+    dp[pos][pre][is_limit][has_prefix0] = ans;
+    return ans;
+}
+int64_t solve(int64_t x) {
+    if(x == 0) { return 0; } // 警惕a-1可能为0，需要特判
+    std::fill(dp[0][0][0], dp[0][0][0] + (DIGIT_LEN_MAX + 1) * 11 * 2 * 2, -1);
+    int64_t ans = 0;
+    digit_tmp_len = 0;
+    while(x > 0) {
+        digit_tmp[++digit_tmp_len] = x % 10;
+        x /= 10;
+    }
+    for(int i = 1; i <= digit_tmp_len; ++i) {
+        ans += dfs(digit_tmp, i, 10, i == digit_tmp_len, true);
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> a >> b;
+    int64_t ans_a = solve(a - 1), ans_b = solve(b);
+    std::cout << ans_b - ans_a;
+}
+```
+
+> [洛谷P4124](https://www.luogu.com.cn/problem/P4124)：给定$\mathbb{N}^+$上的闭区间`[l, r]`，求其中的十进制长度恰好为`11`的、至少有`3`个相邻数字相同的、`4`和`8`不能同时出现的正整数数量。数据保证`l, r`的长度均为`11`。
+
+给定
+
+> [洛谷P8764]()：求`[1, n]`中的所有二进制正整数中，有多少个恰好有`K>=1`个`1`数码？
+
+板子题，在`dfs()`额外记录`[pos+1, digit_tmp_cnt]`中的`1`数码总数即可。
+
+```c++
+const int DIGIT_LEN_MAX = 64, K_MAX = 50;
+int digit_tmp[DIGIT_LEN_MAX + 1], digit_tmp_len, k;
+int64_t dp[DIGIT_LEN_MAX + 1][K_MAX + 1][2][2], n;
+
+int64_t dfs(int digit[DIGIT_LEN_MAX + 1], int pos, int cnt_1, bool zero, bool free) {
+    if(dp[pos][cnt_1][zero][free] != -1) { return dp[pos][cnt_1][zero][free]; }
+    if(cnt_1 > k) { return dp[pos][cnt_1][zero][free] = 0; }
+    if(pos == 0) { return dp[pos][cnt_1][zero][free] = (cnt_1 == k); }
+    int64_t ans = 0;
+    if(zero == true && free == true) { // 一直到第pos-1位都没有选过数码
+        ans += dfs(digit, pos - 1, cnt_1, true, true);
+        ans += dfs(digit, pos - 1, cnt_1 + 1, false, true);
+    } else if(zero == true && free == false) { // 首位
+        ans += dfs(digit, pos - 1, cnt_1, true, true); // 当前位不选
+        ans += dfs(digit, pos - 1, cnt_1 + 1, false, false);
+    } else if(zero == false && free == true) { // 前面已经选了更小的数码
+        ans += dfs(digit, pos - 1, cnt_1, false, true);
+        ans += dfs(digit, pos - 1, cnt_1 + 1, false, true);
+    } else if(zero == false && free == false) { // 直到第pos位都是紧贴上界的
+        if(digit[pos] == 0) {
+            ans += dfs(digit, pos - 1, cnt_1, false, false);
+        } else if(digit[pos] == 1) {
+            ans += dfs(digit, pos - 1, cnt_1, false, true);
+            ans += dfs(digit, pos - 1, cnt_1 + 1, false, false);
+        }
+    }
+    return dp[pos][cnt_1][zero][free] = ans;
+}
+int64_t solve(int64_t x) {
+    std::fill(dp[0][0][0], dp[0][0][0] + (DIGIT_LEN_MAX + 1) * (K_MAX + 1) * 2 * 2, -1);
+    while(x > 0) {
+        digit_tmp[++digit_tmp_len] = x % 2;
+        x /= 2;
+    }
+    return dfs(digit_tmp, digit_tmp_len, 0, true, false);
+}
+int main() {
+    std::cin >> n >> k;
+    std::cout << solve(n);
+}
+```
 
 ## §2.5 计数DP
 
@@ -17035,3 +17235,13 @@ int main(){
 我们都知道`k`和`a[i]`都在`int`范围之内，且`a_sum <= K_MAX * N_MAX = 2.5e9`必须用`int64_t`存储。于是一种错误的想法是令`int a[1->n], k;`和`int64_t a_sum`。**这样做会导致两个`int`相乘时就会爆上限，再转为`int64_t`已是无力回天**。
 
 正确的做法是：要么用`int64_t`存`a[]`或`k`，浪费空间；要么相乘前使用`(int64_t)`强制类型转换，浪费时间。
+
+## §A.5 运算符优先级
+
+### §A.5.1 `+`与`&&`
+
+```c++
+int ans, a; bool flag_a, flag_b;
+ans = a + (flag_a && flag_b); // √
+ans = a + flag_a && flag_b; // ×
+```
