@@ -3838,7 +3838,52 @@ int main() {
 
 > [洛谷P4124](https://www.luogu.com.cn/problem/P4124)：给定$\mathbb{N}^+$上的闭区间`[l, r]`，求其中的十进制长度恰好为`11`的、至少有`3`个相邻数字相同的、`4`和`8`不能同时出现的正整数数量。数据保证`l, r`的长度均为`11`。
 
-给定
+在DFS中额外维护当前位`i`与之前数码构成的连续长度`seq`与历史最大长度`seq_max`、维护`4`和`8`是否出现过的`exist4`和`exist8`。
+
+```c++
+const int DIGIT_LEN_MAX = 11;
+int digit_tmp[DIGIT_LEN_MAX + 1], digit_tmp_cnt;
+int64_t l, r, dp[DIGIT_LEN_MAX + 1][2][2][DIGIT_LEN_MAX + 1][DIGIT_LEN_MAX + 1][11][2];
+
+int64_t dfs(int digit[], int pos, bool exist4, bool exist8, int seq, int seq_max, int pre, bool free) {
+    if(dp[pos][exist4][exist8][seq][seq_max][pre][free] != -1) { return dp[pos][exist4][exist8][seq][seq_max][pre][free]; }
+    if(exist4 && exist8) { return dp[pos][exist4][exist8][seq][seq_max][pre][free] = 0; }
+    if(pos == 0) { return dp[pos][exist4][exist8][seq][seq_max][pre][free] = (!(exist4 && exist8)) && (seq_max >= 3); }
+    int64_t ans = 0;
+    if(pre == 10 && free == false) { // 首位
+        for(int i = 1; i <= digit[pos]; ++i) {
+            ans += dfs(digit, pos - 1, exist4 || (i == 4), exist8 || (i == 8), 1, 1, i, i < digit[pos]);
+        }
+    } else if(pre == 10 && free == true) { // 高位未选
+        assert(false);
+    } else if(pre != 10 && free == true) { // 高位不贴上界
+        for(int i = 0; i <= 9; ++i) {
+            ans += dfs(digit, pos - 1, exist4 || (i == 4), exist8 || (i == 8), (i == pre ? seq : 0) + 1, std::max(seq_max, (i == pre ? seq : 0) + 1), i, true);            
+        }
+    } else if(pre != 10 && free == false) { // 高位贴上界
+        for(int i = 0; i <= digit[pos]; ++i) {
+            ans += dfs(digit, pos - 1, exist4 || (i == 4), exist8 || (i == 8), (i == pre ? seq : 0) + 1, std::max(seq_max, (i == pre ? seq : 0) + 1), i, i < digit[pos]);
+        }
+    }
+    return dp[pos][exist4][exist8][seq][seq_max][pre][free] = ans;
+}
+int64_t solve(int64_t x) {
+    if(x < 10000000000) { return 0; }
+    std::fill(dp[0][0][0][0][0][0], dp[0][0][0][0][0][0] + (DIGIT_LEN_MAX + 1) * 2 * 2 * (DIGIT_LEN_MAX + 1) * (DIGIT_LEN_MAX + 1) * 11 * 2, -1);
+    digit_tmp_cnt = 0;
+    while(x > 0) {
+        digit_tmp[++digit_tmp_cnt] = x % 10;
+        x /= 10;
+    }
+    return dfs(digit_tmp, digit_tmp_cnt, false, false, 0, 0, 10, false);
+}
+int main() {
+    std::cin >> l >> r;
+    int64_t ans_r = solve(r), ans_l = solve(l - 1);
+    std::cout << ans_r - ans_l;
+    return 0;
+}
+```
 
 > [洛谷P8764]()：求`[1, n]`中的所有二进制正整数中，有多少个恰好有`K>=1`个`1`数码？
 
@@ -3884,6 +3929,65 @@ int64_t solve(int64_t x) {
 int main() {
     std::cin >> n >> k;
     std::cout << solve(n);
+}
+```
+
+> [洛谷P6754(`int64_t`)](https://www.luogu.com.cn/problem/P6754)/[洛谷P3413(数据加强版)](https://www.luogu.com.cn/problem/P3413)：查询闭区间内`[a, b]`有多少个正整数的十进制格式中，至少包含一个长度大于等于`2`的回文子串。答案模`MOD`输出，本题的数据范围为$l<r\le10^{1000}$。
+
+本题范围巨大，只能用字符串存储数字，不方便运算`l-1`，所以直接对`l`用`check()`做特判即可。
+
+**至少包含一个长度大于等于`2`的回文子串，等价于存在合法的`i`满足`digit[i]==digit[i-1] || digit[i]==digit[i-2]`**。所以仅需在`dfs()`传入前两位数字`pre2`和`pre1`作为描述状态的参数即可。
+
+```c++
+const int DIGIT_LEN_MAX = 1e3 + 1, MOD = 1e9 + 7;
+int digit[DIGIT_LEN_MAX + 1], digit_len;
+char s_l[DIGIT_LEN_MAX + 1], s_r[DIGIT_LEN_MAX + 1];
+int64_t dp[DIGIT_LEN_MAX + 1][2][11][11][2];
+
+int64_t dfs(int digit[], int pos, bool pre_dup, int pre_2, int pre_1, bool free) {
+    if(dp[pos][pre_dup][pre_2][pre_1][free] != -1) { return dp[pos][pre_dup][pre_2][pre_1][free]; }
+    if(pos == 0) { return dp[pos][pre_dup][pre_2][pre_1][free] = pre_dup; }
+    int64_t ans = 0;
+    if(pre_1 == 10 && free == false) { // 首位
+        ans += dfs(digit, pos - 1, false, pre_1, 10, true); ans %= MOD;
+        for(int i = 1; i <= digit[pos]; ++i) {
+            ans += dfs(digit, pos - 1, false, pre_1, i, i < digit[pos]); ans %= MOD;
+        }
+    } else if(pre_1 == 10 && free == true) { // 高位未选
+        ans += dfs(digit, pos - 1, false, pre_1, 10, true); ans %= MOD;
+        for(int i = 1; i <= 9; ++i) {
+            ans += dfs(digit, pos - 1, false, pre_1, i, true); ans %= MOD;
+        }
+    } else if(pre_1 != 10 && free == false) { // 高位紧贴上界
+        for(int i = 0; i <= digit[pos]; ++i) {
+            ans += dfs(digit, pos - 1, pre_dup || (pre_1 != 10 && pre_1 == i) || (pre_2 != 10 && pre_2 == i), pre_1, i, i < digit[pos]);  ans %= MOD;
+        }
+    } else if(pre_1 != 10 && free == true) { // 高位小于上界
+        for(int i = 0; i <= 9; ++i) {
+            ans += dfs(digit, pos - 1, pre_dup || (pre_1 != 10 && pre_1 == i) || (pre_2 != 10 && pre_2 == i), pre_1, i, true);  ans %= MOD;
+        }
+    }
+    return dp[pos][pre_dup][pre_2][pre_1][free] = ans;
+}
+int64_t solve(char s[]) {
+    std::fill(dp[0][0][0][0], dp[0][0][0][0] + (DIGIT_LEN_MAX + 1) * 2 * 11 * 11 * 2, -1);
+    digit_len = std::strlen(s);
+    for(int i = 0; i < digit_len; ++i) { digit[digit_len - i] = s[i] - '0'; }
+    return dfs(digit, digit_len, false, 10, 10, false) % MOD;
+}
+bool check(char s[]) { // 是否包含长度>=2的回文子串
+    digit_len = std::strlen(s);
+    for(int i = 1; i < digit_len; ++i) {
+        if(s[i] == s[i - 1]) { return true; }
+    }
+    for(int i = 2; i < digit_len; ++i) {
+        if(s[i] == s[i - 2]) { return true; }
+    }
+    return false;
+}
+int main() {
+    std::cin >> s_l >> s_r;
+    std::cout << ((solve(s_r) - solve(s_l) + check(s_l)) % MOD + MOD) % MOD;  
 }
 ```
 
@@ -16631,6 +16735,86 @@ int main() {
 }
 ```
 
+> [洛谷P2106](https://www.luogu.com.cn/problem/P2106)：求所有`n<=1e6`位的、不含前导`0`的十进制数中，有多少个满足任意两个相邻数码之差小于等于`2`？答案对`MOD`取模后输出。
+
+令`dp[i][j]`表示所有长度恰好为`i`位的、**允许含前导`0`的**、第`i`位（最高位）恰好为`j`的十进制数中，满足任意两个相邻数码之差小于等于`2`的数量。易得状态转移方程：
+
+$$
+\left[\begin{matrix}
+	\text{dp}[i+1][0] \\ \text{dp}[i+1][1] \\ \text{dp}[i+1][2] \\ \text{dp}[i+1][3] \\ \text{dp}[i+1][4] \\
+	\text{dp}[i+1][5] \\ \text{dp}[i+1][6] \\ \text{dp}[i+1][7] \\ \text{dp}[i+1][8] \\ \text{dp}[i+1][9]
+\end{matrix}\right] = \left[\begin{matrix}
+	1 & 1 & 1 &   &   &   &   &   &   &   \\
+	1 & 1 & 1 & 1 &   &   &   &   &   &   \\
+	1 & 1 & 1 & 1 & 1 &   &   &   &   &   \\
+	  & 1 & 1 & 1 & 1 & 1 &   &   &   &   \\
+      &   & 1 & 1 & 1 & 1 & 1 &   &   &   \\
+      &   &   & 1 & 1 & 1 & 1 & 1 &   &   \\
+      &   &   &   & 1 & 1 & 1 & 1 & 1 &   \\
+      &   &   &   &   & 1 & 1 & 1 & 1 & 1 \\
+      &   &   &   &   &   & 1 & 1 & 1 & 1 \\
+      &   &   &   &   &   &   & 1 & 1 & 1 \\
+\end{matrix}\right] \times \left[\begin{matrix}
+	\text{dp}[i][0] \\ \text{dp}[i][1] \\ \text{dp}[i][2] \\ \text{dp}[i][3] \\ \text{dp}[i][4] \\
+	\text{dp}[i][5] \\ \text{dp}[i][6] \\ \text{dp}[i][7] \\ \text{dp}[i][8] \\ \text{dp}[i][9]
+\end{matrix}\right]
+$$
+
+将上式简记为$\mathbf{DP}_{i+1}=\mathbf{A}\times\mathbf{DP}_{i}$，于是有通项公式$\mathbf{DP}_{n}=\mathbf{A}^{n-1}\times\mathbf{DP}_{1}$，其中$\mathbf{DP}_1=[1,1,1,1,1,1,1,1,1,1]^\mathrm{T}$。问题转化为求$\displaystyle\sum_{i\in[1,9]}\text{dp}[n][i]$，**特殊地，当`n==1`时，数字`0`虽然有前导`0`，但仍然是合法数字，所以要补加`dp[n][0]`**。
+
+```c++
+const int N_MAX = 1e6, MATRIX_N_MAX = 10, MATRIX_M_MAX = 10, MOD = 1e9 + 7;
+int64_t n, ans;
+
+struct Matrix {
+    int n, m;
+    long long int data[MATRIX_N_MAX + 1][MATRIX_M_MAX + 1];
+    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.m == rhs.n);
+        Matrix ans;
+        std::fill(*ans.data, *ans.data + (MATRIX_N_MAX + 1) * (MATRIX_M_MAX + 1), 0);
+        ans.n = lhs.n, ans.m = rhs.m;
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                for(int k = 1; k <= lhs.m; ++k) {
+                    ans.data[i][j] = ans.data[i][j] + ((lhs.data[i][k] % MOD) * (rhs.data[k][j] % MOD)) % MOD;
+                    ans.data[i][j] = (ans.data[i][j] % MOD + MOD) % MOD;
+                }
+            }
+        }
+        return ans;
+    }
+    Matrix operator*=(const Matrix &rhs) { return *this = *this * rhs; }
+} a, dp_init, dp;
+inline Matrix fast_matrix_power(Matrix base, long long int power) {
+    assert(base.n == base.m);
+    Matrix ans;
+    std::fill(*ans.data, *ans.data + (MATRIX_N_MAX + 1) * (MATRIX_M_MAX + 1), 0);
+    for(int i = 1; i <= base.n; ++i) { ans.data[i][i] = 1; }
+    ans.n = ans.m = base.n;
+    while(power > 0) {
+        if(power & 1) { ans *= base; }
+        base *= base;
+        power /= 2;
+    }
+    return ans;
+}
+
+int main() {
+    std::cin >> n;
+    a.n = 10, a.m = 10;
+    for(int i = 1; i <= 10; ++i) {
+        for(int j = 1; j <= 10; ++j) { a.data[i][j] = (std::abs(j - i) <= 2); }
+    }
+    dp_init.n = 10; dp_init.m = 1;
+    for(int i = 1; i <= 10; ++i) { dp_init.data[i][1] = 1; }
+    dp = fast_matrix_power(a, n - 1) * dp_init;
+    for(int i = (n == 1 ? 1 : 2); i <= 10; ++i) {
+        ans = (ans + dp.data[i][1]) % MOD;
+    }
+    std::cout << ans;
+}
+```
 # §9 模拟
 
 "与成功只差最后一步，卡在这里了"。
