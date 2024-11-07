@@ -3991,6 +3991,257 @@ int main() {
 }
 ```
 
+### §2.4.1 有后效性数位DP
+
+在上面的简单例题中，高位的状态参数不会影响低位的状态参数，确定某个数字是否符合条件，仅需判定`pos==0`时的状态参数是否满足$f(状态参数)=0$即可。然而有些例题，它们的判定条件是$h(g(x), f(状态参数))=0$，必须得到最终数字$x$才能判定。为了解决这类问题，我们直接提前遍历$g(x)$值域中的所有元素，分别为每个元素开一个桶。于是`solve()`函数就需要提前确定`g(x)=v`的值，最后让每个桶的结果相加即可。
+
+> [洛谷P1831](https://www.luogu.com.cn/problem/P1831)：对于一个`int64_t`内的十进制数字`char digit[1->digit_len]`，如果$\exists p\in[1, \text{digit\_len}]$，使得$\displaystyle\sum_{i\in[1,\text{digit\_len}]}(i-p)\cdot \text{digit}[i]=0$，则称这个数为杠杆数。求`[l, r]`内的杠杆数的数量。
+
+**注意到如果一个数是杠杆数，那么它只能有一个支点，因为向左或向右都会导致左右两侧力矩失衡**。本题的关键在于，我们事先无法知道哪个$p$能作为支点。于是直接为`p`开`digit_len`个桶，分别枚举即可。令`dp[i][j][zero][free]`表示**以第`p`位为支点时**，从高位向低位枚举到第`i`位时、**以第`p`为支点时的力矩总和（可能为负数，需要加`OFFSET`）为`j`时**、`zero`和`free`均给定时的杠杆数总数，于是答案为$\displaystyle\sum_{p\in[1,\text{digit\_len}]}\text{dp}_p[i][j][1][0]$。
+
+```c++
+const int DIGIT_LEN_MAX = 64, DIGIT_SUM_MAX = 9 * ((DIGIT_LEN_MAX + 1) * DIGIT_LEN_MAX / 2 - DIGIT_LEN_MAX), DIGIT_SUM_OFFSET = DIGIT_SUM_MAX;
+int digit[DIGIT_LEN_MAX + 1], digit_len;
+int64_t l, r, dp[DIGIT_LEN_MAX + 1][DIGIT_SUM_OFFSET * 2 + 1][2][2];
+
+int64_t dfs(int digit[], int pos, int pos_fulcrum, int sum, bool zero, bool free) {
+    if(dp[pos][sum + DIGIT_SUM_OFFSET][zero][free] != -1) { return dp[pos][sum + DIGIT_SUM_OFFSET][zero][free]; }
+    if(pos == 0) { return dp[pos][sum + DIGIT_SUM_OFFSET][zero][free] = (zero == false) && (sum == 0); } // 0不算杠杆数
+    int64_t ans = 0;
+    if(zero == true && free == false) { // 首位
+        ans += dfs(digit, pos - 1, pos_fulcrum, sum, true, true);
+        for(int i = 1; i <= digit[pos]; ++i){
+            ans += dfs(digit, pos - 1, pos_fulcrum, sum + (pos - pos_fulcrum) * i, false, i < digit[pos]);
+        }
+    } else if(zero == true && free == true) { // 高位未选
+        ans += dfs(digit, pos - 1, pos_fulcrum, sum, true, true);
+        for(int i = 1; i <= 9; ++i){
+            ans += dfs(digit, pos - 1, pos_fulcrum, sum + (pos - pos_fulcrum) * i, false, true);
+        }
+    } else if(zero == false && free == false) { // 高位紧贴上界
+        for(int i = 0; i <= digit[pos]; ++i) {
+            ans += dfs(digit, pos - 1, pos_fulcrum, sum + (pos - pos_fulcrum) * i, false, i < digit[pos]);
+        }
+    } else if(zero == false && free == true) { // 高位小于上界
+        for(int i = 0; i <= 9; ++i) {
+            ans += dfs(digit, pos - 1, pos_fulcrum, sum + (pos - pos_fulcrum) * i, false, true);
+        }
+    }
+    return dp[pos][sum + DIGIT_SUM_OFFSET][zero][free] = ans;
+}
+int64_t solve(int64_t x) { // 0不算杠杆数
+    if(x == 0) { return 0; }
+    digit_len = 0;
+    while(x > 0) {
+        digit[++digit_len] = x % 10;
+        x /= 10;
+    }
+    int64_t ans = 0;
+    for(int i = 1; i <= digit_len; ++i) {
+        std::fill(dp[0][0][0], dp[0][0][0] + (DIGIT_LEN_MAX + 1) * (DIGIT_SUM_MAX * 2 + 1) * 2 * 2, -1);
+        ans += dfs(digit, digit_len, i, 0, true, false);
+    }
+    return ans;
+}
+int main() {
+    std::cin >> l >> r;
+    std::cout << solve(r) - solve(l - 1);
+}
+```
+
+> [洛谷P3107](https://www.luogu.com.cn/problem/P3107)：给定一个十进制正整数`x`，如果其中有至少一半的数字是同一个数码，则称这个数为"半多数"。求区间`[l, r]`中的半多数数量。
+
+本题的关键在于：不枚举到最后一位，我们根本不知道哪个数码是最多的。而且`dp`数组也不能给`0~9`单独开`10`个长度为`DIGIT_LEN_MAX + 1`的维度。**不妨假设数码$i\in[0, 9]$是符合条件的数码**，我们给`i`开`0~9`这`10`个桶，依次枚举即可。于是`dfs_1()`仅需携带一个表示“数码`i`出现次数、一个表示“非`i`的数码出现次数”/“目前为止的有效数字个数”用于判定即可。
+
+然而这样做会导致重复计数。例如数字`12`，其中的数码`1`和数码`2`均符合要求，因此这个数字会被重复计数两次。我们需要将重复的数字删去。**注意到：如果`x`会导致歧义，那么这个数中导致歧义的两个数码一定占据了相同的数量，且两者的并集就是整个数**。不妨再用一个`dfs_2()`对这两个数码开桶枚举。**由于`dfs_2()`枚举的数字只包含两种数码，因此只需要为当前数位枚举两个数码即可**。
+
+```c++
+const int DIGIT_LEN_MAX = 18 + 1;
+int digit[DIGIT_LEN_MAX + 1], digit_len;
+int64_t l, r, dp[DIGIT_LEN_MAX + 1][DIGIT_LEN_MAX + 1][DIGIT_LEN_MAX + 1][2][2];
+
+int64_t dfs_1(int digit[], int pos, int target, int target_cnt, int non_target_cnt, bool zero, bool free) {
+    if(dp[pos][target_cnt][non_target_cnt][zero][free] != -1) { return dp[pos][target_cnt][non_target_cnt][zero][free]; }
+    if(pos == 0) { return dp[pos][target_cnt][non_target_cnt][zero][free] = zero == false && target_cnt >= non_target_cnt; }
+    int64_t ans = 0;
+    if(zero == true) { // 首位 / 高位未选，本位不选
+        ans += dfs_1(digit, pos - 1, target, target_cnt, non_target_cnt, true, true);
+    }
+    for(int i = (zero ? 1 : 0); i <= (free ? 9 : digit[pos]); ++i) { // 本位要选
+        ans += dfs_1(digit, pos - 1, target, target_cnt + (i == target), non_target_cnt + (i != target), false, free || i < digit[pos]);
+    }
+    return dp[pos][target_cnt][non_target_cnt][zero][free] = ans;
+}
+int64_t dfs_2(int digit[], int pos, int target_1, int target_2, int target_1_cnt, int target_2_cnt, bool zero, bool free) {
+    if(dp[pos][target_1_cnt][target_2_cnt][zero][free] != -1) { return dp[pos][target_1_cnt][target_2_cnt][zero][free]; }
+    if(pos == 0) { return dp[pos][target_1_cnt][target_2_cnt][zero][free] = zero == false && target_1_cnt == target_2_cnt; }
+    int64_t ans = 0;
+    if(zero == true) {
+        ans += dfs_2(digit, pos - 1, target_1, target_2, target_1_cnt, target_2_cnt, true, true);
+    }
+    for(int i = (zero ? 1 : 0); i <= (free ? 9 : digit[pos]); ++i) {
+        if(i == target_1 || i == target_2) {
+            ans += dfs_2(digit, pos - 1, target_1, target_2, target_1_cnt + (i == target_1), target_2_cnt + (i == target_2), false, free || i < digit[pos]);
+        }
+    }
+    return dp[pos][target_1_cnt][target_2_cnt][zero][free] = ans;
+}
+int64_t solve(int64_t x) {
+    if(x <= 0) { return 0; }
+    digit_len = 0;
+    while(x > 0) {
+        digit[++digit_len] = x % 10;
+        x /= 10;
+    }
+    int64_t ans = 0;
+    for(int i = 0; i <= 9; ++i) {
+        std::fill(dp[0][0][0][0], dp[0][0][0][0] + (DIGIT_LEN_MAX + 1) * (DIGIT_LEN_MAX + 1) * (DIGIT_LEN_MAX + 1) * 2 * 2, -1);
+        ans += dfs_1(digit, digit_len, i, 0, 0, true, false);
+    }
+    for(int i = 0; i <= 9; ++i) {
+        for(int j = 0; j < i; ++j) {
+            std::fill(dp[0][0][0][0], dp[0][0][0][0] + (DIGIT_LEN_MAX + 1) * (DIGIT_LEN_MAX + 1) * (DIGIT_LEN_MAX + 1) * 2 * 2, -1);
+            ans -= dfs_2(digit, digit_len, i, j, 0, 0, true, false);
+        }
+    }
+    return ans;
+}
+int main() {
+    std::cin >> l >> r;
+    std::cout << solve(r) - solve(l - 1);
+}
+```
+
+### §2.4.2 找规律数位DP
+
+> [洛谷P2235](https://www.luogu.com.cn/problem/P2235)：定义函数$f(x)$为：$\begin{cases}f(1)=1,f(3)=3\\f(2n)=f(n)\\f(4n+1)=2f(2n+1)-f(n)\\f(4n+3)=3f(2n+1)-2f(n)\end{cases}$。求闭区间`[1, n]`中有多少正整数满足方程$f(x)=x$？数据范围满足$n\le 10^{100}$。
+
+不妨先打个表：
+
+```c++
+int f[128];
+int main() {
+    f[1] = 1; f[2] = 1; f[3] = 3;
+    for(int i = 4; i < 128; ++i) {
+        if(i % 4 == 0 || i % 4 == 2) {
+            f[i] = f[i / 2];
+        } else if(i % 4 == 1) {
+            f[i] = 2 * f[i / 4 * 2 + 1] - f[i / 4];
+        } else if(i % 4 == 3) {
+            f[i] = 3 * f[i / 4 * 2 + 1] - 2 * f[i / 4];
+        }
+    }
+    for(int i = 1; i < 128; ++i) {
+		if(f[i] == i) { std::cout << std::setw(4) << std::setfill(' ') << i << ' ' << std::bitset<10>(f[i]).to_string() << '\t'; }
+    }
+}
+```
+
+```
+1   0000000001	   3 0000000011	   5 0000000101	   7 0000000111	   
+9   0000001001	  15 0000001111	  17 0000010001	  21 0000010101	  
+27  0000011011	  31 0000011111	  33 0000100001	  45 0000101101	  
+51  0000110011	  63 0000111111	  65 0001000001	  73 0001001001	  
+85  0001010101	  93 0001011101	  99 0001100011	 107 0001101011	 
+119 0001110111	 127 0001111111
+```
+
+注意到满足$f(x)=x$时，$x$的二进制形式均为回文字符串。**事实上，$f(x)$代表着$x$的二进制形式的、经过`std::reverse()`首尾反转的数字**。以下用数学归纳法证明：
+
+- 对于$f(1)=1$和$f(3)=3$，结论显然成立。
+- 对于$f(2n)=f(n)$，假设$f(n)$结论成立。令$n$的二进制形式表示为$n=\overline{a_1 a_2 \cdots a_k}_{(2)}$，则$2n=\overline{a_1a_2\cdots a_k 0}_{(2)}$。于是$f(2n)=f(n)=\overline{a_k\cdots a_2 a_1}_{(2)}$，结论成立。
+- 对于$f(4n+1)=2f(2n+1)-f(n)$，假设$f(2n+1)$和$f(n)$结论成立。令$n$的二进制形式表示为$n=\overline{a_1 a_2 \cdots a_k}_{(2)}$，$2n+1=\overline{a_1 a_2 \cdots a_k 1}_{(2)}$，$4n+1=\overline{a_1 a_2 \cdots a_k 0 1}_{(2)}$，于是：
+  $$
+  \begin{align}f(4n+1) & = 2f(2n+1)-f(n) \\ & = \overline{1a_k\cdots a_2a_10}_{(2)}-\overline{a_k\cdots a_2 a_1}_{(2)} \\
+  & = \textcolor{red}{\overline{1a_k\cdots a_2a_1}_{(2)}+\overline{1a_k\cdots a_2a_1}_{(2)}}-\overline{a_k\cdots a_2 a_1}_{(2)} \\
+  & = \overline{1a_k\cdots a_2a_1}_{(2)} + \textcolor{green}{\overline{10\cdots 00}_{(2)}} \\
+  & = \overline{10a_k\cdots a_2a_1}_{(2)}
+  \end{align}
+  $$
+  结论成立。
+- 对于$f(4n+3)=3f(2n+1)-2f(n)$，假设$f(2n+1)$和$f(n)$结论成立。令$n$的二进制形式表示为$n=\overline{a_1 a_2 \cdots a_k}_{(2)}$，$2n+1=\overline{a_1 a_2 \cdots a_k 1}_{(2)}$，$4n+3=\overline{a_1 a_2 \cdots a_k 1 1}_{(2)}$，于是：
+  $$
+    \begin{align}f(4n+3) & = 3f(2n+1)-2f(n) 
+    \\ & = \overline{1a_k\cdots a_2a_1}_{(2)} + \textcolor{red}{\overline{1a_k\cdots a_2a_1}_{(2)} + \overline{1a_k\cdots a_2a_1}_{(2)} - \overline{a_k\cdots a_2 a_1}_{(2)} - \overline{a_k\cdots a_2 a_1}_{(2)}} \\
+  & = \overline{1a_k\cdots a_2a_1}_{(2)} + \textcolor{red}{\overline{10\cdots 00}_{(2)}+\overline{10\cdots 00}_{(2)}} \\
+  & = \overline{1a_k\cdots a_2a_1}_{(2)} + \textcolor{red}{\overline{100\cdots 00}_{(2)}} \\
+  & = \overline{11a_k\cdots a_2a_1}_{(2)}
+  \end{align}
+  $$
+  结论成立。
+
+问题转化为如何统计二进制回文数的数量。**本题规律较简单，无需使用记忆化搜索或DP**，只需令所求区间`[1, n]`的右端点十进制形式为$\overline{a_1a_2\cdots a_k}_{(10)}$：
+
+1. 对于十进制位数`k'`小于`k`的数字来说，首先首尾两个数位只能为`1`，剩下中间的`k'-2`个数位可以在构成回文串的前提下自由选择。如果`k'`为偶数，则只有高位的`k'/2`个数位可以自由选择，另一半低位的数位由回文串特性唯一确定；同理可得，如果`k'`为奇数，则只有`(k'+1)/2`位可以自由选择；综上所述，只有`((k'-2)+1)/2`位可以自由选择。这一部分的数量之和为$\displaystyle\sum_{k'\in[1, k)}{2^{\lfloor\frac{k'-1}{2}\rfloor}}$。
+2. 对于十进制位数`k'`等于`k`的数字来说，我们仍然只关于左边一半的数位，**不妨以"高位是否小于上界"（`free`）作为分类讨论的依据**。由于最高位和最低位均为`1`，所以`free`的判断仅需考虑中间即可。如果左边一半的数位满足`free==true`，则显然右边一半的数位组合起来符合小于等于`n`的要求；如果满足`free==false`，则需要特判左右数位结合后的回文串数字是否大于`n`，此处的判断，该部分的数量可能为`1`或`0`。
+
+本题没有对答案要求取模，因此只能用高精度运算板子。
+
+```c++
+struct Num { /* ... */ }; // 高精度板子略
+template<typename T> inline T fast_power(T base, int power) {
+    T result = 1;
+    while(power > 0) {
+        if(power % 2) { result *= base; }
+        base = base * base;
+        power /= 2;
+    }
+    return result;
+}
+std::string num_to_binary_string(Num n) {
+    std::string ans;
+    if(n == 0) { ans.push_back('0'); }
+    while(n > 0) {
+        ans.push_back(n % 2 == 1 ? '1' : '0');
+        n /= 2;
+    }
+    std::reverse(ans.begin(), ans.end());
+    return ans;
+}
+Num binary_string_to_num(const std::string &s) {
+    Num ans;
+    for(int i = 0; i < s.length(); i++) {
+        ans = ans * 2 + (s[i] == '1');
+    }
+    return ans;
+}
+std::string n_str, n_str_left, n_str_left_wo_highbit, n_str_left_mirrored, n_str_right;
+int digit_len;
+Num n, n_left, n_left_wo_highbit, n_left_mirrored, n_right, ans;
+int main() {
+    std::cin >> n_str; n = Num(n_str.c_str()); n_str = num_to_binary_string(n); digit_len = n_str.length();
+
+    n_str_left = n_str.substr(0, (digit_len + 1) / 2);
+    n_left = Num(n_str_left.c_str());
+
+    n_str_left_wo_highbit = n_str.substr(1, (digit_len + 1) / 2 - 1);
+    n_left_wo_highbit = binary_string_to_num(n_str_left_wo_highbit);
+
+    n_str_left_mirrored = n_str.substr(0, (digit_len + 1) / 2); std::reverse(n_str_left_mirrored.begin(), n_str_left_mirrored.end());
+    n_left_mirrored = Num(n_str_left_mirrored.c_str());
+
+    n_str_right = n_str.substr(digit_len / 2, (digit_len + 1) / 2);
+    n_right = Num(n_str_right.c_str());
+
+    for(int i = 1; i < digit_len; ++i) { ans += fast_power<Num>(2, (i - 1) / 2); }
+    ans += n_left_wo_highbit;
+    if(n_left_mirrored <= n_right) { ans += 1; }
+    
+    std::cout << ans;
+}
+```
+
+> [洛谷P2518](https://www.luogu.com.cn/problem/P2518)：给定一个无前导零的十进制数`n<=1e50`，现在可以删掉这个数中的任意多个数码`0`（或不删）并将其他的数位任意重新排序，则能产生出多少个互不相同的、比`n`还小的、无前导零的十进制数？
+
+**删除数码`0`等价于把它放到前导零的位置，因此问题转化为：求`n`的各个数码的全排列中，有多少个不同的数严格小于`n`**？令`solve(n)`为**小于等于`n`的**答案。由于本题的`n<=1e50`，所以不方便用`solve(n-1)`求解，于是求出`solve(n)-1`即可。
+
+对长度为`l`的`n`的各个数码（`0~9`）做频次统计，得到`p[0->9]`数组。在不考虑小于等于的限制时，根据排列组合，全排列总数为$C_{l}^{p[0]}C_{l-p[0]}^{p[1]}C_{l-p[0]-p[1]}^{p[2]}\cdots C_{l-p[0]-p[1]-\cdots-p[8]}^{p[9]}$。当考虑小于等于的限制时，我们只需要枚举最高位的可选数字，然后对后面的`l-1`个数码重复上述操作即可。
+
+`solve()`本质上是可重复元素的排列组合问题。假设现在已经从高位向低位枚举到了第`pos`位，根据`free`有两种选择：选择比`digit[pos]`更小的数使得`free==true`；选择恰好等于`digit[pos]`的数使得`free==false`。
+
+```c++
+
+```
 ## §2.5 计数DP
 
 ### §2.5.1 环上计数
@@ -4024,7 +4275,7 @@ int main() {
 }
 ```
 
-本题的正解是对这`n`个节点设立一个邻接矩阵$\mathbf{A}\in\R^{n\times n}$，其中$\mathbf{A}$反映了节点在环上的无向图关系。特殊地，令终止节点的出度为0。最后使用矩阵快速幂计算$\mathbf{A}^k$即可。相比于动态规划的时间复杂度$O(nm)$，本题固定$n=8$较小，因此图论做法能快到$O(n^3\log_2{m})$。
+本题的正解是对这`n`个节点设立一个邻接矩阵$\mathbf{A}\in\mathbb{R}^{n\times n}$，其中$\mathbf{A}$反映了节点在环上的无向图关系。特殊地，令终止节点的出度为0。最后使用矩阵快速幂计算$\mathbf{A}^k$即可。相比于动态规划的时间复杂度$O(nm)$，本题固定$n=8$较小，因此图论做法能快到$O(n^3\log_2{m})$。
 
 ### §2.5.2 表达式计数
 
@@ -16429,10 +16680,25 @@ $$
 \end{align}
 $$
 
+纯DP打表做法：
+
 ```c++
 for(int i = 0; i <= n; ++i) {
     C[i][0] = C[i][i] = 1;
     for(int j = 1; j <= n; ++j) { C[i][j] = C[i - 1][j] + C[i - 1][j - 1]; }
+}
+```
+
+记忆化搜索方法：
+
+```c++
+int64_t comb[N_MAX + 1][N_MAX + 1];
+int64_t get_comb(int n, int m) { // $ C_{n}^{m} $
+    assert(n >= m && m >= 0);
+    if(comb[n][m] > 0) { return comb[n][m]; }
+    if(m == 0) { return comb[n][m] = 1; }
+    if(n == m) { return comb[n][m] = 1; }
+    return comb[n][m] = get_comb(n - 1, m) + get_comb(n - 1, m - 1);
 }
 ```
 
