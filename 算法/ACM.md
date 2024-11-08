@@ -4240,7 +4240,44 @@ int main() {
 `solve()`本质上是可重复元素的排列组合问题。假设现在已经从高位向低位枚举到了第`pos`位，根据`free`有两种选择：选择比`digit[pos]`更小的数使得`free==true`；选择恰好等于`digit[pos]`的数使得`free==false`。
 
 ```c++
+const int N_LEN_MAX = 50;
+char digit[N_LEN_MAX + 2]; int digit_len, digit_cnt[10];
+int64_t ans, comb[N_LEN_MAX + 1][N_LEN_MAX + 1];
 
+int64_t get_comb(int n, int m) {
+    assert(n >= m && m >= 0);
+    if(comb[n][m] > 0) { return comb[n][m]; }
+    if(m == 0) { return comb[n][m] = 1; }
+    if(n == m) { return comb[n][m] = 1; }
+    return comb[n][m] = get_comb(n - 1, m) + get_comb(n - 1, m - 1);
+}
+int64_t solve(char digit[], int digit_cnt[], int digit_avail_cnt) {
+    int64_t ans = 1;
+    for(int i = 0; i <= 9; ++i) {
+        ans *= get_comb(digit_avail_cnt, digit_cnt[i]);
+        digit_avail_cnt -= digit_cnt[i];
+    }
+    return ans;
+}
+int main() {
+    std::cin >> (digit + 1); digit_len = std::strlen(digit + 1);
+    for(int i = 1; i <= digit_len; ++i) { ++digit_cnt[digit[i] - '0']; }
+    for(int i = 1; i <= digit_len; ++i) { // 枚举位数
+        // 还没确定第i位时，前面的高位一定紧贴上界，对应着free=false，zero=true
+        
+        // 第i位填入[0, digit[i])的数码，free转移到true，zero转移到true或false
+        for(int j = 0; j < digit[i] - '0'; ++j) {
+            if(digit_cnt[j] == 0) { continue; }
+            --digit_cnt[j];
+            ans += solve(digit, digit_cnt, digit_len - i); // 保证每次ans+=时free均为true，即严格小于n
+            ++digit_cnt[j];
+        }
+
+        // 第i位填入digit[i]，对应着free转移到false，zero转移到false（因为首位非零，一旦zero=false则永远是false）
+        --digit_cnt[digit[i] - '0'];
+    }
+    std::cout << ans;
+}
 ```
 ## §2.5 计数DP
 
