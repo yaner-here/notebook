@@ -4,22 +4,19 @@
     "type": "split",
     "children": [
       {
-        "id": "7031b0438e372707",
+        "id": "c27afd7c0b48c626",
         "type": "tabs",
         "children": [
           {
-            "id": "7023c7e7e5649851",
+            "id": "6a4697de8fbb0112",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "tldraw-view",
               "state": {
-                "file": "算法/ACM.md",
-                "mode": "source",
-                "backlinks": false,
-                "source": false
+                "file": "AI/Tldraw 2024-11-11 4.15下午.md"
               },
               "icon": "lucide-file",
-              "title": "ACM"
+              "title": "Tldraw 2024-11-11 4.15下午"
             }
           }
         ]
@@ -52,11 +49,9 @@
             "type": "leaf",
             "state": {
               "type": "outline",
-              "state": {
-                "file": "算法/ACM.md"
-              },
+              "state": {},
               "icon": "lucide-list",
-              "title": "ACM 的大纲"
+              "title": "大纲"
             }
           },
           {
@@ -86,8 +81,7 @@
               "title": "书签"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -105,16 +99,39 @@
     "hiddenItems": {
       "switcher:打开快速切换": false,
       "canvas:新建白板": false,
-      "command-palette:打开命令面板": false
+      "command-palette:打开命令面板": false,
+      "tldraw:Create new tldrawing": false
     }
   },
-  "active": "7023c7e7e5649851",
+  "active": "6a4697de8fbb0112",
   "lastOpenFiles": [
-    "前端库.md",
+    "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",
+    "2be28f77-68ba-4516-98c4-e0af830e2f5f-asset-svg.svg+xml",
+    "WebSocket.md",
+    "undefined/icons/align-center-horizontal.svg",
+    "undefined/icons/align-bottom.svg",
+    "AI/Tldraw 2024-11-11 4.15下午.md",
+    "AI/对比学习.md",
+    "未命名.tldraw.md",
+    "undefined/icons/zoom-out.svg",
+    "undefined/icons/zoom-in.svg",
+    "undefined/icons/warning-triangle.svg",
+    "undefined/icons/vertical-align-start.svg",
+    "undefined/icons/vertical-align-middle.svg",
+    "undefined/icons/vertical-align-end.svg",
+    "undefined/icons/unlock.svg",
+    "undefined/icons/ungroup.svg",
+    "undefined/icons",
+    "undefined/fonts/Shantell_Sans-Tldrawish.woff2",
+    "undefined/fonts/IBMPlexSerif-Medium.woff2",
+    "undefined/fonts/IBMPlexSans-Medium.woff2",
+    "undefined/fonts/IBMPlexMono-Medium.woff2",
+    "undefined/fonts",
+    "undefined",
+    "AI/未命名.canvas",
+    "SQL.md",
     "算法/ACM.md",
-    "未命名.md",
-    "66b16c3dd13072c9f906ec27e218802385f97c71.png@96h.webp",
-    "CMake.md",
-    "Pasted image 20240927223432.png"
+    "前端库.md",
+    "CMake.md"
   ]
 }
