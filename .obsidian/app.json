@@ -7,5 +7,5 @@
     "downscalePercent": 80
   },
   "readableLineLength": false,
-  "showLineNumber": true
+  "showLineNumber": false
 }
