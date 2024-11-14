@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux.md",
+                "file": "Linux配置环境脚本.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Linux"
+              "title": "Linux配置环境脚本"
             }
           },
           {
@@ -68,9 +68,11 @@
             "type": "leaf",
             "state": {
               "type": "outline",
-              "state": {},
+              "state": {
+                "file": "Linux脚本编程.md"
+              },
               "icon": "lucide-list",
-              "title": "大纲"
+              "title": "Outline of Linux脚本编程"
             }
           },
           {
@@ -100,12 +102,12 @@
               "title": "书签"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "right": {
     "id": "6ac2a4cb39577b94",
@@ -125,6 +127,7 @@
   },
   "active": "d6ab4c998e6637b5",
   "lastOpenFiles": [
+    "Linux配置环境脚本.md",
     "Linux.md",
     "Linux脚本编程.md",
     "AI/Tldraw 2024-11-11 4.15下午.md",
