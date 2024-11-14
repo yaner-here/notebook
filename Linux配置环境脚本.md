@@ -12,3 +12,9 @@ apt-get install goaccess -y
 npm install -g npkill
 
 ```
+
+```bashrc
+alias cp = cp -i # 覆盖文件时弹出确认提示
+alias mv = mv -i # 覆盖文件时弹出确认提示
+alias mkdir = mkdir -p # 当文件夹不存在时自动创建
+```
