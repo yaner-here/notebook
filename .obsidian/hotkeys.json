@@ -1,0 +1,12 @@
+{
+  "editor:table-row-after": [
+    {
+      "modifiers": [
+        "Alt",
+        "Mod"
+      ],
+      "key": "Enter"
+    }
+  ],
+  "editor:open-link-in-new-split": []
+}
