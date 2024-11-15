@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux配置环境脚本.md",
+                "file": "Regex.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Linux配置环境脚本"
+              "title": "Regex"
             }
           },
           {
@@ -107,7 +107,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 200,
+    "collapsed": true
   },
   "right": {
     "id": "6ac2a4cb39577b94",
@@ -119,17 +120,18 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "tldraw:Create new tldrawing": false,
       "switcher:Open quick switcher": false,
       "canvas:Create new canvas": false,
-      "command-palette:Open command palette": false,
-      "tldraw:Create new tldrawing": false
+      "command-palette:Open command palette": false
     }
   },
   "active": "d6ab4c998e6637b5",
   "lastOpenFiles": [
+    "Regex.md",
     "Linux配置环境脚本.md",
-    "Linux.md",
     "Linux脚本编程.md",
+    "Linux.md",
     "AI/Tldraw 2024-11-11 4.15下午.md",
     "AI/对比学习.drawio",
     "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",

@@ -162,37 +162,99 @@ MiB Swap:   4096.0 total,   4096.0 free,      0.0 used.  14612.1 avail Mem
 
 ### §2.1.3 `kill`
 
-在Linux中，信号的本质是一种软件中断，进程之间使用信号来通信。标准Unix进程信号的定义如下表所示：
+在Linux中，信号的本质是一种软件中断，进程之间使用信号来通信。常用的部分标准Unix进程信号的定义如下表所示：
 
-| 信号编号 | 信号名称        | 信号作用 |
-| ---- | ----------- | ---- |
-| `1`  | `SIGHUP`    |      |
-| `2`  | `SIGINT`    |      |
-| `3`  | `SIGQUIT`   |      |
-| `4`  | `SIGILL`    |      |
-| `5`  | `SIGTRAP`   |      |
-| `6`  | `SIGABRT`   |      |
-| `7`  | `SIGBUS`    |      |
-| `8`  | `SIGFPE`    |      |
-| `9`  | `SIGKILL`   |      |
-| `10` | `SIGUSR1`   |      |
-| `11` | `SIGSEGV`   |      |
-| `12` | `SIGUSR2`   |      |
-| `13` | `SIGPIPE`   |      |
-| `14` | `SIGALRM`   |      |
-| `15` | `SIGTERM`   |      |
-| `16` | `SIGSTKFLT` |      |
-| `17` | `SIGCHLD`   |      |
-| `18` | `SIGCONT`   |      |
-| `19` | `SIGSTOP`   |      |
-| `20` | `SIGTSTP`   |      |
-| `21` | `SIGTTIN`   |      |
-| `22` | `SIGTTOU`   |      |
-| `23` | `SIGURG`    |      |
-| `24` | `SIGXCPU`   |      |
-| `25` | `SIGXFSZ`   |      |
-| `26` | `SIGVTALRM` |      |
-| `27` | `SIGPROF`   |      |
-| `28` | `SIGWINCH`  |      |
-| `29` | `SIGIO`     |      |
-| `30` | `SIGPWR`    |      |
+| 信号编号 | 信号名称                 | 信号作用                              | 标准         | `tty`的等价快捷键 |
+| ---- | -------------------- | --------------------------------- | ---------- | ----------- |
+| `1`  | `SIGHUP`             | 虚拟控制台已关闭                          | `POSIX`    |             |
+| `2`  | `SIGINT`             | 硬中断                               | `ANSI`     | `Ctrl + C`  |
+| `3`  | `SIGQUIT`            | 硬退出                               | `POSIX`    | `Ctrl + \`  |
+| `4`  | `SIGILL`             | 调用非法指令                            | `ANSI`     |             |
+| `5`  | `SIGTRAP`            | 调试器断点跟踪                           | `POSIX`    |             |
+| `6`  | `SIGABRT`            | 调用`abort()`                       | `BSD`      |             |
+| `7`  | `SIGBUS`             | 访问总线的非法物理地址                       | `BSD`      |             |
+| `8`  | `SIGFPE`             | 浮点数异常                             | `ANSI`     |             |
+| `9`  | `SIGKILL`            | 强制终止进程（**无法拦截和处理**）               | `POSIX`    |             |
+| `10` | `SIGUSR1`            | 自定义信号                             | `POSIX`    |             |
+| `11` | `SIGSEGV`            | 分段错误（`Segment Fault`）             |            |             |
+| `12` | `SIGUSR2`            | 自定义信号                             | `POSIX`    |             |
+| `13` | `SIGPIPE`            | 管道另一端的接受进程不存在                     | `POSIX`    |             |
+| `14` | `SIGALRM`            | 进程调用`alarm()`                     | `POSIX`    |             |
+| `15` | `SIGTERM`            | 请求终止进程（**可以拦截和处理**）               | `ANSI`     |             |
+| `16` | `SIGSTKFLT`          | 堆栈损坏或溢出                           |            |             |
+| `17` | `SIGCHLD`            | 子进程终止、中断、恢复                       | `POSIX`    |             |
+| `18` | `SIGCONT`            | 从`SIGSTOP`停止状态恢复运行                | `POSIX`    |             |
+| `19` | `SIGSTOP`            | 强制暂停进程（**无法拦截和处理**），直到收到`SIGCONT` | `POSIX`    |             |
+| `20` | `SIGTSTP`            | 请求暂停进程（**可以拦截和处理**），直到收到`SIGCONT` | `POSIX`    | `Ctrl + Z`  |
+| `21` | `SIGTTIN`            | 请求从`tty`中读取内容，暂停进程直到收到`SIGCONT`   | `POSIX`    |             |
+| `22` | `SIGTTOU`            | 请求向`tty`中写入内容，暂停进程直到收到`SIGCONT`   | `POSIX`    |             |
+| `23` | `SIGURG`             | `Socket`收到带有`URGENT`标志的包          | `BSD`      |             |
+| `24` | `SIGXCPU`            | CPU调度决定暂停进程                       | `BSD`      |             |
+| `25` | `SIGXFSZ`            | 进程的文件体积超过阈值                       | `BSD`      |             |
+| `26` | `SIGVTALRM`          | 进程耗尽时间片                           | `BSD`      |             |
+| `27` | `SIGPROF`            | 性能测试计时器结束                         | `BSD`      |             |
+| `28` | `SIGWINCH`           | 改变窗口尺寸                            | `BSD`      |             |
+| `29` | `SIGIO`              | `I/O`从阻塞状态恢复                      | `System V` |             |
+| `30` | `SIGPWR`             | 电源故障                              | `System V` |             |
+| `31` | `SIGUNUSED`/`SIGSYS` | 未定义信号                             | `System V` |             |
+
+`kill -l`会展示当前环境的Linux内核定义的所有信号，`kill -l <SIGNAL>`用于在`<SIGNAL>`信号名与对应宏定义编号之间来回转换：
+
+```shell
+# kill -l
+ 1) SIGHUP       2) SIGINT       3) SIGQUIT      4) SIGILL       5) SIGTRAP
+ 6) SIGABRT      7) SIGEMT       8) SIGFPE       9) SIGKILL     10) SIGBUS
+11) SIGSEGV     12) SIGSYS      13) SIGPIPE     14) SIGALRM     15) SIGTERM
+16) SIGURG      17) SIGSTOP     18) SIGTSTP     19) SIGCONT     20) SIGCHLD
+21) SIGTTIN     22) SIGTTOU     23) SIGIO       24) SIGXCPU     25) SIGXFSZ
+26) SIGVTALRM   27) SIGPROF     28) SIGWINCH    29) SIGPWR      30) SIGUSR1
+31) SIGUSR2     32) SIGRTMIN    33) SIGRTMIN+1  34) SIGRTMIN+2  35) SIGRTMIN+3
+36) SIGRTMIN+4  37) SIGRTMIN+5  38) SIGRTMIN+6  39) SIGRTMIN+7  40) SIGRTMIN+8
+41) SIGRTMIN+9  42) SIGRTMIN+10 43) SIGRTMIN+11 44) SIGRTMIN+12 45) SIGRTMIN+13
+46) SIGRTMIN+14 47) SIGRTMIN+15 48) SIGRTMIN+16 49) SIGRTMAX-15 50) SIGRTMAX-14
+51) SIGRTMAX-13 52) SIGRTMAX-12 53) SIGRTMAX-11 54) SIGRTMAX-10 55) SIGRTMAX-9
+56) SIGRTMAX-8  57) SIGRTMAX-7  58) SIGRTMAX-6  59) SIGRTMAX-5  60) SIGRTMAX-4
+61) SIGRTMAX-3  62) SIGRTMAX-2  63) SIGRTMAX-1  64) SIGRTMAX
+
+# kill -l SIGINT
+2
+
+# kill -l INT
+2
+
+# kill -l 2
+INT
+```
+
+键盘本身并不发送信号，而是虚拟控制台通常规定了一些从快捷键到`ASCII`控制字符的映射规则，有些`ASCII`控制字符对应着特定的信号。这些规则可以通过`stty -a`查看。如上表所示，只有`Ctrl + C`、`Ctrl + \`、`Ctrl + Z`对应的`ASCII`控制字符能够发送信号。
+
+```shell
+$ stty -a | grep -Ewoe "\w+ = \^[a-zA-Z0-9];"
+intr = ^C;
+kill = ^U;
+eof = ^D;
+swtch = ^Z;
+start = ^Q;
+stop = ^S;
+susp = ^Z;
+rprnt = ^R;
+werase = ^W;
+lnext = ^V;
+discard = ^O;
+```
+
+只有拥有`root`权限的用户才可以向其它进程发送信号。我们使用`kill -s <SIGNAL> <PID>`向进程发送信号。
+
+```shell
+# kill -s INT 382
+```
+
+### §2.1.4 `pkill`
+
+`kill <PID>`只能使用进程的`PID`来终止进程。在此基础上，`pkill <COMMAND>`支持指定进程名称（允许通配符）来终止进程。
+
+```shell
+# pkill http*
+```
+
+## §2.2 存储
