@@ -258,3 +258,124 @@ discard = ^O;
 ```
 
 ## §2.2 存储
+
+### §2.2.1 `mount`
+
+`mount`命令用于查询当前的挂载情况，并挂载或取消挂载存储设备。
+
+`mount`展示的挂载情况由四部分构成：设备文件名、挂载点路径、文件系统类型、已挂载设备的访问状态。
+
+```shell
+$ mount # 展示当前挂载情况
+C:/msys64 on / type ntfs (binary,noacl,auto)
+C:/msys64/usr/bin on /bin type ntfs (binary,noacl,auto)
+C: on /c type ntfs (binary,noacl,posix=0,user,noumount,auto)
+D: on /d type exfat (binary,noacl,posix=0,user,noumount,auto)
+E: on /e type vfat (binary,noacl,posix=0,user,noumount,auto)
+
+$ mount -t exfat # 只展示当前exfat文件系统的挂载情况
+D: on /d type exfat (binary,noacl,posix=0,user,noumount,auto)
+```
+
+`mount -t <TYPE> <DEVICE> <DIRECTORY>`用于挂载设备`<DEVICE>`到指定的目录`<DIRECTORY>`下。下表展示了部分常见的文件系统类型：
+
+| 文件系统`<TYPE>`    | 含义                   | Windows支持 | Linux支持 |
+| --------------- | -------------------- | --------- | ------- |
+| `vfat`（`FAT32`） | 微软的`FAT32`文件系统       | ✅         | ✅       |
+| `ntfs`          | 微软的`NTFS`文件系统        | ✅         | ✅       |
+| `exfat`         | 扩展`FAT`文件系统          | ✅         | ✅       |
+| `iso9660`       | 标准`CD-ROM`与`DVD`文件系统 | ✅         | ✅       |
+| `ext4`          | Linux的`ext4`文件系统     | ❎         | ✅       |
+
+`-o <OPTION>`用于设置挂载的选项：
+
+- `ro`：以只读形式挂载
+- `rw`：以读写形式挂载
+- `user`：允许普通用户挂载
+- `check-none`：挂载时不执行完整性校验
+- `loop`：挂载文件
+
+### §2.2.2 `umount`
+
+`umount [<DIRECTORY>|<DEVICE>]`用于卸载设备，可以通过设备名`<DEVICE>`或挂载点`<DIRECTORY>`指定设备。
+
+### §2.2.3 `df`
+
+`df`命令用于显示设备剩余存储空间。每一行输出的信息分别为设备文件位置、`1KB`块总数、`1KB`块占用数、`1KB`块可用数、已用空间百分比、挂载点。
+
+```shell
+$ df
+Filesystem      1K-blocks      Used  Available Use% Mounted on
+/dev/sdf       1055762868   1038500 1001020896   1% /
+rootfs            8143404      2060    8141344   1% /init
+none              8143404         0    8143404   0% /dev
+C:\            1999461372 468076824 1531384548  24% /mnt/c
+
+$ df -t exfat -t ntfs # 同理可用-t筛选多种文件系统
+```
+
+### §2.2.4 `du`
+
+`du`命令用于展示特定目录下各个文件夹的磁盘占用情况。实践中，我们常用`-c`展示已列出文件的总占用空间、`-h`按人类易读格式输出（而非原始的`1KB`单位）、`-s`只输出一行关于当前目录`./`的总占用空间。
+
+## §2.3 处理数据
+
+### §2.3.1 `sort`
+
+`sort <OPTION>* <FILE>+`命令用于将给定文件中的数据，按特定规则逐行排序。
+
+`sort`支持以下排序规则：
+
+- `<NONE>`：缺省时按字典序升序排序
+- `-n`/`--numeric-sort`/`--sort=numeric`：按十进制数字序升序排序
+- `-R`/`--random-sort`/`--sort=random`：洗乱
+	- `--random-source=<FILE>`：设置随机数种子
+- `-V`/`--version-sort`/`--sort=version`：依据版本号格式，以`.`为分隔符，按字典序升序排序
+- `-M`/`--month-sort`/`--sort=month`：按三字母月份英文缩写升序排序（`MON`、`FEB`、...）
+- `-h`/`--human-numeric-sort`/`--sort=human-numeric`：按人类可读数字格式（`K`、`M`、`G`、`T`、...）升序排序
+- `-g`/`--general-numeric-sort`/`--sort=general-numeric`：按二/八/十/十六进制数字格式（`0b1`、`02`、`3`、`0x4`）升序排序
+- `-d`/`--dictionary-order`：依据路径格式，以`/`为分隔符，按字典序升序排序
+- `-r`/`--reverse`：逆序（即降序）排序
+- `[-k/--key [F[.C1][OPTS1][,F[.C2][OPTS2]]]]+`：指定更复杂的排序规则。`F`表示以空格分隔的第`F`个字段；`C1`/`C2`表示当前字段从第几个字符开始或结尾（含）作为排序依据，从`1`开始数，缺省表示首尾字符；`OPTS_1`表示当前字段的第`C1`个字符的排序规则；`OPTS_2`表示当前字段的第`[C1, C2]`位字符的排序规则。多个`-k/--key`表示排序规则优先级的先后。
+
+针对每一行的文本处理，有以下选项可用：
+
+- `-b`/`--ignore-leading-blanks`：忽略每一行的前导空格
+- `-f`/`--ignore-case`：忽略大小写
+- `-i`/`--ignore-non-printing`：忽略`ASCII`控制字符
+- `-t`/`--field-separator=<SEP>`：指定分隔符`<SEP>`
+
+针对排序的相关操作，有以下选项可用：
+
+- `-c`/`--check`/`--check=diagnose-first`：输出从首行起，第一行不满足排序规则的信息
+- `--check=quiet`/`--check=slient`：如果不满足排序规则，则返回`1`，反之返回`0`
+- `-m`/`--merge`：需要确保`<FILE>+`均已排序，输出其归并排序的结果
+- `-s`/`--stable`：启用稳定排序
+- `-u`/`--unique`：与`-c`合用时表示检查严格排序，不与`-c`合用时重复行只输出一次
+
+针对性能方面，有以下选项可用：
+
+- `-S`/`--buffer-size=<SIZE>`：指定内存占用上限
+- `-T`/`--temporary-directory=<DIR>`：指定临时文件夹目录
+
+针对输出方面，有以下选项可用：
+
+- `-o`/`--output=<FILE>`：将`STDOUT`重定向到文件`<FILE>`
+- `-z`/`--zero-terminated`：将输出的`\n`替换为`\0`
+
+```shell
+$ cat test.txt
+1 2
+2 1
+5 3
+4 2
+4 1
+4 3
+
+$ sort --check test.txt
+sort: test.txt:4: disorder: 4 2
+
+$ sort --check=quiet test.txt
+	# exit code with 1
+```
+
