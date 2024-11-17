@@ -76,6 +76,34 @@ GUI使用终端仿真器（Terminal Emulator）来模拟虚拟控制台。市面
 | `Ctrl + Shift + M`         | 打开/关闭菜单栏                       |
 | `Ctrl + Shift + ,`         | 打开`Konsole`设置                  |
 
+## §1.2 Shell类型
+
+当Linux用户登录时，默认启动的Shell取决于`/etc/passwd`记录的用户配置：
+
+```passwd
+$ sudo cat /etc/passwd
+	root:x:0:0:root:/root:/bin/bash
+```
+
+大多数Linux发行版会在`/etc/shells`显示该环境已安装的Shell：
+
+```shells
+$ cat /etc/shells
+	# /etc/shells: valid login shells
+	/bin/sh
+	/bin/bash
+	/usr/bin/bash
+	/bin/rbash
+	/usr/bin/rbash
+	/usr/bin/sh
+	/bin/dash
+	/usr/bin/dash
+```
+
+`bash`本身提供了以下常见的参数：
+
+- `-c <STRING>`：执行`<STRING>`将`STDOUT`和`STDERR`重定向到
+
 # §2 常用命令 
 
 ## §2.1 进程
@@ -117,6 +145,18 @@ $ ps
 | `-l`（Long）                     | 只显示`PID`、`PPID`、`PGID`、`WINPID`、`TTY`、`UID`、`STIME`、`COMMAND` |
 | `-p <PID>`（Process）            | 只显示特定`PID`的进程                                                 |
 | `-u <UID>`（User）               | 只显示特定`UID`的进程                                                 |
+| `--forest`                     | 展示父子进程关系树状图                                                   |
+
+```shell
+$ ps --forest
+    PID TTY          TIME CMD
+   5895 tty2     00:00:00 login
+  64364 tty2     00:00:00  \_ bash
+  64391 tty2     00:00:00      \_ bash
+  64398 tty2     00:00:00          \_ bash
+  64405 tty2     00:00:00              \_ bash
+  64412 tty2     00:00:00                  \_ bash
+```
 
 ### §2.1.2 `top`
 
@@ -379,3 +419,105 @@ $ sort --check=quiet test.txt
 	# exit code with 1
 ```
 
+### §2.3.2 `grep`
+
+`grep <OPTION>* <PATTERN> <FILE>`命令用于逐行搜索匹配指定模式的文本，输出包含该模式的行内容。
+
+特殊地，`grep`提供了以下常用选项：
+
+- `-v`/`--invert-match`：输出不匹配指定模式的文本
+- `-n`/`--line-number`：在每一行的输出结果前添加行号`<LINE>:`
+- `-c`/`--count`：只输出一行，表示匹配模式的行总数
+- `[-e/--regexp=<REGEX>]*`：指定多个正则表达式
+
+Linux社区还提供支持POSIX扩展正则表达式的`egrep`，还有`fgrep`等扩展版本。
+
+### §2.3.3 `gzip`/`gunzip`
+
+`gzip [<FILE>|<DIRECTORY>]`用于递归地逐个压缩文件成`.gz`格式，`gunzip`用于解压。
+
+```shell
+$ ls
+1.txt  2.txt
+
+$ gzip *.txt
+$ ls
+1.txt.gz  2.txt.gz
+
+$ gunzip *.txt.gz
+$ ls
+1.txt  2.txt
+```
+
+### §2.3.4 `tar`
+
+`tar <FUNCTION> [<OPTION>]* <OBJECT>+`是一种将多个文件合并成一个文件的归档工具。
+
+`tar`中的`<FUNCTION>`定义了以下操作：
+
+- `-A`/`--concatenate`：在一个`.tar`文件的末尾追加另一个`.tar`文件
+- `-c`/`--create`：创建一个新`.tar`文件
+- `-d`/`--diff`：检查`.tar`文件与文件系统的不同之处
+- `--delete`：删除`.tar`文件中的文件
+- `-r`/`--append`：在`.tar`文件的末尾追加一个新文件
+- `-t`/`--list`：列出`.tar`文件的内容
+- `-u/--update=<FILE>*`：用更新的同名文件替换`.tar`中的同名旧文件
+- `-x`/`--extract`：从`.tar`中提取文件
+
+```shell
+$ tar -c -f txt1.tar 1.txt 2.txt # 创建归档文件
+$ tar -t -f txt1.tar # 查看归档文件中的内容
+	1.txt
+	2.txt
+
+$ tar -r -f txt1.tar 3.txt 4.txt # 向tar文件添加文件
+$ tar -t -f txt1.tar
+	1.txt
+	2.txt
+	3.txt
+	4.txt
+
+$ tar --delete 3.txt 4.txt -f txt1.tar # 从tar文件删除文件
+$ tar -t -f txt1.tar
+1.txt
+2.txt
+
+$ tar -c 1.txt 2.txt -f txt1.tar
+$ tar -c 3.txt 4.txt -f txt2.tar
+$ tar -A txt1.tar -f txt2.tar # 将txt1.tar中的文件追加到txt2.tar的末尾
+$ tar -t -f txt2.tar
+	3.txt
+	4.txt
+	1.txt
+	2.txt
+
+$ echo "abc" > 1.txt
+$ tar -d -f txt1.tar # 检测文件是否被修改
+	1.txt: Mod time differs
+	1.txt: Size differs
+$ tar -x -f txt1.tar -C ./extract # 更新tar中的文件
+$ mkdir extract; tar -x -f txt1.tar -C ./extract; # 从tar提取文件
+$ ls ./extract/
+	1.txt  2.txt
+$ cat ./extract/1.txt
+	abc
+```
+
+`<OPTION>`定义了以下操作行为：
+
+- `-C/--directory=<DIR>`：切换目录
+- `-f/--file=<FILE>`：指定要读取或写入的归档文件
+- `-p`/`--preserve-permissions`/`--same-permissions`：保留文件权限
+- `-v`/`--verbose`：展示详细信息（处理的文件名）
+
+`<OPTION>`支持对归档结果使用如下压缩方式：
+
+- `--no-auto-compress`：不根据`-f`选项的文件名自动选择压缩方式
+- `-j`/`--bzip2`：使用`bzip2`压缩归档结果
+- `-J`/`--xz`：使用`xz`压缩归档结果
+- `--lzip`：使用`lzip`压缩归档结果
+- `--lzma`：使用`lzma`压缩归档结果
+- `--lzop`：使用`lzop`压缩归档结果
+- `--zstd`：使用`zstd`压缩归档结果
+- `-z`/`--gzip`/`--gunzip`/`--ungzip`：使用`gz`压缩归档结果
+- `-Z`/`--compress`/`--uncompress`：使用`compress`压缩归档结果
