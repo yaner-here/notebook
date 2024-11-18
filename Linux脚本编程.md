@@ -525,6 +525,50 @@ $ cat ./extract/1.txt
 - `-z`/`--gzip`/`--gunzip`/`--ungzip`：使用`gz`压缩归档结果
 - `-Z`/`--compress`/`--uncompress`：使用`compress`压缩归档结果
 
+## §2.4 日志
+
+### §2.4.1 `history`
+
+`history`用于命令历史记录。它的执行过程是：先加载`~/.bash_history`的内容到内存中，作为当前Shell会话的命令历史记录，然后将当前Shell的执行命令追加到内存区的末尾，每次调用`history`时都会输出内存区的内容，最后当使用`history -a`或Shell会话退出时，才会将内存区的内容**覆写到`~/.bash_history`**。**这意味着，多个Shell会话退出时，会互相覆盖`~/.bash_history`，使得下一个新建的Shell会话无法访问全部的命令历史记录**。
+
+根据以上原理，如果要删除所有历史记录，我们既可以直接删除`~/.bash_history`，也可以用`history -c; history -a;`先清空内存区的内容，然后用空内容覆写到`~/.bash_history`。
+
+当前Shell会话的命令历史记录上限由`$HISTSIZE`指定，缺省为`1000`。
+
+```shell
+$ echo $HISTSIZE
+1000
+```
+
+`!<LINE>`是表示"`history`输出的第`<LINE>`行内容"的宏。
+
+```shell
+$ history
+	......
+	44 ls
+	......
+$ !44
+ls # 先输出宏替换的结果，再执行命令
+	code
+```
+
+`!!`是表示"最近一次执行的命令"的宏。优先选择当前Shell会话执行过的命令，如果没有，就选`.bash_history`中的最近一条命令。
+
+```shell
+$ ls
+	code
+
+$ # 直接按回车，因此判定为未执行任何命令，!!依然能定位到ls
+
+$ !!
+ls # 先输出宏替换的结果，再执行命令
+	code
+
+$ type !!
+type ls # 先输出宏替换的结果，再执行命令
+	ls is aliased to `ls --color=auto'
+```
+
 # §3 Shell脚本语法
 
 ## §3.1 子Shell
@@ -618,6 +662,198 @@ $ jobs
 [2]+  Running                 coproc job1 { sleep 1; echo "abc"; sleep 60; } &
 ```
 
-### §3.1.4 外部命令和内建命令
+## §3.2 命令
 
-外部命令（即文件系统命令）是独立于`bash`之外存在的程序文件。
+### §3.2.1 外部命令和内建命令
+
+外部命令（即文件系统命令）是独立于`bash`之外存在的程序文件，执行时会产生子进程。内建命令在编译时就被定义在Shell中的，并不对应着任何真实存在的文件，无需使用子进程执行。**因此，内建命令的效率通常比外部命令要高**。
+
+`which <COMMAND>`命令用于搜索当前环境变量中外部命令`<COMMAND>`对应的文件位置。
+
+```shell
+$ which ls # ls是外部命令，which能输出ls文件所在的路径
+	/usr/bin/ls
+$ which cd # cd是内建命令，所以which找不到对应的程序文件，输出空串
+	
+```
+
+`type <COMMAND>`命令用于输出命令`<COMMAND>`的类型，即外部命令、内建命令或别名。有些命令有多种实现方式，可以使用`-a`选项展示全部实现：
+
+```shell
+$ type pwd
+	pwd is a shell builtin
+$ type pwd
+	pwd is a shell builtin
+	pwd is /usr/bin/pwd
+	pwd is /bin/pwd
+$ type ls
+	ls is aliased to `ls --color=auto'
+$ type gcc
+	gcc is /usr/bin/gcc
+```
+
+### §3.2.2 命令别名
+
+`alias <ALIAS>='<COMMAND>'`用于在当前Shell会话（**不包括子Shell**）中创建别名，`unalias <ALIAS>`用于删除别名：
+
+```shell
+$ alias abc='whoami'
+$ abc
+	yaner
+$ unalias abc
+$ abc
+	-bash: abc: command not found
+```
+
+`alias -p`用于查看当前Shell会话（**不包括子Shell**）中的所有别名：
+
+```shell
+$ alias -p
+	alias l='ls -CF'
+	alias la='ls -A'
+	alias ll='ls -l'
+	alias ls='ls --color=auto'
+```
+
+## §3.3 环境变量
+
+环境变量本质上是加载到内存中的键值对。环境变量有两种——全局变量和局部变量。全局变量会加载到任何Shell会话中，而局部变量只作用于当前Shell会话（不包括子Shell）中。在Shell中，我们使用`$<KEY>`引用环境变量`<KEY>`的值。
+
+Linux提供了`env`、`printenv`、`set`命令来查看环境变量。它们的语法略有区别——不带参数执行时，它们都能输出全部环境变量，其中只有`set`保证变量名升序输出，还会额外显示局部Shell函数；`env [<KEY>=<VALUE>]* <COMMAND>`用于临时设置环境变量后执行`<COMMAND>`；`printenv <KEY>+`用于逐行输出指定的一个或多个环境变量的值。
+
+```shell
+$ type env
+	env is /usr/bin/env
+$ type printenv
+	printenv is /usr/bin/printenv
+
+$ printenv HOSTTYPE SHELL
+	x86_64
+	/bin/bash
+$ env HOSTTYPE="Unknown" printenv HOSTTYPE
+	Unknown
+```
+
+`<KEY>=<VALUE>`用于设置局部变量，要注意`<KEY>`、`=`、`<VALUE>`三者之间不能有任何空格：
+
+```shell
+$ ABC="abc"
+$ echo $ABC
+	abc
+$ bash -c 'echo $abc'
+	# 无内容输出
+```
+
+`export <KEY>[=<VALUE>]`用于设置全局变量，同理也不能有空格间隔。当`<VALUE>`未指定时，会直接使用`$<KEY>`的值：
+
+```shell
+$ export ABC="abc"
+$ echo $ABC
+	abc
+$ bash -c 'echo $ABC'
+	abc
+```
+
+常用的环境变量如下标所示：
+
+| 环境变量                    | 含义                      | 示例值           | `Unix Bourne`<br>兼容性 | `bash`<br>兼容性 |
+| ----------------------- | ----------------------- | ------------- | -------------------- | ------------- |
+| `HOME`                  | 用户的根目录                  | `/home/yaner` | ✔                    | ✔             |
+| `IFS`                   | Shell用于将字符串分隔为若干标识符的分隔符 | ` `（空格）       | ✔                    | ✔             |
+| `PATH`                  | Shell查找命令时的搜索目录，用`:`分隔  | `/bin;/sbin`  | ✔                    | ✔             |
+| `PS1`                   | 命令提示符的主提示符              |               | ✔                    | ✔             |
+| `PS2`                   | 命令提示符的次提示符              |               | ✔                    | ✔             |
+| `BASH`                  | 该`bash`会话的`bash`路径      |               | ❌                    | ✔             |
+| `BASH_ALIASES`          | 已启用别名的关联数组              |               | ❌                    | ✔             |
+| `BASH_ARGC`             | `bash`或脚本启动时的参数个数       |               | ❌                    | ✔             |
+| `BASH_ARGV`             | `bash`或脚本启动是的参数数组       |               | ❌                    | ✔             |
+| `BASH_ARCV0`            | `bash`或脚本的文件名           |               | ❌                    | ✔             |
+| `BASH_CMDS`             | Shell已执行过命令的位置          |               | ❌                    | ✔             |
+| `BASH_COMMAND`          |                         |               | ❌                    | ✔             |
+| `BASH_COMPAT`           |                         |               | ❌                    | ✔             |
+| `BASH_ENV`              |                         |               | ❌                    | ✔             |
+| `BASH_EXECUTION_STRING` |                         |               | ❌                    | ✔             |
+| `BASH_LINENO`           |                         |               | ❌                    | ✔             |
+| `BASH_LOADABLE_PATH`    |                         |               | ❌                    | ✔             |
+| `BASH_REMATCH`          |                         |               | ❌                    | ✔             |
+| `BASH_SOURCE`           |                         |               | ❌                    | ✔             |
+| `BASH_SUBSHELL`         |                         |               | ❌                    | ✔             |
+| `BASH_VERSINFO`         |                         |               | ❌                    | ✔             |
+| `BASH_XTRACEFD`         |                         |               | ❌                    | ✔             |
+| `BASHOPTS`              |                         |               | ❌                    | ✔             |
+| `BASHPID`               |                         |               | ❌                    | ✔             |
+| `CHILD_MAX`             |                         |               | ❌                    | ✔             |
+| `COLUMNS`               |                         |               | ❌                    | ✔             |
+| `COMP_CWORD`            |                         |               | ❌                    | ✔             |
+| `COMP_LINE`             |                         |               | ❌                    | ✔             |
+| `COMP_POINT`            |                         |               | ❌                    | ✔             |
+| `COMP_KEY`              |                         |               | ❌                    | ✔             |
+| `COMP_TYPE`             |                         |               | ❌                    | ✔             |
+| `COMP_WORDBREAKS`       |                         |               | ❌                    | ✔             |
+| `COMP_WORDS`            |                         |               | ❌                    | ✔             |
+| `COMPERPLY`             |                         |               | ❌                    | ✔             |
+| `COPORC`                |                         |               | ❌                    | ✔             |
+| `DIRSTACK`              |                         |               | ❌                    | ✔             |
+| `EMACS`                 |                         |               | ❌                    | ✔             |
+| `EPOCHREALTIME`         |                         |               | ❌                    | ✔             |
+| `EPOCHSECONDS`          |                         |               | ❌                    | ✔             |
+| `ENV`                   |                         |               | ❌                    | ✔             |
+| `EUID`                  |                         |               | ❌                    | ✔             |
+| `EXECIGNORE`            |                         |               | ❌                    | ✔             |
+| `FCEDIT`                |                         |               | ❌                    | ✔             |
+| `FIGNORE`               |                         |               | ❌                    | ✔             |
+| `FUNCNAME`              |                         |               | ❌                    | ✔             |
+| `FUNCNEST`              |                         |               | ❌                    | ✔             |
+| `GLOBIGNORE`            |                         |               | ❌                    | ✔             |
+| `GROUPS`                |                         |               | ❌                    | ✔             |
+| `histchars`             |                         |               | ❌                    | ✔             |
+| `HISTCMD`               |                         |               | ❌                    | ✔             |
+| `HISTCONTROL`           |                         |               | ❌                    | ✔             |
+| `HISTFILE`              |                         |               | ❌                    | ✔             |
+| `HISTFILESIZE`          |                         |               | ❌                    | ✔             |
+| `HISTIGNORE`            |                         |               | ❌                    | ✔             |
+| `HISTSIZE`              |                         |               | ❌                    | ✔             |
+| `HISTTIMEFORMAT`        |                         |               | ❌                    | ✔             |
+| `HOSTFILE`              |                         |               | ❌                    | ✔             |
+| `HOSTNAME`              |                         |               | ❌                    | ✔             |
+| `HOSTTYPE`              |                         |               | ❌                    | ✔             |
+| `IGNOREEOF`             |                         |               | ❌                    | ✔             |
+| `INPUTRC`               |                         |               | ❌                    | ✔             |
+| `INSIDE_EMACS`          |                         |               | ❌                    | ✔             |
+| `LANG`                  |                         |               | ❌                    | ✔             |
+| `LC_ALL`                |                         |               | ❌                    | ✔             |
+| `LC_COLLATE`            |                         |               | ❌                    | ✔             |
+| `LC_CTYPE`              |                         |               | ❌                    | ✔             |
+| `LC_MESSAGES`           |                         |               | ❌                    | ✔             |
+| `LC_NUMERIC`            |                         |               | ❌                    | ✔             |
+| `LC_TIME`               |                         |               | ❌                    | ✔             |
+| `LINENO`                |                         |               | ❌                    | ✔             |
+| `LINES`                 |                         |               | ❌                    | ✔             |
+| `MACHTYPE`              |                         |               | ❌                    | ✔             |
+| `MAILCHECK`             |                         |               | ❌                    | ✔             |
+| `MAPFILE`               |                         |               | ❌                    | ✔             |
+| `OLDPWD`                |                         |               | ❌                    | ✔             |
+| `OPTERR`                |                         |               | ❌                    | ✔             |
+| `OSTYPE`                |                         |               | ❌                    | ✔             |
+| `PIPESTATUS`            |                         |               | ❌                    | ✔             |
+| `POSIXLY_CORRECT`       |                         |               | ❌                    | ✔             |
+| `PPID`                  |                         |               | ❌                    | ✔             |
+| `PROMPT_COMMAND`        |                         |               | ❌                    | ✔             |
+| `PROPMT_DIRTRIM`        |                         |               | ❌                    | ✔             |
+| `PS0`                   |                         |               | ❌                    | ✔             |
+| `PS3`                   |                         |               | ❌                    | ✔             |
+| `PS4`                   |                         |               | ❌                    | ✔             |
+| `PWD`                   |                         |               | ❌                    | ✔             |
+| `RANDOM`                |                         |               | ❌                    | ✔             |
+| `READLINE_LINE`         |                         |               | ❌                    | ✔             |
+| `READLINE_POINT`        |                         |               | ❌                    | ✔             |
+| `REPLY`                 |                         |               | ❌                    | ✔             |
+| `SECONDS`               |                         |               | ❌                    | ✔             |
+| `SHELL`                 |                         |               | ❌                    | ✔             |
+| `SHELLOPTS`             |                         |               | ❌                    | ✔             |
+| `SHLVL`                 |                         |               | ❌                    | ✔             |
+| `TIMEFORMAT`            |                         |               | ❌                    | ✔             |
+| `TMOUT`                 |                         |               | ❌                    | ✔             |
+| `TMPDIR`                |                         |               | ❌                    | ✔             |
+| `UID`                   |                         |               | ❌                    | ✔             |
+
