@@ -1,7 +1,7 @@
 {
   "cssTheme": "Catppuccin",
   "textFontFamily": "HYZhengYuan",
-  "monospaceFontFamily": "CaskaydiaCove Nerd Font Mono",
+  "monospaceFontFamily": "Cascadia Code NF",
   "enabledCssSnippets": [
     "custom"
   ]
