@@ -1,3 +1,4 @@
 body{
     --code-comment: hsl(234, 13%, 60%) !important;
+    --table-border-color: rgb(75, 96, 121) !important;
 }
