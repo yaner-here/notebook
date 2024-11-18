@@ -102,7 +102,10 @@ $ cat /etc/shells
 
 `bash`本身提供了以下常见的参数：
 
-- `-c <STRING>`：执行`<STRING>`将`STDOUT`和`STDERR`重定向到
+- `-c <STRING>`：执行`<STRING>`命令后退出，将`STDOUT`和`STDERR`重定向到父Shell
+- `-i`：重定向`STDIN`到子Shell的交互式子Shell
+- `-l`：作为登录Shell启动
+- `-r`：将子Shell限制在父Shell所在路径中
 
 # §2 常用命令 
 
@@ -521,3 +524,100 @@ $ cat ./extract/1.txt
 - `--zstd`：使用`zstd`压缩归档结果
 - `-z`/`--gzip`/`--gunzip`/`--ungzip`：使用`gz`压缩归档结果
 - `-Z`/`--compress`/`--uncompress`：使用`compress`压缩归档结果
+
+# §3 Shell脚本语法
+
+## §3.1 子Shell
+
+### §3.1.1 命令列表与进程列表
+
+命令列表使用`;`将一个或多个命令合并成一行（可以使用`{}`包起来，**且`{}`内部必须用空格分隔**），**在本Shell中运行**。进程列表使用`()`将命令列表包起来，**在子Shell中运行**。为了验证这一点，我们可以使用`bash`提供的环境变量`$BASH_SUBSHELL`来验证，它反映了Shell的嵌套深度，根Shell的`$BASH_SUBSHELL`为`0`。｛
+
+```shell
+$ { echo $BASH_SUBSHELL; { echo $BASH_SUBSHELL; { echo $BASH_SUBSHELL; } } } # 命令列表
+0
+0
+0
+
+# 
+$ echo $BASH_SUBSHELL; (echo $BASH_SUBSHELL; (echo $BASH_SUBSHELL;)) # 进程列表
+	0
+	1
+	2
+```
+
+### §3.1.2 后台模式
+
+在命令列表或进程列表的后面加一个`&`，就可以创建一个作业。此时`bash`会先输出当前创建的后台作业号与`PID`，然后显示所有已执行完毕、**且未曾在此显示过**的后台作业，最后恢复可交互的状态。**后台作业号从`1`开始自增**。
+
+```c++
+$ sleep 5& # 第0秒执行
+[1] 1241
+
+$ sleep 5& # 第1秒执行
+[2] 1242
+
+$ sleep 5& # 第10秒执行
+[3] 1243
+[1]   Done                    sleep 5
+[2]   Done                    sleep 5
+```
+
+后台作业和接下来的交互式执行命令均在当前Shell中运行，而不会在子Shell中。这一点可以用`ps`证明——它们的`PPID`均为当前Shell的`PID`：
+
+```shell
+$ sleep 100&
+$ ps -f
+     UID     PID    PPID  TTY        STIME COMMAND
+   Yaner    1267    1248 pty1     01:29:54 /usr/bin/ps
+   Yaner    1266    1248 pty1     01:29:51 /usr/bin/sleep
+   Yaner    1248    1247 pty1     01:29:44 /usr/bin/bash
+```
+
+`bash`提供了`jobs`关键字，用于查看当前Shell的后台作业情况。具体来说，它会显示当前正在运行（`Running`）的后台作业，以及所有已执行完毕（`Done`）、**且未曾在此显示过**的后台作业。我们还可以使用`-l`显示后台作业的`PID`。其中`+`表示最近启动的后台作业，`-`表示第二最近启动的后台作业。
+
+```shell
+$ sleep 100&
+	[1] 1243
+$ jobs
+	[1]+  Running                 sleep 100 &
+$ sleep 1&
+	[2] 1244
+$ jobs
+	[1]-  Running                 sleep 100 &
+	[2]+  Done                    sleep 1
+$ jobs # [2]完成后只会显示一次
+	[1]+  Done                    sleep 100
+$ jobs # [1]完成后只会显示一次
+```
+
+下面我们介绍进程列表与后台模式混用的情况。以下面的命令为例——首先父Shell创建了后台作业，于是将作业信息输出到父Shell的`STDOUT`。然后子Shell执行后台作业，遇到`echo "abc"`时直接将子Shell的`STDOUT`重定向到父Shell的`STDOUT`后清空缓存区，导致父Shell直接错位显示`abc\n`。后台作业执行完毕时，父Shell负责输出执行完毕的信息到父Shell的`STDOUT`，但没有及时清空缓存区，于是必须向父Shell的`STDIN`输入回车键，才能先后触发`bash`执行命令与输出作业调度完成信息。
+
+```shell
+$ (sleep 1; echo "abc"; sleep 1;)&
+[1] 1257
+
+$ abc
+↵
+[1]+  Done                    ( sleep 1; echo $BASH_SUBSHELL; sleep 1 )
+```
+
+### §3.1.3 协程
+
+协程（`coproc [<JOB_NAME>=COPROC] <COMMAND>`）本质上就是进程列表和后台模式混用的一种简便表示方式。协程先创建一个子Shell，然后在子Shell中执行`<COMMAND>`。**两者的区别是：`coproc`不会将子Shell的`STDOUT`重定向到父Shell的`STDOUT`**、`coproc`可以自定义后台作业的名称（缺省为`COPROC`）。
+
+```shell
+$ coproc { sleep 1; echo "abc"; sleep 60; }
+[1] 1319
+
+$ coproc job1 { sleep 1; echo "abc"; sleep 60; }
+[2] 1325
+
+$ jobs
+[1]-  Running                 coproc COPROC { sleep 1; echo "abc"; sleep 60; } &
+[2]+  Running                 coproc job1 { sleep 1; echo "abc"; sleep 60; } &
+```
+
+### §3.1.4 外部命令和内建命令
+
+外部命令（即文件系统命令）是独立于`bash`之外存在的程序文件。
