@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "c27afd7c0b48c626",
+        "id": "123e3d8213fd596b",
         "type": "tabs",
         "children": [
           {
-            "id": "6a4697de8fbb0112",
+            "id": "a2bf2a4e97c302c9",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -87,7 +87,7 @@
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -109,7 +109,7 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "6a4697de8fbb0112",
+  "active": "a2bf2a4e97c302c9",
   "lastOpenFiles": [
     "Linux脚本编程.md",
     "AI/对比学习.drawio",
