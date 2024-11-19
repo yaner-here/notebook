@@ -756,104 +756,102 @@ $ bash -c 'echo $ABC'
 
 常用的环境变量如下表所示：
 
-| 环境变量                    | 含义                      | 示例值           | `Unix Bourne`<br>兼容性 | `bash`<br>兼容性 |
-| ----------------------- | ----------------------- | ------------- | -------------------- | ------------- |
-| `HOME`                  | 用户的根目录                  | `/home/yaner` | ✔                    | ✔             |
-| `IFS`                   | Shell用于将字符串分隔为若干标识符的分隔符 | ` `（空格）       | ✔                    | ✔             |
-| `PATH`                  | Shell查找命令时的搜索目录，用`:`分隔  | `/bin;/sbin`  | ✔                    | ✔             |
-| `PS1`                   | 命令提示符的主提示符              |               | ✔                    | ✔             |
-| `PS2`                   | 命令提示符的次提示符              |               | ✔                    | ✔             |
-| `BASH`                  | 该`bash`会话的`bash`路径      |               | ❌                    | ✔             |
-| `BASH_ALIASES`          | 已启用别名的关联数组              |               | ❌                    | ✔             |
-| `BASH_ARGC`             | `bash`或脚本启动时的参数个数       |               | ❌                    | ✔             |
-| `BASH_ARGV`             | `bash`或脚本启动是的参数数组       |               | ❌                    | ✔             |
-| `BASH_ARCV0`            | `bash`或脚本的文件名           |               | ❌                    | ✔             |
-| `BASH_CMDS`             | Shell已执行过命令的位置          |               | ❌                    | ✔             |
-| `BASH_COMMAND`          |                         |               | ❌                    | ✔             |
-| `BASH_COMPAT`           |                         |               | ❌                    | ✔             |
-| `BASH_ENV`              |                         |               | ❌                    | ✔             |
-| `BASH_EXECUTION_STRING` |                         |               | ❌                    | ✔             |
-| `BASH_LINENO`           |                         |               | ❌                    | ✔             |
-| `BASH_LOADABLE_PATH`    |                         |               | ❌                    | ✔             |
-| `BASH_REMATCH`          |                         |               | ❌                    | ✔             |
-| `BASH_SOURCE`           |                         |               | ❌                    | ✔             |
-| `BASH_SUBSHELL`         |                         |               | ❌                    | ✔             |
-| `BASH_VERSINFO`         |                         |               | ❌                    | ✔             |
-| `BASH_XTRACEFD`         |                         |               | ❌                    | ✔             |
-| `BASHOPTS`              |                         |               | ❌                    | ✔             |
-| `BASHPID`               |                         |               | ❌                    | ✔             |
-| `CHILD_MAX`             |                         |               | ❌                    | ✔             |
-| `COLUMNS`               |                         |               | ❌                    | ✔             |
-| `COMP_CWORD`            |                         |               | ❌                    | ✔             |
-| `COMP_LINE`             |                         |               | ❌                    | ✔             |
-| `COMP_POINT`            |                         |               | ❌                    | ✔             |
-| `COMP_KEY`              |                         |               | ❌                    | ✔             |
-| `COMP_TYPE`             |                         |               | ❌                    | ✔             |
-| `COMP_WORDBREAKS`       |                         |               | ❌                    | ✔             |
-| `COMP_WORDS`            |                         |               | ❌                    | ✔             |
-| `COMPERPLY`             |                         |               | ❌                    | ✔             |
-| `COPORC`                |                         |               | ❌                    | ✔             |
-| `DIRSTACK`              |                         |               | ❌                    | ✔             |
-| `EMACS`                 |                         |               | ❌                    | ✔             |
-| `EPOCHREALTIME`         |                         |               | ❌                    | ✔             |
-| `EPOCHSECONDS`          |                         |               | ❌                    | ✔             |
-| `ENV`                   |                         |               | ❌                    | ✔             |
-| `EUID`                  |                         |               | ❌                    | ✔             |
-| `EXECIGNORE`            |                         |               | ❌                    | ✔             |
-| `FCEDIT`                |                         |               | ❌                    | ✔             |
-| `FIGNORE`               |                         |               | ❌                    | ✔             |
-| `FUNCNAME`              |                         |               | ❌                    | ✔             |
-| `FUNCNEST`              |                         |               | ❌                    | ✔             |
-| `GLOBIGNORE`            |                         |               | ❌                    | ✔             |
-| `GROUPS`                |                         |               | ❌                    | ✔             |
-| `histchars`             |                         |               | ❌                    | ✔             |
-| `HISTCMD`               |                         |               | ❌                    | ✔             |
-| `HISTCONTROL`           |                         |               | ❌                    | ✔             |
-| `HISTFILE`              |                         |               | ❌                    | ✔             |
-| `HISTFILESIZE`          |                         |               | ❌                    | ✔             |
-| `HISTIGNORE`            |                         |               | ❌                    | ✔             |
-| `HISTSIZE`              |                         |               | ❌                    | ✔             |
-| `HISTTIMEFORMAT`        |                         |               | ❌                    | ✔             |
-| `HOSTFILE`              |                         |               | ❌                    | ✔             |
-| `HOSTNAME`              |                         |               | ❌                    | ✔             |
-| `HOSTTYPE`              |                         |               | ❌                    | ✔             |
-| `IGNOREEOF`             |                         |               | ❌                    | ✔             |
-| `INPUTRC`               |                         |               | ❌                    | ✔             |
-| `INSIDE_EMACS`          |                         |               | ❌                    | ✔             |
-| `LANG`                  |                         |               | ❌                    | ✔             |
-| `LC_ALL`                |                         |               | ❌                    | ✔             |
-| `LC_COLLATE`            |                         |               | ❌                    | ✔             |
-| `LC_CTYPE`              |                         |               | ❌                    | ✔             |
-| `LC_MESSAGES`           |                         |               | ❌                    | ✔             |
-| `LC_NUMERIC`            |                         |               | ❌                    | ✔             |
-| `LC_TIME`               |                         |               | ❌                    | ✔             |
-| `LINENO`                |                         |               | ❌                    | ✔             |
-| `LINES`                 |                         |               | ❌                    | ✔             |
-| `MACHTYPE`              |                         |               | ❌                    | ✔             |
-| `MAILCHECK`             |                         |               | ❌                    | ✔             |
-| `MAPFILE`               |                         |               | ❌                    | ✔             |
-| `OLDPWD`                |                         |               | ❌                    | ✔             |
-| `OPTERR`                |                         |               | ❌                    | ✔             |
-| `OSTYPE`                |                         |               | ❌                    | ✔             |
-| `PIPESTATUS`            |                         |               | ❌                    | ✔             |
-| `POSIXLY_CORRECT`       |                         |               | ❌                    | ✔             |
-| `PPID`                  |                         |               | ❌                    | ✔             |
-| `PROMPT_COMMAND`        |                         |               | ❌                    | ✔             |
-| `PROPMT_DIRTRIM`        |                         |               | ❌                    | ✔             |
-| `PS0`                   |                         |               | ❌                    | ✔             |
-| `PS3`                   |                         |               | ❌                    | ✔             |
-| `PS4`                   |                         |               | ❌                    | ✔             |
-| `PWD`                   |                         |               | ❌                    | ✔             |
-| `RANDOM`                |                         |               | ❌                    | ✔             |
-| `READLINE_LINE`         |                         |               | ❌                    | ✔             |
-| `READLINE_POINT`        |                         |               | ❌                    | ✔             |
-| `REPLY`                 |                         |               | ❌                    | ✔             |
-| `SECONDS`               |                         |               | ❌                    | ✔             |
-| `SHELL`                 |                         |               | ❌                    | ✔             |
-| `SHELLOPTS`             |                         |               | ❌                    | ✔             |
-| `SHLVL`                 |                         |               | ❌                    | ✔             |
-| `TIMEFORMAT`            |                         |               | ❌                    | ✔             |
-| `TMOUT`                 |                         |               | ❌                    | ✔             |
-| `TMPDIR`                |                         |               | ❌                    | ✔             |
-| `UID`                   |                         |               | ❌                    | ✔             |
+| 环境变量                    | 含义                                                                 | 用法或示例值                                                                      | `Unix Bourne`<br>兼容性 | `bash`<br>兼容性 |
+| ----------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- | -------------------- | ------------- |
+| `HOME`                  | 用户的根目录                                                             | `/home/yaner`                                                               | ✔                    | ✔             |
+| `IFS`                   | Shell用于将字符串分隔为若干标识符的分隔符                                            | ` `（空格）                                                                     | ✔                    | ✔             |
+| `PATH`                  | Shell查找命令时的搜索目录，用`:`分隔                                             | `/bin;/sbin`                                                                | ✔                    | ✔             |
+| `PS1`                   | 命令提示符的主提示符                                                         |                                                                             | ✔                    | ✔             |
+| `PS2`                   | 命令提示符的次提示符                                                         |                                                                             | ✔                    | ✔             |
+| `BASH`                  | 该`bash`会话的`bash`路径                                                 | `/bin/bash`                                                                 | ❌                    | ✔             |
+| `BASH_ALIASES`          | 已启用的、非Shell内置的别名关联数组                                               | 定义`alias ABC="abc"`，则`${BASH_ALIASES[@]}`输出`abc`                            | ❌                    | ✔             |
+| `BASH_ARGC`             | `bash`或脚本启动时的参数个数                                                  | `0`                                                                         | ❌                    | ✔             |
+| `BASH_ARGV`             | `bash`或脚本启动是的参数数组                                                  | `echo ${BASH_ARGV[@]}`                                                      | ❌                    | ✔             |
+| `BASH_ARCV0`            | `bash`或脚本的文件名                                                      |                                                                             | ❌                    | ✔             |
+| `BASH_CMDS`             | Shell已执行过命令的位置                                                     |                                                                             | ❌                    | ✔             |
+| `BASH_COMMAND`          | 正在或将要执行的命令                                                         |                                                                             | ❌                    | ✔             |
+| `BASH_COMPAT`           | Shell兼容级别                                                          |                                                                             | ❌                    | ✔             |
+| `BASH_ENV`              | 预执行的初始化脚本路径                                                        |                                                                             | ❌                    | ✔             |
+| `BASH_EXECUTION_STRING` | 使用`bash -c "<COMMAND>"`传递的指令                                       |                                                                             | ❌                    | ✔             |
+| `BASH_LINENO`           | 当前正在执行的函数在脚本中的行号数组                                                 |                                                                             | ❌                    | ✔             |
+| `BASH_LOADABLE_PATH`    | Shell用于查找内建命令的目录，用`:`分隔                                            |                                                                             | ❌                    | ✔             |
+| `BASH_REMATCH`          | 保存正则表达式比较运算符`=~`进行肯定匹配时，匹配到的内容数组                                   |                                                                             | ❌                    | ✔             |
+| `BASH_SOURCE`           | 以数组形式记录当前执行函数的脚本文件名调用栈                                             |                                                                             | ❌                    | ✔             |
+| `BASH_SUBSHELL`         | 当前Shell会话的嵌套级别，初始为`0`                                              |                                                                             | ❌                    | ✔             |
+| `BASH_VERSINFO`         | 以数组形式记录`bash`的主版本号、次版本号、补丁级别、发行状态编号、发行状态、系统架构与平台                   | `5 2 37 1 release x86_64-pc-msys`                                           | ❌                    | ✔             |
+| `BASH_XTRACEFD`         | 重定向`set -x`开启调试选项后，其跟踪输出会被重定向到文件描述符`$BASH_XTRACEFD`对应的流            | `0`/`1`/`2`                                                                 | ❌                    | ✔             |
+| `BASHOPTS`              | 当前Shell会话启用的选项                                                     |                                                                             | ❌                    | ✔             |
+| `BASHPID`               | 当前Shell会话的`PID`                                                    |                                                                             | ❌                    | ✔             |
+| `CHILD_MAX`             | `bash`会记录最近`$CHILD_MAX`条命令执行后的返回值                                  |                                                                             | ❌                    | ✔             |
+| `COLUMNS`               | 当前Shell会话的终端显示宽度（单行字符数）                                            |                                                                             | ❌                    | ✔             |
+| `COMP_CWORD`            | `$COMP_WORDS`的索引，其中包含当前光标的位置                                       |                                                                             | ❌                    | ✔             |
+| `COMP_LINE`             | 当前命令行                                                              |                                                                             | ❌                    | ✔             |
+| `COMP_POINT`            | 光标相对于当前命令起始处的索引                                                    |                                                                             | ❌                    | ✔             |
+| `COMP_KEY`              | 用于调用Shell函数补全功能的最后一个按键                                             |                                                                             | ❌                    | ✔             |
+| `COMP_TYPE`             | 调用Shell函数补全功能的类型                                                   |                                                                             | ❌                    | ✔             |
+| `COMP_WORDBREAKS`       | `Readline`库中用于单词不全的分隔符                                             |                                                                             | ❌                    | ✔             |
+| `COMP_WORDS`            | 表示当前命令行所有单词的数组变量                                                   |                                                                             | ❌                    | ✔             |
+| `COMPERPLY`             | 表示Shell函数生成的所有补全代码数组                                               |                                                                             | ❌                    | ✔             |
+| `COPORC`                | 表示匿名协程IO的文件描述符数组                                                   |                                                                             | ❌                    | ✔             |
+| `DIRSTACK`              | 表示目录栈的当前内容                                                         |                                                                             | ❌                    | ✔             |
+| `EMACS`                 | `Emacs`是否启用缓冲区，并禁止行编辑功能                                            | `\n`或`t`                                                                    | ❌                    | ✔             |
+| `EPOCHREALTIME`         | 当前时间戳对应的微秒数                                                        |                                                                             | ❌                    | ✔             |
+| `EPOCHSECONDS`          | 当前时间戳对应的秒数                                                         |                                                                             | ❌                    | ✔             |
+| `ENV`                   | 当`bash`以`POSIX`模式启动时，预执行路径为`$ENV`的初始化脚本                            |                                                                             | ❌                    | ✔             |
+| `EUID`                  | 当前用户的有效用户ID                                                        |                                                                             | ❌                    | ✔             |
+| `EXECIGNORE`            | 使用`path`命令搜索时的排除程序列表                                               |                                                                             | ❌                    | ✔             |
+| `FCEDIT`                | `fc`命令使用的默认文本编辑器                                                   |                                                                             | ❌                    | ✔             |
+| `FIGNORE`               | 使用`Tab`补全文件名时，忽略的后缀名清单，使用`:`分隔                                     |                                                                             | ❌                    | ✔             |
+| `FUNCNAME`              | 当前执行的Shell函数名称                                                     |                                                                             | ❌                    | ✔             |
+| `FUNCNEST`              | 脚本中函数的最大嵌套深度，大于该值时立即退出                                             |                                                                             | ❌                    | ✔             |
+| `GLOBIGNORE`            | 表示文件名扩展可以忽略的一组文件名模式，使用`:`分隔                                        |                                                                             | ❌                    | ✔             |
+| `GROUPS`                | 当前用户所属用户组，是数组便变量                                                   |                                                                             | ❌                    | ✔             |
+| `histchars`             | 控制历史记录扩展，最多为`3`                                                    |                                                                             | ❌                    | ✔             |
+| `HISTCMD`               | 当前命令在历史记录中的编号                                                      |                                                                             | ❌                    | ✔             |
+| `HISTCONTROL`           | 控制哪些命令可以保存在历史记录列表中                                                 |                                                                             | ❌                    | ✔             |
+| `HISTFILE`              | 保存命令历史记录的文件目录                                                      | 缺省为`.bash_history`                                                          | ❌                    | ✔             |
+| `HISTFILESIZE`          | 保存命令历史记录的文件最大行数                                                    |                                                                             | ❌                    | ✔             |
+| `HISTIGNORE`            | 用`:`分隔的命令模式数组，若历史命令与之相匹配，则不计入历史命令中                                 |                                                                             | ❌                    | ✔             |
+| `HISTSIZE`              | 保存命令历史记录的内存区最大行数                                                   |                                                                             | ❌                    | ✔             |
+| `HISTTIMEFORMAT`        | 用于格式化命令历史记录的时间戳显示方式                                                |                                                                             | ❌                    | ✔             |
+| `HOSTFILE`              | Shell补全主机名时读取的文件路径                                                 |                                                                             | ❌                    | ✔             |
+| `HOSTNAME`              | 主机名                                                                |                                                                             | ❌                    | ✔             |
+| `HOSTTYPE`              | 系统架构                                                               |                                                                             | ❌                    | ✔             |
+| `IGNOREEOF`             | Shell退出时的触发条件为连续接收到`$IGNOREEOF`个`EOF`字符                            | 缺省为`1`                                                                      | ❌                    | ✔             |
+| `INPUTRC`               | `Readline`初始化文件名                                                   | 缺省为`.inputrc`                                                               | ❌                    | ✔             |
+| `INSIDE_EMACS`          | Shell会话是否在`Emacs`的缓冲区中运行                                           |                                                                             | ❌                    | ✔             |
+| `LANG`                  | Shell的语言环境种类                                                       |                                                                             | ❌                    | ✔             |
+| `LC_ALL`                | Shell支持的所有语言环境中类                                                   |                                                                             | ❌                    | ✔             |
+| `LC_COLLATE`            | 字符串排序使用的语言规则                                                       |                                                                             | ❌                    | ✔             |
+| `LC_CTYPE`              | 文件名扩展和模式匹配中的字符解释方式                                                 |                                                                             | ❌                    | ✔             |
+| `LC_MESSAGES`           |                                                                    |                                                                             | ❌                    | ✔             |
+| `LC_NUMERIC`            | 格式化数字的语言规则                                                         |                                                                             | ❌                    | ✔             |
+| `LC_TIME`               | 格式化时间的语言规则                                                         |                                                                             | ❌                    | ✔             |
+| `LINENO`                | 当知执行的脚本语句行号                                                        |                                                                             | ❌                    | ✔             |
+| `LINES`                 | 当前Shell会话的终端显示高度（单列字符数）                                            |                                                                             | ❌                    | ✔             |
+| `MACHTYPE`              | 系统类型（CPU-公司-操作系统）                                                  | `x86_64-pc-msys`                                                            | ❌                    | ✔             |
+| `OLDPWD`                | 上一个所在的目录                                                           |                                                                             | ❌                    | ✔             |
+| `OPTERR`                | 是否显示`getopts`命令产生的错误                                               | `0`/`1`                                                                     | ❌                    | ✔             |
+| `OSTYPE`                | 系统类型（操作系统）                                                         | `msys`                                                                      | ❌                    | ✔             |
+| `PIPESTATUS`            | 前台进程的退出状态                                                          |                                                                             | ❌                    | ✔             |
+| `POSIXLY_CORRECT`       | 是否以`POSIX`模式启动`bash`                                               | 空串或非空串                                                                      | ❌                    | ✔             |
+| `PPID`                  | 父进程的`PID`                                                          |                                                                             | ❌                    | ✔             |
+| `PROMPT_COMMAND`        | 初始化执行的命令                                                           |                                                                             | ❌                    | ✔             |
+| `PROPMT_DIRTRIM`        | 命令提示符显示当前路径时，只显示从当前文件夹起，向父级回溯的`$PROMPT_DIRTRIM`个文件夹名称，值为`0`是表示全部显示 | `PROMPT_DIRTRIM=0`时，显示`/mnt/c/Users`；`PROMPT_DIRTRIM=1`时，显示`.../Users`；以此类推 | ❌                    | ✔             |
+| `PS0`                   | 是否在执行命令之前，先执行之前由交互式Shell教师的内容                                      |                                                                             | ❌                    | ✔             |
+| `PS3`                   | `select`命令的提示符                                                     |                                                                             | ❌                    | ✔             |
+| `PS4`                   | 如果使用`bash -x`选项，则在命令行之前显示`$PS4`提示符                                 |                                                                             | ❌                    | ✔             |
+| `PWD`                   | 当前Shell会话所在的目录                                                     |                                                                             | ❌                    | ✔             |
+| `RANDOM`                | 读取`$RANDOM`时返回一个`[0, 32768)`之间的随机整数；写入`$RANDOM`时设置随机数种子            |                                                                             | ❌                    | ✔             |
+| `READLINE_LINE`         | 使用`bind -x`选项时，保存`Readline`缓冲区的内容                                  |                                                                             | ❌                    | ✔             |
+| `READLINE_POINT`        | 使用`bind -x`选项时，表示`Readline`缓冲区当前内容插入点的位置                           |                                                                             | ❌                    | ✔             |
+| `REPLY`                 | `read`命令的默认变量                                                      |                                                                             | ❌                    | ✔             |
+| `SECONDS`               | 从Shell会话运行开始，到现在经过的秒数。写入时会充值计数器                                    |                                                                             | ❌                    | ✔             |
+| `SHELL`                 | 当前Shell会话的文件路径                                                     |                                                                             | ❌                    | ✔             |
+| `SHELLOPTS`             | `bash`已启用的选项，用`:`分隔                                                |                                                                             | ❌                    | ✔             |
+| `SHLVL`                 | Shell会话的嵌套层级，与`$BASH_SUBSHELL`一致                                   |                                                                             | ❌                    | ✔             |
+| `TIMEFORMAT`            | Shell显示时间的格式                                                       |                                                                             | ❌                    | ✔             |
+| `TMOUT`                 | `select`和`read`命令在无输入的情况下等待的时长，单位为秒                                |                                                                             | ❌                    | ✔             |
+| `TMPDIR`                | Shell创建临时文件的保存目录                                                   |                                                                             | ❌                    | ✔             |
+| `UID`                   | 用户的`UID`                                                           |                                                                             | ❌                    | ✔             |
 
