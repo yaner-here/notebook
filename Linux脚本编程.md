@@ -750,6 +750,44 @@ $ groupmod -n <NEW_GROUPNAME> <GROUPNAME> # 修改组名
 $ groupmod -g <NEW_GID> <GID> # 修改GID
 ```
 
+## §2.6 文件
+
+### §2.6.1 `ls`
+
+`ls <DIR=./>`用于显示某个特定目录下的文件与目录信息。
+
+```shell
+$ ls -l
+	total 92
+	drwxr-xr-x 11 yaner yaner  4096 Nov 19 16:18 .
+	drwxr-xr-x  3 root  root   4096 Nov  9 02:08 ..
+	-rw-------  1 yaner yaner  3625 Nov 20 00:54 .bash_history
+	-rw-r--r--  1 yaner yaner  5551 Nov  9 02:08 .bashrc
+```
+
+1. 第一个字段的第一个字符表示对象类型：`-`为文件、`d`为目录、`l`为链接、`c`为字符设备、`b`为块设备、`p`为具名管道、`s`为Socket。
+2. 第一个字段的后九个字符分别表示属主、属组、其它用户的读、写、执行权限。
+3. 第二个字段表示该对象包含了多少个硬链接。在不考虑人为制造硬链接的情况下，文件的值为`1`，目录的值为当前目录下的所有对象总数加`2`（`.`和`..`）。
+4. 第三个字段表示该对象的属主（Owner）名
+5. 第四个字段表示该对象的属组名
+6. 第五个字段表示该对象的大小，单位为`Byte`
+7. 第六个字段表示最后修改时间
+8. 第七各字段表示对象名
+
+### §2.6.2 `umask`
+
+当用户新建一个文件或目录时，我们会发现它“出厂自带”权限属性：
+
+```shell
+$ mkdir new_folder
+$ touch new_file
+$ ls -la
+	total 96
+	-rw-r--r--  1 yaner yaner     0 Nov 20 01:45 new_file
+	drwxr-xr-x  2 yaner yaner  4096 Nov 20 01:45 new_folder
+```
+
+这种权限默认值由`umask`命令指定，具体来说，`umask`的**后三位八进制数码**表示权限属性掩码，真正的默认权限属性由八进制数`777`**减去这三位八进制数码**得到。执行`umask`会输出当前的默认权限属性的掩码，这个值由`/etc/profile`指定
 
 # §3 Shell脚本语法
 
