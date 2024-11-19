@@ -107,6 +107,34 @@ $ cat /etc/shells
 - `-l`：作为登录Shell启动
 - `-r`：将子Shell限制在父Shell所在路径中
 
+## §1.3 启动文件
+
+启动Shell时，`bash`会尝试预加载一些Shell脚本，我们将其称为启动文件。至于预加载哪些启动文件，这取决于启动Shell的方式——登录Shell、交互式Shell、非交互式Shell。
+
+如果要持久化启动文件，针对系统而言推荐把脚本放在`/etc/profile.d`目录下，针对用户而言推荐把脚本放在`~/.bashrc`。
+### §1.3.1 登录Shell
+
+登录Linux系统时，`bash`会作为登录Shell启动。登录Shell预加载以下启动文件：
+
+- `/etc/profile`：全局启动文件，第一个优先执行
+- `~/.bash_profile`：用户启动文件，第二个优先执行
+- `~/.bash_login`：用户启动文件，第三个优先执行
+- `~/.profile`：用户启动文件，第四个优先执行
+- `~/.bashrc`：用户启动文件，不由`bash`默认执行，而是由前四者执行
+- `/etc/environment`、`~/.pam_environment`：需要Linux启用可拆卸式认证模块（PAM）
+
+### §1.3.2 交互式Shell
+
+在Shell中使用`bash`命令启动的子Shell称为交互式Shell，它仍然可以接受用户输入。交互式Shell只加载：
+
+- `~/.bashrc`：用户启动文件
+
+### §1.3.3 非交互式Shell
+
+使用`bash <FILE>`执行脚本时，启动的Shell称为非交互式Shell。它不预加载任何启动文件，只会执行`$BASH_ENV`值对应的脚本路径。
+
+
+
 # §2 常用命令 
 
 ## §2.1 进程
@@ -569,6 +597,160 @@ type ls # 先输出宏替换的结果，再执行命令
 	ls is aliased to `ls --color=auto'
 ```
 
+## §2.5 用户管理
+
+每个用户会被分配：唯一的正整数用户ID（UID）、小于等于8个字符的用户名、以及对应的密码。UID和登录名的匹配关系记录在`/etc/passwd`中：
+
+```passwd
+$ cat /etc/passwd
+	# 用户名:密码:UID:GID:备注字段:用户根目录路径:默认Shell路径
+	root:x:0:0:root:/root:/bin/bash
+	www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+	yaner:x:1000:1000:,,,:/home/yaner:/bin/bash
+```
+
+`root`用户的UID恒为`0`。Linux为系统账户保留了`[0, x)`的UID，创建用户账户时会从`[x, +∞)`递增分配UID。这里的`x`取决于发行版具体的规定，例如Ubuntu的`x`设置为`1000`。
+
+`/etc/shadow`记录了用户密码的哈希值或DES密文。
+
+```shadow
+# 用户名:密码密文:上次修改密码的时间戳转天数:还剩多少天才能修改密码:还剩多少天就要必须修改密码:密码过期前提前多少天提醒用户:密码过期时多少天后禁用账户:账户被禁用时间戳转天数:预留字段
+root:*:19219:0:99999:7:::
+yaner:$y$j9T$cS2h4LMHIIDT.bJqjctf40$MV0s0no.EdoP7A8TohNedyygBtMwyiAHsF9A1Y1erJC:20035:0:99999:7:::
+```
+
+### §2.5.1 用户
+
+#### §2.5.1.1 `useradd`
+
+`useradd`命令用于添加用户并设置用户根目录。创建用户使用的配置默认从`/etc/default/useradd`加载，可以通过`useradd -D`选项查看：
+
+```shell
+$ cat /etc/default/useradd
+	SHELL=/bin/sh
+	# GROUP=100
+	# HOME=/home
+	# INACTIVE=-1
+	# EXPIRE=
+	# SKEL=/etc/skel
+	# creating the account
+	# CREATE_MAIL_SPOOL=no
+
+$ useradd -D
+	GROUP=100 # 新用户添加到GID为100的公共组
+	HOME=/home # 新用户的用户根目录为/home/<USERNAME>
+	INACTIVE=-1 # 新用户的密码过期后不会被禁用
+	EXPIRE= # 新用户的密码不会过期
+	SHELL=/bin/sh # 新用户使用sh作为默认Shell
+	SKEL=/etc/skel # 新用户的用户根目录内容是/etc/skel的拷贝
+	CREATE_MAIL_SPOOL=no # 不创建/home/<USERNAME>/mail接受邮件
+```
+
+`/etc/default/useradd`只规定了`useradd`的一部分默认行为，更多的安全设置默认值定义于`/etc/login.defs`中。例如`useradd`默认不会创建用户根目录，要更改这一默认行为，我们可以在`/etc/default/useradd`或`/etc/login.defs`添加一行`CREATE_HOME yes`即可。
+
+`useradd`提供了以下常用选项：
+
+| `useradd`选项          | 作用                               |
+| -------------------- | -------------------------------- |
+| `-c <COMMENT>`       | 在`/etc/passwd`中添加用户备注            |
+| `-d <HOME_DIR>`      | 指定用户根目录，例如`/home/与用户名不同的名称`      |
+| `-e <EXPIRE_DATE>`   | 用`YYYY-MM-DD`格式指定账户过期日期          |
+| `-f <INACTIVE_DAYS>` | 密码过期多少天后禁用账户，`-1`表示不禁用           |
+| `-g <INTIAL_GROUP>`  | 指定用户登录组的GID或组名                   |
+| `-G <GROUP>`         | 指定用户附加组                          |
+| `-k`                 | 与`-m`一起使用，将`/etc/skel/*`复制到用户根目录 |
+| `-m`                 | 创建用户根目录                          |
+| `-M`                 | 不创建用户根目录                         |
+| `-n`                 | 创建一个与当前用户的用户名相同的用户组              |
+| `-r`                 | 创建一个系统账户                         |
+| `-p <PASSWORD>`      | 指定新账户密码                          |
+| `-s <SHELL>`         | 指定默认Shell                        |
+| `-u <UID>`           | 指定UID                            |
+
+`useradd -D -<OPTION> <VALUE>`用于更改某个选项`-<OPTION>`的默认值。例如`useradd -D -s /bin/bash`用于更改`useradd`的默认配置。
+
+#### §2.5.1.2 `userdel`
+
+`userdel <USERNAME>`会删除`/etc/passed`和`/etc/shadow`中的用户信息。额外使用`-r`会删除用户根目录。
+
+#### §2.5.1.3 `usermod`
+
+`usermod`用于修改账户字段，并更改主要组（Primary Group）和辅助组（Secondary Group）的关系。`usermod`的大部分选项与`useradd`一样，除此以外还提供了`-l`用于修改用户名、`-L`用于禁用账户、`-p <PASSWORD>`用于修改密码、`-U`用于恢复账户。
+
+#### §2.5.1.4 `passwd`
+
+`passwd`用于修改**当前帐户**的密码。使用`-e`可以保证该账户下次登录时必须重新设置密码。
+
+#### §2.5.1.5 `chpasswd`
+
+`chpasswd`用于**批量**修改**任意账户**的密码。它会从`STDIN`读入一系列外部以`\n`分隔的、内部用`:`分隔的用户名和新密码的二元组，然后批量修改密码。
+
+```shell
+$ chpasswd < new_password.txt
+```
+
+#### §2.5.1.6 `chsh`
+
+`chsh -s <SHELL_PATH> <USERNAME>`用于修改账户的默认Shell。这里的`<SHELL_PATH>`必须是绝对路径，不能是文件名。
+
+#### §2.5.1.7 `chfn`
+
+`chfn <USERNAME>`用于修改账户的备注字段。它会执行一个交互式向导，提示用户输入自己的Name、Office、Office Phone、Home Phone字段。这些信息可以通过`finger <USERNAME>`读取账户备注信息后格式化输出。
+
+#### §2.5.1.8 `chage`
+
+`chage <OPTION> <USERNAME>`用于修改账户的有效期。这里的有效期既可以用`YYYY-MM-DD`表示，也可以用一个从1970年1月1日起经过的天数表示。
+
+| `chage`选项 | 作用             |
+| --------- | -------------- |
+| `-d`      | 设置上次修改密码的时间    |
+| `-E`      | 设置密码过期日期       |
+| `-I`      | 设置密码过期多少天后锁定账户 |
+| `-m`      | 设置密码更改的最小间隔天数  |
+| `-M`      | 设置密码的最大有效天数    |
+| `-W`      | 设置密码过期前多少天就提醒  |
+
+### §2.5.2 用户组
+
+Linux的用户组信息存储在`/etc/group`中：
+
+```bash
+$ cat /etc/group
+	# 组名:组密码:GID:属于该组的用户列表
+	root:x:0:
+	adm:x:4:yaner
+	www-data:x:33:
+```
+
+#### §2.5.2.1 `groupadd`
+
+`groupadd <GROUPNAME>`用于创建新的用户组：
+
+```shell
+# groupadd share
+# tail -n 1 /etc/group
+	share:x:1001:
+```
+
+创建的用户组，默认情况下不包含任何账户。我们可以用`usermod -G <GROUPNAME> <USERNAME>`将用户添加到用户组中，或者用`usermod -g <GROUPNAME> <USERNAME>`更新用户的主要组（Primary Group）。**添加完毕后，账户`<USERNAME>`必须注销后重新登录，用户组所属关系才能更新生效**。
+
+```shell
+# usermod -G share yaner
+# tail -n 1 /etc/group
+	share:x:1001:yaner
+# usermod
+```
+
+#### §2.5.2.2 `groupmod`
+
+`groupmod`用于修改组信息。
+
+```shell
+$ groupmod -n <NEW_GROUPNAME> <GROUPNAME> # 修改组名
+$ groupmod -g <NEW_GID> <GID> # 修改GID
+```
+
+
 # §3 Shell脚本语法
 
 ## §3.1 子Shell
@@ -855,3 +1037,32 @@ $ bash -c 'echo $ABC'
 | `TMPDIR`                | Shell创建临时文件的保存目录                                                   |                                                                             | ❌                    | ✔             |
 | `UID`                   | 用户的`UID`                                                           |                                                                             | ❌                    | ✔             |
 
+### §3.3.1 数组变量
+
+数组变量用于存储多个值，既可以作为整体引用，也可以用从递增下标单独引用。其声明格式为：两侧由`()`包裹的、各个值用空格分割。
+
+```shell
+$ array=(123 abc def)
+$ echo $array # 默认显示第0个值
+	123
+$ echo ${array[0]} # 显示第0个值
+	123
+$ echo ${array[1]} # 显示第1个值
+	abc
+$ echo ${array[*]} # 显示所有值
+	123 abc def
+```
+
+我们可以更改和删除数组变量中的某个值。需要注意：这里的删除更像是清空，因为一旦`unset`了某个值，则它虽然不会在`${array[*]}`显示，但是引用下标时会返回空值，而不是让后面的值向前顶替。
+
+```shell
+$ array[2]=ghi # 修改第2个值
+$ unset array[1] # 删除第1个值
+$ echo ${array[1]}
+	# 输出空值
+$ echo ${array[2]} # 后面的值没有向前顶替
+	ghi
+$ echo ${array[*]} # [*]不显示空值
+	123 ghi
+$ unset array # 删除环境变量
+```
