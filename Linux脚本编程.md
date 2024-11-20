@@ -787,7 +787,96 @@ $ ls -la
 	drwxr-xr-x  2 yaner yaner  4096 Nov 20 01:45 new_folder
 ```
 
-这种权限默认值由`umask`命令指定，具体来说，`umask`的**后三位八进制数码**表示权限属性掩码，真正的默认权限属性由八进制数`777`**减去这三位八进制数码**得到。执行`umask`会输出当前的默认权限属性的掩码，这个值由`/etc/profile`指定
+这种权限默认值由`umask`命令指定，`umask`控制着`rwxrwxrwx`这九项权限的全局禁用开关。具体来说，`umask`的**后三位八进制数码**表示权限属性掩码，真正的默认权限属性由八进制数（文件为`666`，目录为`777`）**减去这三位八进制数码**（默认为`022`）得到。执行`umask`会输出当前的默认权限属性的掩码，这个值由`/etc/profile`指定或由`/etc/skel/.bashrc`初始化：
+
+```shell
+$ grep -rn "umask" /etc
+	/etc/post-install/05-home-dir.post:9:  umask 022
+	/etc/skel/.bashrc:112:# Set a more restrictive umask: i.e. no exec perms for others:
+	/etc/skel/.bashrc:113:# umask 027
+	/etc/skel/.bashrc:115:# umask 077
+```
+
+我们可以使用`umask <OCT_NUMBER>`更改`umask`的掩码，它会影响所有文件的权限：
+
+```shell
+$ touch new_file
+$ ls -l
+	total 0
+	-rw-r--r-- 1 Yaner None 0 Nov 20 21:26 new_file
+$ umask 066
+$ ls -l
+	total 0
+	-rw------- 1 Yaner None 0 Nov 20 21:26 new_file
+```
+
+### §2.6.3 `chmod`
+
+`chmod <OPTION>* <MODE> <FILE>`命令用户更改`<FILE>`的权限。
+
+这里的`<MODE>`支持两种形式：八进制形式和符号形式。
+
+- 八进制形式（`[0-7]{3,4}`）：SUID/SGID/粘滞位是否启用的前一位八进制数字（可选）、`rwxrwxrwx`的后三位八进制数字（必选）。
+- 符号模式（`[ugoa]+[+-=][rwxXstugo]+`）：
+	1. 第一组字符表示`chmod`修改权限的作用对象，其中`u`表示用户、`g`表示用户组、`o`表示其他用户、`a`表示上述三者皆有。
+	2. 第二组字符表示权限的具体更改行为，其中`+`表示增加权限、`-`表示移除权限，`=`表示设置权限。
+	3. 第三组字符表示具体的权限种类，其中`rwx`分别表示读取写入执行、`X`表示当对象是目录或已有执行权限的文件时才允许更改执行权限、`s`表示同时设置SUID和SGID、`t`表示设置粘滞位（Sticky Bit）、`ugo`分表表示设置属主/用户组/其他用户的权限。
+
+`chmod`提供了`-R`选项用于递归地更改权限。
+
+上文中提到了SUID、SGID和粘滞位。这三个额外的属性是为了解决文件共享的问题而发明的。一种显然的想法是：我们可以为需要共享的文件、需要分享给的对象，创立一个额外的用户组。然而这种方案不易维护，设想文件数量多、用户规模大、文件和用户都在频繁地新建和删除时，这种方案产生了大量的人工维护成本。为了解决这一问题，Linux使用了SUID、SGID和粘滞位这三个**布尔属性**：
+
+- SUID（Set UID）：任意用户执行文件时，该文件以文件属主的权限启动。例如任何用户都能使用`passwd`
+  ```shell
+  $ ls -l /bin/passwd # 注意下面的s，表示SUID已启用
+	  -rwsr-xr-x 1 root root 68208 May 28  2020 /bin/passwd
+```
+- SGID（Set GID）：任意用户执行文件时，该文件以文件属组的权限启动；对于目录来说，其子树下的所有文件都会继承目录的SGID。
+  ```shell
+  $ touch /share/1.txt
+  $ ls -l /share/ # 未启用SGID
+	  -rw-r--r-- 1 root root   0 Nov 20 15:22 1.txt
+  
+  $ chmod 2774 /share # 启用SGID
+  $ ls -ld /share # 注意下面的S，表示启用了SGID
+	  drwxr-Sr-- 2 root root 4096 Nov 20 16:13 /share
+  $ touch /share/2.txt
+  $ ls -l /share
+	  -rw-r--r-- 1 root root   0 Nov 20 15:22 1.txt
+	  -rw-r--r-- 1 root shared 0 Nov 20 15:23 2.txt
+```
+- 粘滞位（Sticky Bit）：作用于目录时，只有目录属主和Root用户有权重命名或删除该目录中的文件。这正是Linux推荐的文件共享方案：创建共享目录`/share`，将其属组改为`root`，启用粘滞位`chmod 1777 /share`即可，以此来实现不同用户的分离。`/tmp`采用的就是这种方案。
+  ```shell
+  root$ mkdir /share
+  root$ chmod 1777 /share
+  root$ ls -ld /share # 注意下面的t，表示启用了粘滞位
+	  drwxrwxrwt 2 root root 4096 Nov 20 16:13 /share
+  root$ touch /share/root_file
+  root$ su yaner
+  yaner$ rm /share/root_file
+	  rm: cannot remove '/share/root_file': Operation not permitted
+```
+
+### §2.6.4 `chown`
+
+`chown <OPTION>* [<NEW_OWNER>][.<NEW_GROUP>] <FILE>`用于更改文件的属主和属组。该命令可以单独修改属主`<NEW_OWNER>`、单独修改属组`.<NEW_GROUP>`、同时修改属主和属组`<NEW_OWNER>.<NEW_GROUP>`。
+
+```shell
+$ ls -l
+	total 0
+	-rw-r--r-- 1 root root 0 Nov 20 14:53 new_file
+$ chown yaner.yaner new_file
+$ ls -l
+	total 0
+	-rw-r--r-- 1 yaner yaner 0 Nov 20 14:53 new_file
+```
+
+如果`<NEW_OWNER>`就是当前Shell登录的用户，则`.<NEW_GROUP>`缺省为用户所在的用户组，只需要使用`<NEW_OWNER>.`即可。
+
+### §2.6.5 `chgrp`
+
+`chgrp <NEW_GROUP> <FILE>`用于更改文件的属组。
+
 
 # §3 Shell脚本语法
 
