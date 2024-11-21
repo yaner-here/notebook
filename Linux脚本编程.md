@@ -1353,7 +1353,56 @@ $ lvreduce -L -1G /dev/vg0/lvol0
 
 ### §2.8.1 `apt`
 
-Debian系的LInux发行版（Debian、Ubuntu等）使用`apt`作为包管理工具。
+Debian系的LInux发行版（Debian、Ubuntu等）使用APT工具集作为包管理工具。APT工具集包括`apt-cache`、`apt-get`和`apt`。其中`apt`本质上是`apt-cache`和`apt-get`的CLI前端。
+
+`dpkg -L <PACKAGE>`用于获取`apt`源安装`<PACKAGE>`时，涉及变更的所有目录与文件。`dpkg --search <FILE>`用于获取由路径指定的`<FILE>`属于哪个软件包。
+
+```shell
+$ dpkg -L acl
+	/.
+	/bin
+	/bin/chacl
+	/bin/getfacl
+	/bin/setfacl
+	/usr
+	/usr/share
+	/usr/share/doc
+	/usr/share/doc/acl
+	/usr/share/doc/acl/copyright
+	/usr/share/man
+	/usr/share/man/man1
+	/usr/share/man/man1/chacl.1.gz
+	/usr/share/man/man1/getfacl.1.gz
+	/usr/share/man/man1/setfacl.1.gz
+	/usr/share/man/man5
+	/usr/share/man/man5/acl.5.gz
+	/usr/share/doc/acl/changelog.Debian.gz
+$ dpkg --search getfacl
+	acl: /usr/share/man/man1/getfacl.1.gz
+	acl: /bin/getfacl
+```
+
+使用`apt list`查看仓库中所有可安装的包；使用`apt list --installed`查看所有已安装的包：
+
+```shell
+$ apt list --installed
+	Listing... Done
+	accountsservice/now 0.6.55-0ubuntu12~20.04.1 amd64 [installed,upgradable to: 0.6.55-0ubuntu12~20.04.7]
+	acl/focal,now 2.2.53-6 amd64 [installed]
+	adduser/focal,now 3.118ubuntu2 all [installed,automatic]
+	......
+```
+
+使用`apt upgrade`**在不删除任何旧版本包的情况下**，更新所有已安装包的版本；使用`apt full-upgrade`使用激进策略，不惜一切代价更新所有已安装包的版本。
+
+使用`apt remove <PACKAGE>`删除软件包，但是**保留数据和配置文件**；使用`apt purge <PACKAGE>`彻底删除软件包本体，及其数据和配置文件，**但是不会删除其依赖的软件包**；使用`apt autoremove`删除所有未被引用的软件包。
+
+`apt`使用的软件仓库定义在`/etc/apt/sources.list`，其语法结构为`[deb|deb-src] <ADDRESS> <DISTRIBUTION_NAME> <PACKAGE_TYPE_LIST>`。其中各参数的含义为：
+
+- `deb`表示二进制源，`deb-src`表示源代码源。
+- `<ADDRESS>`表示软件仓库的网址。
+- `<DISTRIBUTION_NAME>`表示发行版的版本名称
+- `<PACKAGE_TYPE_LIST>`是一组单词的集合，例如`main`、`restricted`、`universe`、`partner`等。
 
 # §3 Shell脚本语法
 
