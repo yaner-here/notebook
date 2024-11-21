@@ -919,7 +919,7 @@ $ getfacl new_file
 	other::r--
 ```
 
-### §2.7 文件系统
+## §2.7 文件系统
 
 Linux支持的常见文件系统有：
 
@@ -945,7 +945,7 @@ Linux支持的常见文件系统有：
 
 卷管理文件系统是一种针对大量存储设备的管理方案——一个或多个磁盘可以共同创建一个存储池，然后从存储池划分出若干个虚拟磁盘（即为卷），这样可以更灵活地按需增加或删除卷，提供更强的灵活性。受益于该功能，众多卷管理文件系统也支持COW（写时复制）和快照等高级特性。
 
-### §8.2.1 创建分区
+### §2.7.1 管理分区
 
 Linux使用以下规则，来为硬盘分配设备名称：
 
@@ -953,9 +953,399 @@ Linux使用以下规则，来为硬盘分配设备名称：
 - NVME驱动器：命名为`/dev/nvme[0-9]n[1-9]`。其中第一个`[0-9]`取决于Linux检测驱动器的检测顺序，第二个`[1-9]`表示分配给该驱动器的编号。
 - IDE驱动器：命名为`/dev/hd[a-z]`，从`/dev/hda`开始按字典序自增。
 
-#### §8.2.1.1 `fdisk`
+#### §2.7.1.1 `fdisk`
 
+`fdisk`用于管理使用MBR（Master Boot Record）分区表的磁盘。MBR最多只能利用单盘`2TB`空间，且最多支持四个主分区，或者三个主分区加一个扩展分区。
 
+`fdisk -l`查看所有存储设备的信息：
+
+```shell
+$ sudo fdisk -l
+	Disk /dev/sdb: 40 GiB, 42949672960 bytes, 83886080 sectors
+	Disk model: QEMU HARDDISK
+	Units: sectors of 1 * 512 = 512 bytes
+	Sector size (logical/physical): 512 bytes / 512 bytes
+	I/O size (minimum/optimal): 512 bytes / 512 bytes
+```
+
+`fdisk <DEVICE>`会进入设备的编辑命令行。该命令行提供了以下命令：
+
+| `fdisk`命令   | 作用                |
+| ----------- | ----------------- |
+| `a`（Active） | 设置活动分区标志          |
+| `b`         | 编辑BSD Unix使用的标签   |
+| `c`         | 设置DOS兼容标志         |
+| `d`（Delete） | 删除分区              |
+| `g`         | 初始化空的GPT分区表       |
+| `G`         | 初始化空的IRIX（SGI）分区表 |
+| `l`（List）   | 显示可用的分区类型         |
+| `m`（Menu）   | 显示命令菜单            |
+| `n`（New）    | 添加新分区             |
+| `o`         | 初始化空的DOS分区表       |
+| `p`（Print）  | 显示当前分区表           |
+| `q`（Quit）   | 仅退出，不保存更改         |
+| `s`         | 为Sun Unix创建新标签    |
+| `t`（Tag）    | 修改分区的系统ID         |
+| `u`（Unit）   | 修改显示单元            |
+| `v`（Verify） | 验证分区表             |
+| `w`（Write）  | 退出，保存更改           |
+| `x`         | 高级功能              |
+
+下面的流程演示了如何创建两个主分区。
+
+```shell
+root@ECS1033:~# fdisk /dev/sdb
+	Welcome to fdisk (util-linux 2.34).
+	Changes will remain in memory only, until you decide to write them.
+	Be careful before using the write command.
+
+	The old ext4 signature will be removed by a write command.
+
+	Device does not contain a recognized partition table.
+	Created a new DOS disklabel with disk identifier 0x823f5311.
+
+	Command (m for help): p
+		Disk /dev/sdb: 40 GiB, 42949672960 bytes, 83886080 sectors
+		Disk model: QEMU HARDDISK
+		Units: sectors of 1 * 512 = 512 bytes
+		Sector size (logical/physical): 512 bytes / 512 bytes
+		I/O size (minimum/optimal): 512 bytes / 512 bytes
+		Disklabel type: dos
+		Disk identifier: 0x823f5311
+
+	Command (m for help): a
+		No partition is defined yet!
+
+	Command (m for help): n
+		Partition type
+		   p   primary (0 primary, 0 extended, 4 free)
+		   e   extended (container for logical partitions)
+		Select (default p): p
+		Partition number (1-4, default 1): 2
+		First sector (2048-83886079, default 2048): 2048
+		Last sector, +/-sectors or +/-size{K,M,G,T,P} (2048-83886079, default 83886079): 83886079
+		Created a new partition 2 of type 'Linux' and of size 40 GiB.
+
+	Command (m for help): p
+		Disk /dev/sdb: 40 GiB, 42949672960 bytes, 83886080 sectors
+		Disk model: QEMU HARDDISK
+		Units: sectors of 1 * 512 = 512 bytes
+		Sector size (logical/physical): 512 bytes / 512 bytes
+		I/O size (minimum/optimal): 512 bytes / 512 bytes
+		Disklabel type: dos
+		Disk identifier: 0x823f5311
+		
+		Device     Boot Start      End  Sectors Size Id Type
+		/dev/sdb2        2048 83886079 83884032  40G 83 Linux
+
+	Command (m for help): w
+		The partition table has been altered.
+		Syncing disks.
+```
+
+#### §2.7.1.2 `gdisk`
+
+`gdisk`用于管理使用GPT（GUID Partition Table）分区表的磁盘分区。
+
+| `gdisk`命令     | 作用           |
+| ------------- | ------------ |
+| `b`（Backup）   | 将GPT分区表备份到文件 |
+| `c`（Change）   | 修改分区名称       |
+| `d`（Delete）   | 删除分区         |
+| `i`（Info）     | 显示分区信息       |
+| `l`（List）     | 显示可用的分区类型    |
+| `n`（New）      | 添加分区         |
+| `o`           | 初始化GPT分区表    |
+| `p`（Print）    | 显示当前GPT分区表   |
+| `q`（Quit）     | 仅退出，不保存更改    |
+| `r`（Recovery） | 恢复和转换        |
+| `s`（Sort）     | 排序分区         |
+| `t`（Tag）      | 修改分区的类型      |
+| `v`（Verify）   | 验证磁盘         |
+| `w`（Write）    | 退出，保存更改      |
+| `x`           | 附加选项         |
+| `?`           | 显示帮助         |
+
+#### §2.7.1.3 `parted`
+
+`parted`是GNU发布的一款全能管理分区工具，且其命令行中的命令不再是单字母，而是更容易阅读的单词。它的优势在于：可以调整现有分区的大小。
+
+```shell
+$ parted /dev/sdb
+GNU Parted 3.3
+	Using /dev/sdb
+	Welcome to GNU Parted! Type 'help' to view a list of commands.
+	(parted) mklabel gpt
+		Warning: Partition(s) on /dev/sdb are being used.
+		Ignore/Cancel? I
+		Warning: The existing disk label on /dev/sdb will be destroyed and all data on this disk will be lost. Do you want to
+continue?
+		Yes/No? Y
+	(parted) mkpart volume1
+		File system type?  [ext2]? ext4
+		Start? 1
+		End? 33%
+	(parted) mkpart volume2
+		File system type?  [ext2]? btrfs
+		Start? 33%
+		End? 66%
+	(parted) mkpart volume3
+		File system type?  [ext2]? zfs
+		Start? 66%
+		End? 99%
+	(parted) print
+		Model: QEMU QEMU HARDDISK (scsi)
+		Disk /dev/sdb: 42.9GB
+		Sector size (logical/physical): 512B/512B
+		Partition Table: gpt
+		Disk Flags:
+		Number  Start   End     Size    File system  Name     Flags
+		 1      1049kB  14.2GB  14.2GB  ext4         volume1
+		 2      14.2GB  28.3GB  14.2GB  btrfs        volume2
+		 3      28.3GB  42.5GB  14.2GB  zfs          volume3
+	(parted) rm
+		Partition number? 3
+	(parted) print
+		Model: QEMU QEMU HARDDISK (scsi)
+		Disk /dev/sdb: 42.9GB
+		Sector size (logical/physical): 512B/512B
+		Partition Table: gpt
+		Disk Flags:
+		Number  Start   End     Size    File system  Name     Flags
+		 1      1049kB  14.2GB  14.2GB  ext4         volume1
+		 2      14.2GB  28.3GB  14.2GB  btrfs        volume2
+	(parted) quit
+		Information: You may need to update /etc/fstab.
+$ lsblk
+	NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+	sdb      8:16   0   40G  0 disk /opt/1
+	├─sdb1   8:17   0 13.2G  0 part
+	└─sdb2   8:18   0 13.2G  0 part
+```
+
+### §2.7.2 管理文件系统
+
+每种文件系统都有各自的格式化工具。
+
+| 程序名          | 作用            |
+| ------------ | ------------- |
+| `mkefs`      | 创建`ext`文件系统   |
+| `mke2fs`     | 创建`ext2`文件系统  |
+| `mkfs.ext3`  | 创建`ext3`文件系统  |
+| `mkfs.ext4`  | 创建`ext4`文件系统  |
+| `jfs_mkfs`   | 创建`jfs`文件系统   |
+| `mkfs.xfs`   | 创建`xfs`文件系统   |
+| `mkfs.zfs`   | 创建`zfs`文件系统   |
+| `mkfs.btrfs` | 创建`btrfs`文件系统 |
+
+只需以`root`权限，执行`<程序名> <PARITION_PATH>`即可在指定分区上创建文件系统。
+
+我们可以通过编辑`/etc/fstab`，实现开机自动挂载。
+
+### §2.7.3 维护文件系统
+
+#### §2.7.3.1 `fsck`
+
+`fsck <OPTION> <FILESYSTEM>`用于检查和修复文件系统，文件系统类型优先由`/etc/fstab`指定，否则由命令行参数`-t <FILESYSTEM>`手动指定，这里的`<FILESYSTEM>`既可以是文件系统类型的字符串，也可以是挂载点。
+
+| `fsck`命令          | 作用                        |
+| ----------------- | ------------------------- |
+| `-a`（Auto）        | 检测到错误时自动修复                |
+| `-A`（All）         | 只检测`/etc/fstab`中列出的所有文件系统 |
+| `-N`              | 只显示要检查的内容，不进行实际检查         |
+| `-r`              | 出现错误时及时提示                 |
+| `-R`              | 使用`-A`时跳过根文件系统            |
+| `-t <FILESYSTEM>` | 指定文件系统类型                  |
+| `-V`（Verbose）     | 输出详细信息                    |
+| `-y`（Yes）         | 检测到错误时自动修复                |
+
+`fsck`要求检查的分区必须未被挂载。对于根目录来说，我们只能进入Linux Live CD环境才能将其卸载，使用`fsck`进行操作。
+
+### §2.7.4 管理逻辑卷
+
+Linux提供了逻辑卷管理器（LVM，Logical Volume Manager），可以将另一块硬盘上的分区加入已有的文件系统，从而动态地增加存储空间，无需重建整个文件系统。
+
+LVM将一个或多个分区组合成一个逻辑卷，作为单个分区进行格式化。LVM由三个部分构成：
+
+- 物理卷（PV，Physical Volume）：本质上是一个分区，通过`pvcreate`命令创建，记录了LVM结构、卷标、元数据。
+- 卷组（VG，Volume Group）：本质上是一个PV集合，也就是一个存储池，通过`vgcreate`命令创建。一个PV最多只能属于一个VG。
+- 逻辑卷（LV，Logical Volume）：本质上是一个VG中的若干存储空间快（PE，Physical Extents）集合，通过`lvcreate`命令创建。一个LV不能跨VG创建。
+
+使用`pvcreate <VOLUME>+`创建PV：
+
+```shell
+$ umount /dev/sdb ; umount /dev/sdb1 ; umount /dev/sdb2 ; umount /dev/sdb3 ; # 保证物理卷全部未挂载
+$ lsblk
+	NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+	sdb      8:16   0   40G  0 disk
+	├─sdb1   8:17   0 13.2G  0 part
+	├─sdb2   8:18   0 13.2G  0 part
+	└─sdb3   8:19   0 13.2G  0 part
+$ pvcreate /dev/sdb1 /dev/sdb2 /dev/sdb3
+	  Physical volume "/dev/sdb1" successfully created.
+	  Physical volume "/dev/sdb2" successfully created.
+	  Physical volume "/dev/sdb3" successfully created.
+```
+
+使用`vgcreate <VG_NAME> <VOLUME>+`创建VG，使用`vgdisplay`查看已创建的VG：
+
+```shell
+$ vgdisplay # 显示当前的VG，防止创建VG时重名
+$ vgcreate vg0 /dev/sdb1 /dev/sdb2
+	  Volume group "vg0" successfully created
+$ vgdisplay
+	  --- Volume group ---
+	  VG Name               vg0
+	  System ID
+	  Format                lvm2
+	  Metadata Areas        2
+	  Metadata Sequence No  1
+	  VG Access             read/write
+	  VG Status             resizable
+	  MAX LV                0
+	  Cur LV                0
+	  Open LV               0
+	  Max PV                0
+	  Cur PV                2
+	  Act PV                2
+	  VG Size               26.39 GiB
+	  PE Size               4.00 MiB
+	  Total PE              6757
+	  Alloc PE / Size       0 / 0
+	  Free  PE / Size       6757 / 26.39 GiB
+	  VG UUID               oQN7jf-ccyP-wXgU-TjFC-zA35-tw3Z-zNifXo
+```
+
+使用`vgcreate <VG_NAME> <VOLUME>+`向VG添加PV，使用`vgreduce <VG_NAME> <VOLUME>`从VG删除PV：
+
+```shell
+$ vgextend vg0 /dev/sdb3
+	  Volume group "vg0" successfully extended
+$ vgdisplay
+	  --- Volume group ---
+	  VG Name               vg0
+	  System ID
+	  Format                lvm2
+	  Metadata Areas        3
+	  Metadata Sequence No  2
+	  VG Access             read/write
+	  VG Status             resizable
+	  MAX LV                0
+	  Cur LV                0
+	  Open LV               0
+	  Max PV                0
+	  Cur PV                3
+	  Act PV                3
+	  VG Size               <39.59 GiB
+	  PE Size               4.00 MiB
+	  Total PE              10135
+	  Alloc PE / Size       0 / 0
+	  Free  PE / Size       10135 / <39.59 GiB
+	  VG UUID               oQN7jf-ccyP-wXgU-TjFC-zA35-tw3Z-zNifXo
+
+$ vgreduce vg0 /dev/sdb3
+  Removed "/dev/sdb3" from volume group "vg0"
+root@ECS1033:~# vgdisplay
+	  --- Volume group ---
+	  VG Name               vg0
+	  System ID
+	  Format                lvm2
+	  Metadata Areas        2
+	  Metadata Sequence No  3
+	  VG Access             read/write
+	  VG Status             resizable
+	  MAX LV                0
+	  Cur LV                0
+	  Open LV               0
+	  Max PV                0
+	  Cur PV                2
+	  Act PV                2
+	  VG Size               26.39 GiB
+	  PE Size               4.00 MiB
+	  Total PE              6757
+	  Alloc PE / Size       0 / 0
+	  Free  PE / Size       6757 / 26.39 GiB
+	  VG UUID               oQN7jf-ccyP-wXgU-TjFC-zA35-tw3Z-zNifXo
+```
+
+使用`lvcreate -L <SIZE> -v <VG_NAME>`，从存储池VG`<VG_NAME>`中创建一个大小为`<SIZE>`的LV。这个LV会显示在`/dev/<VG_NAME>/lvol[0-9]`，按数字序升序自增。
+
+```shell
+$ lvcreate -L 25G -v vg0
+	  Archiving volume group "vg0" metadata (seqno 3).
+	  Creating logical volume lvol0
+	  Creating volume group backup "/etc/lvm/backup/vg0" (seqno 4).
+	  Activating logical volume vg0/lvol0.
+	  activation/volume_list configuration setting not defined: Checking only host tags for vg0/lvol0.
+	  Creating vg0-lvol0
+	  Loading table for vg0-lvol0 (253:0).
+	  Resuming vg0-lvol0 (253:0).
+	  Wiping known signatures on logical volume "vg0/lvol0"
+	  Initializing 4.00 KiB of logical volume "vg0/lvol0" with value 0.
+	  Logical volume "lvol0" created.
+```
+
+使用`lvdisplay`、`lvs`或`lvscan`查看创建的LV：
+
+```shell
+$ lvdisplay
+	  --- Logical volume ---
+	  LV Path                /dev/vg0/lvol0
+	  LV Name                lvol0
+	  VG Name                vg0
+	  LV UUID                tSDnsI-t1kR-prlS-odnw-Yc4P-w5rB-gIR7gX
+	  LV Write Access        read/write
+	  LV Creation host, time ECS1033, 2024-11-21 15:51:54 +0000
+	  LV Status              available
+	  # open                 0
+	  LV Size                25.00 GiB
+	  Current LE             6400
+	  Segments               2
+	  Allocation             inherit
+	  Read ahead sectors     auto
+	  - currently set to     256
+	  Block device           253:0
+$ lvs
+	  LV    VG  Attr       LSize  Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+	  lvol0 vg0 -wi-a----- 25.00g
+$ lvs
+	lvs     lvscan
+$ lvscan
+	  ACTIVE            '/dev/vg0/lvol0' [25.00 GiB] inherit
+```
+
+现在的LV是一个虚拟卷，可以正常地被格式化为某种文件系统：
+
+```shell
+$ mkfs.ext4 /dev/vg0/lvol0
+	mke2fs 1.45.5 (07-Jan-2020)
+	Discarding device blocks: done
+	Creating filesystem with 6553600 4k blocks and 1638400 inodes
+	Filesystem UUID: eb0d54b5-88e2-47bd-9ecc-65b981b90336
+	Superblock backups stored on blocks:
+	        32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208,
+	        4096000
+	Allocating group tables: done
+	Writing inode tables: done
+	Creating journal (32768 blocks): done
+	Writing superblocks and filesystem accounting information: done
+$ mkdir /lvm_test
+$ mount -t ext4 /dev/vg0/lvol0 /lvm_test
+```
+
+可以使用`lvextend`和`lvreduce`命令，动态调整LV的大小。
+
+```shell
+$ lvextend -L +1G /dev/vg0/lvol0
+	  Size of logical volume vg0/lvol0 changed from 2.00 GiB (512 extents) to 3.00 GiB (768 extents).
+	  Logical volume vg0/lvol0 successfully resized.
+$ lvreduce -L -1G /dev/vg0/lvol0
+	  WARNING: Reducing active and open logical volume to 2.00 GiB.
+	  THIS MAY DESTROY YOUR DATA (filesystem etc.)
+	  Do you really want to reduce vg0/lvol0? [y/n]: y
+	  Size of logical volume vg0/lvol0 changed from 3.00 GiB (768 extents) to 2.00 GiB (512 extents).
+	  Logical volume vg0/lvol0 successfully resized.
+```
 
 # §3 Shell脚本语法
 
