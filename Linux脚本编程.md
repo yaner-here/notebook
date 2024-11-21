@@ -1347,6 +1347,14 @@ $ lvreduce -L -1G /dev/vg0/lvol0
 	  Logical volume vg0/lvol0 successfully resized.
 ```
 
+除此之外，还有`pvremove`、`vgremove`、`lvremove`等命令，本节略。
+
+## §2.8 包管理器
+
+### §2.8.1 `apt`
+
+Debian系的LInux发行版（Debian、Ubuntu等）使用`apt`作为包管理工具。
+
 # §3 Shell脚本语法
 
 ## §3.1 子Shell
