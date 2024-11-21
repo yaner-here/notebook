@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "123e3d8213fd596b",
+        "id": "e558fb6cddeb1a2e",
         "type": "tabs",
         "children": [
           {
-            "id": "a2bf2a4e97c302c9",
+            "id": "4d7336626fee014c",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -44,7 +44,7 @@
                 "sortOrder": "alphabetical"
               },
               "icon": "lucide-folder-closed",
-              "title": "文件列表"
+              "title": "Files"
             }
           },
           {
@@ -91,7 +91,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 200,
+    "collapsed": true
   },
   "right": {
     "id": "6ac2a4cb39577b94",
@@ -109,7 +110,7 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "a2bf2a4e97c302c9",
+  "active": "4d7336626fee014c",
   "lastOpenFiles": [
     "Linux脚本编程.md",
     "AI/对比学习.drawio",
