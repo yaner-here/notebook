@@ -1550,7 +1550,21 @@ $ alias -p
 	alias ls='ls --color=auto'
 ```
 
-## §3.3 环境变量
+### §3.2.3 命令替换
+
+Shell脚本可以将某条命令的`STDOUT`输出信息作为某个变量的变量值，称为命令替换。**这里的命令会在子Shell中执行，因此无法调用脚本中定义的局部变量**。有两种命令替换的方式：用反引号包裹`<COMMAND>`、用`$()`包裹。
+
+```shell
+$ list=`ls`
+$ echo ${list[*]}
+	new_file new_folder
+
+$ list=$(ls)
+$ echo ${list[*]}
+	new_file new_folder
+```
+
+## §3.3 变量
 
 环境变量本质上是加载到内存中的键值对。环境变量有两种——全局变量和局部变量。全局变量会加载到任何Shell会话中，而局部变量只作用于当前Shell会话（不包括子Shell）中。在Shell中，我们使用`$<KEY>`引用环境变量`<KEY>`的值。
 
@@ -1587,6 +1601,15 @@ $ echo $ABC
 	abc
 $ bash -c 'echo $ABC'
 	abc
+```
+
+事实上，`$<KEY>`和`${<KEY>}`都能获取到`KEY`的变量值：
+
+```shell
+$ echo $SHELL
+	/bin/bash
+$ echo ${SHELL}
+	/bin/bash
 ```
 
 常用的环境变量如下表所示：
@@ -1719,3 +1742,178 @@ $ echo ${array[*]} # [*]不显示空值
 	123 ghi
 $ unset array # 删除环境变量
 ```
+
+## §3.4 重定向流
+
+- 重定向覆盖`STDOUT`流：`>`或`1>`
+- 重定向追加`STDOUT`流：`>>`或`1>>`
+- 重定向覆盖`STDERR`流：`2>`
+- 重定向追加`STDERR`流：`2>>`
+- 重定向`STDIN`流：`<`
+- 内联重定向`STDIN`：`<< <EOF_STR>`，检测到`<EOF_STR>`时终止输入
+
+## §3.5 管道
+
+`<COMMAND> | <COMMAND>`将前面命令的输出作为后面命令的输入，无需使用文件作为暂存介质。Linux会同时执行这两个命令，数据流不会存储到任何文件或缓冲区。
+
+## §3.6 表达式运算
+
+### §3.6.1 `expr`
+
+`expr`是Bourne Shell提供的一种功能较弱的计算器。它支持的运算有：短路逻辑与`&`、短路逻辑或`|`、小于`<`、小于等于`<=`、等于`=`、不等于`!=`、大于等于`>=`、大于`>`、加法`+`、减法`-`、乘法`*`、除法`/`、取余`%`、提取正则表达式的匹配内容`(match)? <STRING>:<REGEX>`、提取子串`substr <STRING> <POS> <LENGTH>`、查找子串出现的位置`index <STRING> <CHARS>`、输出字符串长度`length <STRING>`、将`<TOKEN>`解释为关键字（即使是关键字）`+ <TOKEN>`、括号`()`。
+
+有些Shell会重载运算符的含义，移作他用。为了完成运算，我们需要在运算符之前使用反斜杠`\`进行转义。
+
+```shell
+$ expr 1 + 2
+	3
+$ expr 2 * 3
+	expr: syntax error
+$ expr 2 \* 3
+	6
+```
+
+### §3.6.2 `$[]`
+
+鉴于`expr`有局限性，Bash提供了另一种表达式运算语法：`$[<EXPRESSION>]`。**这种方式只支持整数运算**。
+
+```shell
+$ echo $[2*3]
+	6
+```
+
+Zsh在此基础上提供了浮点数级别的运算。
+
+### §3.6.3 `bc`
+
+`bc`是一个支持编程的计算器，它能处理整数、浮点数、变量、数组、注释、表达式、流程控制语句和函数。执行`bc`命令后，会进入`bc`的交互式命令行。
+
+## §3.7 退出状态码
+
+Linux提供了特殊变量`$?`用于保存最后一个已执行命令的退出状态码。退出状态码是一个`0~255`的`uint8`整数。
+
+Linux内核在[`errno-base.h`](https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/errno-base.h)、[`errno.h`](https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/errno.h)中定义了以下退出状态码：
+
+| 退出状态码 | 宏名                                 | 含义                |
+| ----- | ---------------------------------- | ----------------- |
+| `1`   | `EPERM`（Error Peremeter）           | 错误的参数，操作不允许       |
+| `2`   | `ENOENT`（Error No Entry）           | 目录或文件不存在          |
+| `3`   | `ESRCH`（Error Search）              | 进程不存在             |
+| `4`   | `EINTR`（Error Interrupt）           | 系统中断              |
+| `5`   | `EIO`（Error IO）                    | IO错误              |
+| `6`   | `ENXIO`（Error No Such IO）          | 设备或地址不存在          |
+| `7`   | `E2BIG`（Error Too Big）             | 命令行参数列表过长         |
+| `8`   | `ENOEXEC`（Error No Execute）        | `exec()`格式错误      |
+| `9`   | `EBADF`（Error Bad File）            | 文件数错误             |
+| `10`  | `ECHILD`（Error Child）              | 没有子进程             |
+| `11`  | `EAGAIN`（Error Again）              | 重试                |
+| `12`  | `ENOMEM`（Error No Memory）          | 内存耗尽              |
+| `13`  | `EACCES`（Error Access）             | 权限不足              |
+| `14`  | `EFAULT`（Error Fault）              | 地址错误              |
+| `15`  | `ENOTBLK`（Error Not Block）         | 需要块设备             |
+| `16`  | `EBUSY`（Error Busy）                | 设备或资源忙碌中          |
+| `17`  | `EEXIST`（Error Exists）             | 文件已存在             |
+| `18`  | `EXDEV`（Error Cross Device）        | 跨设备链接             |
+| `19`  | `ENODEV`（Error No Device）          | 设备不存在             |
+| `20`  | `ENOTDIR`（Error Not Directory）     | 对象不是目录            |
+| `21`  | `EISDIR`（Error Is Directory）       | 对象是目录             |
+| `22`  | `EINVAL`（Error Invalid）            | 非法命令行参数           |
+| `23`  | `ENFILE`（Error Not File）           | 文件表（File Table）溢出 |
+| `24`  | `EMFILE`（Error Many Files）         | 打开的文件过多           |
+| `25`  | `ENOTTY`（Error Not TTY）            | 对象不是TTY           |
+| `26`  | `ETXTBSY`（Error Text Busy）         | 文件忙碌中             |
+| `27`  | `EFBIG`（Error File Big）            | 文件过大              |
+| `28`  | `ENOSPC`（Error No Space）           | 设备空间不足            |
+| `29`  | `ESPIPE`（Error Seek Pipe）          | 非法搜索              |
+| `30`  | `EROFS`（Error Readonly Filesystem） | 文件系统只读            |
+| `31`  | `EMLINK`（Error Many Links）         | 链接过多              |
+| `32`  | `EPIPE`（Error Pipe）                | 管道损坏              |
+| `33`  | `EDOM`（Error Domain）               | 函数接受的实参超出定义域      |
+| `34`  | `ERANGE`（Error Range）              | 函数返回值无法表示         |
+| `35`  |                                    |                   |
+| `36`  |                                    |                   |
+| `37`  |                                    |                   |
+| `38`  |                                    |                   |
+| `39`  |                                    |                   |
+| `40`  |                                    |                   |
+| `41`  |                                    |                   |
+| `42`  |                                    |                   |
+| `43`  |                                    |                   |
+| `44`  |                                    |                   |
+| `45`  |                                    |                   |
+| `46`  |                                    |                   |
+| `47`  |                                    |                   |
+| `48`  |                                    |                   |
+| `49`  |                                    |                   |
+| `50`  |                                    |                   |
+| `51`  |                                    |                   |
+| `52`  |                                    |                   |
+| `53`  |                                    |                   |
+| `54`  |                                    |                   |
+| `55`  |                                    |                   |
+| `56`  |                                    |                   |
+| `57`  |                                    |                   |
+| `58`  |                                    |                   |
+| `59`  |                                    |                   |
+| `60`  |                                    |                   |
+| `61`  |                                    |                   |
+| `62`  |                                    |                   |
+| `63`  |                                    |                   |
+| `64`  |                                    |                   |
+| `65`  |                                    |                   |
+| `66`  |                                    |                   |
+| `67`  |                                    |                   |
+| `68`  |                                    |                   |
+| `69`  |                                    |                   |
+| `70`  |                                    |                   |
+| `71`  |                                    |                   |
+| `72`  |                                    |                   |
+| `73`  |                                    |                   |
+| `74`  |                                    |                   |
+| `75`  |                                    |                   |
+| `76`  |                                    |                   |
+| `77`  |                                    |                   |
+| `78`  |                                    |                   |
+| `79`  |                                    |                   |
+| `80`  |                                    |                   |
+| `81`  |                                    |                   |
+| `82`  |                                    |                   |
+| `83`  |                                    |                   |
+| `84`  |                                    |                   |
+| `85`  |                                    |                   |
+| `86`  |                                    |                   |
+| `87`  |                                    |                   |
+| `88`  |                                    |                   |
+| `89`  |                                    |                   |
+| `90`  |                                    |                   |
+| `91`  |                                    |                   |
+| `92`  |                                    |                   |
+| `93`  |                                    |                   |
+| `94`  |                                    |                   |
+| `95`  |                                    |                   |
+| `96`  |                                    |                   |
+| `97`  |                                    |                   |
+| `98`  |                                    |                   |
+| `99`  |                                    |                   |
+| `100` |                                    |                   |
+| `101` |                                    |                   |
+|       |                                    |                   |
+|       |                                    |                   |
+|       |                                    |                   |
+|       |                                    |                   |
+|       |                                    |                   |
+|       |                                    |                   |
+
+
+
+| 退出状态码   | 含义      |
+| ------- | ------- |
+| `0`     | 命令执行成功  |
+| `1`     | 一般性位置错误 |
+| `2`     |         |
+| `126`   |         |
+| `127`   |         |
+| `128`   |         |
+| `128+x` |         |
+| `130`   |         |
+| `255`   |         |
