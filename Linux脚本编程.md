@@ -1794,115 +1794,141 @@ Linux提供了特殊变量`$?`用于保存最后一个已执行命令的退出�
 
 Linux内核在[`errno-base.h`](https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/errno-base.h)、[`errno.h`](https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/errno.h)中定义了以下退出状态码：
 
-| 退出状态码 | 宏名                                 | 含义                |
-| ----- | ---------------------------------- | ----------------- |
-| `1`   | `EPERM`（Error Peremeter）           | 错误的参数，操作不允许       |
-| `2`   | `ENOENT`（Error No Entry）           | 目录或文件不存在          |
-| `3`   | `ESRCH`（Error Search）              | 进程不存在             |
-| `4`   | `EINTR`（Error Interrupt）           | 系统中断              |
-| `5`   | `EIO`（Error IO）                    | IO错误              |
-| `6`   | `ENXIO`（Error No Such IO）          | 设备或地址不存在          |
-| `7`   | `E2BIG`（Error Too Big）             | 命令行参数列表过长         |
-| `8`   | `ENOEXEC`（Error No Execute）        | `exec()`格式错误      |
-| `9`   | `EBADF`（Error Bad File）            | 文件数错误             |
-| `10`  | `ECHILD`（Error Child）              | 没有子进程             |
-| `11`  | `EAGAIN`（Error Again）              | 重试                |
-| `12`  | `ENOMEM`（Error No Memory）          | 内存耗尽              |
-| `13`  | `EACCES`（Error Access）             | 权限不足              |
-| `14`  | `EFAULT`（Error Fault）              | 地址错误              |
-| `15`  | `ENOTBLK`（Error Not Block）         | 需要块设备             |
-| `16`  | `EBUSY`（Error Busy）                | 设备或资源忙碌中          |
-| `17`  | `EEXIST`（Error Exists）             | 文件已存在             |
-| `18`  | `EXDEV`（Error Cross Device）        | 跨设备链接             |
-| `19`  | `ENODEV`（Error No Device）          | 设备不存在             |
-| `20`  | `ENOTDIR`（Error Not Directory）     | 对象不是目录            |
-| `21`  | `EISDIR`（Error Is Directory）       | 对象是目录             |
-| `22`  | `EINVAL`（Error Invalid）            | 非法命令行参数           |
-| `23`  | `ENFILE`（Error Not File）           | 文件表（File Table）溢出 |
-| `24`  | `EMFILE`（Error Many Files）         | 打开的文件过多           |
-| `25`  | `ENOTTY`（Error Not TTY）            | 对象不是TTY           |
-| `26`  | `ETXTBSY`（Error Text Busy）         | 文件忙碌中             |
-| `27`  | `EFBIG`（Error File Big）            | 文件过大              |
-| `28`  | `ENOSPC`（Error No Space）           | 设备空间不足            |
-| `29`  | `ESPIPE`（Error Seek Pipe）          | 非法搜索              |
-| `30`  | `EROFS`（Error Readonly Filesystem） | 文件系统只读            |
-| `31`  | `EMLINK`（Error Many Links）         | 链接过多              |
-| `32`  | `EPIPE`（Error Pipe）                | 管道损坏              |
-| `33`  | `EDOM`（Error Domain）               | 函数接受的实参超出定义域      |
-| `34`  | `ERANGE`（Error Range）              | 函数返回值无法表示         |
-| `35`  |                                    |                   |
-| `36`  |                                    |                   |
-| `37`  |                                    |                   |
-| `38`  |                                    |                   |
-| `39`  |                                    |                   |
-| `40`  |                                    |                   |
-| `41`  |                                    |                   |
-| `42`  |                                    |                   |
-| `43`  |                                    |                   |
-| `44`  |                                    |                   |
-| `45`  |                                    |                   |
-| `46`  |                                    |                   |
-| `47`  |                                    |                   |
-| `48`  |                                    |                   |
-| `49`  |                                    |                   |
-| `50`  |                                    |                   |
-| `51`  |                                    |                   |
-| `52`  |                                    |                   |
-| `53`  |                                    |                   |
-| `54`  |                                    |                   |
-| `55`  |                                    |                   |
-| `56`  |                                    |                   |
-| `57`  |                                    |                   |
-| `58`  |                                    |                   |
-| `59`  |                                    |                   |
-| `60`  |                                    |                   |
-| `61`  |                                    |                   |
-| `62`  |                                    |                   |
-| `63`  |                                    |                   |
-| `64`  |                                    |                   |
-| `65`  |                                    |                   |
-| `66`  |                                    |                   |
-| `67`  |                                    |                   |
-| `68`  |                                    |                   |
-| `69`  |                                    |                   |
-| `70`  |                                    |                   |
-| `71`  |                                    |                   |
-| `72`  |                                    |                   |
-| `73`  |                                    |                   |
-| `74`  |                                    |                   |
-| `75`  |                                    |                   |
-| `76`  |                                    |                   |
-| `77`  |                                    |                   |
-| `78`  |                                    |                   |
-| `79`  |                                    |                   |
-| `80`  |                                    |                   |
-| `81`  |                                    |                   |
-| `82`  |                                    |                   |
-| `83`  |                                    |                   |
-| `84`  |                                    |                   |
-| `85`  |                                    |                   |
-| `86`  |                                    |                   |
-| `87`  |                                    |                   |
-| `88`  |                                    |                   |
-| `89`  |                                    |                   |
-| `90`  |                                    |                   |
-| `91`  |                                    |                   |
-| `92`  |                                    |                   |
-| `93`  |                                    |                   |
-| `94`  |                                    |                   |
-| `95`  |                                    |                   |
-| `96`  |                                    |                   |
-| `97`  |                                    |                   |
-| `98`  |                                    |                   |
-| `99`  |                                    |                   |
-| `100` |                                    |                   |
-| `101` |                                    |                   |
-|       |                                    |                   |
-|       |                                    |                   |
-|       |                                    |                   |
-|       |                                    |                   |
-|       |                                    |                   |
-|       |                                    |                   |
+| 退出状态码     | 宏名                                                  | 含义                                   |
+| --------- | --------------------------------------------------- | ------------------------------------ |
+| `1`       | `EPERM`（Error Peremeter）                            | 错误的参数，操作不允许                          |
+| `2`       | `ENOENT`（Error No Entry）                            | 目录或文件不存在                             |
+| `3`       | `ESRCH`（Error Search）                               | 进程不存在                                |
+| `4`       | `EINTR`（Error Interrupt）                            | 系统中断                                 |
+| `5`       | `EIO`（Error IO）                                     | IO错误                                 |
+| `6`       | `ENXIO`（Error No Such IO）                           | 设备或地址不存在                             |
+| `7`       | `E2BIG`（Error Too Big）                              | 命令行参数列表过长                            |
+| `8`       | `ENOEXEC`（Error No Execute）                         | `exec()`格式错误                         |
+| `9`       | `EBADF`（Error Bad File）                             | 文件数错误                                |
+| `10`      | `ECHILD`（Error Child）                               | 没有子进程                                |
+| `11`      | `EAGAIN`（Error Again）                               | 重试                                   |
+| `12`      | `ENOMEM`（Error No Memory）                           | 内存耗尽                                 |
+| `13`      | `EACCES`（Error Access）                              | 权限不足                                 |
+| `14`      | `EFAULT`（Error Fault）                               | 地址错误                                 |
+| `15`      | `ENOTBLK`（Error Not Block）                          | 需要块设备                                |
+| `16`      | `EBUSY`（Error Busy）                                 | 设备或资源忙碌中                             |
+| `17`      | `EEXIST`（Error Exists）                              | 文件已存在                                |
+| `18`      | `EXDEV`（Error Cross Device）                         | 跨设备链接                                |
+| `19`      | `ENODEV`（Error No Device）                           | 设备不存在                                |
+| `20`      | `ENOTDIR`（Error Not Directory）                      | 对象不是目录                               |
+| `21`      | `EISDIR`（Error Is Directory）                        | 对象是目录                                |
+| `22`      | `EINVAL`（Error Invalid）                             | 非法命令行参数                              |
+| `23`      | `ENFILE`（Error Not File）                            | 文件表（File Table）溢出                    |
+| `24`      | `EMFILE`（Error Many Files）                          | 打开的文件过多                              |
+| `25`      | `ENOTTY`（Error Not TTY）                             | 对象不是TTY                              |
+| `26`      | `ETXTBSY`（Error Text Busy）                          | 文件忙碌中                                |
+| `27`      | `EFBIG`（Error File Big）                             | 文件过大                                 |
+| `28`      | `ENOSPC`（Error No Space）                            | 设备空间不足                               |
+| `29`      | `ESPIPE`（Error Seek Pipe）                           | 非法搜索                                 |
+| `30`      | `EROFS`（Error Readonly Filesystem）                  | 文件系统只读                               |
+| `31`      | `EMLINK`（Error Many Links）                          | 链接过多                                 |
+| `32`      | `EPIPE`（Error Pipe）                                 | 管道损坏                                 |
+| `33`      | `EDOM`（Error Domain）                                | 函数接受的实参超出定义域                         |
+| `34`      | `ERANGE`（Error Range）                               | 函数返回值无法表示                            |
+| `35`      | `EDADLK`（Error Deadlock）                            | 资源发生死锁现象                             |
+| `36`      | `ENAMETOOLONG`（Error Name Too Long）                 | 文件名太长                                |
+| `37`      | `ENOLCK`（Error No Lock）                             | 没有可用的Record块                         |
+| `38`      | `ENOSYS`（Error No System）                           | 系统调用数量非法                             |
+| `39`      | `ENOTEMPTY`（Error Not Empty）                        | 目录非空                                 |
+| `40`      | `ELOOP`（Error Loop）                                 | 软链接数量过多                              |
+| `EAGAIN`  | `EWOULDBLOCK`（Error Would Block）                    | 操作将会阻塞                               |
+| `42`      | `ENOMSG`（Error No Message）                          | 指定类型没有消息                             |
+| `43`      | `EIDRM`（Error Identifier Removed）                   | 标识符已移除                               |
+| `44`      | `ECHRNG`（Error Channel Range）                       | Channel编号超出范围                        |
+| `45`      | `EL2NSYNC`（Error Level 2 Not Synchronized）          | Level-2未同步                           |
+| `46`      | `EL3HLT`（Error Level 3 Halted）                      | Level-3停机                            |
+| `47`      | `EL3RST`（Error Level 3 Reset）                       | Level-3复位                            |
+| `48`      | `ELNRNG`（Error Link Range）                          | 链接数超出范围                              |
+| `49`      | `EUNATCH`（Error Unattach）                           | 协议驱动级未挂载                             |
+| `50`      | `ENOCSI`（Error No CSI）                              | 没有可用的CSI结构                           |
+| `51`      | `EL2HLT`（Error Level 2 Halted）                      | Level-2停机                            |
+| `52`      | `EBADE`（Error Bad Exchange）                         | 非法交换                                 |
+| `53`      | `EBADR`（Error Bad Request）                          | 非法请求描述符                              |
+| `54`      | `EXFULL`（Error Exchange Full）                       | 交换已满                                 |
+| `55`      | `ENOANO`（Error No Anode）                            | 没有Anode                              |
+| `56`      | `EBADRQC`（Errot Bad Request Code）                   | 非法请求吗                                |
+| `57`      | `EBADSLT`（Error Bad Slot）                           | 非法插槽                                 |
+| `EDEADLK` | `EDEADLOCK`（Error Deadlock）                         |                                      |
+| `59`      | `EBFONT`（Error Bad Font）                            | 字体文件损坏                               |
+| `60`      | `ENOSTR`（Error No Stream）                           | 设备不能作为流                              |
+| `61`      | `ENODATA`（Error No Data）                            | 没有可用数据                               |
+| `62`      | `ETIME`（Error Time）                                 | 计时器过期                                |
+| `63`      | `ENOSR`（Error No Stream Resources）                  | 流资源耗尽                                |
+| `64`      | `ENONET`（Error No Network）                          | 网络不通                                 |
+| `65`      | `ENOPKG`（Error No Package）                          | 软件包未安装                               |
+| `66`      | `EREMOTE`（Error Remote）                             | 对象在远程                                |
+| `67`      | `ENOLINK`（Error No Link）                            | 链接已被保留                               |
+| `68`      | `EADV`（Error Advertise）                             | 广告机制错误                               |
+| `69`      | `ESRMNT`（Error Srmount）                             | Srmount错误                            |
+| `70`      | `ECOMM`（Error Communication）                        | 发送时通信错误                              |
+| `71`      | `EPROTO`（Error Protocol）                            | 协议错误                                 |
+| `72`      | `EMULTIHOP`（Error Multihop）                         | 尝试多跳                                 |
+| `73`      | `EDOTDOT`（Error Dot Dot）                            | RFS特定错误                              |
+| `74`      | `EBADMSG`（Error Bad Message）                        | 不是数据信息                               |
+| `75`      | `EOVERFLOW`（Error Overflow）                         | 值超出了数据类型的范围                          |
+| `76`      | `ENOTUNIQ`（Error Not Unique）                        | 主机名在网络上不唯一                           |
+| `77`      | `EBADFD`（Error Bad File Descriptor）                 | 文件描述符已损坏                             |
+| `78`      | `EREMCHG`（Error Remote Change）                      | 远程地址已改变                              |
+| `79`      | `ELIBACC`（Error Library Access）                     | 找不到共享链接库                             |
+| `80`      | `SLIBBAD`（Error Library Bad）                        | 共享链接库已损坏                             |
+| `81`      | `ELIBSCN`（Error Library Section）                    | 可执行程序的`.lib`部分损坏                     |
+| `82`      | `ELIBMAX`（Error Library Max）                        | 加载共享链接库数量过多                          |
+| `83`      | `ELIBEXEC`（Error Library Execute）                   | 不能直接执行共享链接库                          |
+| `84`      | `EILSEQ`（Error Illegal Sequence）                    | 非法字节系列                               |
+| `85`      | `ERESTART`（Error Restart）                           | 从系统中断中恢复                             |
+| `86`      | `ESTRPIPE`（Error Stream Pipe）                       | 流管道错误                                |
+| `87`      | `EUSERS`（Error Users）                               | 用户数量过多                               |
+| `88`      | `ENOTSOCK`(Error Not Socket)                        | 在非Socket对象上执行Socket操作                |
+| `89`      | `EDESTADDRREQ`（Error Destination Address Required）  | 未指定目标地址                              |
+| `90`      | `EMSGSIZE`（Error Message Size）                      | 消息过长                                 |
+| `91`      | `EPROTOTYPE`（Error Protocol Type）                   | Socke协议类型错误                          |
+| `92`      | `ENOPROTOOPT`（Error Protocol Option）                | 协议不可用                                |
+| `93`      | `EPROTONOSUPPORT`（Error Protocol Not Supported）     | 协议不支持                                |
+| `94`      | `ESOCKTNOSUPPORT`（Eror Socket Type Not Supported）   | Socket类型不支持                          |
+| `95`      | `EOPNOTSUPP`（Error Operation Not Supported）         | 路由节点不支持操作                            |
+| `96`      | `EPFNOSUPPORT`（Error Protocol Family Not Supported） | 协议族不支持                               |
+| `97`      | `EAFNOSUPPORT`（Error Address Family Not Supported）  | 协议族不支持地址族                            |
+| `98`      | `EADDRIUNSE`（Error Address In Use）                  | 地址已被占用                               |
+| `99`      | `EADDRNOTAVAIL`（Error Address Not Available）        | 地址不可用                                |
+| `100`     | `ENETDOWN`（Erroe Network Unreachable）               | 网络不可用                                |
+| `101`     | `ENETUNREACH`（Error Network Reset）                  | 网络不可达                                |
+| `102`     | `ENETRESET`（Error Network Reset）                    | 网络连接被路由节点Reset                       |
+| `103`     | `ECONNABORTED`（Error Connection Aborted）            | 软件导致的连接中断                            |
+| `104`     | `ECONNRESET`（Error Connection Reset）                | 网络连接被目标地址Reset                       |
+| `105`     | `ENOBUFS`（Error No Buffers）                         | Buffer空间已满                           |
+| `106`     | `EISCONN`（Error Is Connected）                       | 网络已经建立连接                             |
+| `107`     | `ENOTCONN`（Error Not Connected）                     | 网络未建立连接                              |
+| `108`     | `ESHUTDOWN`（Error Shutdown）                         | 本地通过`shutdown()`关闭Socket后，本地仍然尝试发送数据 |
+| `109`     | `ETOOMANYREFS`（Error Too Many Reference）            | 引用计数过高，导致文件描述符或内存块拼接失败               |
+| `110`     | `ETIMEDOUT`（Error Timed Out）                        | 连接超时                                 |
+| `111`     | `ECONNREFUSED`（Error Connection Refused）            | 连接被拒                                 |
+| `112`     | `EHOSTDOWN`（Error Host Down）                        | 远程通过`shutdown()`关闭Socket后，本地仍然尝试发送数据 |
+| `113`     | `EHOSTUNREACH`（Error Host Unreachable）              | 路由不可达                                |
+| `114`     | `EALREADY`（Error Already）                           | 操作早已进行中                              |
+| `115`     | `EINPROGRESS`（Error In Progress）                    | 操作现在进行中                              |
+| `116`     | `ESTALE`（Error Stale）                               | 文件句柄过时                               |
+| `117`     | `EUCLEAN`（Error Unclean）                            | 数据结构需要初始化                            |
+| `118`     | `ENOTNAM`（Error Not Name）                           | 文件不属于XENIX命名类型                       |
+| `119`     | `ENAVAIL`（Error Available）                          | 没有可用的XENIX信号量                        |
+| `120`     | `EISNAM`（Error Is Name）                             | 文件属于XENIX命名类型                        |
+| `121`     | `EREMOTEIO`（Error Remote IO）                        | 远程IO错误                               |
+| `122`     | `EDQUOT`（Error Quota）                               | 超出预设配额                               |
+| `123`     | `ENOMEDIUM`（Error No Medium）                        | 未找到介质                                |
+| `124`     | `EMEDIUMTYPE`（Error Medium Type）                    | 截至类型错误                               |
+| `125`     | `ECANCELED`（Error Canceled）                         | 操作取消                                 |
+| `126`     | `ENOKEY`（Error No Key）                              | 密钥不可用                                |
+| `127`     | `EKEYEXPIRED`（Error Key Expired）                    | 密钥已过期                                |
+| `128`     | `EKEYREVOKED`（Error Key Revoked）                    | 密钥已撤销                                |
+| `129`     | `EKEYREJECTED`（Error Key Rejected）                  | 密钥被服务拒绝                              |
+| `130`     | `EOWNERDEAD`（Error Owner Dead）                      | 属主已被删除                               |
+| `131`     | `ENOTRECOVERABLE`（Error Not Recoverable）            | 不可恢复                                 |
+| `132`     | `EPFKILL`（Error RF Kill）                            | RF-kill关闭了无线网络，导致操作不能执行              |
+| `133`     | `EHWPOISON`（Error Hardware Poison）                  | 内存页硬件错误                              |
 
 
 
