@@ -1930,16 +1930,97 @@ Linux内核在[`errno-base.h`](https://github.com/torvalds/linux/blob/master/inc
 | `132`     | `EPFKILL`（Error RF Kill）                            | RF-kill关闭了无线网络，导致操作不能执行              |
 | `133`     | `EHWPOISON`（Error Hardware Poison）                  | 内存页硬件错误                              |
 
+开发者可以自定义退出状态码，不一定遵循上述规范。以下是一张约定俗成的退出状态码含义表：
 
+| 退出状态码   | 含义                                          |
+| ------- | ------------------------------------------- |
+| `0`     | 命令执行成功                                      |
+| `1`     | 一般性位置错误                                     |
+| `2`     | 非法Shell命令                                   |
+| `126`   | 命令无法执行                                      |
+| `127`   | 未找到命令                                       |
+| `128`   | 无效的退出参数                                     |
+| `128+x` | 与Linux信号`x`相关的错误，例如`130`表示通过`Ctrl + C`终止的命令 |
 
-| 退出状态码   | 含义      |
-| ------- | ------- |
-| `0`     | 命令执行成功  |
-| `1`     | 一般性位置错误 |
-| `2`     |         |
-| `126`   |         |
-| `127`   |         |
-| `128`   |         |
-| `128+x` |         |
-| `130`   |         |
-| `255`   |         |
+### §3.7.1 `exit`
+
+默认情况下，Shell脚本的退出状态码，就是脚本中最后一个命令的退出状态码。我们可以使用`exit <CODE>`自定义退出状态码。
+
+```shell
+$ cat ./script.sh
+	exit 123;
+$ bash ./script.sh
+$ echo $?
+	123
+```
+
+## §3.8 流程控制语句
+
+### §3.8.1 `if-then`
+
+`if-then`语句的基本结构为：
+
+```shell
+# 第一种写法，给then换行，命令不必以分号结尾
+if <COMMAND>
+then
+	<COMMAND>+
+fi
+
+# 第二种写法，
+if <COMMAND> ; then
+	<COMMAND>+
+fi
+```
+
+如果`<COMMAND>`的退出状态码为`0`，则判定为真。
+
+### §3.8.2 `if-then-else`
+
+```shell
+if <COMMAND> ; then
+	<COMMAND>+
+else
+	<COMMAND>+
+fi
+```
+
+### §3.8.3 `if-then-elif`
+
+```shell
+if <COMMAND> ; then
+	<COMMAND>+
+elif <COMMAND> ; them
+	<COMMAND>+
+fi
+```
+
+### §3.8.4 `test`/`[]`
+
+我们知道`if`只能判定退出状态码是否为`0`，而`test`用于将表达式转化为退出状态码，从而实现更丰富的`if`判定条件。`test`只有在表达式为真时才返回退出状态码`0`。**这里的表达式可以包含数值、字符串和文件**。
+
+```shell
+$ test <EXP1> # 判定<EXP1>是否为空
+
+# 比较数值
+$ test <EXP1> -eq <EXP2> # ==
+$ test <EXP1> -ge <EXP2> # >=
+$ test <EXP1> -gt <EXP2> # >
+$ test <EXP1> -le <EXP2> # <=
+$ test <EXP1> -lt <EXP2> # <
+$ test <EXP1> -ne <EXP2> # !=
+
+# 比较字符串
+$ test <STR1> =  <STR2> # ==
+$ test <STR1> != <STR2> # !=
+$ test <STR1> <  <STR2> # <
+$ test <STR1> >  <STR2> # >
+$ test -n <STR>         # 是否不为空串
+$ test -z <STR>         # 是否为空串
+```
+
+Bash为`test`提供了一种语法糖：`[<CONDITION>]`。其中的运算符如果被占用（例如`>`同时表示大于和重定向），则需要使用反斜杠进行转义。
+
+```shell
+
+```
