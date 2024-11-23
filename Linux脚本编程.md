@@ -2017,10 +2017,38 @@ $ test <STR1> <  <STR2> # <
 $ test <STR1> >  <STR2> # >
 $ test -n <STR>         # 是否不为空串
 $ test -z <STR>         # 是否为空串
+
+# 比较文件
+$ test -d <FILE> # 是否存在且是否为目录
+$ test -e <FILE> # 是否存在
+$ test -f <FILE> # 是否存在且是否为文件
+$ test -r <FILE> # 是否存在且是否可读
+$ test -s <FILE> # 是否存在且是否非空
+$ test -w <FILE> # 是否存在且是否为可写
+$ test -x <FILE> # 是否存在且是否为可执行
+$ test -O <FILE> # 是否存在且属主是否为当前用户
+$ test -G <FILE> # 是否存在且属组是否为当前用户组
+$ test <FILE1> -nt <FILE1> # <FILE1>是否比<FILE2>新，需要保证文件存在
+$ test <FILE1> -ot <FILE2> # <FILE1>是否比<FILE2>旧，需要保证文件存在
 ```
 
 Bash为`test`提供了一种语法糖：`[<CONDITION>]`。其中的运算符如果被占用（例如`>`同时表示大于和重定向），则需要使用反斜杠进行转义。
 
 ```shell
+$ cat ./condition.sh
+	#!bash
+	if [ 2 -ge 1 ] ; then
+	    echo "2 > 1"
+	fi
+	
+	if [ "abc" \< "def" ] ; then
+	    echo "abc < def"
+	fi
 
+$ bash ./condition.sh
+	2 > 1
+	abc < def
 ```
+
+### §3.8.5 `&&`/`||`
+
