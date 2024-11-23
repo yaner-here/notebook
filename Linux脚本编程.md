@@ -1788,6 +1788,80 @@ Zsh在此基础上提供了浮点数级别的运算。
 
 `bc`是一个支持编程的计算器，它能处理整数、浮点数、变量、数组、注释、表达式、流程控制语句和函数。执行`bc`命令后，会进入`bc`的交互式命令行。
 
+### §3.6.4 `test`
+
+`test`只有在表达式为真时才返回退出状态码`0`。**这里的表达式可以包含数值、字符串和文件**。
+
+```shell
+$ test <EXP1> # 判定<EXP1>是否为空
+
+# 比较数值
+$ test <EXP1> -eq <EXP2> # ==
+$ test <EXP1> -ge <EXP2> # >=
+$ test <EXP1> -gt <EXP2> # >
+$ test <EXP1> -le <EXP2> # <=
+$ test <EXP1> -lt <EXP2> # <
+$ test <EXP1> -ne <EXP2> # !=
+
+# 比较字符串
+$ test <STR1> =  <STR2> # ==
+$ test <STR1> != <STR2> # !=
+$ test <STR1> \<  <STR2> # <
+$ test <STR1> \>  <STR2> # >
+$ test -n <STR>         # 是否不为空串
+$ test -z <STR>         # 是否为空串
+
+# 比较文件
+$ test -d <FILE> # 是否存在且是否为目录
+$ test -e <FILE> # 是否存在
+$ test -f <FILE> # 是否存在且是否为文件
+$ test -r <FILE> # 是否存在且是否可读
+$ test -s <FILE> # 是否存在且是否非空
+$ test -w <FILE> # 是否存在且是否为可写
+$ test -x <FILE> # 是否存在且是否为可执行
+$ test -O <FILE> # 是否存在且属主是否为当前用户
+$ test -G <FILE> # 是否存在且属组是否为当前用户组
+$ test <FILE1> -nt <FILE1> # <FILE1>是否比<FILE2>新，需要保证文件存在
+$ test <FILE1> -ot <FILE2> # <FILE1>是否比<FILE2>旧，需要保证文件存在
+```
+
+### §3.6.5 `(())`
+
+双括号命令允许使用高级数学表达式（包括`test`涉及的所有关于数字的表达式），其语法为`(( <EXPRESSION> ))`。它支持以下命令：
+
+```shell
+$ (( $KEY++ )) # 后置++
+$ (( $KEY-- )) # 后置--
+$ (( ++$KEY )) # 前置++
+$ (( --$KEY )) # 前置--
+$ (( ! )) # 布尔反
+$ (( ~ )) # 按位反
+$ (( ** )) # 幂次
+$ (( << )) # 左移
+$ (( >> )) # 右移
+$ (( & )) # 按位与
+$ (( | )) # 按位或
+$ (( && )) # 布尔与
+$ (( || )) # 布尔或
+$ (( == )) # 数字==
+$ (( >= )) # 数字>=
+$ (( > )) # 数字>
+$ (( <= )) # 数字<=
+$ (( <  )) # 数字<
+$ (( != )) # 数字!=
+```
+
+**使用`(())`的数学表达式中的运算符，不必经过反斜杠进行转义**。
+
+### §3.6.6 `[[]]`
+
+双方括号支持了`test`涉及的所有关于字符串的表达式，其语法为`[[ <CONDITION> ]]`。除此之外，它的`==`运算符还支持通配符匹配。
+
+```shell
+$ if [[ abc == a* ]] ; then echo "matched" ; fi
+	matched
+```
+
 ## §3.7 退出状态码
 
 Linux提供了特殊变量`$?`用于保存最后一个已执行命令的退出状态码。退出状态码是一个`0~255`的`uint8`整数。
@@ -1995,42 +2069,9 @@ elif <COMMAND> ; them
 fi
 ```
 
-### §3.8.4 `test`/`[]`
+### §3.8.4 `[]`
 
-我们知道`if`只能判定退出状态码是否为`0`，而`test`用于将表达式转化为退出状态码，从而实现更丰富的`if`判定条件。`test`只有在表达式为真时才返回退出状态码`0`。**这里的表达式可以包含数值、字符串和文件**。
-
-```shell
-$ test <EXP1> # 判定<EXP1>是否为空
-
-# 比较数值
-$ test <EXP1> -eq <EXP2> # ==
-$ test <EXP1> -ge <EXP2> # >=
-$ test <EXP1> -gt <EXP2> # >
-$ test <EXP1> -le <EXP2> # <=
-$ test <EXP1> -lt <EXP2> # <
-$ test <EXP1> -ne <EXP2> # !=
-
-# 比较字符串
-$ test <STR1> =  <STR2> # ==
-$ test <STR1> != <STR2> # !=
-$ test <STR1> <  <STR2> # <
-$ test <STR1> >  <STR2> # >
-$ test -n <STR>         # 是否不为空串
-$ test -z <STR>         # 是否为空串
-
-# 比较文件
-$ test -d <FILE> # 是否存在且是否为目录
-$ test -e <FILE> # 是否存在
-$ test -f <FILE> # 是否存在且是否为文件
-$ test -r <FILE> # 是否存在且是否可读
-$ test -s <FILE> # 是否存在且是否非空
-$ test -w <FILE> # 是否存在且是否为可写
-$ test -x <FILE> # 是否存在且是否为可执行
-$ test -O <FILE> # 是否存在且属主是否为当前用户
-$ test -G <FILE> # 是否存在且属组是否为当前用户组
-$ test <FILE1> -nt <FILE1> # <FILE1>是否比<FILE2>新，需要保证文件存在
-$ test <FILE1> -ot <FILE2> # <FILE1>是否比<FILE2>旧，需要保证文件存在
-```
+我们知道`if`只能判定退出状态码是否为`0`，而`test`用于将表达式转化为退出状态码，从而实现更丰富的`if`判定条件。
 
 Bash为`test`提供了一种语法糖：`[<CONDITION>]`。其中的运算符如果被占用（例如`>`同时表示大于和重定向），则需要使用反斜杠进行转义。
 
@@ -2052,3 +2093,57 @@ $ bash ./condition.sh
 
 ### §3.8.5 `&&`/`||`
 
+`&&`和`||`用于连接两个条件，使其组成复合条件。
+
+```shell
+$ if [ 1 -eq 1 ] && [ 2 -eq 2 ] ; then echo "1 == 1 && 2 == 2" ; fi
+	1 == 1 && 2 == 2
+```
+
+### §3.8.6 `case`
+
+`case-esac`的语法比较特殊：
+
+```shell
+case <VARIABLE> in (<PATTERN> | )+ \)
+	<COMMANDS>;; # 必须在最后一行命令使用两个分号
+(<PATTERN> | )+ \)
+	<COMMANDS>;; # 必须在最后一行命令使用两个分号
+(<PATTERN> | )+ \)
+	<COMMANDS>;; # 必须在最后一行命令使用两个分号
+esac
+```
+
+下面的脚本展示了如何检测当前运行的Shell：
+
+```shell
+nixos@nixos ~> cat script.sh
+shell_name=$(ps -p $$ -o comm=)
+case $shell_name in
+    sh )
+        echo "You are using outdated shell! :(" ;;
+    bash )
+        echo "You are using normal shell! :P" ;;
+    zsh | fish )
+        echo "You are using fashion shell! :)" ;;
+    * )
+        echo "You are using unknown shell! :o" ;;
+esac
+
+nixos@nixos ~> bash ./script.sh
+You are using normal shell! :P
+nixos@nixos ~> zsh ./script.sh
+You are using fashion shell! :)
+nixos@nixos ~> sh ./script.sh
+You are using outdated shell! :(
+```
+
+### §3.8.7 `for`
+
+Bash脚本中的`for`语句类似于其他编程语言的`foreach`。
+
+```shell
+for <VARIABLE> in <LIST> do
+	<COMMANDS>;
+done
+```

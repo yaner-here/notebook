@@ -56,7 +56,7 @@
                 "file": "Linux脚本编程.md"
               },
               "icon": "lucide-list",
-              "title": "Linux脚本编程 的大纲"
+              "title": "Outline of Linux脚本编程"
             }
           },
           {
@@ -103,9 +103,9 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:打开快速切换": false,
-      "canvas:新建白板": false,
-      "command-palette:打开命令面板": false,
+      "switcher:Open quick switcher": false,
+      "canvas:Create new canvas": false,
+      "command-palette:Open command palette": false,
       "tldraw:Create new tldrawing": false
     }
   },
