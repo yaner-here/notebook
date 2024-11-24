@@ -2331,4 +2331,85 @@ $ bash script.sh
 
 ### §3.8.10 `break`与`continue`
 
-`break <N>?`和`continue`分别用于跳出单层循环（`<N>`层循环）和单次循环。
+`break <N>?`和`continue <N>?`分别用于跳出单层循环（`<N>`层循环）和单次循环（`<N>`层单次循环）。
+
+```shell
+$ cat script.sh
+for (( i = 1 ; i < 3 ; ++i )) do
+    echo -e "enter i = $i";
+    for (( j = 1 ; j < 3 ; ++j )) do
+        echo -e "\tenter j = $j";
+        for (( k = 1 ; k < 3 ; ++k )) do
+            echo -e "\t\tenter k = $k";
+            if [ $i -eq 2 ] && [ $j -eq 1 ] && [ $k -eq 1 ]; then
+                echo -e "\t\tcontinue 2, 不执行i=2,j=1,k=2";
+                continue 2;
+            fi
+            echo -e "\t\tquit k = $k";
+        done
+        echo -e "\tquit j = $j";
+    done
+    echo -e "quit i = $i";
+done
+
+$ bash script.sh
+enter i = 1
+        enter j = 1
+                enter k = 1
+                quit k = 1
+                enter k = 2
+                quit k = 2
+        quit j = 1
+        enter j = 2
+                enter k = 1
+                quit k = 1
+                enter k = 2
+                quit k = 2
+        quit j = 2
+quit i = 1
+enter i = 2
+        enter j = 1
+                enter k = 1
+                continue 2, 不执行i=2,j=1,k=2
+        enter j = 2
+                enter k = 1
+                quit k = 1
+                enter k = 2
+                quit k = 2
+        quit j = 2
+quit i = 2
+```
+
+### §3.8.11 循环流重定向
+
+在上述各种循环的`done`后面，可以接入**流重定向**或**管道**，将循环体内各个语句产生的流汇总起来。
+
+```shell
+$ cat script.sh
+	for (( i = 1 ; i <= 4 ; ++i )) do
+	    for (( j = 1 ; j <= 4 ; ++j )) do
+	        echo "$[ $i * $j] = $i * $j";
+	    done
+	done | sort --numeric-sort
+$ bash script.sh
+	1 = 1 * 1
+	2 = 1 * 2
+	2 = 2 * 1
+	3 = 1 * 3
+	3 = 3 * 1
+	4 = 1 * 4
+	4 = 2 * 2
+	4 = 4 * 1
+	6 = 2 * 3
+	6 = 3 * 2
+	8 = 2 * 4
+	8 = 4 * 2
+	9 = 3 * 3
+	12 = 3 * 4
+	12 = 4 * 3
+	16 = 4 * 4
+```
+
+## §3.9 参数输入
+
+### §3.9.1 位置参数
