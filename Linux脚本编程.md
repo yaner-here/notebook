@@ -2413,3 +2413,32 @@ $ bash script.sh
 ## §3.9 参数输入
 
 ### §3.9.1 位置参数
+
+位置参数的变量名都是数字，其中`$0`表示脚本名、`$1`及之后的变量均为位置参数值，以此类推，直到`$9`，再往后的位置变量需要用`${数字}`的形式来引用。
+
+```shell
+$ cat script.sh
+	echo $0;
+	echo $1;
+	echo $2;
+	echo $3;
+$ bash script.sh 123 abc "+-*/"
+	script.sh
+	123
+	abc
+	+-*/
+```
+
+需要警惕的是：`$0`本质上代表了脚本文件的路径，并不一定总是脚本文件名。我们可以使用`basename`命令对路径做处理，得到想要的脚本文件名：
+
+```shell
+$ cat script.sh
+	echo "\$0 is $0, basename \$0 is `basename $0`";
+$ bash script.sh
+	$0 is script.sh, basename $0 is script.sh
+$ bash ~/script.sh
+	$0 is /home/nixos/script.sh, basename $0 is script.sh
+$ ~> bash ./script.sh
+	$0 is ./script.sh, basename $0 is script.sh
+```
+
