@@ -2412,7 +2412,7 @@ $ bash script.sh
 
 ## §3.9 参数输入
 
-### §3.9.1 位置参数
+### §3.9.1 `$<NUMBER>`
 
 位置参数的变量名都是数字，其中`$0`表示脚本名、`$1`及之后的变量均为位置参数值，以此类推，直到`$9`，再往后的位置变量需要用`${数字}`的形式来引用。
 
@@ -2441,4 +2441,130 @@ $ bash ~/script.sh
 $ ~> bash ./script.sh
 	$0 is ./script.sh, basename $0 is script.sh
 ```
+
+### §3.9.2 `$#`
+
+`$#`表示传入的参数数量。这个数字从`0`开始数，不包括脚本文件名`$0`。要获取第`i`个参数，我们需要用`${<VALUE>}`语法，并且`<VALUE>`中引用变量值时，需要使用`#<KEY>`，而不是`$<KEY>`。
+
+```shell
+$ cat script.sh
+	echo "传入了$#个参数";
+	for (( i = 1 ; i <= $# ; ++i )) do
+	    echo "第$i个参数的值为: ${!i}";
+	done
+$ bash ./script.sh 123 456
+	传入了2个参数
+	第1个参数的值为: 123
+	第2个参数的值为: 456
+```
+
+### §3.8.3 `$*`与`$@`
+
+`$*`和`$@`两个变量均储存了所有的命令行参数信息。其中`$*`将所有参数视为一个字符串，而`$@`将所有参数按`$IFS`分隔成若干字段。
+
+```shell
+$ cat script.sh
+	for str in "$*"; do
+	    echo $str;
+	done
+$ bash ./script.sh 123 456
+	123 456
+
+$ cat script.sh
+	for str in $@; do
+	    echo $str;
+	done
+$ bash ./script.sh 123 456
+	123
+	456
+```
+
+### §3.8.4 `shift`
+
+`shift`用于将命令行参数的值向左移动一格：`$0`保持不变，`$1`的值被替换为`$2`的值，`$2`的值被替换为`$3`的值，以此类推。因此我们可以将其视为队列的`queue.pop_front()`，我们可以通过`$1`不断地获取`queue.top()`。
+
+```shell
+$ cat script.sh
+	i=0;
+	while [ -n "$1" ] ; do
+	    i=$[ $i + 1 ];
+	    echo "第$i个参数的值为$1";
+	    shift;
+	done
+$ bash ./script.sh 123 456
+	第1个参数的值为123
+	第2个参数的值为456
+```
+
+`shift <STEP_NUMBER>`允许一次性执行`<STEP_NUMBER>`次`queue.pop_front()`，从而方便地跳过不需要的值。
+
+### §3.8.5 `getopt`
+
+有些脚本支持选项和参数一起使用。一种简便的实现方式是将它们都视为参数，然后利用`shift`一直读。
+
+```shell
+$ cat script.sh
+	i=0;
+	while [ -n "$1" ] ; do
+	    case "$1" in
+	        -a )
+	            echo "Option -a detected";
+	            shift;;
+	        -d | --dir )
+	            echo "Option -d get value of $2"
+	            shift 2;;
+	        * )
+	            i=$[ $i + 1 ];
+	            echo "Param of #$i is $1";
+	            shift 1;;
+	    esac
+	done
+$ bash ./script.sh -a --dir ./folder file_1 file_2
+	Option -a detected
+	Option -d get value of ./folder
+	Param of #1 is file_1
+	Param of #2 is file_2
+```
+
+这种方式缺乏灵活性，且不易维护，尤其是当出现`ls -la`需要解析成`ls -l -a`的情景。Shell为此提供了`getopt <OPTION_DEFINE> <PARAMETERS>`命令。我们以下面的命令为例：
+
+```shell
+$ getopt abcd:e: -a -d d_value -bc -e e_value
+	 -a -d d_value -b -c -e e_value --
+```
+
+`<OPTION_DEFINE>`使用定义了一系列单字母选项，前面没有`：`紧跟的字母代表一个无参数选项，**紧跟在`:`前面**的单字母代表一个有参数选项。我们将`"$@"`字符串传给脚本中的`opt`悬心爱过，它会将选项和参数用`--`分离，便于后续脚本手动解析。为了防止传入未知选项，但是`getopt`输出报错信息，工程上经常使用`getopt -q`选项屏蔽报错。
+
+`set -- <变量>`允许使用给定变量的值替代位置变量。这里我们将`getopt`得到的结果送给`set --`即可。
+
+```shell
+$ cat script.sh
+	set -- $(getopt -q abcd:e: "$@");
+	echo $@;
+	while [ -n "$1" ] ; do
+	    case "$1" in
+	        -a | -b | -c )
+	            echo "Option $1 detected";
+	            shift;;
+	        -d | -e )
+	            echo "Option $1 is $2";
+	            shift 2;;
+	        -- )
+	            shift;;
+	        * )
+	            echo "Param: $1";
+	            exit 1;;
+	    esac
+	done
+~ bash ./script.sh -l -d ./folder -a -e ./newfile -bc
+	-d './folder' -a -e './newfile' -b -c --
+	Option -d is './folder'
+	Option -a detected
+	Option -e is './newfile'
+	Option -b detected
+	Option -c detected
+```
+
+**需要注意的是：`getopt`命令不擅长处理带有`$IFS`的变量值，即使这部分值用双引号包裹也不行**。例如`-m "abc efg"`不会被单独当作一个字符串，而是会被当成选项`-m 'abc`和参数`efg‘`。所以`getopt`仍然具有相当大的局限性。
+
 
