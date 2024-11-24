@@ -2140,10 +2140,195 @@ You are using outdated shell! :(
 
 ### §3.8.7 `for`
 
-Bash脚本中的`for`语句类似于其他编程语言的`foreach`。
+#### §3.8.7.1 `for-in`
 
 ```shell
-for <VARIABLE> in <LIST> do
+for <VARIABLE> in <LIST>
+do
+	<COMMANDS>;
+done
+
+for <VARIABLE> in <LIST> ; do
 	<COMMANDS>;
 done
 ```
+
+```shell
+$ cat script.sh
+	for str in alice bob carol david ; do
+	    echo "$str" ;
+	done
+$ bash script.sh
+	alice
+	bob
+	carol
+	david
+```
+
+如果列表中的元素出现单引号，则Shell将会令"出现单引号"的配对元素之间的所有元素视为一个整体，并去除单引号。
+
+```shell
+$ cat script.sh
+	for str in alice bo'b carol dav'id elien ; do
+	    echo "$str" ;
+	done
+$ bash script.sh
+	alice
+	bob carol david
+	elien
+```
+
+我们可以使用转义字符来强制表示单引号字符：
+
+```shell
+nixos@nixos ~> cat script.sh
+	for str in alice bo\'b carol dav\'id elien ; do
+	    echo "$str" ;
+	done
+nixos@nixos ~> bash script.sh
+	alice
+	bo'b
+	carol
+	dav'id
+	elien
+```
+
+或者使用双引号包裹：
+
+```shell
+nixos@nixos ~> cat script.sh
+	for str in alice "bo'b" carol "dav'id" elien ; do
+	    echo "$str" ;
+	done
+nixos@nixos ~> bash script.sh
+	alice
+	bo'b
+	carol
+	dav'id
+	elien
+```
+
+这里的`<LIST>`还可以来自于命令的输出：
+
+```shell
+$ cat script.sh
+	files=$(ls);
+	files=$files" End";
+	for str in $files; do
+	    echo "$str" ;
+	done
+$ bash script.sh
+	script.sh
+	End
+```
+
+Shell使用`$IFS`（内部字段分隔符，`Internal Field Separator`）来解析字段的分隔符。默认情况下，`$IFS`的值为`" \t\n"`，也就是说Shell会**同时**将空格、制表符、换行符作为分隔符。在脚本中，我们经常会更改`IFS="\n"`，避免列表中的空格字符干扰。
+
+```shell
+$ printf "$IFS" | hexdump -v -C
+	00000000  0a 20 09                                          |. .|
+	00000003
+$ cat data.txt
+	Alice like apple
+	Bob like banana
+$ cat script.sh
+	IFS=$'\n';
+	for str in $(cat ./data.txt); do
+	    echo "$str" ;
+	done
+$ bash script.sh
+	Alice like apple
+	Bob like banana
+```
+
+#### §3.8.7.2 C语言风格`for`
+
+```shell
+for (( <VARIABLE_ASSIGNMENT> ; <CONTIDITION> ; <ITERRATION_PROCESS> )) do
+	<COMMANDS>;
+done
+```
+
+Bash提供了以下语法糖，使其更贴近C语言的`for`语句：
+
+1. 变量赋值`<VARIABLE_ASSIGNMENT>`允许在`=`的两边添加空格。
+2. 迭代条件`<CONDITION>`引用变量值时，不必在变量名之前添加`$`。
+3. 迭代条件`<CONDITION>`可以直接调用运算符，不必使用`expr`。
+
+```shell
+$ cat script.sh
+	# 可以换成i = 1，可以换成i <= 3
+	for (( i=1, j = 1 ; $i <= 3; ++i, --j )) do
+	    printf "Iteration: #%d\n" $i;
+	done
+$ bash script.sh
+	Iteration: #1
+	Iteration: #2
+	Iteration: #3
+```
+
+### §3.8.8 `while`
+
+`while`语句依赖于循环条件的状态退出状态码：只有当`<TEST_COMMANDS>`的退出状态码不为`0`时，才会退出循环。
+
+```shell
+while <TEST_COMMANDS>; do
+	<COMMANDS>;
+done
+```
+
+```shell
+$ cat script.sh
+	number=3;
+	while [ $number -ge 0 ]; do
+	    echo "number: $number";
+	    number=$[ $number - 1 ];
+	done
+$ bash script.sh
+	number: 3
+	number: 2
+	number: 1
+	number: 0
+```
+
+事实上，如果`<TEST_COMMANDS>`由多行命令构成（由`\n`或`;`分隔），则这个整体的退出状态码就是最后一个命令的退出状态码。
+
+```shell
+$ cat script.sh
+	number=3;
+	while echo "number: $number"; [ $number -ge 1 ]; do
+	    number=$[ $number - 1 ];
+	done
+$ bash script.sh
+	number: 3
+	number: 2
+	number: 1
+	number: 0
+```
+
+### §3.8.9 `until`
+
+`until`与`while`完全相反——只有当`<TEST_COMMANDS>`的退出状态码为`0`时，才会退出循环。
+
+```shell
+until <TEST_COMMANDS>; do
+	<COMMANDS>;
+done
+```
+
+```shell
+$ cat script.sh
+	number=3;
+	until [ $number -le 0 ]; do
+	    number=$[ $number - 1 ];
+	    echo "number: $number";
+	done
+$ bash script.sh
+	number: 2
+	number: 1
+	number: 0
+```
+
+### §3.8.10 `break`与`continue`
+
+`break <N>?`和`continue`分别用于跳出单层循环（`<N>`层循环）和单次循环。
