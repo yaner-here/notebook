@@ -2500,7 +2500,7 @@ $ bash ./script.sh 123 456
 
 ### §3.8.5 `getopt`
 
-有些脚本支持选项和参数一起使用。一种简便的实现方式是将它们都视为参数，然后利用`shift`一直读。
+有些脚本支持选项和参数一起使用。一种简便的实现方式是将它们都视为参数，然后利用`shift`一直读队头。
 
 ```shell
 $ cat script.sh
@@ -2533,7 +2533,7 @@ $ getopt abcd:e: -a -d d_value -bc -e e_value
 	 -a -d d_value -b -c -e e_value --
 ```
 
-`<OPTION_DEFINE>`使用定义了一系列单字母选项，前面没有`：`紧跟的字母代表一个无参数选项，**紧跟在`:`前面**的单字母代表一个有参数选项。我们将`"$@"`字符串传给脚本中的`opt`悬心爱过，它会将选项和参数用`--`分离，便于后续脚本手动解析。为了防止传入未知选项，但是`getopt`输出报错信息，工程上经常使用`getopt -q`选项屏蔽报错。
+`<OPTION_DEFINE>`使用定义了一系列单字母选项，**前面没有`：`紧跟的**字母代表一个无参数选项，**紧跟在`:`前面的**单字母代表一个有参数选项。我们将`"$@"`字符串传给脚本中的`opt`悬心爱过，它会将选项和参数用`--`分离，便于后续脚本手动解析。为了防止传入未知选项，但是`getopt`输出报错信息，工程上经常使用`getopt -q`选项屏蔽报错。
 
 `set -- <变量>`允许使用给定变量的值替代位置变量。这里我们将`getopt`得到的结果送给`set --`即可。
 
@@ -2565,6 +2565,107 @@ $ cat script.sh
 	Option -c detected
 ```
 
-**需要注意的是：`getopt`命令不擅长处理带有`$IFS`的变量值，即使这部分值用双引号包裹也不行**。例如`-m "abc efg"`不会被单独当作一个字符串，而是会被当成选项`-m 'abc`和参数`efg‘`。所以`getopt`仍然具有相当大的局限性。
+**需要注意的是：`getopt`命令不擅长处理带有`$IFS`的变量值，即使这部分值用双引号包裹也不行**。例如`-m "abc efg"`不会被单独当作一个带参数的选项，而是会被当成一个带参数的选项`-m 'abc`和另一个参数`efg‘`。所以`getopt`仍然具有相当大的局限性。
 
+### §3.8.6 `getopts`
 
+**只有Bash提供了`getopts`**，它是`getopt`的升级版。它的输出不再是单一的字符串，而是可以与Shell脚本位置变量联系密切的值。其语法与`getopt`完全一致，但是在使用上有所差别。
+
+`getopts`封装了三个局部变量供Shell使用：
+
+- `$opt`表示当前读取到的选项，不包含前导横杠`-`、
+- `$OPTARG`表示当前选项对应的值。如果定义选项带有参数，则缺省为字符`?`。
+- `$OPTIND`表示解析完当前选项后，下一个未解析的字段在第几个位置上（初始值为`1`，解析单个选项或单个参数都会自增`1`）。工程上经常使用`shift $[ $OPTIND - 1 ]`，将`$1`切换到第一个参数的位置上。
+
+```shell
+$ cat script.sh
+	while getopts ab:c opt ; do
+	    case "$opt" in
+	        a )
+	            echo "Option -a detected";;
+	        b )
+	            echo "Option -b detected, its value is $OPTARG";;
+	        c )
+	            echo "Option -c detected";;
+	        * )
+	            echo "Unknown option: $opt";;
+	    esac
+	done
+	shift $[ $OPTIND - 1 ];
+	i=0;
+	for param in "$@"; do
+	    i=$[ $i + 1 ];
+	    echo "Param #$i is $param";
+	done
+$ bash ./script.sh -b abc -ac
+	Option -b detected, its value is abc
+	Option -a detected
+	Option -c detected
+	Param #1 is param1
+	Param #2 is param2
+```
+
+`getopts`能解决`getopt`的`$IFS`分隔符问题。例如对于`-m "abc efg"`的解析完全正确。事实上，`getopts`允许在选项和值之间不添加空格，例如`g++ -Ddebug`就等价于`g++ -D debug`。
+
+### §3.8.7 `read`
+
+`read <VARIABLE>`用于让`STDIN`陷入阻塞，等待用户输入，最后将输入值存储到`$<VARIABLE>`变量中。
+
+```shell
+$ cat script.sh
+	echo -n "Enter your name: ";
+	read name;
+	echo "Hello, $name!";
+$ bash ./script.sh
+	Enter your name: Yaner
+	Hello, Yaner!
+```
+
+事实上，`read`也提供了`-p <PROMPT>`选项，能够等效地实现上述效果：
+
+```shell
+$ cat script.sh
+	read -p "Enter your name: " name;
+	echo "Hello, $name!";
+$ bash ./script.sh
+	Enter your name: Yaner
+	Hello, Yaner!
+```
+
+`read`支持读入一次性读入多个变量。用户在`STDIN`中输入的值会按照`$IFS`进行分隔，以此赋给变量列表。最后一个变量会获得`STDIN`剩余的所有值。
+
+```shell
+$ cat script.sh
+	read -p "Enter your name, gender and address: " name gender address;
+	echo "Hello, $name!";
+	echo "Your gender is $gender";
+	echo "Your address is $address";
+~ bash ./script.sh
+	Enter your name, gender and address: Yaner Male Asia, China
+	Hello, Yaner!
+	Your gender is Male
+	Your address is Asia, China
+```
+
+当`read`的变量列表缺省时，它会向`$REPLY`中写入。
+
+```shell
+~ cat script.sh
+	echo "我是复读机.";
+	read -p "请输入第一句你想说的话: ";
+	echo "$REPLY";
+	read -p "请输入第二句你想说的话: " text2;
+	echo "$text2";
+~ bash ./script.sh
+	我是复读机.
+	请输入第一句你想说的话: Hello
+	Hello
+	请输入第二句你想说的话: World
+	World
+```
+
+`read -t <SECONDS>`选项规定了用户输入的限时（单位为秒）。
+
+```shell
+
+```
