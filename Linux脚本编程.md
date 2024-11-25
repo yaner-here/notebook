@@ -1496,12 +1496,13 @@ $ cat data.txt | sed -f rule.txt
 
 #### §2.9.1.1 替换功能
 
-格式为`s/<PATTERN>/<SUBSTITUDE>/<FLAG>`的`sed`规则用于替换文本。这里的`<FLAG>`有四种选项可用：
+格式为`s/<PATTERN>/<SUBSTITUDE>/<FLAG>`的`sed`规则用于替换文本。这里的`<FLAG>`有以下选项可用：
 
 - `g`（Global）：替换每一个匹配处
 - `p`（Print）：只输出匹配成功且替换后的行文本
 - `w <FILE>`（Write）：只将匹配成功的替换结果写入文件
 - `<NUMBER>`：只替换第`<NUMBER>`个匹配处
+- `r <FILE>`（Read）：从`<FILE>`中读取文本，追加到`STDIN`的末尾
 
 #### §2.9.1.2 行寻址
 
@@ -1602,6 +1603,10 @@ $ cat data.txt
 $ cat data.txt | sed 'y/abc/cza/'
 	cczzaa
 ```
+
+#### §2.9.1.9 打印选项
+
+`sed '='`用于在每一行之前追加一行行号（从`0`开始）。`sed 'l'`用于将文本中的不可打印字符以`ASCII`转义符的形式输出。
 
 ### §2.9.2 `gawk`
 
