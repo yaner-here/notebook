@@ -328,6 +328,57 @@ discard = ^O;
 # pkill http*
 ```
 
+### §2.1.5 `trap`
+
+`trap <COMMANDS> <SIGNALS>`用于设置捕获Linux信号后执行的命令；`trap -- <SIGNALS>`用于删除自定义规则。特殊地，`trap -`或`trap --`表示删除所有自定义规则，恢复到默认状态。
+
+下面的脚本捕获了`SIGINT`（`Ctrl + C`）信号，从而避免关键代码执行时被打断。
+
+```shell
+$ cat script.sh
+	trap "echo 'Ctrl + C detected, but this virus can'\'t' be stopped'" SIGINT;
+	for (( i = 1 ; i <= 5 ; ++i )) ; do
+	    echo "Process($i/5)..."
+	    sleep 1;
+	done
+$ bash ./script.sh
+	Process(1/5)...
+	Process(2/5)...
+	^CCtrl + C detected, but this virus can't be stopped
+	Process(3/5)...
+	Process(4/5)...
+	^CCtrl + C detected, but this virus can't be stopped
+	Process(5/5)...
+```
+
+除了Linux信号以外，`trap`还能捕获一种名为`EXIT`的特殊事件，它代表着脚本执行完毕后要退出的事件。
+
+```shell
+~ cat script.sh
+	trap "echo 'trap EXIT'" EXIT;
+	echo "Processing...";
+~ bash ./script.sh
+	Processing...
+	trap EXIT
+```
+
+`trap -p`选项用于获取当前Shell或脚本环境下自定义的`trap`规则：
+
+```shell
+~ cat script.sh
+	trap "echo 'trap EXIT'" EXIT;
+	trap -p
+~ bash ./script.sh
+	trap -- 'echo '\''trap EXIT'\''' EXIT
+	trap EXIT
+```
+
+使用
+
+### §3.1.6 `$$`
+
+`$$`表示当前进程的PID。
+
 ## §2.2 存储
 
 ### §2.2.1 `mount`
@@ -1807,6 +1858,43 @@ systemd        1                              root  cwd       DIR               
 systemd        1                              root  rtd       DIR                8,2     4096          2 /
 systemd        1                              root  txt       REG                8,2  1620224      14901 /usr/lib/systemd/systemd
 ```
+
+### §3.4.2 `tee`
+
+为了让程序的`STDOUT`输出流，同时重定向到屏幕`STDOUT`和文件，我们可以使用`tee <FILE>`命令实现流的复制。该命令会读取`STDIN`中的所有内容，将其同时写入`STDOUT`和`<FILE>`。
+
+```shell
+$ echo "[info]: login failed" | tee ./log.txt
+	[info]: login failed
+$ cat ./log.txt
+	[info]: login failed
+```
+
+`tee`的默认写入方式是覆盖。我们可以使用`tee -a`选项将写入方式更改为追加。
+
+### §3.4.3 Here Document
+
+Here Document是Bash为内敛输入重定向符`<<`提供的一种语法糖。**只有Fish不支持该语法糖，Sh、Bash、Zsh均支持**。
+
+```shell
+cat << EOF
+	随便一些文本
+	不会被Shell当成命令执行
+EOF # 不准在这一行的末尾加引号，即使有空格也不行！
+```
+
+实践中，Here Document经常与重定向输出流一起使用。
+
+```shell
+$ cat >> stdout.txt << EOF
+    > Hello
+    > World
+    > EOF
+$ cat stdout.txt
+	Hello
+	World
+```
+
 ## §3.5 管道
 
 `<COMMAND> | <COMMAND>`将前面命令的输出作为后面命令的输入，无需使用文件作为暂存介质。Linux会同时执行这两个命令，数据流不会存储到任何文件或缓冲区。
@@ -2437,7 +2525,7 @@ quit i = 2
 
 ### §3.8.11 循环流重定向
 
-在上述各种循环的`done`后面，可以接入**流重定向**或**管道**，将循环体内各个语句产生的流汇总起来。
+在上述各种循环的`done`后面，可以接入**流重定向**或**管道**，将循环体内各个语句产生的流汇总起来。**既可以接入输入流，也可以接入输出流**。
 
 ```shell
 $ cat script.sh
@@ -2513,7 +2601,7 @@ $ bash ./script.sh 123 456
 	第2个参数的值为: 456
 ```
 
-### §3.8.3 `$*`与`$@`
+### §3.9.3 `$*`与`$@`
 
 `$*`和`$@`两个变量均储存了所有的命令行参数信息。其中`$*`将所有参数视为一个字符串，而`$@`将所有参数按`$IFS`分隔成若干字段。
 
@@ -2534,7 +2622,7 @@ $ bash ./script.sh 123 456
 	456
 ```
 
-### §3.8.4 `shift`
+### §3.9.4 `shift`
 
 `shift`用于将命令行参数的值向左移动一格：`$0`保持不变，`$1`的值被替换为`$2`的值，`$2`的值被替换为`$3`的值，以此类推。因此我们可以将其视为队列的`queue.pop_front()`，我们可以通过`$1`不断地获取`queue.top()`。
 
@@ -2553,7 +2641,7 @@ $ bash ./script.sh 123 456
 
 `shift <STEP_NUMBER>`允许一次性执行`<STEP_NUMBER>`次`queue.pop_front()`，从而方便地跳过不需要的值。
 
-### §3.8.5 `getopt`
+### §3.9.5 `getopt`
 
 有些脚本支持选项和参数一起使用。一种简便的实现方式是将它们都视为参数，然后利用`shift`一直读队头。
 
@@ -2622,7 +2710,7 @@ $ cat script.sh
 
 **需要注意的是：`getopt`命令不擅长处理带有`$IFS`的变量值，即使这部分值用双引号包裹也不行**。例如`-m "abc efg"`不会被单独当作一个带参数的选项，而是会被当成一个带参数的选项`-m 'abc`和另一个参数`efg‘`。所以`getopt`仍然具有相当大的局限性。
 
-### §3.8.6 `getopts`
+### §3.9.6 `getopts`
 
 **只有Bash提供了`getopts`**，它是`getopt`的升级版。它的输出不再是单一的字符串，而是可以与Shell脚本位置变量联系密切的值。其语法与`getopt`完全一致，但是在使用上有所差别。
 
@@ -2662,7 +2750,7 @@ $ bash ./script.sh -b abc -ac
 
 `getopts`能解决`getopt`的`$IFS`分隔符问题。例如对于`-m "abc efg"`的解析完全正确。事实上，`getopts`允许在选项和值之间不添加空格，例如`g++ -Ddebug`就等价于`g++ -D debug`。
 
-### §3.8.7 `read`
+### §3.9.7 `read`
 
 `read <VARIABLE>`用于让`STDIN`陷入阻塞，等待用户输入，最后将输入值存储到`$<VARIABLE>`变量中。
 
@@ -2765,12 +2853,19 @@ $ bash ./script.sh ./data.txt
 	Line #4: David
 ```
 
-## §3.10 进程
+## §3.10 临时文件
 
-### §3.10.1 `$$`
+### §3.10.1 `mktemp`
 
-`$$`表示当前进程的PID。
+`mktemp`本质上是一个能按照文件名掩码`X`，创建随机文件名的`touch`，并输出文件路径到`STDOUT`和`$tempfile`中。
 
-## §3.11 临时文件
+```shell
+~ mktemp -t log_XXXXXX.txt
+	/tmp/log_sGnaIW.txt
+~ ls -l /tmp/log_*.txt
+	-rw------- 1 nixos users 0 Nov 25 07:23 /tmp/log_sGnaIW.txt
+```
 
-### §3.11.1 `mktemp`
+使用`-t`将临时文件创建在`/tmp`目录下。
+
+使用`-d`创建目录，并输出文件夹路径到`STDOUT`和`$tempdir`。
