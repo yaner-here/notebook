@@ -1455,6 +1455,183 @@ $ apt list --installed
 - `<DISTRIBUTION_NAME>`表示发行版的版本名称
 - `<PACKAGE_TYPE_LIST>`是一组单词的集合，例如`main`、`restricted`、`universe`、`partner`等。
 
+## §2.9 编辑器
+
+### §2.9.1 `sed`
+
+`sed <OPTIONS>? <SCRIPT> <FILE>?`（Stream Editor）是一个针对文件流的编辑器。它能从`STDIN`或`<FILE>`中逐行读入，根据`<SCRIPT>`匹配行内的文本并修改，将修改后的单行数据输出到`STDOUT`。
+
+可以使用`sed [-e]? '<SCRIPT>'`进行匹配与修改：
+
+```
+$ cat data.txt
+	Alice loves the apple.
+	Alice loves the banana.
+	Alice loves the cherry.
+$ cat data.txt | sed 's/Alice/Bob/'
+	Bob loves the apple.
+	Bob loves the banana.
+	Bob loves the cherry.
+$ cat data.txt | sed -e 's/Alice/Bob/; s/loves/likes/'
+	Bob likes the apple.
+	Bob likes the banana.
+	Bob likes the cherry.
+```
+
+多个规则可以放进一个文件中，用`sed -f`选项读取。
+
+```shell
+$ cat data.txt
+	Alice loves the apple.
+	Alice loves the banana.
+	Alice loves the cherry.
+$ cat rule.txt
+	s/Alice/Bob/
+	s/loves/likes/
+$ cat data.txt | sed -f rule.txt
+	Bob likes the apple.
+	Bob likes the banana.
+	Bob likes the cherry.
+```
+
+#### §2.9.1.1 替换功能
+
+格式为`s/<PATTERN>/<SUBSTITUDE>/<FLAG>`的`sed`规则用于替换文本。这里的`<FLAG>`有四种选项可用：
+
+- `g`（Global）：替换每一个匹配处
+- `p`（Print）：只输出匹配成功且替换后的行文本
+- `w <FILE>`（Write）：只将匹配成功的替换结果写入文件
+- `<NUMBER>`：只替换第`<NUMBER>`个匹配处
+
+#### §2.9.1.2 行寻址
+
+```shell
+$ sed '{s/abc/def/g}';   # 检测和更改所有行
+$ sed '2{s/abc/def/g}';  # 只检测和更改第二行
+$ sed '2,3{s/abc/def/g}'; # 只检测和更改第二、三行
+$ sed '2,${s/abc/def/g}'; # 只检测和更改第二行及其之后行
+```
+
+#### §2.9.1.3 正则表达式寻址
+
+```shell
+$ sed '/<REGEX>/s/abc/def/g' # 只有符合<REGEX>的行才能检测和更改
+```
+
+#### §2.9.1.4 命令组
+
+```shell
+$ seg '3,${s/abc/def/g; s/123/456/g}'
+```
+
+#### §2.9.1.5 删除功能
+
+删除功能只需要`d`即可，同时支持行寻址和正则表达式寻址。
+
+```shell
+$ cat data.txt
+	Alice loves the apple.
+	Alice loves the banana.
+	Alice loves the cherry.
+$ sed '2d' data.txt # 行寻址
+	Alice loves the apple.
+	Alice loves the cherry.
+$ sed '/a/d' data.txt # 正则表达式寻址
+	Alice loves the cherry.
+```
+
+除此以外，删除模式还支持正则表达式行寻址，其语法为`/<START_DELETE_PATTERN>/,/<END_DELETE_PATTERN>/d`，通过两个正则表达式寻找起始行和终止行，删除这之间的所有行文本（包括起点和终点这两行）。**具体来说，这种删除模式类似于双指针，先由起点指针搜索匹配的一行，然后结束指针在此基础上搜索匹配的一行，缺省首尾指针后进行删除，开启下一轮循环，以此类推**。如果一直找不到终点行，则从起点行开始一直删到尾。
+
+```shell
+$ cat data.txt
+	Alice loves the apple.
+	Alice loves the banana.
+	Alice loves the cherry.
+$ sed '/apple/,/banana/d' data.txt
+	Alice loves the cherry.
+```
+
+#### §2.9.1.6 插入模式和追加模式
+
+插入模式`i`和追加模式`a`分别表示在匹配行之前/之后添加一行。它的语法略有不同，主要体现在斜杠用的是反斜杠。
+
+```shell
+$ echo "Hello World" | sed 'i\Header';
+	Header
+	Hello World
+$ echo "Hello World" | sed 'a\Footer';
+	Hello World
+	Footer
+```
+
+插入模式和追加模式都支持行寻址。
+
+```shell
+$ sed '3a\Footer'; # 追加到第三行之后
+$ sed '$a\Footer'; # 追加到最后一行之后
+```
+
+#### §2.9.1.7 修改模式
+
+修改模式`c`的语法与插入模式和追加模式类似，它的作用是将匹配的行全部替换为目标文本。
+
+修改模式支持行寻址和正则表达式寻址。
+
+```shell
+$ cat data.txt
+	Alice loves the apple.
+	Alice loves the banana.
+	Alice loves the cherry.
+$ cat data.txt | sed '2c\Line 2 is changed!'
+	Alice loves the apple.
+	Line 2 is changed!
+	Alice loves the cherry.
+$ cat data.txt | sed '/a/c\This line contains \'a\'!'
+	This line contains 'a'!
+	This line contains 'a'!
+	Alice loves the cherry.
+```
+
+#### §2.9.1.8 转换模式
+
+转换模式`y`用于处理单个字符，其语法为`[ADDRESS]y/<INCHARS>/<OUTCHARS>/`。转换模式会按照`<INCHARS>`和`<OUTCHARS>`形成的转换表，对字符进行一对一的映射。如果`<INCHARS>`和`<OUTCHARS>`的长度不同，则`sed`会报错。
+
+```shell
+$ cat data.txt
+	aabbcc
+$ cat data.txt | sed 'y/abc/cza/'
+	cczzaa
+```
+
+### §2.9.2 `gawk`
+
+`gawk`是`awk`的GNU版本，它提供了一个完整的编程环境，因此比`sed`更灵活。其语法为`gawk <OPTIONS>? <PROGRAM> <FILE>`，并且提供了以下常用选项：
+
+- `-F <FILE_SEPERATOR>`：指定用于划分字段的分隔符
+- `-f <PROGRAM_FILE>`：从`<PROGRAM_FILE>`中读取`gawk`脚本代码
+- `-v <KEY>=<VALUE>`：定义`gawk`脚本中的变量与默认值
+- `-L <LEVEL>`：定义`gawk`的兼容模式与警告级别
+
+`gawk`脚本的语法是：由`{}`包裹起来的字符串。它的位置变量含义与Bash脚本的含义类似，除了`$0`表示整个本文行。例如下面的命令输出当前Linux环境中的所有用户：
+
+```shell
+$ cat /etc/passwd | gawk -F: '{print $1;}'
+	root
+	systemd-coredump
+	systemd-network
+```
+
+`gawk`脚本中的`BEGIN`关键字允许脚本代码在开头执行一次，`END`关键字允许在结尾执行一次：
+
+```shell
+$ cat /etc/passwd | gawk -F: 'BEGIN {print ">> Users List Begin<<";} {print $1;} END {print ">> Users List End <<"}'
+    >> Users List Begin <<
+	root
+	systemd-coredump
+	systemd-network
+	>> Users List End <<
+```
+
 # §3 Shell脚本语法
 
 ## §3.1 子Shell
@@ -1836,6 +2013,10 @@ $ echo ${array[*]} # [*]不显示空值
 	123 ghi
 $ unset array # 删除环境变量
 ```
+
+### §3.3.2 `source`/点号操作符
+
+`source <FILE>`和`. <FILUE>`的作用完全一致，类似于C语言中的`#include<>`宏，都能将`<FILE>`中的内容添加到当前位置，供Shell执行。这样做可以继承`<FILE>`中定义的变量和函数。**用`source`引入的变量和函数全部会被视为全局的变量和函数，可以自动继承给子进程**。
 
 ## §3.4 重定向流
 
@@ -2896,6 +3077,44 @@ $ bash ./script.sh ./data.txt
 	Line #4: David
 ```
 
+### §3.9.8 `select`
+
+`select`命令为CLI提供了方便的菜单控件模版。`select`本身就是一种循环结构，开发者将菜单选项字符串列表传入`select <VARIABLE> in`的参数列表中，就能循环地无限输入，知道遇到`break`语句为止。
+
+```shell
+$ cat script.sh
+	PS3="Input your option (1~4): "
+	select option in "du" "df" "lsblk" "quit";
+	do
+	    case $option in
+	        "du" )
+	            echo `du -h`;;
+	        "df" )
+	            echo `df -h`;;
+	        "lsblk" )
+	            echo `lsblk`;;
+	        "quit" )
+	            break;;
+	        * )
+	            echo "Unknown option, try again!";;
+	    esac
+	done
+$ bash script.sh
+	1) du
+	2) df
+	3) lsblk
+	4) quit
+	Input your option (1~4): 3
+	NAME MAJ:MIN RM SIZE RO TYPE MOUNTPOINTS sda 8:0 0 388.4M 1 disk sdb 8:16 0 1G 0 disk [SWAP] sdc 8:32 0 1T 0 disk /nix/store /mnt/wslg/distro /
+Input your option (1~4): 4
+```
+
+### §3.9.9 `dialog`
+
+`dialog`命令为CLI提供了输入框组件。大部分Linux发行版并不自带该命令，需要手动安装`dialog`软件包。
+
+与HTML中的`<input type="<TYPE>">`标签类似，`dialog`提供了各种丰富的输入框。详见帮助文档，本节略。
+
 ## §3.10 临时文件
 
 ### §3.10.1 `mktemp`
@@ -2917,7 +3136,7 @@ $ bash ./script.sh ./data.txt
 
 ### §3.11.1 `at`/`atq`/`atrm`
 
-`at`命令用于指定作业任务何时运行。后台运行的守护进程`atd`会每隔`60`秒，扫描一遍目录`/var/spool/at`或`/var/spool/cron/atjobs`，如果其中存在与当前之间一致的作业，则立刻执行该作业。
+`at`命令用于指定作业任务何时运行。后台运行的守护进程`atd`会每隔`60`秒，扫描一遍目录`/var/spool/at`或`/var/spool/cron/atjobs`，如果其中存在与当前之间一致的作业，则立刻执行该作业。**`at`并不是GNU标准的一部分，因此需要额外安装这个名为`at`的软件包**。
 
 `at [-f <FILE>]? <TIME>`可以从`STDIN`或`<FILE>`中读取要执行的命令，并打包成一个计划任务。这里的`<TIME>`支持多种格式，格式文档在`/usr/share/doc/at/timespec`：
 
@@ -2926,17 +3145,40 @@ $ bash ./script.sh ./data.txt
 - `<英文时间名词>`：例如`now`、`noon`、`midnight`、`teatime`（`16:00`）。
 - `MMDDYY`/`MM/DD/YY`/`DD.MM.YY`：指定年份、月份和日期。
 - `<三字母月份缩写> DD`：指定月份和日期，例如`July 7`。
-- `<时间增量>`：例如`Now + 25 minutes`、`10:15 tomorrow`、`10:15 + 7 days`。
+- `<时间增量>`：例如`Now + 25 minutes`、`10:15 tomorrow`、`10:15 + 7 days`（不支持`seconds`）。
 
-`at`规定了52种作业队列，每个队列的名称由`[a-zA-z]`的单字母命名。队列名称的字典序越大，则谦让度越高，执行优先级越低。
+`at`规定了52种作业队列，每个队列的名称由`[a-zA-z]`的单字母命名。队列名称的字典序越大，则谦让度越高，执行优先级越低。具体的队列使用`at -q <QUEUE_NAME>`指定，缺省值为`a`。
 
 默认情况下，Linux会将作业的`STDOUT`和`STDERR`通过`sendmail`命令，使用邮件系统发送给作业属主的邮箱地址。如果没有安装并配置`sendmail`，则作业的输出信息会丢失。所以实践中，我们经常对作业的`STDOUT`和`STDERR`重定向到某个文件。特殊地，使用`at -M`选项可以禁止作业输出信息。
 
 `atq`用于查看所有计划任务。`atrm <TASK_NO>`用于删除作业编号为`<TASK_NO>`的计划任务。
 
 ```shell
-
+$ at -f ./script.sh now + 5 minutes
+	warning: commands will be executed using /bin/sh
+	job 4 at Mon Nov 25 14:20:00 2024
+$ atq
+	1       Mon Nov 25 14:19:00 2024 a nixos
+	2       Mon Nov 25 14:20:00 2024 a nixos
+$ atrm 1
+	2       Mon Nov 25 14:20:00 2024 a nixos
 ```
+
+### §3.11.2 `cron`/`crontab`
+
+`cron`读取一个叫做时间表的文件，从而创建任务。每一行都代表这一个任务，它的格式是：
+
+```crontab
+<MINUTE_PAST_HOUR> <HOUR_OF_DAY> <DAY_OF_MONTH> <MONTH> <DAY_OF_WEEK> <COMMAND>
+```
+
+- `<MINUTE_PAST_HOUR>`指示每个小时中的哪个分钟时刻，取值范围为`[0, 59]`，其中`*`表示全部。
+- `<HOUR_OF_DAY>`指示每天中的哪个小时时刻，取值范围为`[0, 23]`，其中`*`表示全部。
+- `<DAY_OF_MONTH>`指示每个月中的哪一天，取值范围为`[1, 28/29/30/31]`，其中`*`表示全部。
+- `<MONTH>`指示每年中的那一个月，取值范围为`[1, 12]`，其中`*`表示全部。
+- `<DAY_OF_WEEK>`表示每周中的哪一个星期，取值范围为`[0, 7]`或`[mon, sun]`，其中`*`表示全部，`0`或`7`都表示星期日。
+
+`crontab`提供了修改时间表的CLI接口。它本质上只是对时间表的位置做了一个封装，本身并没有提供任何修改时间表的功能。
 
 ## §3.12 函数
 
@@ -2954,7 +3196,114 @@ function <FUNCTION_NAME> {
 调用函数就像调用命令一样：
 
 ```shell
-function print_hello {
-	echo "Hello!"
-}
+$ cat script.sh
+	function print_hello() {
+	    echo "Hello!";
+	}
+	print_hello;
+$ bash script.sh
+	Hello!
+```
+
+**函数必须先声明后调用**。**同名函数可以先后覆盖，而且不会有任何报错和提示**。
+
+### §3.12.1 `return`
+
+既然我们可以把函数视为命令，那么函数本身也可以有自己的退出状态码，缺省时为函数体内最后一个命令的退出状态码。我们需要在调用函数后马上读取`$?`，才能获取函数的退出状态码。
+
+默认情况下，函数体内允许使用`return <EXIT_CODE>`命令，手动指定退出状态码，可以视为函数的返回值。**这会带来一个限制：函数返回值的取值范围和退出状态码一样，都是`uint8`**。
+
+```shell
+$ cat script.sh
+	function multiply_times_2 {
+	    echo "Input a nnumber: ";
+	    read value;
+	    return $[ $value * 2 ];
+	}
+	multiply_times_2;
+	echo $?;
+$ bash script.sh # 结果正确
+	Input a nnumber:
+	123
+	246
+$ bash script.sh # 结果错误
+	Input a nnumber:
+	1000
+	208
+```
+
+### §3.12.2 函数输出
+
+前文提到，`return`语句只能返回`uint8`的值。如果要获取函数体内某个运算结果的值，我们只能采取一种曲线救国的方式：使用`$(<FUNCTION_NAME>)`获取函数的`STDOUT`，将其储存到某个变量中。**在这种情况下，我们必须保证`STDOUT`不得混入其它命令的输出**。例如`echo`会扰乱`STDOUT`的输出，但是`read -p <PROMPT>`就不会输出到`STDOUT`，而是直接显示到屏幕上。
+
+```shell
+$ cat script.sh
+	function multiply_times_2 {
+	    read -p "Input a number: " value;
+	    echo $[ $value * 2 ];
+	}
+	result=$(multiply_times_2);
+	echo "$result";
+$ bash script.sh
+	Input a number: 1000
+	2000
+```
+
+### §3.12.3 函数传参
+
+既然我们可以把函数视为命令，那么函数本身也可以像CLI命令那样传递选项和参数。
+
+```shell
+$ cat script.sh
+	function multiply {
+	    if [ -z $1 ] || [ -z $2 ] ; then
+	        echo "Error Params!" >&2;
+	        return 1;
+	    fi
+	    echo $[ $1 * $2 ];
+	}
+	
+	echo "call multiply";
+	echo $(multiply);
+	
+	echo "call multiply 2 3";
+	echo $(multiply 2 3);
+$ bash script.sh
+	call multiply
+	Error Params!
+
+	call multiply 2 3
+	6
+```
+
+函数体内所有使用`<KEY>=<VALUE>`定义的变量，都是**全局变量**，这意味着它们在函数体外也能被引用。然而这样容易导致函数内外出现重名的变量，导致变量值被更改。实践中更推荐使用**局部变量**，语法为`local <KEY>=<VALUE>`。
+
+对于数组变量而言，我们传参的方式永远都是在调用处现场解包，再在函数体内使用`echo "$@"`现场打包。
+
+```shell
+$ [127]> cat script.sh
+	function array_function {
+	    local array_temp=($(echo "$@"));
+	    echo "array_function() get the array: ${array_temp[*]}";
+	}
+	array=(1 2 3 4 5);
+	echo "origin array is ${array[*]}";
+	array_function ${array[*]};
+$ bash script.sh
+	origin array is 1 2 3 4 5
+	array_function() get the array: 1 2 3 4 5
+```
+
+使用同样的思路，我们也可以将函数返回的`STDOUT`重新打包成数组变量。
+
+```shell
+$ cat script.sh
+	function array_function {
+	    local array_temp=(1 2 3 4 5);
+	    echo ${array_temp[*]};
+	}
+	result=($(array_function));
+	echo "array_function return: ${result[*]}";
+$ bash script.sh
+	array_function return: 1 2 3 4 5
 ```
