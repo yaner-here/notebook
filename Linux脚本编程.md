@@ -1751,7 +1751,62 @@ $ unset array # 删除环境变量
 - 重定向追加`STDERR`流：`2>>`
 - 重定向`STDIN`流：`<`
 - 内联重定向`STDIN`：`<< <EOF_STR>`，检测到`<EOF_STR>`时终止输入
+- 重定向到`STDOUT`流：`>&1`
+- 重定向到`STDERR`流：`>&2`
 
+Linux将每个对象当作文件来处理，每个文件由一个非负整数唯一指定，称为**文件描述符**。一个进程最多可以同时打开的文件描述符是有限的，通常为`9`个。Bash保留了前三个文件描述符：
+
+| 文件描述符 | 宏定义名     | 含义   |
+| ----- | -------- | ---- |
+| `0`   | `STDIN`  | 标准输入 |
+| `1`   | `STDOUT` | 标准输出 |
+| `2`   | `STDERR` | 标准错误 |
+
+文件描述符可以用在重定向流操作符的前面，例如`2>`表示重定向`STDERR`，`&>`表示同时重定向`STDOUT`和`STDERR`。
+
+Shell脚本允许使用`exec`进行全局的重定向。例如`exec 0< file.txt`、`exec 1> stdout.txt`、`exec 2> stderr.txt`。一旦使用这种方法完成重定向，则不太容易恢复到原先的状态。为了实现撤销操作，我们需要借用其它的文件描述符，使其重定向到标准流。
+
+```shell
+exec 3>&1;         # 将3重定向到STDOUT
+exec 1>stdout.txt; # 将1重定向到stdout.txt
+exec 1>&3;         # 将1重定向到STDOUT 
+
+exec 4<&0;         # 将4重定向到STDIN
+exec 0<stdin.txt;  # 将0重定向到文件
+exec 0<&6;         # 将0重定向到STDIN
+```
+
+一个文件描述符可以同时被当作输入流和输出流。我们使用形如`exec 3<> file.txt`的语法创建。这时要特别警惕：读取和写入共享同一个文件指针。因此写入操作会从之前读指针的位置起，向后覆盖原文件的内容。
+
+Shell使用类似于`exec 3>&~`的语法来手动关闭文件描述符。
+
+```shell
+exec 3> log.txt # 重定向文件描述符3到log.txt
+exec 3>&~       # 关闭文件描述符3
+echo "test" >&3 # 报错: 3: Bad file descriptor
+```
+
+### §3.4.1 `lsof`
+
+`lsof`命令展示了Linux打开的所有文件描述符。各列的含义分别为：
+
+- `COMMAND`：进程对应文件名的前`9`个字符
+- `PID`：进程`PID`
+- `USER`：进程属主的用户名
+- `FD`：文件描述符及其访问类型（`r`为读、`w`为写、`u`为读写）
+- `TYPE`：文件类型（`CHR`为字符型、`BLK`为块型、`DIR`为目录、`REG`为常规文件）
+- `DEVICE`：设备号（主设备号与从设备号）
+- `SIZE`：文件大小
+- `NODE`：本地文件的节点号
+- `NAME`：文件路径
+
+```shell
+$ lsof
+COMMAND      PID    TID TASKCMD               USER   FD      TYPE             DEVICE SIZE/OFF       NODE NAME
+systemd        1                              root  cwd       DIR                8,2     4096          2 /
+systemd        1                              root  rtd       DIR                8,2     4096          2 /
+systemd        1                              root  txt       REG                8,2  1620224      14901 /usr/lib/systemd/systemd
+```
 ## §3.5 管道
 
 `<COMMAND> | <COMMAND>`将前面命令的输出作为后面命令的输入，无需使用文件作为暂存介质。Linux会同时执行这两个命令，数据流不会存储到任何文件或缓冲区。
@@ -2667,5 +2722,55 @@ $ cat script.sh
 `read -t <SECONDS>`选项规定了用户输入的限时（单位为秒）。
 
 ```shell
-
+$ cat script.sh
+	read -t 3 -p "请输入答案(限时3秒): 1 + 1 = " answer;
+	if [ -z "$answer" ] ; then
+	    echo -e "\n你没有输入答案 :(";
+	elif [ "$answer" -eq 2 ]; then
+	    echo "回答正确 :)";
+	else
+	    echo "回答错误 :(";
+	fi
+$ bash ./script.sh
+	请输入答案(限时3秒): 1 + 1 =
+	你没有输入答案 :(
+$ bash ./script.sh
+	请输入答案(限时3秒): 1 + 1 = 2
+	回答正确 :)
+$ bash ./script.sh
+	请输入答案(限时3秒): 1 + 1 = 3
+	回答错误 :(
 ```
+
+`read -s`用于将`STDIN`输入的字符设置成与终端背景色一样的颜色，从而变相实现隐藏输入的效果。
+
+`read`每次读取一行。如果是空行则返回非零退出状态码。利用这一点，我们可以使用管道将文件重定向到`read`的`STDIN`，并且用`while read`循环实现逐行读取：
+
+```shell
+$ cat data.txt
+	Alice
+	Bob
+	Carol
+	David
+$ cat script.sh
+	i=0
+	cat $1 | while read line; do
+	    i=$[ $i + 1 ];
+	    echo "Line #$i: $line";
+	done
+$ bash ./script.sh ./data.txt
+	Line #1: Alice
+	Line #2: Bob
+	Line #3: Carol
+	Line #4: David
+```
+
+## §3.10 进程
+
+### §3.10.1 `$$`
+
+`$$`表示当前进程的PID。
+
+## §3.11 临时文件
+
+### §3.11.1 `mktemp`
