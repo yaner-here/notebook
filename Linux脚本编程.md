@@ -1583,11 +1583,13 @@ $ jobs
 
 在多任务操作系统中，调度优先级（也称谦让度，Nice Value）表示相对于其他进程，内核为该进程分配的CPU时间。其取值范围为`[-29, 19]`，左右两端分别表示最高优先级和最低优先级。默认情况下，Shell以谦让度`0`运行所有进程。
 
-我们可以使用`nice -n <NICE_VALUE> <COMMAND>`命令以谦让度`<NICE_VALUE>`运行程序`<COMMAND>`。
+我们可以使用`nice -n <NICE_VALUE> <COMMAND>`命令以谦让度为`<NICE_VALUE>`运行程序`<COMMAND>`。当`<NICE_VALUE>`为正数时，`-n <NICE_VALUE>`可以简写为`-<NICE_VALUE>`；当`<NICE_VALUE>`为负数时，`-n <NICE_VALUE>`可以简写为`--<NICE_VALUE_ABS>`。
 
 ```shell
-
+$ nice -10 ./script.sh &
 ```
+
+`renice -n <NICE_VALUE> -p <PID>`可以更改进程的谦让度。对于普通用户而言，`renice`用能用于属主为自己的进程，且**只能调低优先级**。而`root`权限就没有这些限制。
 
 ## §3.2 命令
 
@@ -2910,3 +2912,49 @@ $ bash ./script.sh ./data.txt
 使用`-t`将临时文件创建在`/tmp`目录下。
 
 使用`-d`创建目录，并输出文件夹路径到`STDOUT`和`$tempdir`。
+
+## §3.11 计划任务
+
+### §3.11.1 `at`/`atq`/`atrm`
+
+`at`命令用于指定作业任务何时运行。后台运行的守护进程`atd`会每隔`60`秒，扫描一遍目录`/var/spool/at`或`/var/spool/cron/atjobs`，如果其中存在与当前之间一致的作业，则立刻执行该作业。
+
+`at [-f <FILE>]? <TIME>`可以从`STDIN`或`<FILE>`中读取要执行的命令，并打包成一个计划任务。这里的`<TIME>`支持多种格式，格式文档在`/usr/share/doc/at/timespec`：
+
+- `HH:MM`：指定小时和分钟（24小时制），例如`10:15`。
+- `HH:MM AM/PM`：指定小时和分钟（12小时制），例如`10:15 AM`。
+- `<英文时间名词>`：例如`now`、`noon`、`midnight`、`teatime`（`16:00`）。
+- `MMDDYY`/`MM/DD/YY`/`DD.MM.YY`：指定年份、月份和日期。
+- `<三字母月份缩写> DD`：指定月份和日期，例如`July 7`。
+- `<时间增量>`：例如`Now + 25 minutes`、`10:15 tomorrow`、`10:15 + 7 days`。
+
+`at`规定了52种作业队列，每个队列的名称由`[a-zA-z]`的单字母命名。队列名称的字典序越大，则谦让度越高，执行优先级越低。
+
+默认情况下，Linux会将作业的`STDOUT`和`STDERR`通过`sendmail`命令，使用邮件系统发送给作业属主的邮箱地址。如果没有安装并配置`sendmail`，则作业的输出信息会丢失。所以实践中，我们经常对作业的`STDOUT`和`STDERR`重定向到某个文件。特殊地，使用`at -M`选项可以禁止作业输出信息。
+
+`atq`用于查看所有计划任务。`atrm <TASK_NO>`用于删除作业编号为`<TASK_NO>`的计划任务。
+
+```shell
+
+```
+
+## §3.12 函数
+
+Bash提供了两种定义函数的方式：
+
+```shell
+function <FUNCTION_NAME> {
+	<COMMANDS>;
+}
+<FUNCTION_NAME>() {
+	<COMMANDS>;
+}
+```
+
+调用函数就像调用命令一样：
+
+```shell
+function print_hello {
+	echo "Hello!"
+}
+```
