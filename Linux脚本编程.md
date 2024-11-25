@@ -1478,7 +1478,7 @@ $ echo $BASH_SUBSHELL; (echo $BASH_SUBSHELL; (echo $BASH_SUBSHELL;)) # 进程列
 
 ### §3.1.2 后台模式
 
-在命令列表或进程列表的后面加一个`&`，就可以创建一个作业。此时`bash`会先输出当前创建的后台作业号与`PID`，然后显示所有已执行完毕、**且未曾在此显示过**的后台作业，最后恢复可交互的状态。**后台作业号从`1`开始自增**。
+在命令列表或进程列表的后面加一个`&`，就可以创建一个作业。此时`bash`会先输出当前创建的后台作业号与`PID`，然后显示所有已执行完毕、**且未曾在此显示过**的后台作业，最后恢复可交互的状态。**后台作业号从`1`开始自增**。**后台进程运行时，它的`STDOUT`、`STDERR`依然重定向到终端**。
 
 ```c++
 $ sleep 5& # 第0秒执行
@@ -1504,7 +1504,7 @@ $ ps -f
    Yaner    1248    1247 pty1     01:29:44 /usr/bin/bash
 ```
 
-`bash`提供了`jobs`关键字，用于查看当前Shell的后台作业情况。具体来说，它会显示当前正在运行（`Running`）的后台作业，以及所有已执行完毕（`Done`）、**且未曾在此显示过**的后台作业。我们还可以使用`-l`显示后台作业的`PID`。其中`+`表示最近启动的后台作业，`-`表示第二最近启动的后台作业。
+`bash`提供了`jobs`关键字，用于查看当前Shell的后台作业情况。具体来说，它会显示当前正在运行（`Running`）的后台作业，以及所有已执行完毕（`Done`）、**且未曾在此显示过**的后台作业。我们还可以使用`-l`显示后台作业的`PID`。其中`+`表示最近启动的后台作业，**作业控制命令缺省时也会引用该作业**，`-`表示第二最近启动的后台作业。
 
 ```shell
 $ sleep 100&
@@ -1532,7 +1532,38 @@ $ abc
 [1]+  Done                    ( sleep 1; echo $BASH_SUBSHELL; sleep 1 )
 ```
 
-### §3.1.3 协程
+用户可以通过`Ctrl + Z`暂停作业，再用`bg <作业号>?`恢复作业，或者用`fg <作业号>?`重启作业。
+
+```shell
+$ cat script.sh
+	for (( i = 1 ; i <= 5 ; ++i )); do
+	    echo "Processing($i/5)";
+	    sleep 1;
+	done
+$ bash ./script.sh
+	Processing(1/5)
+	Processing(2/5)
+	^Zfish: Job 1, 'bash ./script.sh' has stopped
+$ jobs
+	Job     Group   CPU     State   Command
+	1       1752    0%      stopped bash ./script.sh
+$ bg
+	Send job 1 'bash ./script.sh' to background
+	Processing(3/5)
+$ Processing(4/5)
+	Processing(5/5)
+fish: Job 1, 'bash ./script.sh' has ended
+```
+
+Shell会话运行的后台作业，会始终与当前Shell会话绑定在一起。如果退出当前会话，则后台作业也会全部随之退出。
+
+### §3.1.3 `nohup`
+
+在钱文忠，我们提到如果退出当前会话，则后台作业也会全部随之退出。`nohup`通过拦截`SIGHUP`信号，实现防止后台作业退出的效果。
+
+与此同时，`nohup`会解除`STDOUT`和`STDERR`与终端会话的联系，将这两个输出流**以追加模式**重定向到`$HOME/nohup.out`或`./nohup.out`。如果有多个`nohup`运行的后台作业，则这些输出信息会混在一起。
+
+### §3.1.4 协程
 
 协程（`coproc [<JOB_NAME>=COPROC] <COMMAND>`）本质上就是进程列表和后台模式混用的一种简便表示方式。协程先创建一个子Shell，然后在子Shell中执行`<COMMAND>`。**两者的区别是：`coproc`不会将子Shell的`STDOUT`重定向到父Shell的`STDOUT`**、`coproc`可以自定义后台作业的名称（缺省为`COPROC`）。
 
@@ -1546,6 +1577,16 @@ $ coproc job1 { sleep 1; echo "abc"; sleep 60; }
 $ jobs
 [1]-  Running                 coproc COPROC { sleep 1; echo "abc"; sleep 60; } &
 [2]+  Running                 coproc job1 { sleep 1; echo "abc"; sleep 60; } &
+```
+
+### §3.1.5 谦让度
+
+在多任务操作系统中，调度优先级（也称谦让度，Nice Value）表示相对于其他进程，内核为该进程分配的CPU时间。其取值范围为`[-29, 19]`，左右两端分别表示最高优先级和最低优先级。默认情况下，Shell以谦让度`0`运行所有进程。
+
+我们可以使用`nice -n <NICE_VALUE> <COMMAND>`命令以谦让度`<NICE_VALUE>`运行程序`<COMMAND>`。
+
+```shell
+
 ```
 
 ## §3.2 命令
