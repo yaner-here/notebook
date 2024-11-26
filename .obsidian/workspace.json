@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "同义替换.md",
+                "file": "杂项.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "同义替换"
+              "title": "杂项"
             }
           }
         ]
@@ -53,10 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "同义替换.md"
+                "file": "杂项.md"
               },
               "icon": "lucide-list",
-              "title": "Outline of 同义替换"
+              "title": "Outline of 杂项"
             }
           },
           {
@@ -110,8 +110,9 @@
   },
   "active": "47e4add9bd2925af",
   "lastOpenFiles": [
-    "杂项.md",
+    "main.tar.gz",
     "同义替换.md",
+    "杂项.md",
     "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
     "Linux/Linux脚本编程.md",
     "Linux配置.md",
@@ -140,7 +141,6 @@
     "Python.md",
     "网络安全.md",
     "IPv6.md",
-    "前端/WebSocket.md",
     "小工具",
     "AI/对比学习.drawio",
     "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",
