@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux配置环境脚本.md",
+                "file": "Linux/Linux脚本编程.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Linux配置环境脚本"
+              "title": "Linux脚本编程"
             }
           }
         ]
@@ -53,10 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Linux配置环境脚本.md"
+                "file": "Linux/Linux脚本编程.md"
               },
               "icon": "lucide-list",
-              "title": "Outline of Linux配置环境脚本"
+              "title": "Outline of Linux脚本编程"
             }
           },
           {
@@ -110,12 +110,12 @@
   },
   "active": "47e4add9bd2925af",
   "lastOpenFiles": [
+    "Linux配置.md",
+    "Linux配置环境脚本.md",
     "Linux/Linux脚本编程.md",
     "Linux/Linux.md",
-    "Linux配置.md",
     "PyQt6.md",
     "Linux",
-    "Linux配置环境脚本.md",
     "移动端/Android.md",
     "商品价格.md",
     "移动端",
