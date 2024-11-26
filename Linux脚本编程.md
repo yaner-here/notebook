@@ -1,3 +1,7 @@
+参考文献：
+
+- 《Linux命令行与shell脚本编程大全（第4版）》 [豆瓣](https://book.douban.com/subject/35933905/)
+
 # §1 Shell
 
 ## §1.1 Shell会话
@@ -1973,6 +1977,26 @@ $ gawk '{ while($1>0){printf "%d ", $1; $1 = $1 - 1;} printf "\n";}' data.txt
 | `systime()`                | 返回当前时间的时间戳                                                                                               |
 
 `gawk`也允许开发者自定义函数。
+
+```shell
+$ cat script.txt
+	function get_rand(upper_bound){
+	    return int(upper_bound*rand());
+	}
+	{
+	    print "生成5个0~100的随机数:";
+	    for(i=1;i<=5;++i){
+	        print get_rand(100);
+	    }
+	}
+$ echo '' | gawk -f script.txt
+	生成5个0~100的随机数:
+	92
+	59
+	30
+	57
+	74
+```
 
 # §3 Shell脚本语法
 
