@@ -1608,6 +1608,206 @@ $ cat data.txt | sed 'y/abc/cza/'
 
 `sed '='`用于在每一行之前追加一行行号（从`0`开始）。`sed 'l'`用于将文本中的不可打印字符以`ASCII`转义符的形式输出。
 
+#### §2.9.1.10 `n`与`N`
+
+`n`（Next）用于让`sed`不处理当前行，而是处理当前行的下一行。它的意义相当于给正则表达式赋予了环视的功能。
+```shell
+$ cat data.txt # 任务：只删除Header后的空行
+	Header
+	
+	Content
+	
+	Footer
+$ sed '/^$/d' data.txt # 直接匹配会出错
+	Header
+	Content
+	Footer
+$ sed '/Header/{n; d;}' data.txt
+	Header
+	Content
+	
+	Footer
+```
+
+`N`（Next）用于让`sed`不仅处理当前行，还同时处理下一行。
+
+```shell
+$ cat data.txt
+	Header
+	
+	Content
+	
+	Footer
+$ sed '/Header/{N; s/\n/(换行符)/;}' data.txt
+	Header(换行符)
+	Content
+	
+	Footer
+```
+
+`N`命令经常用于跨行排版纯文本的词组替换：
+
+```shell
+$ cat data.txt
+	This is a RFC documentation of Ethernet
+	Protocol. Usually, documentattions will
+	be formatted to fit the limited column
+	size.
+$ sed 'N; s/Ethernet\nProtocol/IPv4\nProtocol/' data.txt
+	This is a RFC documentation of IPv4
+	Protocol. Usually, documentattions will
+	be formatted to fit the limited column
+	size.
+```
+
+**这里要额外警惕：`n`与`N`的识别行为类似于双指针，它只会检测`1/2`行、`3/4`行、...是否匹配，而不会检查`1/2`行、`2/3`行、`3/4`行、...是否匹配**。
+
+```shell
+$ cat data.txt
+	one
+	two
+	three
+	four
+$ sed 'N ; /one\ntwo/d' data.txt
+	three
+	four
+$ sed 'N ; /two\nthree/d' data.txt
+	one
+	two
+	three
+	four
+```
+
+**除此以外，`n`和`N`都要求当前行的下一行是存在的。如果当前行就是最后一行，则`sed`编辑器会判定为编辑结束，直接退出**。
+
+除了替换模式，`n`和`N`也能用户删除模式、打印模式等等。例如多行删除模式（`D`），只会删除匹配的第一行，而不会像`d`那样删除所有行。
+
+```shell
+$ cat data.txt
+	one
+	two
+	three
+	four
+$ sed 'N ; /one\ntwo/D' data.txt
+	two
+	three
+	four
+```
+
+#### §2.9.1.11 保留空间
+
+模式空间和保留空间都是`sed`提供的内存缓冲区。其中保留空间用于让开发者临时储存文本文件。相关的命令如下：
+
+- `h`：将模式空间复制到保留空间
+- `H`：将模式空间附加到保留空间
+- `g`：将保留空间复制到模式空间
+- `G`：将保留空间附加到模式空间
+- `x`：交换保留空间和模式空间的内容
+
+下面的例子演示了如何使用保留空间。其中`sed -n`选项阻止自动输出模式空间的内容，只有`p`命令才能打印输出：
+
+1. `sed`读取第一行`one`，存入模式空间
+2. `h`命令将模式空间复制到保留空间，两者的值均为`one`
+3. `p`命令打印模式空间，即`STDOUT`的第一行`one`
+4. `n`命令读入第二行`two`，将其覆盖到模式空间中
+5. `p`命令打印模式空间，即`STDOUT`的第二行`two`
+6. `g`命令将保留空间复制到模式空间，两者的值均为`one`
+7. `p`命令打印模式空间，即`STDOUT`的第三行`one`
+
+```shell
+$ echo -e "one\ntwo" | sed -n '/one/{h; p; n; p; g; p;}'
+	one
+	two
+	one
+```
+
+#### §2.9.1.12 排除模式
+
+排除模式`!`本质上是放在其他模式前面的修饰符，会让原本的命令失效。例如`!p`表示匹配到的不打印：
+
+```shell
+# 敏感词过滤
+$ echo -e "好\n坏\n善\n恶" | sed -n '/[坏恶]/!p'
+	好
+	善
+```
+
+前文说过，`n`和`N`不会处理当前行是最后一行的情况。事实上，我们完全可以使用`$!n`或`$!N`，表示如果当前行是最后一行，则禁用`n`或`N`。这里的`$`就是`[address]`的一个特例，其余情况正常使用。
+
+#### §2.9.1.13 分支
+
+分支的语法为`[address]b [label]?`，其中`[label]`表示要跳转到的`sed`命令的标签，缺省表示跳过`sed`的所有命令。
+
+可以看到， 在下面的例子中，`sed`跳过了第二行和第三行的替换操作：
+
+```shell
+$ cat data.txt
+	one
+	one
+	one
+$ cat data.txt | sed '2,3b; s/one/two/'
+	two
+	one
+	one
+```
+
+`[label]`需要自定义，不能超过七个字符：
+
+```shell
+$ cat data.txt
+	one two
+	one two
+	one two
+$ cat data.txt | sed '2b label2; :label1 s/one/three/; :label2 s/two/four/;'
+	three four
+	one four # 第二行的one没有被替换
+	three four
+```
+
+分支命令可以放在`sed`脚本中的任何位置：
+
+```shell
+$ cat data.txt
+	移,除,所,有,逗,号,
+$ cat data.txt | sed ':start p; s/,//; /,/b start;'
+	移,除,所,有,逗,号,
+	移除,所,有,逗,号,
+	移除所,有,逗,号,
+	移除所有,逗,号,
+	移除所有逗,号,
+	移除所有逗号,
+	移除所有逗号
+```
+
+#### §2.9.1.14 测试
+
+测试命令`t`的语法是`[address]t [label]?`，它提供了一种`sed`版的`if-then`语句。它会检测前一个命令是否匹配且执行成功。如果成功，则不跳转到标签；如果不成过，则跳转到标签。
+
+```shell
+$ cat data.txt
+	移,除,所,有,逗,号,
+$ cat data.txt | sed ':start p; s/,//; t start;'
+	移,除,所,有,逗,号,
+	移除,所,有,逗,号,
+	移除所,有,逗,号,
+	移除所有,逗,号,
+	移除所有逗,号,
+	移除所有逗号,
+	移除所有逗号
+	移除所有逗号
+```
+
+#### §2.9.1.15 正则表达式替换
+
+在形如`/<REGEX>/<SUBSTITUDE>/`的结构中，我们可以在`<SUBSTITUDE>`中使用`&`引用`<REGEX>`匹配的完整部分。
+
+```shell
+$ echo "Hello World" | sed 's/Hello/"&"/'
+	"Hello" World
+```
+
+也可以在`<REGEX>`中使用`(<SUB_REGEX>)`创建子模式，使用`\1`、`\2`、...分别引用第一个子模式、第二个子模式、...匹配的内容。
+
 ### §2.9.2 `gawk`
 
 `gawk`是`awk`的GNU版本，它提供了一个完整的编程环境，因此比`sed`更灵活。其语法为`gawk <OPTIONS>? <PROGRAM> <FILE>`，并且提供了以下常用选项：
@@ -1635,6 +1835,29 @@ $ cat /etc/passwd | gawk -F: 'BEGIN {print ">> Users List Begin<<";} {print $1;}
 	systemd-coredump
 	systemd-network
 	>> Users List End <<
+```
+
+#### §2.9.2.1 变量
+
+`gawk`支持两种变量：内建变量、自定义变量。
+
+前文介绍过数据字段变量（`$1`、`$2`、...），它们就属于内建变量。以下介绍了其他常用的内建变量：
+
+- `$FIELDWIDTHS`：用空格分隔的一系列数字，用于规定每个字段的宽度，一旦设置则`$FS`不生效
+- `$FS`：输入字段分隔符
+- `$RS`：输入记录分隔符
+- `$OFS`：输出字段分隔符，缺省为一个空格字符
+- `$ORS`：输出记录分隔符
+
+```shell
+$ cat data.txt
+	alice,15,male
+	bob,18,female
+	carol,22,male
+$ gawk 'BEGIN {FS=","; OFS=" - ";} {print $1,$2,$3}' data.txt
+	alice - 15 - male
+	bob - 18 - female
+	carol - 22 - male
 ```
 
 # §3 Shell脚本语法
