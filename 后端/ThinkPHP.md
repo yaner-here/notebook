@@ -14,15 +14,9 @@ $ ls
     CHANGELOG.md  extend         README.md    thinkphp
 ```
 
-
-
-
-
 ```shell
 $ php -S localhost:8080 -t public
 ```
-
-TODO：？？？？？？？？？？？？？
 
 # §2 配置
 
