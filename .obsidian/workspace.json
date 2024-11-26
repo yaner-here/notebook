@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux/Linux脚本编程.md",
+                "file": "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Linux脚本编程"
+              "title": "APE - Aligning and Prompting Everything All at Once for Universal Visual Perception"
             }
           }
         ]
@@ -53,10 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Linux/Linux脚本编程.md"
+                "file": "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md"
               },
               "icon": "lucide-list",
-              "title": "Outline of Linux脚本编程"
+              "title": "Outline of APE - Aligning and Prompting Everything All at Once for Universal Visual Perception"
             }
           },
           {
@@ -108,11 +108,11 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "47e4add9bd2925af",
+  "active": "67b9851f7a1c4a0b",
   "lastOpenFiles": [
+    "Linux/Linux脚本编程.md",
     "Linux配置.md",
     "Linux配置环境脚本.md",
-    "Linux/Linux脚本编程.md",
     "Linux/Linux.md",
     "PyQt6.md",
     "Linux",
