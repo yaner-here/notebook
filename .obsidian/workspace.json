@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "杂项.md",
+                "file": "Linux配置环境脚本.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "杂项"
+              "title": "Linux配置环境脚本"
             }
           }
         ]
@@ -53,10 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "杂项.md"
+                "file": "Linux配置环境脚本.md"
               },
               "icon": "lucide-list",
-              "title": "Outline of 杂项"
+              "title": "Outline of Linux配置环境脚本"
             }
           },
           {
@@ -65,7 +65,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "graphlet",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -73,7 +73,7 @@
                 "sortOrder": "alphabetical"
               },
               "icon": "lucide-search",
-              "title": "搜索"
+              "title": "Search"
             }
           },
           {
@@ -110,51 +110,52 @@
   },
   "active": "47e4add9bd2925af",
   "lastOpenFiles": [
+    "Linux/Linux脚本编程.md",
+    "Linux/Linux.md",
+    "Linux配置.md",
+    "PyQt6.md",
+    "Linux",
+    "Linux配置环境脚本.md",
+    "移动端/Android.md",
     "商品价格.md",
-    "同义替换.md",
-    "杂项.md",
-    "网络安全.md",
-    "Android.md",
-    "Blender.md",
+    "移动端",
     "CMake.md",
+    "Blender.md",
+    "杂项.md",
+    "同义替换.md",
+    "网络安全/CTF/XSS.md",
+    "网络安全/CTF/CTF.md",
+    "网络安全/CTF/千峰网络安全.md",
+    "网络安全/CTF/攻防世界WriteUp.md",
+    "网络安全/CTF/CVE-2018-20062.md",
+    "网络安全/CTF/DVWA.md",
+    "网络安全/CTF/PHP.md",
+    "网络安全/公钥密码学.md",
+    "网络安全/image-20210701135710934.png",
+    "AI/图神经网络.md",
+    "assets/graphlets_edge.svg",
+    "assets/graphlets-graph.svg",
+    "Python网络编程.md",
+    "Python.md",
+    "网络安全.md",
     "IPv6.md",
     "前端/WebSocket.md",
     "后端/ThinkPHP.md",
-    "后端/SQL.md",
-    "PyQt6.md",
-    "后端/MongoDB.md",
-    "小工具/Matplotlib.md",
-    "Linux配置环境脚本.md",
-    "Linux配置.md",
-    "Linux脚本编程.md",
-    "后端/Docker.md",
     "小工具",
-    "Python.md",
-    "批处理.md",
-    "参考文献.md",
     "AI/对比学习.drawio",
     "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",
     "2be28f77-68ba-4516-98c4-e0af830e2f5f-asset-svg.svg+xml",
     "undefined/icons/align-center-horizontal.svg",
     "undefined/icons/align-bottom.svg",
-    "AI/Tldraw 2024-11-11 4.15下午.md",
-    "AI/对比学习.md",
-    "未命名.tldraw.md",
     "undefined/icons/zoom-out.svg",
     "undefined/icons/zoom-in.svg",
     "undefined/icons/warning-triangle.svg",
     "undefined/icons/vertical-align-start.svg",
     "undefined/icons/vertical-align-middle.svg",
-    "undefined/icons/vertical-align-end.svg",
-    "undefined/icons/unlock.svg",
-    "undefined/icons/ungroup.svg",
     "undefined/icons",
     "undefined/fonts/Shantell_Sans-Tldrawish.woff2",
     "undefined/fonts/IBMPlexSerif-Medium.woff2",
     "undefined/fonts/IBMPlexSans-Medium.woff2",
-    "undefined/fonts/IBMPlexMono-Medium.woff2",
-    "undefined/fonts",
-    "AI/未命名.canvas",
-    "算法/ACM.md"
+    "AI/未命名.canvas"
   ]
 }
