@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
+                "file": "同义替换.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "APE - Aligning and Prompting Everything All at Once for Universal Visual Perception"
+              "title": "同义替换"
             }
           }
         ]
@@ -53,10 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md"
+                "file": "同义替换.md"
               },
               "icon": "lucide-list",
-              "title": "Outline of APE - Aligning and Prompting Everything All at Once for Universal Visual Perception"
+              "title": "Outline of 同义替换"
             }
           },
           {
@@ -108,8 +108,11 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "67b9851f7a1c4a0b",
+  "active": "47e4add9bd2925af",
   "lastOpenFiles": [
+    "杂项.md",
+    "同义替换.md",
+    "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
     "Linux/Linux脚本编程.md",
     "Linux配置.md",
     "Linux配置环境脚本.md",
@@ -121,8 +124,6 @@
     "移动端",
     "CMake.md",
     "Blender.md",
-    "杂项.md",
-    "同义替换.md",
     "网络安全/CTF/XSS.md",
     "网络安全/CTF/CTF.md",
     "网络安全/CTF/千峰网络安全.md",
@@ -140,7 +141,6 @@
     "网络安全.md",
     "IPv6.md",
     "前端/WebSocket.md",
-    "后端/ThinkPHP.md",
     "小工具",
     "AI/对比学习.drawio",
     "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",
