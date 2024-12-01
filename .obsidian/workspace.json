@@ -4,22 +4,22 @@
     "type": "split",
     "children": [
       {
-        "id": "f0796cadd6fbf982",
+        "id": "6ca310232291b536",
         "type": "tabs",
         "children": [
           {
-            "id": "47e4add9bd2925af",
+            "id": "b5063086302e421b",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "杂项.md",
+                "file": "AI/PyTorch.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "杂项"
+              "title": "PyTorch"
             }
           }
         ]
@@ -44,7 +44,7 @@
                 "sortOrder": "alphabetical"
               },
               "icon": "lucide-folder-closed",
-              "title": "Files"
+              "title": "文件列表"
             }
           },
           {
@@ -53,10 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "杂项.md"
+                "file": "AI/PyTorch.md"
               },
               "icon": "lucide-list",
-              "title": "Outline of 杂项"
+              "title": "PyTorch 的大纲"
             }
           },
           {
@@ -65,7 +65,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "graphlet",
+                "query": "",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -73,7 +73,7 @@
                 "sortOrder": "alphabetical"
               },
               "icon": "lucide-search",
-              "title": "Search"
+              "title": "搜索"
             }
           },
           {
@@ -103,46 +103,48 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:Open quick switcher": false,
-      "canvas:Create new canvas": false,
-      "command-palette:Open command palette": false,
+      "switcher:打开快速切换": false,
+      "canvas:新建白板": false,
+      "command-palette:打开命令面板": false,
       "tldraw:Create new tldrawing": false
     }
   },
   "active": "cb9847649a182d9a",
   "lastOpenFiles": [
-    "main.tar.gz",
-    "同义替换.md",
-    "杂项.md",
-    "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
-    "Linux/Linux脚本编程.md",
-    "Linux配置.md",
-    "Linux配置环境脚本.md",
-    "Linux/Linux.md",
-    "PyQt6.md",
-    "Linux",
-    "移动端/Android.md",
-    "商品价格.md",
-    "移动端",
-    "CMake.md",
-    "Blender.md",
-    "网络安全/CTF/XSS.md",
-    "网络安全/CTF/CTF.md",
-    "网络安全/CTF/千峰网络安全.md",
-    "网络安全/CTF/攻防世界WriteUp.md",
-    "网络安全/CTF/CVE-2018-20062.md",
-    "网络安全/CTF/DVWA.md",
-    "网络安全/CTF/PHP.md",
+    "算法/ACM.md",
+    "网络安全/深入PHP.md",
+    "网络安全/密码学.md",
     "网络安全/公钥密码学.md",
-    "网络安全/image-20210701135710934.png",
-    "AI/图神经网络.md",
-    "assets/graphlets_edge.svg",
-    "assets/graphlets-graph.svg",
-    "Python网络编程.md",
-    "Python.md",
-    "网络安全.md",
-    "IPv6.md",
+    "网络安全/XSS.md",
+    "网络安全/SQL注入.md",
+    "网络安全/Java代码审计.md",
+    "网络安全/CTF/attachment/Pasted image 20220529000114.png",
+    "网络安全/CTF/attachment/Pasted image 20220529002801.png",
+    "网络安全/CTF/attachment/Pasted image 20220529000049.png",
+    "网络安全/CTF/千峰网络安全.md",
+    "网络安全/CTF/隐写.md",
+    "网络安全/CTF/攻防世界WriteUp.md",
+    "网络安全/CTF/思路.md",
+    "网络安全/CTF/XSS.md",
+    "网络安全/CTF/PHP.md",
+    "网络安全/CTF/Java代码审计.md",
+    "网络安全/CTF/DVWA.md",
+    "网络安全/CTF/CVE-2018-20062.md",
+    "网络安全/CTF/CTF.md",
+    "网络安全/CTF/attachment",
+    "网络安全/CTF",
+    "移动端/Android.md",
+    "移动端",
+    "杂项.md",
+    "小工具/Vim.md",
+    "小工具/Regex.md",
+    "小工具/Matplotlib.md",
+    "小工具/Git.md",
     "小工具",
+    "后端/ThinkPHP.md",
+    "后端/SQL.md",
+    "后端/MongoDB.md",
+    "Linux",
     "AI/对比学习.drawio",
     "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",
     "2be28f77-68ba-4516-98c4-e0af830e2f5f-asset-svg.svg+xml",
@@ -155,8 +157,6 @@
     "undefined/icons/vertical-align-middle.svg",
     "undefined/icons",
     "undefined/fonts/Shantell_Sans-Tldrawish.woff2",
-    "undefined/fonts/IBMPlexSerif-Medium.woff2",
-    "undefined/fonts/IBMPlexSans-Medium.woff2",
     "AI/未命名.canvas"
   ]
 }
