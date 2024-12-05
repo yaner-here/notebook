@@ -4,25 +4,38 @@
     "type": "split",
     "children": [
       {
-        "id": "6ca310232291b536",
+        "id": "81a880d130d48656",
         "type": "tabs",
         "children": [
           {
-            "id": "b5063086302e421b",
+            "id": "14286745241409eb",
+            "type": "leaf",
+            "state": {
+              "type": "tldraw-view",
+              "state": {
+                "file": "AI/Tldraw 2024-12-04 8.40晚上.md"
+              },
+              "icon": "lucide-file",
+              "title": "Tldraw 2024-12-04 8.40晚上"
+            }
+          },
+          {
+            "id": "abe0ddde17b53333",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "AI/PyTorch.md",
+                "file": "AI/DINO.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "PyTorch"
+              "title": "DINO"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -53,10 +66,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "AI/PyTorch.md"
+                "file": "AI/DINO.md"
               },
               "icon": "lucide-list",
-              "title": "PyTorch 的大纲"
+              "title": "DINO 的大纲"
             }
           },
           {
@@ -86,8 +99,7 @@
               "title": "书签"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -109,8 +121,15 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "cb9847649a182d9a",
+  "active": "67b9851f7a1c4a0b",
   "lastOpenFiles": [
+    "AI/Tldraw 2024-12-04 8.40晚上.md",
+    "AI/PyTorch.md",
+    "AI/Tldraw 2024-11-11 4.15下午.md",
+    "Tldraw 2024-12-04 8.37晚上.md",
+    "AI/DINO.md",
+    "AI/Prompt/CoT.md",
+    "AI/Prompt",
     "算法/ACM.md",
     "网络安全/深入PHP.md",
     "网络安全/密码学.md",
@@ -137,13 +156,7 @@
     "移动端",
     "杂项.md",
     "小工具/Vim.md",
-    "小工具/Regex.md",
-    "小工具/Matplotlib.md",
-    "小工具/Git.md",
     "小工具",
-    "后端/ThinkPHP.md",
-    "后端/SQL.md",
-    "后端/MongoDB.md",
     "Linux",
     "AI/对比学习.drawio",
     "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",
@@ -156,7 +169,6 @@
     "undefined/icons/vertical-align-start.svg",
     "undefined/icons/vertical-align-middle.svg",
     "undefined/icons",
-    "undefined/fonts/Shantell_Sans-Tldrawish.woff2",
     "AI/未命名.canvas"
   ]
 }
