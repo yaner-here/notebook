@@ -20,18 +20,18 @@
             }
           },
           {
-            "id": "abe0ddde17b53333",
+            "id": "8e8f7bc3d39b34d7",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "AI/DINO.md",
+                "file": "Linux/NixOS.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "DINO"
+              "title": "NixOS"
             }
           }
         ],
@@ -66,10 +66,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "AI/Tldraw 2024-12-04 8.40晚上.md"
+                "file": "Linux/NixOS.md"
               },
               "icon": "lucide-list",
-              "title": "Tldraw 2024-12-04 8.40晚上 的大纲"
+              "title": "NixOS 的大纲"
             }
           },
           {
@@ -121,16 +121,25 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "abe0ddde17b53333",
+  "active": "8e8f7bc3d39b34d7",
   "lastOpenFiles": [
-    "AI/DINO.md",
+    "Linux/Linux.md",
+    "assets/graphlets_edge.svg",
+    "assets/graphlets-graph.svg",
+    "Linux/NixOS.md",
+    "Pasted image 20241218214658.png",
     "AI/Tldraw 2024-12-04 8.40晚上.md",
+    "算法/ACM.md",
+    "AI/DINO.md",
+    "yangang@10.7.26.171/share_ssd/yangang/ILSVRC2017_DET.tar.gz",
+    "yangang@10.7.26.171/share_ssd/yangang",
+    "yangang@10.7.26.171/share_ssd",
+    "yangang@10.7.26.171",
     "AI/PyTorch.md",
     "AI/Tldraw 2024-11-11 4.15下午.md",
     "Tldraw 2024-12-04 8.37晚上.md",
     "AI/Prompt/CoT.md",
     "AI/Prompt",
-    "算法/ACM.md",
     "网络安全/深入PHP.md",
     "网络安全/密码学.md",
     "网络安全/公钥密码学.md",
@@ -154,21 +163,12 @@
     "网络安全/CTF",
     "移动端/Android.md",
     "移动端",
-    "杂项.md",
-    "小工具/Vim.md",
     "小工具",
     "Linux",
-    "AI/对比学习.drawio",
-    "8e46e4d3-ad35-41ef-81fd-e7f6c770215d-asset-svg.svg+xml",
-    "2be28f77-68ba-4516-98c4-e0af830e2f5f-asset-svg.svg+xml",
     "undefined/icons/align-center-horizontal.svg",
     "undefined/icons/align-bottom.svg",
     "undefined/icons/zoom-out.svg",
     "undefined/icons/zoom-in.svg",
-    "undefined/icons/warning-triangle.svg",
-    "undefined/icons/vertical-align-start.svg",
-    "undefined/icons/vertical-align-middle.svg",
-    "undefined/icons",
     "AI/未命名.canvas"
   ]
 }
