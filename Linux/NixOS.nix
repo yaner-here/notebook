@@ -142,6 +142,9 @@
         systemCronJobs = [];
     };
 
+    # Clash Verge
+    programs.clash-verge = { enable = true; tunMode = false; autoStart = true; }
+
 	# Firefox
 	programs.firefox.enable = true;
 
@@ -164,9 +167,7 @@
     };
 
     # Java(OpenJDK)
-    programs.java = {
-        enable = true;
-    };
+    programs.java = { enable = true; };
 
 	environment.systemPackages = with pkgs; [
         pkgs.stdenv
@@ -184,16 +185,17 @@
         pkgs.yazi
         pkgs.btop pkgs.htop # top
         pkgs.apacheHttpd pkgs.nginx # Web Server
-        # pkgs.php
+        pkgs.php84 pkgs.php84Packages.composer # PHP
         pkgs.sqlite pkgs.datasette # Database
         pkgs.zip  pkgs.p7zip # Compression
-        pkgs.gcc pkgs.gnumake pkgs.cmake # Compilier
-        pkgs.python3
+        pkgs.gcc pkgs.gnumake pkgs.cmake # C/C++ Compilier
+        pkgs.python3 pkgs.conda # Python
         pkgs.gedit pkgs.neovide # GUI Editor
-        pkgs.nodejs
+        pkgs.nodejs pkgs.yarn pkgs.pnpm pkgs.bun
         pkgs.tmux pkgs.waveterm # Shell Emulator
 	    pkgs.rustc pkgs.cargo # Rust
         pkgs.antigen # zsh
+        pkgs.vscode pkgs.obsidian
 	];
 
 	# Some programs need SUID wrappers, can be configured further or are
