@@ -143,7 +143,7 @@
     };
 
     # Clash Verge
-    programs.clash-verge = { enable = true; tunMode = false; autoStart = true; }
+    programs.clash-verge = { package = pkgs.clash-verge-rev; enable = true; tunMode = false; autoStart = true; };
 
 	# Firefox
 	programs.firefox.enable = true;
@@ -195,7 +195,7 @@
         pkgs.tmux pkgs.waveterm # Shell Emulator
 	    pkgs.rustc pkgs.cargo # Rust
         pkgs.antigen # zsh
-        pkgs.vscode pkgs.obsidian
+        # pkgs.vscode pkgs.obsidian
 	];
 
 	# Some programs need SUID wrappers, can be configured further or are
