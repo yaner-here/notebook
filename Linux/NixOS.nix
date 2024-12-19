@@ -1,4 +1,3 @@
-```nix
 # Edit this configuration file to define what should be installed on
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
@@ -36,24 +35,16 @@
 	    LC_TIME = "zh_CN.UTF-8";
 	};
 
-	# Enable the X11 windowing system.
 	services.xserver.enable = true;
-
-	# Enable the GNOME Desktop Environment.
 	services.xserver.displayManager.gdm.enable = true;
 	services.xserver.desktopManager.gnome.enable = true;
+	services.xserver.xkb = { layout = "cn"; variant = ""; };
 
 	# >>> Customize: Support Hyper-V to avoiding "no screens found" error of X11 <<<
 	services.xserver.displayManager.gdm.wayland = true;
 	services.xserver.modules = [ pkgs.xorg.xf86videofbdev ];
 	services.xserver.videoDrivers = [ "hyperv_fb" ];
 	users.users.gdm = { extraGroups = [ "video" ]; }; # Also ensure that all users are added to user group "video"!
-
-	# Configure keymap in X11
-	services.xserver.xkb = {
-	    layout = "cn";
-	    variant = "";
-	};
 
 	# Enable CUPS to print documents.
 	services.printing.enable = true;
@@ -232,51 +223,3 @@
 	# (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
 	system.stateVersion = "24.11"; # Did you read the comment?
 }
-```
-
-```nix
-# Edit this configuration file to define what should be installed on
-# your system. Help is available in the configuration.nix(5) man page, on
-# https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
-
-# NixOS-WSL specific options are documented on the NixOS-WSL repository:
-# https://github.com/nix-community/NixOS-WSL
-
-# One-command Update: sudo nix-channel --update --option substituters "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store" && sudo nixos-rebuild switch --option substituters "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store" && sudo git --git-dir /etc/nixos/.git --work-tree /etc/nixos add . -A && sudo git --git-dir /etc/nixos/.git --work-tree /etc/nixos commit -m "Install: datasette, a sqlite web wrapper" && sudo git --git-dir /etc/nixos/.git/ --work-tree /etc/nixos/ push
-
-{ config, lib, pkgs, ... }:
-
-{
-    imports = [
-        # include NixOS-WSL modules
-        <nixos-wsl/modules>
-    ];
-
-    wsl.enable = true;
-    wsl.defaultUser = "nixos";
-
-    # Desktop Environment
-    services.xserver = {
-        enable = true;
-        desktopManager.plasma5.enable = true;
-    };
-    services.displayManager.sddm.enable = true;
-    services.xrdp = {
-        enable = true;
-        audio.enable = true;
-        port = 3389;
-        defaultWindowManager = "startplasma-x11";
-        openFirewall = true;
-    };
-
-
-
-    # This value determines the NixOS release from which the default
-    # settings for stateful data, like file locations and database versions
-    # on your system were taken. It's perfectly fine and recommended to leave
-    # this value at the release version of the first install of this system.
-    # Before changing this value read the documentation for this option
-    # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-    system.stateVersion = "24.05"; # Did you read the comment?
-}
-```
