@@ -26,7 +26,7 @@
 		fontDir = { enable = true; };
 		packages = with pkgs; [
 			noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif noto-fonts-emoji-blob-bin
-			nerdfonts.CascadiaCode
+			nerd-fonts.caskaydia-cove
 		];
 		fontconfig = {
 			defaultFonts = {
