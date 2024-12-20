@@ -87,6 +87,7 @@
     programs.fish.vendor.config.enable = true;
     users.defaultUserShell = pkgs.fish;
     environment.shellAliases = {
+    	ls = "lsd -lahFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
         cp = "cp -i"; # 文件名重复时需手动确认
         mv = "mv -i"; # 文件名重复时需手动确认
         mkdir = "mkdir -p"; # 目录路径不存在时自动创建
@@ -195,7 +196,8 @@
         pkgs.tmux pkgs.waveterm # Shell Emulator
 	    pkgs.rustc pkgs.cargo # Rust
         pkgs.antigen # zsh
-        # pkgs.vscode pkgs.obsidian
+        pkgs.vscode # pkgs.obsidian
+        pkgs.clash-nyanpasu
 	];
 
 	# Some programs need SUID wrappers, can be configured further or are
