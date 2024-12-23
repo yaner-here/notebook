@@ -13,14 +13,30 @@
 	boot.loader.systemd-boot.enable = true;
 	boot.loader.efi.canTouchEfiVariables = true;
 
-	networking.hostName = "nixos"; # Define your hostname.
-	# networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-
-	# Configure network proxy if necessary
+	# Network
+	networking.hostName = "nixos";
+	# networking.wireless.enable = true; # Confilict with networking.networkmanager.enable = true;
 	# networking.proxy.default = "http://user:password@proxy:port/";
 	# networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-
 	networking.networkmanager.enable = true;
+	
+	# Font
+	fonts = {
+		enableDefaultPackages = true;
+		fontDir = { enable = true; };
+		packages = with pkgs; [
+			noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif noto-fonts-emoji-blob-bin
+			nerd-fonts.caskaydia-cove
+		];
+		fontconfig = {
+			defaultFonts = {
+				monospace = [ "CascadiaCode" ];
+			};
+			useEmbeddedBitmaps = true;
+		};
+	};
+	
+	# Time and Locale
 	time.timeZone = "Asia/Shanghai";
 	i18n.defaultLocale = "zh_CN.UTF-8";
 	i18n.extraLocaleSettings = {
@@ -35,16 +51,24 @@
 	    LC_TIME = "zh_CN.UTF-8";
 	};
 
+	# Desktop Environment
 	services.xserver.enable = true;
 	services.xserver.displayManager.gdm.enable = true;
 	services.xserver.desktopManager.gnome.enable = true;
 	services.xserver.xkb = { layout = "cn"; variant = ""; };
 
-	# >>> Customize: Support Hyper-V to avoiding "no screens found" error of X11 <<<
-	services.xserver.displayManager.gdm.wayland = true;
-	services.xserver.modules = [ pkgs.xorg.xf86videofbdev ];
-	services.xserver.videoDrivers = [ "hyperv_fb" ];
-	users.users.gdm = { extraGroups = [ "video" ]; }; # Also ensure that all users are added to user group "video"!
+		## >>> Customize: Support Hyper-V to avoiding "no screens found" error of X11 <<<
+		services.xserver.displayManager.gdm.wayland = true;
+		services.xserver.modules = [ pkgs.xorg.xf86videofbdev ];
+		services.xserver.videoDrivers = [ "hyperv_fb" ];
+		users.users.gdm = { extraGroups = [ "video" ]; }; # Also ensure that all users are added to user group "video"!
+		
+		## Hyprland
+		programs.hyprland = {
+			enable = true;
+			withUWSM = true;
+			xwayland.enable = true;
+		};
 
 	# Enable CUPS to print documents.
 	services.printing.enable = true;
@@ -68,7 +92,7 @@
 	# Enable touchpad support (enabled default in most desktopManager).
 	# services.xserver.libinput.enable = true;
 
-	# Define a user account. Don't forget to set a password with ‘passwd’.
+	# User
 	users.users.yaner = {
 	    isNormalUser = true;
 	    description = "Yaner";
@@ -87,9 +111,11 @@
     programs.fish.vendor.config.enable = true;
     users.defaultUserShell = pkgs.fish;
     environment.shellAliases = {
-        cp = "cp -i"; # 文件名重复时需手动确认
-        mv = "mv -i"; # 文件名重复时需手动确认
-        mkdir = "mkdir -p"; # 目录路径不存在时自动创建
+    	ls = "lsd -lahFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
+        cp = "cp -i";
+        mv = "mv -i";
+        mkdir = "mkdir -p";
+        nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
     };
 
     # NixOS Package Manager Mirror Source
@@ -142,6 +168,9 @@
         systemCronJobs = [];
     };
 
+    # Clash Verge
+    programs.clash-verge = { package = pkgs.clash-verge-rev; enable = true; tunMode = false; autoStart = true; };
+
 	# Firefox
 	programs.firefox.enable = true;
 
@@ -164,9 +193,7 @@
     };
 
     # Java(OpenJDK)
-    programs.java = {
-        enable = true;
-    };
+    programs.java = { enable = true; };
 
 	environment.systemPackages = with pkgs; [
         pkgs.stdenv
@@ -184,16 +211,18 @@
         pkgs.yazi
         pkgs.btop pkgs.htop # top
         pkgs.apacheHttpd pkgs.nginx # Web Server
-        # pkgs.php
+        pkgs.php84 pkgs.php84Packages.composer # PHP
         pkgs.sqlite pkgs.datasette # Database
         pkgs.zip  pkgs.p7zip # Compression
-        pkgs.gcc pkgs.gnumake pkgs.cmake # Compilier
-        pkgs.python3
+        pkgs.gcc pkgs.gnumake pkgs.cmake # C/C++ Compilier
+        pkgs.python3 pkgs.conda # Python
         pkgs.gedit pkgs.neovide # GUI Editor
-        pkgs.nodejs
+        pkgs.nodejs pkgs.yarn pkgs.pnpm pkgs.bun
         pkgs.tmux pkgs.waveterm # Shell Emulator
 	    pkgs.rustc pkgs.cargo # Rust
         pkgs.antigen # zsh
+        pkgs.vscode # pkgs.obsidian
+        pkgs.clash-nyanpasu
 	];
 
 	# Some programs need SUID wrappers, can be configured further or are
