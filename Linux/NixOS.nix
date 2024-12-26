@@ -97,12 +97,28 @@
 	services.xserver.desktopManager.gnome.enable = true;
 	services.xserver.xkb = { layout = "cn"; variant = ""; };
 
+        ## >>> Customize: Gnome tweaks
+        services.gnome = {
+            core-shell.enable = true;
+            core-utilities.enable = true;
+            glib-networking.enable = true;
+            gnome-browser-connector.enable = true;
+        };
+        programs.gnome-terminal.enable = true;
+        
+        ## >>> Customize: Xrdp
+        services.xrdp = {
+            enable = true; audio.enable = true;
+            port = 3389;
+            defaultWindowManager = "gnome-session";
+            openFirewall = true;
+        };
+
 		## >>> Customize: Support Hyper-V to avoiding "no screens found" error of X11 <<<
 		# services.xserver.displayManager.gdm.wayland = true;
-		services.xserver.modules = [ pkgs.xorg.xf86videofbdev ];
+		services.xserver.modules = [ pkgs.xorg.xf86videofbdev pkgs.xorg.xsm ];
 		services.xserver.videoDrivers = [ "hyperv_fb" "nvidia" "modesetting" "fbdev" ];
 		users.users.gdm = { extraGroups = [ "video" ]; }; # Also ensure that all users are added to user group "video"!
-
         hardware.graphics.enable = true;
         hardware.nvidia.open = false;
 
@@ -114,11 +130,11 @@
 		};
 		
 		## Hyprland
-		programs.hyprland = {
-			enable = true;
-			withUWSM = true;
-			xwayland.enable = true;
-		};
+		# programs.hyprland = {
+		#	enable = true;
+		#	withUWSM = true;
+		#	xwayland.enable = true;
+		#};
 
 	# Enable CUPS to print documents.
 	services.printing.enable = true;
@@ -133,23 +149,19 @@
 	    pulse.enable = true;
 		# If you want to use JACK applications, uncomment this
 	    #jack.enable = true;
-
-		# use the example session manager (no others are packaged yet so this is enabled by default,
-	    # no need to redefine it in your config for now)
-	    #media-session.enable = true;
 	};
 
 	# Enable touchpad support (enabled default in most desktopManager).
 	# services.xserver.libinput.enable = true;
+
+    services.flatpak.enable = true;
 
 	# User
 	users.users.yaner = {
 	    isNormalUser = true;
 	    description = "Yaner";
 	    extraGroups = [ "networkmanager" "wheel" "video" ];
-	    packages = with pkgs; [
-		    #  thunderbird
-	    ];
+	    packages = with pkgs; [ ];
 	};
 
 	# Allow unfree packages
@@ -161,10 +173,12 @@
     programs.fish.vendor.config.enable = true;
     users.defaultUserShell = pkgs.fish;
     environment.shellAliases = {
-    	ls = "lsd -lahFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
+    	ls = "lsd -laAhFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
         cp = "cp -i";
         mv = "mv -i";
         mkdir = "mkdir -p";
+        hexdump = "hexdump -CL";
+        gpustat = "gpustat -cupF -P limit --watch 1";
         nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
     };
 
@@ -178,6 +192,14 @@
     system.autoUpgrade.enable = true;
     system.autoUpgrade.allowReboot = false;
     system.autoUpgrade.channel = "https://nixos.org/channels/nixos-24.11";
+
+    services.n8n = {
+        # enable = true;
+        openFirewall = false;
+        settings = {
+            
+        };
+    };
 
     # Neovim
     programs.neovim = {
@@ -201,6 +223,8 @@
         enable = true;
         npmrc = ''
             color=true
+            http-proxy=${builtins.getEnv "HTTP_PROXY"}
+            https-proxy=${builtins.getEnv "HTTPS_PROXY"}
         '';
     };
 
@@ -260,6 +284,12 @@
     # Java(OpenJDK)
     programs.java = { enable = true; };
 
+    # Tailscale
+    services.tailscale = {
+        enable = true;
+        openFirewall = true;
+    };
+
 	environment.systemPackages = with pkgs; [
         pkgs.stdenv
         pkgs.git-credential-oauth pkgs.gh # Git
@@ -274,7 +304,7 @@
         pkgs.fastfetch
         pkgs.cmd-wrapped
         pkgs.yazi
-        pkgs.btop pkgs.htop # top
+        pkgs.btop pkgs.htop pkgs.gpustat # top
         pkgs.apacheHttpd pkgs.nginx # Web Server
         pkgs.php84 pkgs.php84Packages.composer # PHP
         pkgs.sqlite pkgs.datasette # Database
@@ -282,13 +312,18 @@
         pkgs.gcc pkgs.gnumake pkgs.cmake # C/C++ Compilier
         pkgs.python3 pkgs.conda # Python
         pkgs.gedit pkgs.neovide # GUI Editor
-        pkgs.nodejs pkgs.yarn pkgs.pnpm pkgs.bun
+        pkgs.nodejs_23 pkgs.yarn pkgs.pnpm pkgs.bun
         pkgs.tmux pkgs.waveterm # Shell Emulator
-	    pkgs.rustc pkgs.cargo # Rust
+	    pkgs.rustc pkgs.rustup pkgs.cargo # Rust
         pkgs.antigen # zsh
         pkgs.vscode
 		pkgs.obsidian
-        pkgs.clash-nyanpasu
+        pkgs.clash-nyanpasu pkgs.v2rayn
+        pkgs.gnome-tweaks pkgs.gnome-shell pkgs.gnome-shell-extensions pkgs.dconf-editor pkgs.gnome-power-manager
+        pkgs.indicator-application-gtk3 pkgs.gnomeExtensions.just-perfection pkgs.gnomeExtensions.dash-to-panel pkgs.gnomeExtensions.hot-edge pkgs.gnomeExtensions.appindicator
+        pkgs.cudatoolkit # CUDA
+        pkgs.nmap pkgs.file pkgs.tldr
+        pkgs.flatpak-builder
 	];
 
 	# Some programs need SUID wrappers, can be configured further or are
