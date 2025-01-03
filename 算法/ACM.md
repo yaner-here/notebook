@@ -6713,6 +6713,38 @@ int main() {
 }
 ```
 
+### §3.1.6 回溯
+
+回溯是一种特殊的DFS。普通DFS将当前所有状态全部传给下一层的DFS，**状态转移是单向的**。而回溯会有选择性地转移部分状态，如果没有搜索到，就撤销当前DFS对状态的改动，**状态转义是可以撤销的**。
+
+> [洛谷P11041](https://www.luogu.com.cn/problem/solution/P11041)：给定一个`n×n`（`n<=20`）的棋盘，从左上角`(0, 0)`处出发，每次只能在上下左右任选其中一个方向前进一步，且不能超出棋盘范围，每个格子最多只能访问一次，最终到达右下角`(n-1, n-1)`。已知存在一种路径，使得第`i`行/第`j`列的`n`个格子中，恰好有`x_max[i]`/`y_max[j]`个格子在路径中，求这个路径按顺序经过的各个格子。数据保证答案存在且唯一。
+
+本题我们DFS递归时，如果每个状态均携带`n`个行/列的路径格子信息，与当前坐标`(x, y)`，则每个状态均需要`2n+2`个变量储存。不妨使用递归，每次进入一个格子时，如果合法，则直接编辑`x_max`和`y_max`本身；如果当前DFS分支搜索失败，则撤销对`x_max`和`y_max`的编辑。
+
+```c++
+const int N_MAX = 20, directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+int n, x_max[N_MAX], y_max[N_MAX], stack[N_MAX * N_MAX + 1], stack_top = 0;
+bool visited[N_MAX][N_MAX];
+void dfs(int x, int y){
+    if(x < 0 || y < 0 || x >= n || y >= n) { return; }
+    if(visited[x][y] == true) { return; }
+    if(x_max[x] <= 0 || y_max[y] <= 0) { return; }
+    --x_max[x]; --y_max[y]; visited[x][y] = true; stack[++stack_top] = x * n + y;
+    if(x == n - 1 && y == n - 1 && std::all_of(x_max, x_max + n, [](int &x){ return x == 0; }) && std::all_of(y_max, y_max + n, [](int &y){ return y == 0; })) {
+        for(int i = 1; i <= stack_top; ++i) { std::cout << stack[i] << ' '; }
+        exit(0);
+    }
+    for(int i = 0; i < 4; ++i) { dfs(x + directions[i][0], y + directions[i][1]); }
+    ++x_max[x]; ++y_max[y]; visited[x][y] = false; --stack_top;
+}
+int main(){
+    std::cin >> n;
+    for(int i = 0; i < n; ++i){ std::cin >> y_max[i]; }
+    for(int i = 0; i < n; ++i){ std::cin >> x_max[i]; }
+    dfs(0, 0);
+}
+```
+
 ## §3.2 二分
 
 有些题目满足这些特征：要直接求解答案很难，但是验证某个答案是否正确却很简单。**二分的魅力在于：我们不直接求解答案，而是用二分猜答案**。由于二分是对数级别的时间复杂度，因此我们可以猜很大的范围。
