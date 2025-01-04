@@ -13,13 +13,13 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux/Linux脚本编程.md",
+                "file": "算法/ACM.md",
                 "mode": "source",
                 "backlinks": false,
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Linux脚本编程"
+              "title": "ACM"
             }
           }
         ]
@@ -53,10 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Linux/Linux脚本编程.md"
+                "file": "算法/ACM.md"
               },
               "icon": "lucide-list",
-              "title": "Linux脚本编程 的大纲"
+              "title": "ACM 的大纲"
             }
           },
           {
@@ -105,12 +105,12 @@
     "hiddenItems": {
       "switcher:打开快速切换": false,
       "canvas:新建白板": false,
-      "command-palette:打开命令面板": false,
-      "tldraw:Create new tldrawing": false
+      "command-palette:打开命令面板": false
     }
   },
   "active": "cb9847649a182d9a",
   "lastOpenFiles": [
+    "Linux/Linux脚本编程.md",
     "Btrfs.md",
     "AI/Tldraw 2024-12-04 8.40晚上.md",
     "Linux/NixOS.md",
@@ -148,7 +148,6 @@
     "网络安全/CTF/Java代码审计.md",
     "网络安全/CTF/DVWA.md",
     "网络安全/CTF/CVE-2018-20062.md",
-    "网络安全/CTF/CTF.md",
     "网络安全/CTF/attachment",
     "网络安全/CTF",
     "移动端",
