@@ -16428,6 +16428,8 @@ int main() {
 
 堆的本质是一棵树，每个子节点都表示一个值，每个子节点都大于/小于其父亲节的值，称为小根堆/大根堆。小根堆/大根堆能够快速地插入、查询、删除值，支持多个堆之间的合并。
 
+### §7.7.1 数据结构实现
+
 | 均摊时间复杂度 | 插入             | 删除             | 查询     | 修改             | 堆合并            | 可持久化 |
 | ------- | -------------- | -------------- | ------ | -------------- | -------------- | ---- |
 | 配对堆     | $O(1)$         | $O(\log_2{n})$ | $O(1)$ | $O(\log_2{n})$ | $O(1)$         | ❌    |
@@ -16436,7 +16438,7 @@ int main() {
 | 二项堆     | $O(\log_2{n})$ | $O(\log_2{n})$ | $O(1)$ | $O(\log_2{n})$ | $O(\log_2{n})$ | ✔    |
 | 斐波那契堆   | $O(1)$         | $O(\log_2{n})$ | $O(1)$ | $O(1)$         | $O(1)$         | ❌    |
 
-### §7.7.1 二叉堆
+#### §7.7.1.1 二叉堆
 
 二叉堆是最常用的堆，它的本质是一颗完全二叉树，可以使用数组`heap[N_MAX + 1]`模拟。
 
@@ -16589,15 +16591,49 @@ int main() {
 }
 ```
 
-### §7.7.2 左偏树
+#### §7.7.1.2 左偏树
 
-### §7.7.3 二项堆
+#### §7.7.1.3 二项堆
 
-### §7.7.4 配对堆
+#### §7.7.1.4 配对堆
 
-### §7.7.5 斐波纳挈堆
+#### §7.7.1.5 斐波纳挈堆
 
-## §7.9 哈希
+### §7.7.2 对顶堆
+
+> [洛谷P1801]()：给定数组`a[1->n]`，求前`1`、`3`、`5`、`...`等所有奇数个数字的中位数。
+
+使用对顶堆即可。
+
+```c++
+std::priority_queue<int, std::vector<int>, std::greater<int>> min_heap;
+std::priority_queue<int, std::vector<int>, std::less<int>> max_heap;
+int n, a_temp;
+int main(){
+    std::cin >> n;
+    while(true){
+        if(n == 0) { break; } // 防止初始n为偶数，导致此处仍需输入
+        --n; std::cin >> a_temp; // 对于第奇数个数字，优先放在小根堆中
+        if(min_heap.size() == 0 ||a_temp > min_heap.top()) { min_heap.push(a_temp); } else { max_heap.push(a_temp); } // 维护min_heap.top() >= max_heap.top()的约束
+        
+        while(min_heap.size() - 1 > max_heap.size()){ // 让中位数优先放在小根堆中
+            max_heap.push(min_heap.top());
+            min_heap.pop();
+        }
+        while(max_heap.size() > min_heap.size()){
+            min_heap.push(max_heap.top());
+            max_heap.pop();
+        }
+        std::cout << min_heap.top() << '\n';
+        
+        if(n == 0) { break; } // 防止初始n为偶数，导致此处仍需输入
+        --n; std::cin >> a_temp;
+        if(min_heap.size() == 0 || a_temp > min_heap.top()) { min_heap.push(a_temp); } else { max_heap.push(a_temp); } // 维护min_heap.top() >= max_heap.top()的约束
+    }
+}
+```
+
+## §7.8 哈希
 
 哈希的本质是对状态的非连续离散化编号。
 
@@ -16632,7 +16668,7 @@ int main() {
 }
 ```
 
-## §7.10 Multiset
+## §7.9 Multiset
 
 Multiset允许存储多个`value`相同的元素。
 
