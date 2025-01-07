@@ -56,7 +56,7 @@
                 "file": "算法/ACM.md"
               },
               "icon": "lucide-list",
-              "title": "ACM 的大纲"
+              "title": "Outline of ACM"
             }
           },
           {
@@ -103,10 +103,9 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:打开快速切换": false,
-      "canvas:新建白板": false,
-      "command-palette:打开命令面板": false,
-      "tldraw:Create new tldrawing": false
+      "switcher:Open quick switcher": false,
+      "canvas:Create new canvas": false,
+      "command-palette:Open command palette": false
     }
   },
   "active": "cb9847649a182d9a",

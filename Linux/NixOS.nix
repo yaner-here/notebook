@@ -171,6 +171,7 @@
     programs.zsh.enable = true;
     programs.fish.enable = true;
     programs.fish.vendor.config.enable = true;
+    programs.starship = { enable = true; };
     users.defaultUserShell = pkgs.fish;
     environment.shellAliases = {
     	ls = "lsd -laAhFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
@@ -179,6 +180,7 @@
         mkdir = "mkdir -p";
         hexdump = "hexdump -CL";
         gpustat = "gpustat -cupF -P limit --watch 1";
+        sqlite3 = "litecli --auto-vertical-output --table";
         nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
     };
 
@@ -232,6 +234,29 @@
             http-proxy=${builtins.getEnv "HTTP_PROXY"}
             https-proxy=${builtins.getEnv "HTTPS_PROXY"}
         '';
+    };
+
+    # Apache
+    services.httpd = {
+        enable = false;
+        group = "wwwrun";
+        enablePHP = true; enablePerl = true;
+        phpPackage = pkgs.php.buildEnv {
+            extensions = ({ enabled, all }: enabled ++ (with all; [xdebug]));
+            extraConfig = ''
+            '';
+        };
+    };
+    services.freshrss = {
+        enable = true;
+        language = "zh-cn";
+        defaultUser = "yaner";
+        passwordFile = "/run/secrets/freshrss";
+        dataDir = "/var/lib/freshrss"; database.type = "sqlite";
+        baseUrl = "http://yaner.com/";
+        extensions = with pkgs.freshrss-extensions; [ 
+            youtube title-wrap reddit-image reading-time 
+        ];
     };
 
     # Atuin
@@ -312,9 +337,9 @@
         cmd-wrapped
         yazi
         btop htop gpustat mission-center # top
-        apacheHttpd nginx # Web Server
-        php84 php84Packages.composer # PHP
-        sqlite datasette # Database
+        nginx # Web Server
+        php phpPackages.composer # PHP
+        sqlite litecli # Database
         zip  p7zip # Compression
         gcc gnumake cmake # C/C++ Compilier
         python3 conda # Python
@@ -325,6 +350,7 @@
         antigen # zsh
         vscode
 		obsidian
+        doggo # DNS
         clash-nyanpasu v2rayn
         gnome-tweaks gnome-shell gnome-shell-extensions dconf-editor gnome-power-manager
         indicator-application-gtk3 gnomeExtensions.just-perfection gnomeExtensions.dash-to-panel gnomeExtensions.hot-edge gnomeExtensions.appindicator
