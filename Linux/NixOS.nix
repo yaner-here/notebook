@@ -6,7 +6,7 @@
 
 {
 	imports = [
-	    ./hardware-configuration.nix
+		./hardware-configuration.nix
 	];
 
 	# Bootloader
@@ -19,30 +19,30 @@
 	# networking.proxy.default = "http://user:password@proxy:port/";
 	# networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
 	networking.networkmanager.enable = true;
-    
-    # Storage
-    services.btrfs = {
-        autoScrub.enable = true;
-        autoScrub.interval = "weekly";
-    };
-    # services.snapper = {
-    #     snapshotRootOnBoot = true;
-    #     snapshotInterval = "hourly";
-    #     cleanupInterval = "1d";
-    #     persistentTimer = true;
-    #     configs.root = {
-    #         SUBVOLUME = "/";
-    #         ALLOW_USERS = [ "yaner" ];
-    #         ALLOW_GROUPS = [ "root" ];
-    #         TIMELINE_CREATE = true;
-    #         TIMELINE_CLEANUP = true;
-    #         TIMELINE_LIMIT_HOURLY = 1;
-    #         TIMELINE_LIMIT_DAILY = 24;
-    #         TIMELINE_LIMIT_WEEKLY = 1;
-    #         TIMELINE_LIMIT_MONTHLY = 1;
-    #         TIMELINE_LIMIT_YEARLY = 12;
-    #     };
-    # };
+	
+	# Storage
+	services.btrfs = {
+		autoScrub.enable = true;
+		autoScrub.interval = "weekly";
+	};
+	# services.snapper = {
+	#	 snapshotRootOnBoot = true;
+	#	 snapshotInterval = "hourly";
+	#	 cleanupInterval = "1d";
+	#	 persistentTimer = true;
+	#	 configs.root = {
+	#		 SUBVOLUME = "/";
+	#		 ALLOW_USERS = [ "yaner" ];
+	#		 ALLOW_GROUPS = [ "root" ];
+	#		 TIMELINE_CREATE = true;
+	#		 TIMELINE_CLEANUP = true;
+	#		 TIMELINE_LIMIT_HOURLY = 1;
+	#		 TIMELINE_LIMIT_DAILY = 24;
+	#		 TIMELINE_LIMIT_WEEKLY = 1;
+	#		 TIMELINE_LIMIT_MONTHLY = 1;
+	#		 TIMELINE_LIMIT_YEARLY = 12;
+	#	 };
+	# };
 
 	# Font
 	fonts = {
@@ -97,30 +97,30 @@
 	services.xserver.desktopManager.gnome.enable = true;
 	services.xserver.xkb = { layout = "cn"; variant = ""; };
 
-        ## >>> Customize: Gnome tweaks
-        services.gnome = {
-            core-shell.enable = true;
-            core-utilities.enable = true;
-            glib-networking.enable = true;
-            gnome-browser-connector.enable = true;
-        };
-        programs.gnome-terminal.enable = true;
-        
-        ## >>> Customize: Xrdp
-        services.xrdp = {
-            enable = true; audio.enable = true;
-            port = 3389;
-            defaultWindowManager = "gnome-session";
-            openFirewall = true;
-        };
+		## >>> Customize: Gnome tweaks
+		services.gnome = {
+			core-shell.enable = true;
+			core-utilities.enable = true;
+			glib-networking.enable = true;
+			gnome-browser-connector.enable = true;
+		};
+		programs.gnome-terminal.enable = true;
+		
+		## >>> Customize: Xrdp
+		services.xrdp = {
+			enable = true; audio.enable = true;
+			port = 3389;
+			defaultWindowManager = "gnome-session";
+			openFirewall = true;
+		};
 
 		## >>> Customize: Support Hyper-V to avoiding "no screens found" error of X11 <<<
 		# services.xserver.displayManager.gdm.wayland = true;
 		services.xserver.modules = [ pkgs.xorg.xf86videofbdev pkgs.xorg.xsm ];
 		services.xserver.videoDrivers = [ "hyperv_fb" "nvidia" "modesetting" "fbdev" ];
 		users.users.gdm = { extraGroups = [ "video" ]; }; # Also ensure that all users are added to user group "video"!
-        hardware.graphics.enable = true;
-        hardware.nvidia.open = false;
+		hardware.graphics.enable = true;
+		hardware.nvidia.open = false;
 
 
 		qt = {
@@ -143,224 +143,251 @@
 	services.pulseaudio.enable = false;
 	security.rtkit.enable = true;
 	services.pipewire = {
-	    enable = true;
-	    alsa.enable = true;
-	    alsa.support32Bit = true;
-	    pulse.enable = true;
+		enable = true;
+		alsa.enable = true;
+		alsa.support32Bit = true;
+		pulse.enable = true;
 		# If you want to use JACK applications, uncomment this
-	    #jack.enable = true;
+		#jack.enable = true;
 	};
 
 	# Enable touchpad support (enabled default in most desktopManager).
 	# services.xserver.libinput.enable = true;
 
-    services.flatpak.enable = true;
+	services.flatpak.enable = true;
 
 	# User
 	users.users.yaner = {
-	    isNormalUser = true;
-	    description = "Yaner";
-	    extraGroups = [ "networkmanager" "wheel" "video" ];
-	    packages = with pkgs; [ ];
+		isNormalUser = true;
+		description = "Yaner";
+		extraGroups = [ "networkmanager" "wheel" "video" ];
+		packages = with pkgs; [ ];
 	};
 
 	# Allow unfree packages
 	nixpkgs.config.allowUnfree = true;
 
-    # Shell
-    programs.zsh.enable = true;
-    programs.fish.enable = true;
-    programs.fish.vendor.config.enable = true;
-    programs.starship = { enable = true; };
-    users.defaultUserShell = pkgs.fish;
-    environment.shellAliases = {
-    	ls = "lsd -laAhFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
-        cp = "cp -i";
-        mv = "mv -i";
-        mkdir = "mkdir -p";
-        hexdump = "hexdump -CL";
-        gpustat = "gpustat -cupF -P limit --watch 1";
-        sqlite3 = "litecli --auto-vertical-output --table";
-        nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
-    };
+	# Shell
+	programs.zsh.enable = true;
+	programs.fish.enable = true;
+	programs.fish.vendor.config.enable = true;
+	programs.starship = { 
+		enable = true;
+		settings = {
+			format = "[](color_orange)$os$username[](bg:color_yellow fg:color_orange)$directory[](fg:color_yellow bg:color_aqua)$git_branch$git_status[](fg:color_aqua bg:color_blue)$c$rust$golang$nodejs$php$java$kotlin$haskell$python[](fg:color_blue bg:color_bg3)$docker_context$conda[](fg:color_bg3 bg:color_bg1)$time[ ](fg:color_bg1)$line_break$character";
+			palette = "gruvbox_dark";
+			palettes.gruvbox_dark = { color_fg0 = "#fbf1c7"; color_bg1 = "#3c3836"; color_bg3 = "#665c54"; color_blue = "#458588"; color_aqua = "#689d6a"; color_green = "#98971a"; color_orange = "#d65d0e"; color_purple = "#b16286"; color_red = "#cc241d"; color_yellow = "#d79921"; };
+			os = { style = "bg:color_orange fg:color_fg0"; symbols = { Windows = "󰍲"; Ubuntu = "󰕈"; SUSE = ""; Raspbian = "󰐿"; Mint = "󰣭"; Macos = "󰀵"; Manjaro = ""; Linux = "󰌽"; Gentoo = "󰣨"; Fedora = "󰣛"; Alpine = ""; Amazon = ""; Android = ""; Arch = "󰣇"; Artix = "󰣇"; EndeavourOS = ""; CentOS = ""; Debian = "󰣚"; Redhat = "󱄛"; RedHatEnterprise = "󱄛"; Pop = ""; }; };
+			username = { show_always = true; style_user = "bg:color_orange fg:color_fg0"; style_root = "bg:color_orange fg:color_fg0"; format = "[ $user ]($style)"; };
+			directory = { style = "fg:color_fg0 bg:color_yellow"; format = "[ $path ]($style)"; truncation_length = 3; truncation_symbol = "…/"; substitutions = { Documents = "󰈙 "; Downloads = " "; Music = "󰝚 "; Pictures = " "; Developer = "󰲋 "; }; };
+			git_branch = { symbol = ""; style = "bg:color_aqua"; format = "[[ $symbol $branch ](fg:color_fg0 bg:color_aqua)]($style)"; };
+			git_status = { style = "bg:color_aqua"; format = "[[($all_status$ahead_behind )](fg:color_fg0 bg:color_aqua)]($style)"; };
+			nodejs = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			c = { symbol = " "; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			rust = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			golang = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			php = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			java = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			kotlin = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			haskell = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			python = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
+			docker_context = { symbol = ""; style = "bg:color_bg3"; format = "[[ $symbol( $context) ](fg:#83a598 bg:color_bg3)]($style)"; };
+			conda = { style = "bg:color_bg3"; format = "[[ $symbol( $environment) ](fg:#83a598 bg:color_bg3)]($style)"; };
+			time = { time_format = "%R"; style = "bg:color_bg1"; format = "[[  $time ](fg:color_fg0 bg:color_bg1)]($style)"; };
+			line_break = { disabled = false; };
+			character = { success_symbol = "[>](bold fg:color_green)"; error_symbol = "[>](bold fg:color_red)"; vimcmd_symbol = "[>](bold fg:color_green)"; vimcmd_replace_one_symbol = "[>](bold fg:color_purple)"; vimcmd_replace_symbol = "[>](bold fg:color_purple)"; vimcmd_visual_symbol = "[>](bold fg:color_yellow)"; };
+		};
+	};
+	users.defaultUserShell = pkgs.fish;
+	environment.shellAliases = {
+		ls = "lsd -laAhFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
+		cp = "cp -i";
+		mv = "mv -i";
+		mkdir = "mkdir -p";
+		hexdump = "hexdump -CL";
+		gpustat = "gpustat -cupF -P limit --watch 1";
+		sqlite3 = "litecli --auto-vertical-output --table";
+		nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
+	};
 
-    # NixOS Package Manager Mirror Source
-    # nix-channel --add https://nixos.org/channels/nixos-unstable nixos
-    # nix-channel --add https://mirrors.tuna.tsinghua.edu.cn/nix-channels/nixos-unstable nixos
-    nix.settings.substituters = [ "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store" ];
+	# NixOS Package Manager Mirror Source
+	# nix-channel --add https://nixos.org/channels/nixos-unstable nixos
+	# nix-channel --add https://mirrors.tuna.tsinghua.edu.cn/nix-channels/nixos-unstable nixos
+	nix.settings.substituters = [ "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store" ];
 
-    # Disable IPv6
-    # boot.kernel.sysctl."new.ipv6.conf.eth0.disable_ipv6" = true;
+	# Disable IPv6
+	# boot.kernel.sysctl."new.ipv6.conf.eth0.disable_ipv6" = true;
 
-    # System
-    system.autoUpgrade.enable = true;
-    system.autoUpgrade.allowReboot = false;
-    system.autoUpgrade.channel = "https://nixos.org/channels/nixos-24.11";
+	# System
+	system.autoUpgrade.enable = true;
+	system.autoUpgrade.allowReboot = false;
+	system.autoUpgrade.channel = "https://nixos.org/channels/nixos-24.11";
 
-    services.n8n = {
-        # enable = true;
-        openFirewall = false;
-        settings = {
-            
-        };
-    };
+	services.n8n = {
+		#enable = true;
+		openFirewall = false;
+		settings = {
+			
+		};
+	};
 
-    # Neovim
-    programs.neovim = {
-        enable = true;
-        defaultEditor = true;
-        configure = {
-            customRC = ''
-                set tabstop=4
-                set shiftwidth=4
-                set smartindent
-                set expandtab
-                set autoindent
-            '';
-            packages.myVimPackage = with pkgs.vimPlugins; {
-                start = [ LazyVim ];
-                opt = [];
-            };
-        };
-        viAlias = true;
-        vimAlias = true;
-    };
+	# Neovim
+	programs.neovim = {
+		enable = true;
+		defaultEditor = true;
+		configure = {
+			customRC = ''
+				set tabstop=4
+				set shiftwidth=4
+				set smartindent
+				set expandtab
+				set autoindent
+			'';
+			packages.myVimPackage = with pkgs.vimPlugins; {
+				start = [ LazyVim ];
+				opt = [];
+			};
+		};
+		viAlias = true;
+		vimAlias = true;
+	};
 
-    # npm
-    programs.npm = {
-        enable = true;
-        npmrc = ''
-            color=true
-            http-proxy=${builtins.getEnv "HTTP_PROXY"}
-            https-proxy=${builtins.getEnv "HTTPS_PROXY"}
-        '';
-    };
+	# npm
+	programs.npm = {
+		enable = true;
+		npmrc = ''
+			color=true
+			http-proxy=${builtins.getEnv "HTTP_PROXY"}
+			https-proxy=${builtins.getEnv "HTTPS_PROXY"}
+		'';
+	};
 
-    # Apache
-    services.httpd = {
-        enable = false;
-        group = "wwwrun";
-        enablePHP = true; enablePerl = true;
-        phpPackage = pkgs.php.buildEnv {
-            extensions = ({ enabled, all }: enabled ++ (with all; [xdebug]));
-            extraConfig = ''
-            '';
-        };
-    };
-    services.freshrss = {
-        enable = true;
-        language = "zh-cn";
-        defaultUser = "yaner";
-        passwordFile = "/run/secrets/freshrss";
-        dataDir = "/var/lib/freshrss"; database.type = "sqlite";
-        baseUrl = "http://yaner.com/";
-        extensions = with pkgs.freshrss-extensions; [ 
-            youtube title-wrap reddit-image reading-time 
-        ];
-    };
+	# Apache
+	services.httpd = {
+		enable = false;
+		group = "wwwrun";
+		enablePHP = true; enablePerl = true;
+		phpPackage = pkgs.php.buildEnv {
+			extensions = ({ enabled, all }: enabled ++ (with all; [xdebug]));
+			extraConfig = ''
+			'';
+		};
+	};
+	services.freshrss = {
+		enable = true;
+		language = "zh-cn";
+		defaultUser = "yaner";
+		passwordFile = "/run/secrets/freshrss";
+		dataDir = "/var/lib/freshrss"; database.type = "sqlite";
+		baseUrl = "http://yaner.com/";
+		extensions = with pkgs.freshrss-extensions; [ 
+			youtube title-wrap reddit-image reading-time 
+		];
+	};
 
-    # Atuin
-    services.atuin = { enable = true; };
+	# Atuin
+	services.atuin = { enable = true; };
 
-    # Atd
-    services.atd = { enable = true; };
+	# Atd
+	services.atd = { enable = true; };
 
-    # Cron
-    services.cron = {
-        enable = true;
-        mailto = "";
-        cronFiles = [];
-        systemCronJobs = [];
-    };
+	# Cron
+	services.cron = {
+		enable = true;
+		mailto = "";
+		cronFiles = [];
+		systemCronJobs = [];
+	};
 
-    # Clash Verge
-    programs.clash-verge = { package = pkgs.clash-verge-rev; enable = true; autoStart = true; };
+	# Clash Verge
+	programs.clash-verge = { package = pkgs.clash-verge-rev; enable = true; autoStart = true; };
 
-    # Docker
-    virtualisation.docker = {
-        enable = true;
-        storageDriver = "btrfs";
-        daemon.settings = {
-            "default-address-pools" = [{ "base" = "172.27.0.0/16"; "size" = 24; }];
-        };
-        autoPrune = {
-            enable = true;
-            dates = "1d";
-            flags = [ "--all" ];
-        };
-    };
-    hardware.nvidia-container-toolkit.enable = true;
+	# Docker
+	virtualisation.docker = {
+		enable = true;
+		storageDriver = "btrfs";
+		daemon.settings = {
+			"default-address-pools" = [{ "base" = "172.27.0.0/16"; "size" = 24; }];
+		};
+		autoPrune = {
+			enable = true;
+			dates = "1d";
+			flags = [ "--all" ];
+		};
+	};
+	hardware.nvidia-container-toolkit.enable = true;
 
 	# Firefox
 	programs.firefox.enable = true;
 
-    # Git
-    programs.git = {
-        enable = true;
-        prompt.enable = true;
-        lfs.enable = true;
-        config = {
-            aliases = {
-                undo = "reset --soft HEAD^";
-                cancel = "reset --hard HEAD^";
-                append = "commit -a --amend --no-edit";
-            };
-            user = {
-                email = "1468275133@qq.com";
-                name = "yaner-here";
-            };
-        };
-    };
+	# Git
+	programs.git = {
+		enable = true;
+		prompt.enable = true;
+		lfs.enable = true;
+		config = {
+			aliases = {
+				undo = "reset --soft HEAD^";
+				cancel = "reset --hard HEAD^";
+				append = "commit -a --amend --no-edit";
+			};
+			user = {
+				email = "1468275133@qq.com";
+				name = "yaner-here";
+			};
+		};
+	};
 
-    # Java(OpenJDK)
-    programs.java = { enable = true; };
+	# Java(OpenJDK)
+	programs.java = { enable = true; };
 
-    # Tailscale
-    services.tailscale = {
-        enable = true;
-        openFirewall = true;
-    };
+	# Tailscale
+	services.tailscale = {
+		enable = true;
+		openFirewall = true;
+	};
 
 	environment.systemPackages = with pkgs; [
-        stdenv
-        bat # cat
-        git-credential-oauth gh # Git
-        docker lazydocker # Docker
-        compsize
-        tree dutree
-        busybox
-        btrfs-progs
-        lsd eza # ls
-        fd
-        xh
-        fastfetch
-        cmd-wrapped
-        yazi
-        btop htop gpustat mission-center # top
-        nginx # Web Server
-        php phpPackages.composer # PHP
-        sqlite litecli # Database
-        zip  p7zip # Compression
-        gcc gnumake cmake # C/C++ Compilier
-        python3 conda # Python
-        gedit neovide # GUI Editor
-        nodejs_23 yarn pnpm bun
-        tmux waveterm # Shell Emulator
-	    rustc rustup cargo # Rust
-        antigen # zsh
-        vscode
+		stdenv
+		bat # cat
+		git-credential-oauth gh # Git
+		compsize
+		tree dutree
+		busybox
+		lazydocker
+		btrfs-progs
+		lsd eza # ls
+		fd
+		xh
+		fastfetch
+		cmd-wrapped
+		yazi
+		btop htop gpustat mission-center # top
+		nginx # Web Server
+		php phpPackages.composer # PHP
+		sqlite litecli # Database
+		zip  p7zip # Compression
+		gcc gnumake cmake # C/C++ Compilier
+		python3 conda # Python
+		yt-dlp
+		gedit neovide # GUI Editor
+		nodejs_23 yarn pnpm bun
+		tmux waveterm # Shell Emulator
+		rustc rustup cargo # Rust
+		antigen # zsh
+		vscode
 		obsidian
-        doggo # DNS
-        clash-nyanpasu v2rayn
-        gnome-tweaks gnome-shell gnome-shell-extensions dconf-editor gnome-power-manager
-        indicator-application-gtk3 gnomeExtensions.just-perfection gnomeExtensions.dash-to-panel gnomeExtensions.hot-edge gnomeExtensions.appindicator
-        cudatoolkit # CUDA
-        nmap file tldr
-        google-chrome
-        flatpak-builder
-        monolith
-        vlc # Media Player
-        mkcert # Cert
+		doggo # DNS
+		clash-nyanpasu v2rayn
+		gnome-tweaks gnome-shell gnome-shell-extensions dconf-editor gnome-power-manager
+		indicator-application-gtk3 gnomeExtensions.just-perfection gnomeExtensions.dash-to-panel gnomeExtensions.hot-edge gnomeExtensions.appindicator
+		cudatoolkit # CUDA
+		nmap file tldr
+		google-chrome
+		flatpak-builder
+		monolith
+		vlc # Media Player
+		mkcert # Cert
 	];
 
 	# Some programs need SUID wrappers, can be configured further or are
