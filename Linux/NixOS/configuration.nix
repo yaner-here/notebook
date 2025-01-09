@@ -380,7 +380,7 @@
 		php phpPackages.composer # PHP
 		sqlite litecli # Database
 		zip  p7zip # Compression
-		gcc gnumake cmake # C/C++ Compilier
+		gcc gnumake cmake clang clang-tools # C/C++ Compilier
 		python3 conda # Python
 		yt-dlp
 		gedit neovide # GUI Editor
@@ -411,10 +411,19 @@
 	#   enableSSHSupport = true;
 	# };
 
-	# List services that you want to enable:
-	
-	# Enable the OpenSSH daemon.
-	# services.openssh.enable = true;
+	# openssh
+	services.openssh = {
+        enable = true;
+        listenAddresses = [{ addr = "0.0.0.0"; port = 22; }];
+        banner = "Welcome to yaner's nixos host.";
+        allowSFTP = true;
+        settings = {
+            AllowGroups = [ "users" ];
+            PermitRootLogin = "no";
+            UseDns = true;
+            X11Forwarding = true;
+        };
+    };
 	
 	# Open ports in the firewall.
 	# networking.firewall.allowedTCPPorts = [ ... ];
