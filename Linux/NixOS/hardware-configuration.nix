@@ -7,8 +7,8 @@
   imports = [ ];
 
   boot.initrd.availableKernelModules = [ "sd_mod" "sr_mod" "btrfs" "nvme" ];
-  boot.initrd.kernelModules = [ ];
-  boot.kernelModules = [ ];
+  boot.initrd.kernelModules = [ "nvme" ];
+  boot.kernelModules = [ "nvme" ];
   boot.extraModulePackages = [ ];
 
   fileSystems."/" =
