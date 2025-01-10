@@ -16,6 +16,7 @@
         "boot.shell_on_fail"
         "boot.trace"
     ];
+    boot.supportedFilesystems = [ "btrfs" "ntfs" ];
 
 	# Network
 	networking.hostName = "nixos";
@@ -218,6 +219,7 @@
 	# nix-channel --add https://nixos.org/channels/nixos-unstable nixos
 	# nix-channel --add https://mirrors.tuna.tsinghua.edu.cn/nix-channels/nixos-unstable nixos
 	nix.settings.substituters = [ "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store" ];
+    nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
 	# Disable IPv6
 	# boot.kernel.sysctl."new.ipv6.conf.eth0.disable_ipv6" = true;
@@ -248,7 +250,7 @@
 				set autoindent
 			'';
 			packages.myVimPackage = with pkgs.vimPlugins; {
-				start = [ LazyVim catppuccin-nvim ];
+				start = [ catppuccin-nvim ];
 				opt = [];
 			};
 		};
@@ -368,13 +370,14 @@
 		tree dutree
 		busybox
 		lazydocker
-		btrfs-progs
+		btrfs-progs btrfs-assistant # Btrfs
 		lsd eza # ls
 		fd
 		xh
 		fastfetch
 		cmd-wrapped
 		yazi
+        curl wget
 		btop htop gpustat mission-center # top
 		nginx # Web Server
 		php phpPackages.composer # PHP
