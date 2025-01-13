@@ -31,7 +31,7 @@
     autoScrub.interval = "weekly";
   };
   services.snapper = {
-   snapshotRootOnBoot = true;
+   snapshotRootOnBoot = false;
    snapshotInterval = "hourly";
    cleanupInterval = "1d";
    persistentTimer = true;
@@ -42,10 +42,10 @@
   	 TIMELINE_CREATE = true;
   	 TIMELINE_CLEANUP = true;
   	 TIMELINE_LIMIT_HOURLY = 1;
-  	 TIMELINE_LIMIT_DAILY = 24;
+  	 TIMELINE_LIMIT_DAILY = 12;
   	 TIMELINE_LIMIT_WEEKLY = 1;
   	 TIMELINE_LIMIT_MONTHLY = 1;
-  	 TIMELINE_LIMIT_YEARLY = 12;
+  	 TIMELINE_LIMIT_YEARLY = 2;
    };
   };
 
@@ -225,6 +225,7 @@
     gpustat = "gpustat -cupF -P limit --watch 1";
     sqlite3 = "litecli --auto-vertical-output --table";
     nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
+    nixbuild-flake = "sudo nixos-rebuild switch --flake /etc/nixos --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
   };
 
   # NixOS Package Manager Mirror Source
@@ -356,6 +357,14 @@
     };
   };
 
+  # nix-ld
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [
+      stdenv libgcc libllvm
+    ];
+  };
+
   # Java(OpenJDK)
   programs.java = { enable = true; };
 
@@ -389,9 +398,13 @@
     dutree
     busybox
     lazydocker
+
+    # btrfs
     btrfs-progs
     btrfs-assistant
-    compsize # Btrfs
+    compsize
+    duperemove
+
     lsd
     eza # ls
     fd
@@ -435,7 +448,7 @@
     rustup
     cargo # Rust
     antigen # zsh
-    vscode
+    vscode-fhs
     obsidian
     doggo # DNS
     clash-nyanpasu
@@ -452,9 +465,10 @@
     nmap
     file
     tldr
-    google-chrome
+    google-chrome chromedriver
     flatpak-builder
     monolith
+    digikam # Image Viewer
     vlc # Media Player
     mkcert # Cert
   ];

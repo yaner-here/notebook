@@ -6,10 +6,17 @@
 {
   imports = [ ];
 
-  boot.initrd.availableKernelModules = [ "sd_mod" "sr_mod" "btrfs" "nvme" ];
-  boot.initrd.kernelModules = [ "nvme" ];
-  boot.kernelModules = [ "nvme" ];
+  boot.initrd.availableKernelModules = [ 
+    # Hyper-V Desktop Environment
+    "sd_mod" "sr_mod" 
+
+    "btrfs" 
+    "nvme" 
+  ];
+  boot.initrd.kernelModules = [ ];
+  boot.kernelModules = [ ];
   boot.extraModulePackages = [ ];
+  # boot.swraid.enable = true; # Enable mdadm for supporting Intel RST(Rapid Storage Technology) RAID
 
   fileSystems."/" =
     { device = "/dev/disk/by-uuid/7db0220a-c7af-4821-bda0-b5fc06eab352";
