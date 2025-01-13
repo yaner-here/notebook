@@ -44,7 +44,7 @@
                 "sortOrder": "alphabetical"
               },
               "icon": "lucide-folder-closed",
-              "title": "文件列表"
+              "title": "Files"
             }
           },
           {
@@ -105,18 +105,19 @@
     "hiddenItems": {
       "switcher:Open quick switcher": false,
       "canvas:Create new canvas": false,
-      "command-palette:Open command palette": false
+      "command-palette:Open command palette": false,
+      "tldraw:Create new tldrawing": false
     }
   },
   "active": "cb9847649a182d9a",
   "lastOpenFiles": [
-    "Btrfs.md",
     "CMake.md",
+    "算法/ACM.md",
+    "Btrfs.md",
     "Blender.md",
     "杂项.md",
     "Linux/Linux.md",
     "Linux/Linux脚本编程.md",
-    "算法/ACM.md",
     "AI/Tldraw 2024-12-04 8.40晚上.md",
     "Linux/NixOS.md",
     "Linux/NixOS.nix",
