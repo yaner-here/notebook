@@ -31,22 +31,23 @@
     autoScrub.interval = "weekly";
   };
   services.snapper = {
-   snapshotRootOnBoot = false;
-   snapshotInterval = "hourly";
-   cleanupInterval = "1d";
-   persistentTimer = true;
-   configs.root = { # Need to execute `sudo btrfs subvolume create /.snapshots` in advanced manually
-     SUBVOLUME = "/";
-     ALLOW_USERS = [ "yaner" ];
-     ALLOW_GROUPS = [ "root" ];
-  	 TIMELINE_CREATE = true;
-  	 TIMELINE_CLEANUP = true;
-  	 TIMELINE_LIMIT_HOURLY = 1;
-  	 TIMELINE_LIMIT_DAILY = 12;
-  	 TIMELINE_LIMIT_WEEKLY = 1;
-  	 TIMELINE_LIMIT_MONTHLY = 1;
-  	 TIMELINE_LIMIT_YEARLY = 2;
-   };
+    snapshotRootOnBoot = false;
+    snapshotInterval = "hourly";
+    cleanupInterval = "1d";
+    persistentTimer = true;
+    configs.root = {
+      # Need to execute `sudo btrfs subvolume create /.snapshots` in advanced manually
+      SUBVOLUME = "/";
+      ALLOW_USERS = [ "yaner" ];
+      ALLOW_GROUPS = [ "root" ];
+      TIMELINE_CREATE = true;
+      TIMELINE_CLEANUP = true;
+      TIMELINE_LIMIT_HOURLY = 1;
+      TIMELINE_LIMIT_DAILY = 12;
+      TIMELINE_LIMIT_WEEKLY = 1;
+      TIMELINE_LIMIT_MONTHLY = 1;
+      TIMELINE_LIMIT_YEARLY = 2;
+    };
   };
 
   # Font
@@ -93,6 +94,7 @@
         fcitx5-lua
         fcitx5-gtk
         fcitx5-skk
+        fcitx5-mozc
         librime
         fcitx5-rime
         rime-data
@@ -102,8 +104,31 @@
         fcitx5-pinyin-moegirl
         fcitx5-pinyin-minecraft
         fcitx5-configtool
+        fcitx5-material-color
       ];
       fcitx5.waylandFrontend = true;
+      fcitx5.settings = {
+        addons = {
+          classicui.globalSection.Theme = "Material-Color-deepPurple";
+          classicui.globalSection.DarkTheme = "Material-Color-deepPurple";
+          pinyin.globalSection = {
+            PageSize = 5;
+            CloudPinyinEnabled = "True";
+            CloudPinyinIndex = 2;
+          };
+          cloudpinyin.globalSection = { Backend = "Baidu"; };
+        };
+        inputMethod = {
+          "Groups/0" = {
+            Name = "Default";
+            "Default Layout" = "us";
+            DefaultIM = "keyboard-us";
+          };
+          "Groups/0/Items/0".Name = "keyboard-us";
+          "Groups/0/Items/1".Name = "pinyin";
+          GroupOrder."0" = "Default";
+        };
+      };
     };
   };
 
@@ -361,7 +386,9 @@
   programs.nix-ld = {
     enable = true;
     libraries = with pkgs; [
-      stdenv libgcc libllvm
+      stdenv
+      libgcc
+      libllvm
     ];
   };
 
@@ -433,7 +460,7 @@
     clang
     clang-tools
     lldb # C/C++ Compilier
-    
+
     python3
     conda # Python
     yt-dlp
@@ -459,16 +486,21 @@
     dconf-editor
     gnome-power-manager
     indicator-application-gtk3
-    gnomeExtensions.just-perfection gnomeExtensions.dash-to-panel gnomeExtensions.hot-edge gnomeExtensions.appindicator
+    gnomeExtensions.just-perfection
+    gnomeExtensions.dash-to-panel
+    gnomeExtensions.hot-edge
+    gnomeExtensions.appindicator
     gnomeExtensions.kimpanel
     cudatoolkit # CUDA
     nmap
     file
     tldr
-    google-chrome chromedriver
+    google-chrome
+    chromedriver
     flatpak-builder
     monolith
-    digikam # Image Viewer
+    digikam
+    gwenview # Image Viewer
     vlc # Media Player
     mkcert # Cert
   ];
@@ -509,3 +541,4 @@
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "24.11"; # Did you read the comment?
 }
+
