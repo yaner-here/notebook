@@ -88,7 +88,11 @@
     };
     inputMethod = {
       enable = true;
-      type = "fcitx5";
+
+      type = "ibus"; # Use ibus. According to ArchWiki, you should config with GNOME setting > Keyboard > Input Method, not ibus-setup.
+      ibus.engines = with pkgs.ibus-engines; [ rime libpinyin ];
+      
+      # type = "fcitx5"; # Use fcitx5.
       fcitx5.addons = with pkgs; [
         fcitx5-skk
         fcitx5-lua
@@ -249,8 +253,12 @@
     hexdump = "hexdump -CL";
     gpustat = "gpustat -cupF -P limit --watch 1";
     sqlite3 = "litecli --auto-vertical-output --table";
+    wget = "wget -c";
     nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
-    nixbuild-flake = "sudo nixos-rebuild switch --flake /etc/nixos --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
+    nixbuild-flake = "sudo nix flake update && sudo nixos-rebuild switch --flake /etc/nixos --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
+  };
+  environment.variables = {
+      CUDA_HOME = "${pkgs.cudatoolkit}";
   };
 
   # NixOS Package Manager Mirror Source
@@ -491,6 +499,7 @@
     gnomeExtensions.hot-edge
     gnomeExtensions.appindicator
     gnomeExtensions.kimpanel
+    gnomeExtensions.customize-ibus
     cudatoolkit # CUDA
     nmap
     file
@@ -503,6 +512,7 @@
     gwenview # Image Viewer
     vlc # Media Player
     mkcert # Cert
+    libreoffice
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
