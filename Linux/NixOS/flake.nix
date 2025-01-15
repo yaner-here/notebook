@@ -3,9 +3,17 @@
     inputs = {
         nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     };
-    outputs = { self, nixpkgs, ... }@inputs: {
-        nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
-            system = "x86_64-linux";
+
+    outputs = { self, nixpkgs }: let
+        system = "x86_64-linux";
+        pkgs = import nixpkgs {
+            inherit system;
+            config = {
+                allowUnfree = true;
+            };
+        };
+    in {
+        nixosConfigurations.nixos = nixpkgs.lib.nixosSystem { # Hostname: nixos
             modules = [
                 ./configuration.nix
             ];
