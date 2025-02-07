@@ -20,6 +20,7 @@
 
   # Network
   # networking.proxy.default = "http://user:password@proxy:port/";
+    networking.proxy.default = "http://127.0.0.1:7897";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
   # boot.kernel.sysctl."new.ipv6.conf.eth0.disable_ipv6" = true; # Disable IPv6
   networking.hostName = "nixos";
@@ -49,6 +50,12 @@
       TIMELINE_LIMIT_YEARLY = 2;
     };
   };
+
+  # Power
+  systemd.targets.sleep.enable = false;
+  systemd.targets.suspend.enable = false;
+  systemd.targets.hibernate.enable = false;
+  systemd.targets.hybrid-sleep.enable = false;
 
   # Font
   fonts = {
@@ -150,6 +157,20 @@
     gnome-browser-connector.enable = true;
   };
   programs.gnome-terminal.enable = true;
+  programs.dconf = {
+    enable = true;
+    profiles.user.databases = [
+      {
+        settings = {
+          "org/gnome/desktop/wm/preferences".button-layout = "appmenu:minimize,maximize,close";
+          "org/gnome/desktop/interface" = {
+            clock-show-seconds = true;
+            clock-show-weekday = true;
+          };
+        };
+      }
+    ];
+  };
 
   ## >>> Customize: Xrdp
   services.xrdp = {
@@ -166,7 +187,10 @@
   services.xserver.videoDrivers = [ "nvidia" "hyperv_fb" "modesetting" "fbdev" ];
   users.users.gdm = { extraGroups = [ "video" ]; }; # Also ensure that all users are added to user group "video"!
   hardware.graphics.enable = true;
-  hardware.nvidia.open = false;
+  hardware.nvidia = {
+      open = false;
+      package = config.boot.kernelPackages.nvidiaPackages.beta;
+  };
 
 
   qt = {
@@ -212,39 +236,10 @@
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
+  nixpkgs.config.nvidia.acceptLicense = true;
 
   # Shell
-  programs.zsh.enable = true;
-  programs.fish.enable = true;
-  programs.fish.vendor.config.enable = true;
-  programs.starship = {
-    enable = true;
-    settings = {
-      format = "[](color_orange)$os$username[](bg:color_yellow fg:color_orange)$directory[](fg:color_yellow bg:color_aqua)$git_branch$git_status[](fg:color_aqua bg:color_blue)$c$rust$golang$nodejs$php$java$kotlin$haskell$python[](fg:color_blue bg:color_bg3)$docker_context$conda[](fg:color_bg3 bg:color_bg1)$time[ ](fg:color_bg1)$line_break$character";
-      palette = "gruvbox_dark";
-      palettes.gruvbox_dark = { color_fg0 = "#fbf1c7"; color_bg1 = "#3c3836"; color_bg3 = "#665c54"; color_blue = "#458588"; color_aqua = "#689d6a"; color_green = "#98971a"; color_orange = "#d65d0e"; color_purple = "#b16286"; color_red = "#cc241d"; color_yellow = "#d79921"; };
-      os = { style = "bg:color_orange fg:color_fg0"; symbols = { Windows = "󰍲"; Ubuntu = "󰕈"; SUSE = ""; Raspbian = "󰐿"; Mint = "󰣭"; Macos = "󰀵"; Manjaro = ""; Linux = "󰌽"; Gentoo = "󰣨"; Fedora = "󰣛"; Alpine = ""; Amazon = ""; Android = ""; Arch = "󰣇"; Artix = "󰣇"; EndeavourOS = ""; CentOS = ""; Debian = "󰣚"; Redhat = "󱄛"; RedHatEnterprise = "󱄛"; Pop = ""; }; };
-      username = { show_always = true; style_user = "bg:color_orange fg:color_fg0"; style_root = "bg:color_orange fg:color_fg0"; format = "[ $user ]($style)"; };
-      directory = { style = "fg:color_fg0 bg:color_yellow"; format = "[ $path ]($style)"; truncation_length = 3; truncation_symbol = "…/"; substitutions = { Documents = "󰈙 "; Downloads = " "; Music = "󰝚 "; Pictures = " "; Developer = "󰲋 "; }; };
-      git_branch = { symbol = ""; style = "bg:color_aqua"; format = "[[ $symbol $branch ](fg:color_fg0 bg:color_aqua)]($style)"; };
-      git_status = { style = "bg:color_aqua"; format = "[[($all_status$ahead_behind )](fg:color_fg0 bg:color_aqua)]($style)"; };
-      nodejs = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      c = { symbol = " "; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      rust = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      golang = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      php = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      java = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      kotlin = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      haskell = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      python = { symbol = ""; style = "bg:color_blue"; format = "[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)"; };
-      docker_context = { symbol = ""; style = "bg:color_bg3"; format = "[[ $symbol( $context) ](fg:#83a598 bg:color_bg3)]($style)"; };
-      conda = { style = "bg:color_bg3"; format = "[[ $symbol( $environment) ](fg:#83a598 bg:color_bg3)]($style)"; };
-      time = { time_format = "%R"; style = "bg:color_bg1"; format = "[[  $time ](fg:color_fg0 bg:color_bg1)]($style)"; };
-      line_break = { disabled = false; };
-      character = { success_symbol = "[>](bold fg:color_green)"; error_symbol = "[>](bold fg:color_red)"; vimcmd_symbol = "[>](bold fg:color_green)"; vimcmd_replace_one_symbol = "[>](bold fg:color_purple)"; vimcmd_replace_symbol = "[>](bold fg:color_purple)"; vimcmd_visual_symbol = "[>](bold fg:color_yellow)"; };
-    };
-  };
-  users.defaultUserShell = pkgs.fish;
+
   environment.shellAliases = {
     ls = "lsd -laAhFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
     cp = "cp -i";
@@ -255,10 +250,15 @@
     sqlite3 = "litecli --auto-vertical-output --table";
     wget = "wget -c";
     nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
-    nixbuild-flake = "sudo nix flake update && sudo nixos-rebuild switch --flake /etc/nixos --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
+    nixbuild-flake = "sudo nix-channel --update && sudo nix flake update --flake /etc/nixos && sudo nixos-rebuild switch --flake /etc/nixos --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
   };
   environment.variables = {
       CUDA_HOME = "${pkgs.cudatoolkit}";
+  };
+
+  services.ollama = {
+    enable = true;
+    acceleration = "cuda";
   };
 
   # NixOS Package Manager Mirror Source
@@ -348,7 +348,10 @@
     enable = true;
     mailto = "";
     cronFiles = [ ];
-    systemCronJobs = [ ];
+    systemCronJobs = [ 
+      "0 2 * * *   root nvidia-smi -pl 280"
+      "30 5 * * *  root nvidia-smi =pl 120"
+    ];
   };
 
   # Clash Verge
@@ -440,19 +443,27 @@
     compsize
     duperemove
 
+    # diff
+    meld
+
     lsd
     eza # ls
+
+    # find
     fd
+    television
     xh
     fastfetch
     cmd-wrapped
     yazi
     curl
     wget
+    
     btop
     htop
     gpustat
-    mission-center # top
+    mission-center 
+    nvtopPackages.nvidia # top
     nginx # Web Server
     php
     phpPackages.composer # PHP
@@ -468,6 +479,10 @@
     clang
     clang-tools
     lldb # C/C++ Compilier
+
+    b3sum # Hash
+
+    screen
 
     python3
     conda # Python
@@ -500,7 +515,9 @@
     gnomeExtensions.appindicator
     gnomeExtensions.kimpanel
     gnomeExtensions.customize-ibus
+    
     cudatoolkit # CUDA
+
     nmap
     file
     tldr
@@ -508,11 +525,13 @@
     chromedriver
     flatpak-builder
     monolith
-    digikam
+
     gwenview # Image Viewer
     vlc # Media Player
     mkcert # Cert
     libreoffice
+
+    dufs #HTTP & WebDAV File Server
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
@@ -551,4 +570,3 @@
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "24.11"; # Did you read the comment?
 }
-

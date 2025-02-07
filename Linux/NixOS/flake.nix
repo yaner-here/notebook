@@ -16,6 +16,7 @@
         nixosConfigurations.nixos = nixpkgs.lib.nixosSystem { # Hostname: nixos
             modules = [
                 ./configuration.nix
+                ./modules
             ];
         };
     };
