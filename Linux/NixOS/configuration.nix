@@ -47,7 +47,7 @@
       TIMELINE_LIMIT_DAILY = 12;
       TIMELINE_LIMIT_WEEKLY = 1;
       TIMELINE_LIMIT_MONTHLY = 1;
-      TIMELINE_LIMIT_YEARLY = 2;
+      TIMELINE_LIMIT_YEARLY = 0;
     };
   };
 
@@ -142,7 +142,6 @@
       };
     };
   };
-
   # Desktop Environment
   services.xserver.enable = true;
   services.xserver.displayManager.gdm.enable = true;
@@ -226,6 +225,13 @@
 
   services.flatpak.enable = true;
 
+  # polaris
+  services.polaris = {
+      enable = true;
+      port = 10000;
+      openFirewall = true;
+  };
+
   # User
   users.users.yaner = {
     isNormalUser = true;
@@ -239,7 +245,6 @@
   nixpkgs.config.nvidia.acceptLicense = true;
 
   # Shell
-
   environment.shellAliases = {
     ls = "lsd -laAhFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
     cp = "cp -i";
@@ -270,7 +275,13 @@
   # System
   system.autoUpgrade.enable = true;
   system.autoUpgrade.allowReboot = false;
-  system.autoUpgrade.channel = "https://nixos.org/channels/nixos-24.11";
+  system.autoUpgrade.channel = "https://nixos.org/channels/nixos-unstable";
+  nix.gc = {
+      automatic = true;
+      dates = "daily";
+      options = "--delete-older-than 7d";
+  };
+  nix.settings.auto-optimise-store = true;
 
   services.n8n = {
     #enable = true;
@@ -350,7 +361,7 @@
     cronFiles = [ ];
     systemCronJobs = [ 
       "0 2 * * *   root nvidia-smi -pl 280"
-      "30 5 * * *  root nvidia-smi =pl 120"
+      "30 5 * * *  root nvidia-smi -pl 120"
     ];
   };
 
@@ -393,13 +404,21 @@
     };
   };
 
+  # SftpGo
+  services.sftpgo = {
+      enable = true;
+  };
+
   # nix-ld
   programs.nix-ld = {
     enable = true;
     libraries = with pkgs; [
+      glibc
       stdenv
       libgcc
       libllvm
+      libz
+      portaudio
     ];
   };
 
@@ -473,6 +492,7 @@
     p7zip # Compression
 
     gcc
+    musl
     gdb
     gnumake
     cmake
@@ -486,6 +506,10 @@
 
     python3
     conda # Python
+    
+    # Go
+    go
+
     yt-dlp
     gedit
     neovide # GUI Editor
@@ -518,6 +542,9 @@
     
     cudatoolkit # CUDA
 
+    # Image
+    imagemagick
+
     nmap
     file
     tldr
@@ -527,6 +554,8 @@
     monolith
 
     gwenview # Image Viewer
+    
+    ffmpeg
     vlc # Media Player
     mkcert # Cert
     libreoffice
