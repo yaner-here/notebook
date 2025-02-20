@@ -406,13 +406,14 @@
 
   # SftpGo
   services.sftpgo = {
-      enable = true;
+      enable = false;
   };
 
   # nix-ld
   programs.nix-ld = {
     enable = true;
     libraries = with pkgs; [
+      glib
       glibc
       stdenv
       libgcc
@@ -454,6 +455,8 @@
     tree
     dutree
     busybox
+
+    docker-compose
     lazydocker
 
     # btrfs
