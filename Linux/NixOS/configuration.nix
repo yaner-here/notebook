@@ -542,7 +542,9 @@
     gnomeExtensions.appindicator
     gnomeExtensions.kimpanel
     gnomeExtensions.customize-ibus
-    
+   
+    nix-index
+
     cudatoolkit # CUDA
 
     # Image
