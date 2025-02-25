@@ -291,7 +291,7 @@
 
   # Neovim
   programs.neovim = {
-    enable = true;
+    enable = false;
     defaultEditor = true;
     configure = {
       customRC = ''
@@ -353,18 +353,7 @@
 
   # Atd
   services.atd = { enable = true; };
-
-  # Cron
-  services.cron = {
-    enable = true;
-    mailto = "";
-    cronFiles = [ ];
-    systemCronJobs = [ 
-      "0 2 * * *   root nvidia-smi -pl 280"
-      "30 5 * * *  root nvidia-smi -pl 120"
-    ];
-  };
-
+    
   # Clash Verge
   programs.clash-verge = { package = pkgs.clash-verge-rev; enable = true; autoStart = true; };
 
@@ -420,6 +409,7 @@
       libllvm
       libz
       portaudio
+      libdwarf
     ];
   };
 
@@ -558,7 +548,7 @@
     flatpak-builder
     monolith
 
-    gwenview # Image Viewer
+    kdePackages.gwenview # Image Viewer
     
     ffmpeg
     vlc # Media Player
