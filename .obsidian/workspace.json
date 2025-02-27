@@ -13,32 +13,16 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "AI/图神经网络.md",
+                "file": "LLMDet.md",
                 "mode": "source",
-                "backlinks": false,
-                "source": false
+                "source": false,
+                "backlinks": false
               },
               "icon": "lucide-file",
-              "title": "图神经网络"
-            }
-          },
-          {
-            "id": "c586f08c084603d0",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "开放目标检测.md",
-                "mode": "source",
-                "backlinks": false,
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "开放目标检测"
+              "title": "LLMDet"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -57,7 +41,8 @@
             "state": {
               "type": "file-explorer",
               "state": {
-                "sortOrder": "alphabetical"
+                "sortOrder": "alphabetical",
+                "autoReveal": false
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -69,10 +54,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "开放目标检测.md"
+                "file": "LLMDet.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of 开放目标检测"
+              "title": "Outline of LLMDet"
             }
           },
           {
@@ -81,7 +69,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "VMC",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -89,7 +77,7 @@
                 "sortOrder": "alphabetical"
               },
               "icon": "lucide-search",
-              "title": "搜索"
+              "title": "Search"
             }
           },
           {
@@ -120,22 +108,29 @@
     "hiddenItems": {
       "switcher:Open quick switcher": false,
       "canvas:Create new canvas": false,
-      "command-palette:Open command palette": false
+      "command-palette:Open command palette": false,
+      "tldraw:Create new tldrawing": false
     }
   },
-  "active": "c586f08c084603d0",
+  "active": "14286745241409eb",
   "lastOpenFiles": [
-    "AI/图神经网络.md",
-    "开放目标检测.md",
-    "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
-    "AI/Pandas.md",
+    "LLMDet.md",
     "AI/PyTorch.md",
+    "AI/Tldraw 2024-12-04 8.40晚上.md",
+    "AI/Pandas.md",
     "AI/DINO.md",
+    "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
+    "AI/图神经网络.md",
+    "AI/OVD/开放目标检测.md",
+    "Pasted image 20250226142226.png",
+    "![[Pasted.md",
+    "AI/OVD",
+    "Linux/Linux脚本编程.md",
+    "商品价格.md",
+    "同义替换.md",
     "AI/AI开发.md",
     "AI/对比学习.md",
     "AI/NLP.md",
-    "AI/Tldraw 2024-12-04 8.40晚上.md",
-    "Linux/Linux脚本编程.md",
     "算法/ACM.md",
     "CMake.md",
     "Btrfs.md",
@@ -155,22 +150,15 @@
     "Tldraw 2024-12-04 8.37晚上.md",
     "AI/Prompt/CoT.md",
     "AI/Prompt",
-    "网络安全/深入PHP.md",
-    "网络安全/密码学.md",
-    "网络安全/公钥密码学.md",
-    "网络安全/XSS.md",
-    "网络安全/SQL注入.md",
     "网络安全/CTF/attachment/Pasted image 20220529000114.png",
     "网络安全/CTF/attachment/Pasted image 20220529002801.png",
     "网络安全/CTF/attachment/Pasted image 20220529000049.png",
     "网络安全/CTF/attachment",
     "网络安全/CTF",
     "移动端",
-    "小工具",
     "undefined/icons/align-center-horizontal.svg",
     "undefined/icons/align-bottom.svg",
     "undefined/icons/zoom-out.svg",
-    "undefined/icons/zoom-in.svg",
     "AI/未命名.canvas"
   ]
 }
