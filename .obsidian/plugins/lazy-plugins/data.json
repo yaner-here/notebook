@@ -10,6 +10,9 @@
     "plugins": {
       "tldraw": {
         "startupType": "short"
+      },
+      "surfing": {
+        "startupType": "instant"
       }
     }
   }
