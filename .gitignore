@@ -5,3 +5,4 @@ ebooks/**
 node_modules/**
 算法/**/*.exe
 算法/**/test.*
+.obsidian/workspace.json
