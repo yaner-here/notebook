@@ -881,6 +881,163 @@ func main() {
 }
 ```
 
+### §1.10.2 空指针`nil`
+
+在使用指针前，我们推荐检查是否为空指针。
+
+```go
+package main
+import "fmt"
+type User struct {
+    id int
+    name string
+}
+func main() {
+    var user_pointer *User; // 缺省为零值，即nil
+    fmt.Printf("user_pointer: %p\n", user_pointer) // user_pointer: 0x0
+    if user_pointer == nil {
+        fmt.Println("nil pointer isn't valid!") // 会被触发
+    }
+}
+```
+
+## §1.11 接口
+
+如果两种结构体都有同名的字段，都有同名的方法，那么我们可以将这种共同点抽象成Go中的接口，它是对结构体的方法的共同点的一种抽象。接口只能包含方法，不能包含字段。
+
+以下面的代码为例：两个结构体都有`Name`字段，但是函数无法接受两个不同类型的实参，即使我们只想调用它们相同的行为：
+
+```go
+package main
+type Man struct {
+	Name string
+}
+type Woman struct {
+	Name string
+}
+func GetName(user Man) string {
+	return user.Name
+}
+func main() {
+	GetName(Woman{Name: "Alice"}) // 报错，类型不匹配
+}
+```
+
+基于此，我们使用接口。只要一个结构体实现了接口中的所有方法，则自动判定为实现了该接口：
+
+```go
+package main
+import "fmt"
+type Man struct {
+    Name string
+}
+type Woman struct {
+    Name string
+}
+type Nameable interface {
+    PrintName()
+}
+func PrintName(user Nameable) {
+    user.PrintName()
+}
+func (user Man) PrintName() {
+    fmt.Println(user.Name)
+}
+func (user Woman) PrintName() {
+    fmt.Println(user.Name)
+}
+func main() {
+    user_1 := Woman{Name: "Alice"}
+    user_2 := Man{Name: "Bob"}
+    PrintName(user_1) // Alice
+    PrintName(user_2) // Bob
+}
+```
+
+一个结构体可以实现多个接口：
+
+```go
+package main
+import "fmt"
+type User struct {
+        Name string
+}
+
+type Nameable interface {
+    PrintName()
+}
+func PrintName(user Nameable) {
+    user.PrintName()
+}
+func (user User) PrintName() {
+    fmt.Println(user.Name)
+}
+
+type Stringable interface {
+    Stringify() string
+}
+func Stringify(user Stringable) string {
+    return user.Stringify()
+}
+func (user User) Stringify() string {
+    return fmt.Sprintf("User is %s", user.Name)
+}
+
+func main() {
+    user := User{Name: "Alice"}
+    PrintName(user) // Alice
+    fmt.Println(Stringify(user)) // User is Alice
+}
+```
+
+### §1.11.1 空接口
+
+以下三种方式都能定义一个空接口。
+
+```go
+interface {}
+type foo interface{}
+any
+```
+
+由于接口是对结构体的抽象，所以任何数据类型都实现了空接口，反过来说，空接口可以表示所有数据类型。
+
+### §1.11.2 嵌入接口
+
+嵌入接口是若干个接口的并集。
+
+```go
+type Readable interface {
+	Read() ([]byte, error)
+}
+type Writeable interface {
+	Write(bytes []byte) (error)
+}
+type File interface {
+	Readable
+	Writeable
+	Close() error
+}
+```
+
+### §1.11.3 类型断言
+
+在`any`型变量名的后面添加`.(类型名)`，可以让编译器将该变量强行视为指定的类型。如果实际上传入变量值不是所需类型，则后续在其基础上调用接口方法会在运行时会产生`panic`。为了解决这个问题，我们可以使用类型断言的第二个参数，判断断言是否成立。
+
+```go
+func Write(w any){
+	writer, ok = writer.(io.Writer)
+	if !ok {
+		fmt.Errorf("Expected io.Writer, but got %T", w)
+	}
+}
+```
+
+### §1.12 异常处理
+
+
+
+
 # §2 常用库
 
 ### §2.1 `fmt`
@@ -999,4 +1156,302 @@ $ cat main.go
 
 $ go run main.go
 	[1 2 3 4]
+```
+
+## §2.4 `testing`
+
+Go语言自带一个测试框架，通过`go test`命令行调用，它依赖于`testing`库。
+
+```shell
+$ go doc --short testing.T
+	func (c *T) Cleanup(f func())
+	func (t *T) Deadline() (deadline time.Time, ok bool)
+	func (c *T) Error(args ...any)
+	func (c *T) Errorf(format string, args ...any)
+	func (c *T) Fail()
+	func (c *T) FailNow()
+	func (c *T) Failed() bool
+	func (c *T) Fatal(args ...any)
+	func (c *T) Fatalf(format string, args ...any)
+	func (c *T) Helper()
+	func (c *T) Log(args ...any)
+	func (c *T) Logf(format string, args ...any)
+	func (c *T) Name() string
+	func (t *T) Parallel()
+	func (t *T) Run(name string, f func(t *T)) bool
+	func (t *T) Setenv(key, value string)
+	func (c *T) Skip(args ...any)
+	func (c *T) SkipNow()
+	func (c *T) Skipf(format string, args ...any)
+	func (c *T) Skipped() bool
+	func (c *T) TempDir() string
+```
+
+测试要求的文件命名规则为：测试文件必须以`_test`结尾。例如`foo.go`对应的测试文件为`foo_test.go`。其中的测试函数必须使用`Test*(*testing.T)`的函数签名。
+
+```shell
+$ cat main.go
+	package main
+	import "fmt"
+	func Square(n int) int {
+	    return n + n;
+	}
+	func main() {
+	    fmt.Println(Square(2))
+	}
+
+$ cat main_test.go
+	package main
+	import "testing"
+	func TestSquare_Errorf(t *testing.T){
+	    var key int = 3
+	    actual := Square(key)
+	    expected := 9
+	    if actual != expected {
+	        t.Errorf("expected %d but get %d", expected, actual)
+	    }
+	}
+
+$ go test -v
+	=== RUN   TestSquare_Errorf
+	    main_test.go:8: expected 9 but get 6
+	--- FAIL: TestSquare_Errorf (0.00s)
+	FAIL
+	exit status 1
+	FAIL    demo    0.002s
+```
+
+### §2.4.1 `.T.Error()`/`.T.Fatal()`
+
+在`testing.T`的各个方法中，`testing.T.Error()`及其格式化字符串版`testing.T.Errorf()`在触发时，只会输出信息，但是测试流程会正常进行。
+
+`testing.T.Fatal()`及其格式化字符串版`testing.T.Fatalf()`则会直接退出测试流程，可以防止后续的测试流程使得程序抛出`panic`。
+
+### §2.4.2 代码覆盖率
+
+Go语言支持`go test`使用`-cover`或`-coverprofile=<文件路径>`来输出代码覆盖率信息。
+
+```shell
+$ go test
+	--- FAIL: TestSquare_Errorf (0.00s)
+	    main_test.go:8: expected 9 but get 6
+	FAIL
+	exit status 1
+	FAIL    demo    0.001s
+
+$ go test -cover
+	--- FAIL: TestSquare_Errorf (0.00s)
+	    main_test.go:8: expected 9 but get 6
+	FAIL
+	exit status 1
+	FAIL    demo    0.001s
+
+$ go test -coverprofile=coverage.out
+	--- FAIL: TestSquare_Errorf (0.00s)
+	    main_test.go:8: expected 9 but get 6
+	FAIL
+	coverage: 50.0% of statements
+	exit status 1
+	FAIL    demo    0.002s
+
+$ cat coverage.out
+	mode: set
+	demo/main.go:3.24,5.2 1 1
+	demo/main.go:6.13,8.2 1 0
+```
+
+`-coverprofile`生成的文件需要配合`go tool cover`，才能转换成人类可读的报告。
+
+- `--func=<文件路径>`：统计函数的测试成功率，输出到`STDOUT`
+- `--html=<文件路径> -o <输出路径>`：统计函数及其测试成功率，输出到`HTML`
+
+### §2.4.3 `.T.Run()`
+
+要在一个测试函数内使用多个测试样例，一种朴素的方法是使用表驱动测试——将所有测试用例放在一个匿名结构体的切片中，随后遍历这个切片即可。
+
+```go
+package main
+import "testing"
+func TestSquare_Errorf(t *testing.T){
+    examples := []struct{
+        key int
+        expected int
+    }{
+        {key: 1, expected: 2},
+        {key: 2, expected: 4},
+        {key: 3, expected: 9},
+    }
+    for _, example := range examples {
+        actual := Square(example.key)
+
+        if actual != example.expected {
+            t.Errorf("expected %d but get %d", example.expected, actual)
+        }
+    }
+}
+```
+
+但是表测试驱动的问题是：我们难以定位到具体是哪一个测试用例出错，除非要额外在报错信息中指出当前测试用例的全部信息。为了解决这一问题，我们可以使用子测试——先使用`testing.T.Parallel()`初始化，然后对每一个测试用例使用`testing.T.Run()`。
+
+```go
+package main
+import "fmt"
+import "testing"
+func TestSquare(t *testing.T){
+    t.Parallel()
+    examples := []struct{
+        key int
+        expected int
+    }{
+        {key: 1, expected: 2},
+        {key: 2, expected: 4},
+        {key: 3, expected: 9},
+    }
+    for _, example := range examples {
+        t.Run(fmt.Sprintf("%d", example.key), func(t *testing.T){
+            actual := Square(example.key)
+            if actual != example.expected {
+                t.Errorf("expected %d but get %d", example.expected, actual)
+            }
+        })
+    }
+}
+```
+
+```shell
+$ go test -v
+	=== RUN   TestSquare
+	=== PAUSE TestSquare
+	=== CONT  TestSquare
+	=== RUN   TestSquare/1
+	=== RUN   TestSquare/2
+	=== RUN   TestSquare/3
+	    main_test.go:21: expected 9 but get 6
+	--- FAIL: TestSquare (0.00s)
+	    --- PASS: TestSquare/1 (0.00s)
+	    --- PASS: TestSquare/2 (0.00s)
+	    --- FAIL: TestSquare/3 (0.00s)
+	FAIL
+	exit status 1
+	FAIL    demo    0.001s
+```
+
+### §2.4.4 `.Short()`/`.T.Skip()`
+
+假设有一些作用较小的测试，我们不希望每次测试都耗时执行，则可以使用Go提供的短测试。当命令行`go test`传入了`-short`参数后，`testing.Short()`就会返回`false`，给了我们判断的依据。我们还可以使用`testing.T.Skip()`输出相应的日志。
+
+```go
+func TestSquare(t *testing.T){
+	if testing.Short() {
+		t.Skip("Skipping in short mode.")
+	}
+}
+```
+
+### §2.4.5 `.T.Parallel()`
+
+如果一个测试函数中调用了`testing.T.parallel()`方法，则该测试可以与其它测试并行执行，并行的进程数由`go test -p <NUM>`指定。也可以通过`--run <REGEX>`限定要执行的测试，使用`-timeout <NUM>`指定测试超时时间的毫秒数，使用`-failfast`在遇到第一处测试失败时就退出后续测试，使用`-count=<NUM>`决定每个测试至少应该执行的次数，用于禁用测试缓存。
+
+### §2.4.6 `.TB.Helper()`/`.TB.Cleanup()`
+
+有时我们编写的测试函数逻辑过于复杂，可能需要将一系列逻辑转移到其它函数中，成为测试辅助函数。直接像普通函数那样，定义一个测试辅助函数是可以的，但问题是：如果测试辅助函数发生`panic`，则报错的行号会执行测试辅助函数，这会让我们不知道究竟是测试函数的那一行调用了这个测试辅助函数。
+
+```shell
+$ cat main_test.go
+	package main
+	import (
+	        "fmt"
+	        "testing"
+	)
+	func copyValue(n int) int {
+	    panic("Not implemented!")
+	    return n
+	}
+	func TestSquare(t *testing.T){
+	    t.Parallel()
+	    examples := []struct{
+	        key int
+	        expected int
+	    }{
+	        {key: 1, expected: 2},
+	        {key: 2, expected: copyValue(4)},
+	        {key: 3, expected: 9},
+	    }
+	    for _, example := range examples {
+	        t.Run(fmt.Sprintf("%d", example.key), func(t *testing.T){
+	            actual := Square(example.key)
+	            if actual != example.expected {
+	                t.Errorf("expected %d but get %d", example.expected, actual)
+	            }
+	        })
+	    }
+	}
+
+$ go test
+	--- FAIL: TestSquare (0.00s)
+	panic: Not implemented! [recovered]
+		panic: Not implemented!
+	
+	goroutine 18 [running]:
+	    ./main_test.go:18 +0x27
+	testing.tRunner(0xc00014e4e0, 0x564168)
+	    go/src/testing/testing.go:1690 +0xf4
+	created by testing.(*T).Run in goroutine 1
+	    go/src/testing/testing.go:1743 +0x390
+	exit status 2
+	FAIL    demo    0.003s
+```
+
+我们将测试函数中的`testing.*T`直接传给测试辅助函数的形参`testing.TB`，并在首行调用`tesing.TB.Helper()`，就能在测试的报错信息中忽略测试辅助函数的存在。
+
+```shell
+$ cat main_test.go
+	package main
+	import (
+	        "fmt"
+	        "testing"
+	)
+	func copyValue(tb testing.TB, n int) int {
+	    tb.Helper()
+	    tb.Fatal("Not implemented!")
+	    return n
+	}
+	func TestSquare(t *testing.T){
+	    t.Parallel()
+	    examples := []struct{
+	        key int
+	        expected int
+	    }{
+	        {key: 1, expected: 2},
+	        {key: 2, expected: copyValue(t, 4)},
+	        {key: 3, expected: 9},
+	    }
+	    for _, example := range examples {
+	        t.Run(fmt.Sprintf("%d", example.key), func(t *testing.T){
+	            actual := Square(example.key)
+	            if actual != example.expected {
+	                t.Errorf("expected %d but get %d", example.expected, actual)
+	            }
+	        })
+	    }
+	}
+
+$ go test
+	--- FAIL: TestSquare (0.00s)
+	    main_test.go:19: Not implemented!
+	FAIL
+	exit status 1
+	FAIL    demo    0.001s
+```
+
+在所有测试均完成后，退出测试流程之前，我们可以使用`testing.TB.Clenaup(func)`注册一个退出事件，常常用于清理资源。**这与`defer`延迟执行的时机并不一样**。
+
+```go
+func copyValue(tb testing.TB, n int) int {
+	tb.Helper()
+	tb.Cleanup(func(){
+		tb.Log("Exit event triggered!")
+	})
+	return n
+}
 ```
