@@ -550,6 +550,8 @@ func greet(id int32) (int32, string) {
 }
 ```
 
+### §1.8.1 具名返回值
+
 Go提供了具名返回值，指的是进入函数体内，会自动初始化具名返回值对应的变量为零值，然后就能在函数体内进行编辑，遇到不带参数的`return`语句则直接返回具名返回值。
 
 ```shell
@@ -567,6 +569,316 @@ $ cat main.go
 	    fmt.Println(IsGood(65, false))
 	    fmt.Println(IsGood(40, true))
 	}
+```
+
+### §1.8.2 闭包
+
+在闭包问题上，Go使用C++中Lambda的`[&]`机制：
+
+```shell
+$ cat main.go
+	package main
+	import "fmt"
+	func main() {
+	    a := 1
+	    fn := func()(int){
+	        a = 2
+	        return a
+	    }
+	    fmt.Println("fn():", fn())
+	    fmt.Println("a:", a)
+	}
+
+$ go run main.go
+	fn(): 2
+	a: 2
+```
+
+### §1.8.3 可变参数
+
+可变参数指的是零个或多个相同残星的形参，可以在数据类型之前添加`...`前缀来声明，它必须是最后一个参数。
+
+```go
+package main
+import "fmt"
+func main() {
+    Greet := func(names ...string){
+        for _, name := range names {
+            fmt.Println("Hello,", name)
+        }
+    }
+    Greet("Alice", "Bob", "Carol")
+    Greet(names...) // 这两种方式效果等价
+		// Hello, Alice
+		// Hello, Bob
+		// Hello, Carol
+}
+```
+
+### §1.8.4 延迟函数调用
+
+在函数的调用之前使用`defer`关键字，可以将函数的调用延迟到当前所在函数恰好`return`之前。
+
+```shell
+$ cat main.go
+	package main
+	import "fmt"
+	func main() {
+	    Greet := func(msg string){
+	        fmt.Println(msg)
+	    }
+	    defer Greet("First")
+	    Greet("Second")
+	    return
+	}
+
+$ go run main.go
+	Second
+	First
+```
+
+`defer`常常用于必须执行，不必现在执行函数调用的场景。例如打开一个文件后，我们最终要关闭文件，但是不必现在关闭，因为现在可能需要进行其它的I/O操作。
+
+```go
+import (
+    "io/ioutil"
+    "os"
+)
+func ReadFile(filePath string)([]byte, error){
+    f, err := os.Open(filePath)
+    if err != nil {
+        return nil, err
+    }
+    defer f.Close() // 保证在return之前关闭文件
+    b, err := ioutil.ReadAll(f)
+    if err != nil {
+        return nil, err
+    }
+    return b, nil
+}
+```
+
+如果一个函数体中存在多个延迟函数调用，则按照栈式时间顺序执行（也就是先进后出）。**如果某个延迟函数调用抛出错误，则会继续执行后面的延迟函数调用，最终一起抛出错误**。`os.Exit()`、`log.Fatal()`除外。
+
+```shell
+$ cat main.go
+	package main
+	import "fmt"
+	func main() {
+	    defer fmt.Println("1")
+	    defer panic(2)
+	    defer fmt.Println("3")
+	    defer panic(4)
+	    defer fmt.Println("5")
+	}
+
+$ go run main.go
+	5
+	3
+	1
+	panic: 4
+	panic: 2
+```
+
+需要注意的是：`defer`只能延迟函数调用的执行，而不能延迟函数的实参表达式的执行。这个过程有点类似于SQL语言的预处理，也就是说在`defer`声明完的一瞬间，参数就已经准备好了。为了解决这一问题，我们可以将函数实参的表达式换成一个匿名函数。
+
+```shell
+$ cat main.go
+	package main
+	import "fmt"
+	import "time"
+	func main() {
+	    nowTime := time.Now()
+	    defer fmt.Printf("[1] Time delay: %s\n", time.Since(nowTime))
+	    defer func(nowTime time.Time) {
+	        fmt.Printf("[2] Time delay: %s\n", time.Since(nowTime))
+	    }(nowTime)
+	    time.Sleep(50 * time.Millisecond)
+	}
+
+$ go run main.go
+	[2] Time delay: 50.178617ms
+	[1] Time delay: 72ns
+```
+
+### §1.8.5 `init()`函数
+
+一个Go程序只能有一个`main()`，但是可以有若干个在`main()`之前执行的`init()`函数。Go的策略是：遍历当前模块路径下的所有文件（按字典序升序排列），按先后顺序执行所有出现的`init()`函数。
+
+```go
+package main
+import "fmt"
+func init() {
+    fmt.Println("init: [1]") // 第一个执行
+}
+func init() {
+    fmt.Println("init: [2]") // 第二个执行
+}
+func main() {
+    fmt.Println("main: [3]") // 第三个执行
+}
+```
+
+## §1.9 结构体
+
+Go中的`type`类似于C++中的`typedef`。
+
+初始化结构体时，如果不使用字段名，则必须按顺序提供所有的字段值。
+
+```shell
+$ cat main.go
+	package main
+	import "fmt"
+	type User struct {
+	    name string
+	    age int32
+	}
+	func main() {
+	    user1 := User{
+	        name: "Alice",
+	        age: 23,
+	    }
+	    fmt.Println("user1.name =", user1.name)
+	
+	    user2 := User{"Bob", 18}
+	    fmt.Printf("user2: %+v", user2)
+	}
+
+$ go run main.go
+	user1.name = Alice
+	user2: {name:Bob age:18}
+```
+
+Go额外支持结构体标签的特性。结构体标签是一个形如`<name>:"<value>"`的字符串。
+
+```go
+type User struct {
+	name string `json:"name"`
+}
+```
+
+### §1.9.1 方法
+
+C++中的结构体可以包含一个函数指针，在结构体的命名空间内定义一个方法。Go语言也提供了类似的语法糖，称为**方法**：
+
+```go
+package main
+import "fmt"
+type User struct {
+    name string
+    age int32
+}
+func (user User) String() string {
+    return fmt.Sprintf("%s is %d years old.", user.name, user.age)
+}
+func main() {
+    user := User{
+        name: "Alice",
+        age: 23,
+    }
+    // 以下两种方法等价
+    // Alice is 23 years old.
+    fmt.Println(user.String())
+    fmt.Println(User.String(user))
+}
+```
+
+方法与函数的定义相似，但是仍有细微的差别：
+
+- 方法的调用必须绑定在自定义类型上，不能独立于结构体实例而调用。
+- 方法不能使用泛型，函数可以。
+
+方法只能定义在自定义类型上，不能定义在系统内置类型上。要绕过这一点，我们可以使用`type`给系统内置类型设置一个别名。
+
+```go
+// 报错: cannot define new methods on non-local type int
+func (i int) Square() int {
+    return i * i
+}
+
+// 正常
+type MyInt int
+func (i MyInt) Square() MyInt {
+    return i * i
+}
+```
+
+函数签名本身也是一种类型，可以通过`type`设置别名，并作为一种数据类型用于变量类型的声明。
+
+```go
+package main
+import "fmt"
+type StringGetter func() string // 返回string的函数类型
+func Printer(fn StringGetter) {
+    fmt.Println(fn())
+}
+func main() {
+    Printer(func() string {
+        return "Hello world"
+    }) // Hello world
+}
+```
+
+### §1.9.2 结构体别名
+
+Go语言中不存在继承机制，只有结构体别名。结构体别名只会继承原结构体的所有字段，但是不包含原结构体的方法。
+
+```go
+package main
+import "fmt"
+type User struct {
+    id int
+    name string
+}
+type WebUser User
+func (user User) GetUserName() string {
+    return user.name
+}
+func main() {
+    user_1 := User{1, "Alice"}
+    user_2 := WebUser{2, "Bob"}
+    fmt.Println(user_1.GetUserName()) // 正常
+    fmt.Println(user_2.GetUserName()) // 报错(type WebUser has no field or method GetUserName)
+}
+```
+
+## §1.10 指针
+
+Go中的指针与C++基本相同，都使用`*`和`&`两个运算符，只不过Go对结构体指针不使用`->`。
+
+```go
+package main
+import "fmt"
+type User struct {
+    id int
+    name string
+}
+func changeUserID(user *User, new_id int) {
+    user.id = new_id
+}
+func main() {
+    user := User{1, "Alice"}
+    fmt.Println("user.id =", user.id) // user.id = 1
+    changeUserID(&user, 2)
+    fmt.Println("user.id =", user.id) // user.id = 2
+}
+```
+
+### §1.10.1 `new()`函数
+
+Go中的`new()`函数类似于C语言中的`malloc()`，都返回给定数据类型的一个指针。
+
+```go
+package main
+type User struct {
+    id int
+    name string
+}
+func main() {
+	// 以下两种方法等价
+    user1_pointer := &User{}
+    user2_pointer := new(User)
+}
 ```
 
 # §2 常用库
