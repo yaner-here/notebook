@@ -121,12 +121,13 @@
     "hiddenItems": {
       "switcher:Open quick switcher": false,
       "canvas:Create new canvas": false,
-      "command-palette:Open command palette": false,
-      "tldraw:Create new tldrawing": false
+      "command-palette:Open command palette": false
     }
   },
   "active": "52a326b45a656350",
   "lastOpenFiles": [
+    "Linux/Linux脚本编程.md",
+    "Go.md",
     "Linux/home_config",
     "Linux/NixOS/modules/shell.nix",
     "Linux/NixOS/modules/nvidia.nix",
@@ -137,12 +138,9 @@
     "Linux/NixOS/flake.nix",
     "Linux/NixOS/flake.lock",
     "Linux/NixOS/configuration.nix",
-    "Linux/NixOS",
     "LLMDet.md",
     "Btrfs.md",
     "AI/OVD/开放目标检测.md",
-    "Go.md",
-    "Linux/Linux脚本编程.md",
     "Linux/Linux.md",
     "算法/ACM.md",
     "AI/Tldraw 2024-12-04 8.40晚上.md",
