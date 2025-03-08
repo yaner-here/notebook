@@ -13,6 +13,9 @@
       },
       "surfing": {
         "startupType": "instant"
+      },
+      "d2-obsidian": {
+        "startupType": "instant"
       }
     }
   }
