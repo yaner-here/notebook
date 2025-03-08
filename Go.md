@@ -819,6 +819,32 @@ func main() {
 }
 ```
 
+Go语言规定：**如果B结构体嵌入了A结构体，那么定义在A结构体上的方法C，也能用于B结构体。**
+
+```go
+package main
+import "fmt"
+
+type Man struct {
+    Name string
+    Age int
+}
+func (user Man) getName() (string) {
+    return user.Name
+}
+
+type Chinese struct {
+    Man
+    province string
+}
+
+func main() {
+    person := Chinese{}
+    person.Name = "Alice"
+    fmt.Println(person.getName()) // Alice
+}
+```
+
 ### §1.9.2 结构体别名
 
 Go语言中不存在继承机制，只有结构体别名。结构体别名只会继承原结构体的所有字段，但是不包含原结构体的方法。
@@ -1033,8 +1059,457 @@ func Write(w any){
 }
 ```
 
-### §1.12 异常处理
+### §1.11.4 异常处理
 
+Go语言对异常的处理比较特殊——它认为错误只是一种特殊变量而已，通过`errors`接口表示。以下是两种等价的方式：
+
+```go
+package main
+import "fmt"
+import "errors"
+func main() {
+    err_1 := errors.New("Error: something wrong")
+    err_2 := fmt.Errorf("Error: something wrong")
+    fmt.Println(err_1) // Error: something wrong
+    fmt.Println(err_2) // Error: something wrong
+}
+```
+
+Go语言错误的处理更特殊——它由`panic()`引起，并且直接尝试`return`，在`return`之前会执行`defer`函数，这里我们可以使用`recover().(error)`捕获错误，从错误中恢复。
+
+```go
+package main
+import "fmt"
+func main() {
+    defer func(){
+        p := recover()
+        if p == nil {
+            return // 正常情况
+        }
+        if err, ok := p.(error); ok {
+            fmt.Println("Catch an exception!", err)
+            return // 普通的Exception
+        }
+        fmt.Println("Catch a panic!", p) // Panic
+    }()
+    panic("Panic triggered!\n")
+}
+```
+
+### §1.11.5 自定义异常
+
+自定义异常本质上是一种实现了`Error() string`方法的结构体，该结构体包含着报错相关的所有信息。
+
+```go
+package main
+import (
+        "fmt"
+        "time"
+)
+
+type TableNotFoundErr struct {
+    Key string
+    Time time.Time
+}
+func (err TableNotFoundErr) Error() string {
+    return fmt.Sprintf("[%s] Table can't find a key (%s)", err.Time, err.Key)
+}
+
+type ScoreMap map[string]int
+func (m *ScoreMap) GetScore(name string) (int, error) {
+    if m == nil {
+        return -1, fmt.Errorf("map pointer is nil")
+    }
+    val, ok := (*m)[name]
+    if !ok {
+        return -1, TableNotFoundErr{
+            Key: name,
+            Time: time.Now(),
+        }
+    }
+    return val, nil
+}
+
+func main() {
+    scores := ScoreMap {
+        "Alice": 100,
+    }
+    val, err := scores.GetScore("Bob")
+    if err != nil {
+        fmt.Println(err) // [2025-03-07 12:37:22.916369988 +0800 CST m=+0.000032415] Table can't find a key (Bob)
+    } else {
+        fmt.Println(val)
+    }
+}
+```
+
+### §1.11.6 错误包装与错误解包装
+
+由于自定义错误本质上是结构体，因此我们可以在结构体字段设置新的错误，这种操作成为错误包装，逆操作称为错误解包装。需要用到`errors.Unwarp(error)`函数，它要求传入的`error`必须实现了`Unwrapper`接口中的`Unwrap() error`方法，否则会返回`nil`。这个接口不在`errors`库中定义，需要我们自己定义。
+
+```go
+package main
+
+import (
+        "errors"
+        "fmt"
+)
+
+type Unwrapper interface {
+    Unwarp()
+}
+
+type AError struct { err error }
+func (err AError) Error() string { return fmt.Sprintf("AError: %s", err.err) }
+func (err AError) Unwrap() error {
+    if _, ok := err.err.(Unwrapper); ok {
+        return errors.Unwrap(err.err)
+    } else {
+        return err.err
+    }
+}
+
+type BError struct { err error }
+func (err BError) Error() string { return fmt.Sprintf("BError: %s", err.err) }
+func (err BError) Unwrap() error {
+    if _, ok := err.err.(Unwrapper); ok {
+        return errors.Unwrap(err.err)
+    } else {
+        return err.err
+    }
+}
+
+func ErrorWrapper(err error) (error) {
+    err = AError{err: err}
+    err = BError{err: err}
+    return err
+}
+
+func main() {
+    err_1 := errors.New("This is an error")
+    err_2 := ErrorWrapper(err_1)
+    err_3 := errors.Unwrap(err_2)
+    err_4 := errors.Unwrap(err_3)
+    fmt.Println("err_1:", err_1) // err_1: This is an error
+    fmt.Println("err_2:", err_2) // err_2: BError: AError: This is an error
+    fmt.Println("err_3:", err_3) // err_3: AError: This is an error
+    fmt.Println("err_4:", err_4) // err_4: This is an error
+    if err_1 == err_4 {
+        fmt.Println("Unwrap success.") // Unwrap success.
+    }
+}
+```
+
+## §1.12 泛型
+
+请看下面这段Go代码——我们想设计一个针对`map[any]any`的通用函数，但是编译器告诉我们`map[int]int`不能直接转化为`map[any]any`。在不使用泛型的情况下，我们只能先把原`map[int]int`复制一份放到`map[any][any]`，传入函数中，将返回的`map[any][any]`再经过类型断言，复制一份放到`map[int]int`。
+
+```go
+package main
+import "fmt"
+func GetAllKeys(m map[any]any) []any {
+	keys := make([]any, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+func main() {
+	a := map[int]int {
+		1: 1,
+		2: 4,
+		3: 9,
+	}
+	b := GetAllKeys(a) // cannot use a (variable of type map[int]int) as map[any]any value in argument to GetAllKeys
+}
+```
+
+Go语言提供了泛型，其语法为`func 函数名[泛型](形参)(返回值){}`。
+
+```go
+package main
+import "fmt"
+func GetAllKeys[K int, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+func main() {
+	a := map[int]int {
+		1: 1,
+		2: 4,
+		3: 9,
+	}
+	b := GetAllKeys(a)
+	fmt.Println(b) // [1 2 3]
+}
+```
+
+泛型也是可以实例化的。
+
+```go
+package main
+import "fmt"
+func GetAllKeys[K int, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+func main() {
+	a := map[int]int {
+		1: 1,
+		2: 4,
+		3: 9,
+	}
+	fn := GetAllKeys[int, int] // 泛型实例化
+	b := fn(a)
+	fmt.Println(b)
+}
+```
+
+### §1.12.1 类型约束
+
+泛型中的数据类型不一定非要是传统数据类型或结构体，也可以是接口，并且通过接口表示约束关系。**类型约束的对应只能是具体变量值**。
+
+```go
+package main
+import "fmt"
+type Comparable interface { // Comparable可以是下面数据类型的任意一个
+	int | int8 | int16 | int32 | float32 | float64
+}
+func GetAllKeys[K Comparable, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+func main() {
+	a := map[int]int {
+		1: 1,
+		2: 4,
+		3: 9,
+	}
+	fn := GetAllKeys[int, int]
+	b := fn(a)
+	fmt.Println(b)
+}
+```
+
+这样做有一个问题：对于基本数据类型的别名，接口不会将其视为接口中的数据类型，我们真正感兴趣的是它的底层类型，可以使用`~`获取。
+
+```go
+package main
+import "fmt"
+type MyInt int // 定义一个基本数据类型的别名
+type Comparable interface {
+	~int | ~float32 // ~获取底层类型
+}
+func GetAllKeys[K Comparable, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+func main() {
+	a := map[MyInt]MyInt {
+		1: 1,
+		2: 4,
+		3: 9,
+	}
+	fn := GetAllKeys[MyInt, MyInt]
+	b := fn(a)
+	fmt.Println(b)
+}
+```
+
+### §1.12.2 方法约束
+
+**方法约束的对象只能是具体的接口**。如果强行对变量使用，即断言某个变量实现了接口中的方法，则会编译时报错`invalid operation: 变量名(variable of type 变量类型) is not an interface`。我们无需对变量使用方法约束，因为编译器会自己执行方法约束。
+
+类型约束和方法约束都是`interface`，但两者不能出现在同一个接口中。
+
+```go
+type MapKey interface {
+	constraints.Ordered | fmt.Stringer
+} // 报错: cannot use fmt.Stringer in union (fmt.Stringer contains methods)
+```
+
+## §1.13 通道
+
+Go语言内部设计了一套并发模型，称为`goroutine`。得益于其设计，我们可以轻松地一次性运行数百万个`goroutine`，而且无需也不可能限制其内存配额与调度策略。
+
+通道时`goroutine`之间用于通信的一种机制。一个通道只能发送和接受相同类型的值，以同步方式传输，可以无缓冲或带缓冲，可以单向或双向。
+
+要声明一个某种数据类型的通道，我们需要在数据类型之前使用`chan`关键字，使用`make()`函数创建。类似于C++中的流使用`>>`和`<<`运算符，Go也对通道使用`->`和`<-`运算符。
+
+```shell
+$ cat main.go
+	package main
+	import "log"
+	func Repeater(name string, channel chan string){
+		msg := <-channel
+		log.Println("[Repeater()] received a message:", msg)
+		log.Println("[Repeater()] sending a message:", msg)
+		channel <- msg
+	}
+	
+	func main() {
+		channel := make(chan string)
+		defer close(channel) // 程序退出时关闭通道
+		go Repeater("Alice", channel) // 创建一个goroutine
+	
+		msg := "Hello world"
+		log.Println("[main()] sending a message:", msg)
+		channel <- msg // 一直阻塞，除非channel读入
+		msg = <-channel // 一直阻塞，除非channel输出
+		log.Println("[main()] receive a message", msg)
+	}
+
+$ go run main.go
+	2025/03/08 11:24:01 [main()] sending a message: Hello world
+	2025/03/08 11:24:01 [Repeater()] received a message: Hello world
+	2025/03/08 11:24:01 [Repeater()] sending a message: Hello world
+	2025/03/08 11:24:01 [main()] receive a message Hello world
+```
+
+为了在`goroutine`中持续的监听通道，我们通常使用`for range`语句。当通道被关闭时，`range`就能跳出循环。
+
+```shell
+$ cat main.go
+	package main
+	import "log"
+	func Repeater(name string, channel chan string){
+		for msg := range channel{
+			log.Println("[Repeater()] received a message:", msg)
+			log.Println("[Repeater()] sending a message:", msg)
+			channel <- msg
+		}
+		log.Println("[Repeater()] quit")
+	}
+	
+	func main() {
+		channel := make(chan string)
+		defer close(channel) // 程序退出时关闭通道
+		go Repeater("Alice", channel) // 创建一个goroutine
+	
+		msg := "hello"
+		log.Println("[main()] sending a message:", msg)
+		channel <- msg
+		msg = <-channel
+		log.Println("[main()] receive a message", msg)
+		
+		msg = "world"
+		log.Println("[main()] sending a message:", msg)
+		channel <- msg
+		msg = <-channel
+		log.Println("[main()] receive a message", msg)
+	}
+$ go run main.go
+	2025/03/08 11:35:55 [main()] sending a message: hello
+	2025/03/08 11:35:55 [Repeater()] received a message: hello
+	2025/03/08 11:35:55 [Repeater()] sending a message: hello
+	2025/03/08 11:35:55 [main()] receive a message hello
+	2025/03/08 11:35:55 [main()] sending a message: world
+	2025/03/08 11:35:55 [Repeater()] received a message: world
+	2025/03/08 11:35:55 [Repeater()] sending a message: world
+	2025/03/08 11:35:55 [main()] receive a message world
+```
+
+对于多个通道而言，我们经常使用`select`关键字，配合`for`与`switch`语句，来实时处理当前已经准备好的通道。
+
+```go
+func Receiver(line_1 chan string, line_2 chan string, quit chan bool) {
+	for {
+		select {
+			case msg := <-line_1:
+				log.Println("[Line 1] receive:", msg)
+			case msg := <-line_2:
+				log.Println("[Line 2] receive:", msg)
+			case <-quit:
+				log.Println("Exit")
+				return
+		}
+	}
+}
+```
+
+如果多个`goroutine`同时监听同一个通道，那么对于通道的每一次读写，只有一个`goroutine`能收到。
+
+`<-通道`的返回值有两个，第一个是正常值，第二个是通道是否开启的布尔值。如果通道已关闭，则返回值依次为零值和`false`。
+
+一个通道只能用`close()`关闭一次，否则会引起`panic`。如果向一个已经关闭的通道写入数据，也会引起`panic`。
+
+### §1.13.1 单向通道
+
+默认情况的通道是双向的。声明单向通道时，要在数据类型前面的`chan`的前面再加上`<-`，或者在`chan`的后面再加上`<-`进行修饰。
+
+```go
+type OneDirectChannel struct {
+	outChannel <-chan string
+	inChannel chan<- string
+}
+```
+
+例如使用单向通道作为`goroutine`的终止信号：
+
+```go
+package main
+
+import (
+	"log"
+	"time"
+)
+func Listener(id int, quit <-chan struct{}) {
+	log.Printf("[Listener %d] start", id)
+	<-quit // 持续阻塞，直到收到quit，在这里是quit被关闭的时候
+	log.Printf("[Listener %d] quit", id)
+}
+func main() {
+	quitChannel := make(chan struct{})
+	for i := 0; i < 3; i++ {
+		go Listener(i, quitChannel)
+	}
+	time.Sleep(50 * time.Millisecond) // 等待goroutine初始化完毕
+	log.Println("[main] closing quit")
+	close(quitChannel)
+	time.Sleep(50 * time.Millisecond) // 等待goroutine退出完毕
+}
+/*
+2025/03/08 22:37:07 [Listener 2] start
+2025/03/08 22:37:07 [Listener 0] start
+2025/03/08 22:37:07 [Listener 1] start
+2025/03/08 22:37:07 [main] closing quit
+2025/03/08 22:37:07 [Listener 2] quit
+2025/03/08 22:37:07 [Listener 0] quit
+2025/03/08 22:37:07 [Listener 1] quit
+*/
+```
+
+### §1.13.2 带缓冲通道
+
+默认情况下，通道是没有缓冲区的。要创建一个带缓冲的通道，我们需要给`make(chan 数据类型, 缓冲区变量数)`传入第二个参数，它表示缓冲区能存储多少个变量。
+
+```go
+package main
+import "fmt"
+func main() {
+	msgChannel := make(chan string, 2)
+	msgChannel <- "hello"
+	msgChannel <- "world"
+	// msgChannel <- "world" // 这一行会导致阻塞与死锁
+	fmt.Println("程序并未阻塞")
+}
+```
+
+带缓冲通道不能保证消息的传递，因此开发者有义务保证程序推出前会排空通道。即使通道被关闭，我们依然可以从中读取值。
+
+## §1.14 `Context`
 
 
 
@@ -1454,4 +1929,146 @@ func copyValue(tb testing.TB, n int) int {
 	})
 	return n
 }
+```
+
+## §2.5 `golang.org/x/exp/constraints`
+
+`golang.org/x/exp/constraints`是为泛型设计的一个实验性质包，它定义了大部分泛型所需的约束接口。
+
+```shell
+$ go get golang.org/x/exp/constraints
+	go: downloading golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
+	go: added golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
+
+$ go doc --short golang.org/x/exp/constraints
+	type Complex interface{ ... }
+	type Float interface{ ... }
+	type Integer interface{ ... }
+	type Ordered = cmp.Ordered
+	type Signed interface{ ... }
+	type Unsigned interface{ ... }
+```
+
+## §2.6 `os.signal`
+
+`os.signal`包用于捕获Linux的系统信号。
+
+`os.signal.Notify(c chan<- os.Signal, sig ...os.Signal)`用于监听Linux中的某些特定信号，并将其作为`os.Signal`接口传入通道`c`中。
+
+下面的代码用于捕捉Linux的`sigint`信号。注意：**这里必须使用带缓冲通道，否则可能会在Linux发送信号时，Go未准备好接受，从而错过信号**。
+
+```shell
+$ cat main.go
+	package main
+	import (
+		"fmt"
+		"os"
+		"os/signal"
+	)
+	func main() {
+		sigChannel := make(chan os.Signal, 1)
+		signal.Notify(sigChannel, os.Interrupt)
+	
+		fmt.Println("awaiting for signal ...")
+		sig := <-sigChannel
+		fmt.Println("\nget signal:", sig)
+	}
+
+$ go run main.go
+	awaiting for signal ...
+	^C
+	get signal: interrupt
+```
+
+下面的代码存在问题：如果发送`sigint`信号的时机刁钻，那么有可能会出现`goroutine`无法及时结束的情况。
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"time"
+)
+type Monitor struct{}
+func (m Monitor) Start(quit chan struct{}) {
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+			case <-quit:
+				fmt.Println("[Monitor] quit")
+				return
+			case <-tick.C:
+				fmt.Println("[Monitor] ticker check")
+		}
+	}
+}
+func main() {
+	quitChannel := make(chan struct{})
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, os.Interrupt)
+
+	m := Monitor{}
+	go m.Start(quitChannel)
+
+	<-sigChannel
+	close(quitChannel)
+}
+// [Monitor] ticker check
+// ^C[Monitor] ticker check
+```
+
+基于此，我们需要给`goroutine`充足的时间来退出，最好是创建一个依赖关系，使得`goroutine`退出后`main()`才能`return`。这个依赖关系可以用一个只读通道实现：
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"time"
+)
+type Monitor struct { done chan struct{} }
+func (m Monitor) Done() <-chan struct{} { return m.done }
+func (m Monitor) Start(quit chan struct{}) {
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+			case <-quit:
+				fmt.Println("[Monitor] quit")
+				return
+			case <-tick.C:
+				fmt.Println("[Monitor] ticker check")
+		}
+	}
+}
+
+func main() {
+	quitChannel := make(chan struct{})
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, os.Interrupt)
+
+	m := Monitor{}
+	go m.Start(quitChannel)
+
+	<-sigChannel
+	close(quitChannel)
+	<-m.Done()
+}
+```
+
+如果`m.Done()`迟迟不返回，我们可以使用`select`语句和`time.After()`通道做一个短接，表示超时非正常退出：
+
+```go
+	select {
+		case <-m.Done():
+			os.Exit(0)
+		case <-time.After(500 * time.Millisecond):
+			fmt.Println("Exit timeout")
+			os.Exit(1)
+	}
 ```
