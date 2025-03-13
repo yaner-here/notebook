@@ -2317,7 +2317,7 @@ func main() {
 // [main] restored from WaitGroup
 ```
 
-### §2.8.2 `.Locker`
+### §2.8.2 `.Locker`/`.Mutex`/`.RWMutex`
 
 `go test/build`均支持`-race`选项，用于检测代码中潜在的条件竞争，但不保证能找出所有的条件竞争。下面的代码同时对`map[int]int`读写，且使用`Context`确保写入操作全部执行完毕：
 
@@ -2396,7 +2396,36 @@ $ go test -v -race
 	FAIL    demo    0.008s
 ```
 
-`sync`包提供了`.Locker`接口，用于创建互斥锁。
+`sync`包提供了`.Locker`接口，用于创建互斥锁，它包含以下两个方法：
+
+```shell
+$ go doc sync.Locker
+	type Locker interface {
+	        Lock()
+	        Unlock()
+	}
+```
+
+`sync`提供了两种结构体——`.Mutex`和`.RWMutex`，它们都实现了`.Locker`接口。
+
+```shell
+$ go doc --short sync.Mutex
+	func (m *Mutex) Lock()
+	func (m *Mutex) TryLock() bool
+	func (m *Mutex) Unlock()
+
+$ go doc --short sync.RWMutex
+	func (rw *RWMutex) Lock()
+	func (rw *RWMutex) RLock()
+	func (rw *RWMutex) RLocker() Locker
+	func (rw *RWMutex) RUnlock()
+	func (rw *RWMutex) TryLock() bool
+	func (rw *RWMutex) TryRLock() bool
+	func (rw *RWMutex) Unlock()
+```
+
+
+
 
 ## §2.9 `golang.org/x/sync/errgroup`
 
