@@ -2424,8 +2424,105 @@ $ go doc --short sync.RWMutex
 	func (rw *RWMutex) Unlock()
 ```
 
+`.Mutex`是一种重量级互斥锁，它同时占用读写权限。
 
+```go
+package main
 
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 50 * time.Millisecond)
+	defer cancel()
+	mutex := sync.Mutex{}
+
+	go func() {
+		for i := 1; i <= 3; i++ {
+			mutex.Lock()
+			fmt.Println("[goroutine 1]", i)
+			mutex.Unlock()
+		}
+	}()
+	go func() {
+		for i := 1; i <= 3; i++ {
+			mutex.Lock()
+			fmt.Println("[goroutine 2]", i)
+			mutex.Unlock()
+		}
+	}()
+	<-ctx.Done()
+}
+/*
+	[goroutine 2] 1
+	[goroutine 2] 2
+	[goroutine 2] 3
+	[goroutine 1] 1
+	[goroutine 1] 2
+	[goroutine 1] 3
+*/
+```
+
+`.RWMutex`是一种轻量级互斥锁，它同时支持单独控制读权限。
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 50 * time.Millisecond)
+	defer cancel()
+	mutex := sync.RWMutex{}
+
+	go func() {
+		for i := 1; i <= 3; i++ {
+			mutex.Lock()
+			fmt.Println("[goroutine 1]", i)
+			mutex.Unlock()
+		}
+	}()
+	go func() {
+		for i := 1; i <= 3; i++ {
+			mutex.RLock()
+			fmt.Println("[goroutine 2]", i)
+			mutex.RUnlock()
+		}
+	}()
+	<-ctx.Done()
+}
+```
+
+如果一个互斥锁被占用两次，或者空闲时仍被释放，则都会引起`panic`。
+
+### §2.8.3 `.Once`
+
+单个`.Once`实例调用`.Once.Do(func)`方法时，只有第一次调用会生效。
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+func Greet() {
+	fmt.Println("Hello World")
+}
+func main() {
+	once := sync.Once{}
+	for i := 1; i <= 5; i++ {
+		once.Do(Greet)
+	}
+}
+```
 
 ## §2.9 `golang.org/x/sync/errgroup`
 
