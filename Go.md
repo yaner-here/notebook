@@ -1509,10 +1509,6 @@ func main() {
 
 带缓冲通道不能保证消息的传递，因此开发者有义务保证程序推出前会排空通道。即使通道被关闭，我们依然可以从中读取值。
 
-## §1.14 `Context`
-
-
-
 # §2 常用库
 
 ### §2.1 `fmt`
@@ -2071,4 +2067,419 @@ func main() {
 			fmt.Println("Exit timeout")
 			os.Exit(1)
 	}
+```
+
+## §2.7 `context`
+
+`context`包是对`goroutine`的高层封装，提供了一种比通道更简洁的方式。
+
+```shell
+$ go doc --short context
+	var Canceled = errors.New("context canceled")
+	var DeadlineExceeded error = deadlineExceededError{}
+	func AfterFunc(ctx Context, f func()) (stop func() bool)
+	func Cause(c Context) error
+	func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
+	func WithCancelCause(parent Context) (ctx Context, cancel CancelCauseFunc)
+	func WithDeadline(parent Context, d time.Time) (Context, CancelFunc)
+	func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, CancelFunc)
+	func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+	func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc)
+	type CancelCauseFunc func(cause error)
+	type CancelFunc func()
+	type Context interface{ 
+		Deadline() (deadline time.Time, ok bool),
+		Done() <-chan struct{}
+		Err() error
+		Value(key interface{}) interface{}
+	}
+	func Background() Context
+	func TODO() Context
+	func WithValue(parent Context, key, val any) Context
+	func WithoutCancel(parent Context) Context
+```
+
+### §2.7.1 `.Background()`
+
+`context.Background()`用于创建一个`Context`实例。
+
+```go
+package main
+import "fmt"
+import "context"
+func main() {
+	ctx := context.Background()
+	fmt.Printf("%#v", ctx) // context.backgroundCtx{emptyCtx:context.emptyCtx{}}
+}
+```
+
+### §2.7.2 `.Context`
+
+`context.Context`接口包含以下方法：
+
+- `.Deadline() (deadline time.Time, ok bool)`：该`Context`是否设置了截止时间并将其返回
+- `.Done() <-chan struct{}`：监听取消事件
+- `.Err() error`：检查该`Context`是否已被取消
+- `.Value(key interface{}) interface{}`：获取值`key`
+
+### §2.7.3 `.WithValue()`
+
+`Context`可以用来包装`Context`，使用`context.WithValue(ctx context.Context, key any, val any)`创建。
+
+```shell
+$ cat main.go
+	package main
+	import "fmt"
+	import "context"
+	func main() {
+		ctx := context.Background()
+		ctx_1 := context.WithValue(ctx, "id", "1")
+		ctx_1_1 := context.WithValue(ctx_1, "id", "1-1")
+		
+		fmt.Println("ctx", ctx)
+		fmt.Println("\t.Value(\"id\")", ctx.Value("id"))
+		
+		fmt.Println("ctx_1", ctx_1)
+		fmt.Println("\t.Value(\"id\")", ctx_1.Value("id"))
+	
+		fmt.Println("ctx_1_1", ctx_1_1)
+		fmt.Println("\t.Value(\"id\")", ctx_1_1.Value("id"))
+	}
+
+$ go run main.go
+	ctx context.Background
+	        .Value("id") <nil>
+	ctx_1 context.Background.WithValue(id, 1)
+	        .Value("id") 1
+	ctx_1_1 context.Background.WithValue(id, 1).WithValue(id, 1-1)
+	        .Value("id") 1-1
+```
+
+这里的键数据类型使用的是强相等，要求数据类型一致才能匹配。这意味着我们可以给基本数据类型创建别名，实现同名键存不同值的效果。
+
+### §2.7.4 `.WithCancel()`
+
+`context.WithCancel(context.Context) (Context, CancelFunc)`用于创建一个可以传递取消信号的`Context`实例。它返回的第二个参数是一个幂等函数，只有在第一次调用时才会释放全部上下文资源，之后调用无效。
+
+```shell
+$ cat main.go
+	package main
+	import (
+		"context"
+		"fmt"
+		"time"
+	)
+	func ctxListener(ctx context.Context, id int) {
+		fmt.Printf("[Listener %d] awaiting\n", id)
+		<-ctx.Done()
+		fmt.Printf("[Listener %d] quited\n", id)
+	}
+	func main() {
+		ctx := context.Background()
+		ctx, ctx_cancel_func := context.WithCancel(ctx)
+		defer ctx_cancel_func()
+		for i := 0; i < 3; i++ {
+			go ctxListener(ctx, i)
+		}
+		time.Sleep(1 * time.Second) // 等待goroutine启动
+		ctx_cancel_func()
+		time.Sleep(1 * time.Second) // 等待goroutine退出
+	}
+$ go run main.go
+	[Listener 2] awaiting
+	[Listener 0] awaiting
+	[Listener 1] awaiting
+	[Listener 2] quited
+	[Listener 1] quited
+	[Listener 0] quited
+```
+
+由于`time.Sleep()`引入了额外的时间依赖关系，在真实工程中，我们通常自定义一些看门狗，对`Context`进行心跳检测。
+
+```go
+package main
+import (
+	"context"
+	"fmt"
+	"time"
+)
+type Monitor struct { cancel context.CancelFunc }
+func (m *Monitor) Listen(ctx context.Context) {
+	defer m.cancel()
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+	for { // 死循环
+		select {
+			case <-ctx.Done():
+				fmt.Println()
+				m.cancel()
+				return
+			case <- tick.C:
+				fmt.Println("monitor check")
+		}
+	}
+}
+func (m *Monitor) Start(ctx context.Context) context.Context {
+	ctx, cancel := context.WithCancel(ctx)
+	m.cancel = cancel
+	go m.Listen(ctx)
+	return ctx
+}
+func main() {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	mon := Monitor{}
+	ctx = mon.Start(ctx)
+
+	go func() { // 100ms后终止Context
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+
+	<-ctx.Done() // 检测Context是否终止
+	fmt.Println("Context quited.")
+	// monitor check
+	// monitor check
+	// Context quited.
+}
+```
+
+### §2.7.5 `.WithDeadline()`/`.WithTimeout()`
+
+`context.WithDeadline(context.Context, time.Time) (context.Context, context.CancelFunc)`与`context.WithTimeout(context.Context, time.Duration) (context.Context, context.CancelFunc)`都能创建一个一段时间后自动取消的`Context`。前者指定绝对时间，后者指定相对时间。
+
+### §2.7.6 错误处理
+
+`context`自带了两种错误类型，供`context.Context.Err()`返回：
+
+- `error.Error`：基础类
+- `context.DeadlineExceeded`：超时错误
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+func main() {
+	ctx1 := context.Background()
+	ctx1, cancel1 := context.WithCancel(ctx1)
+	fmt.Println(ctx1.Err()) // <nil>
+	cancel1()
+	fmt.Println(ctx1.Err()) // context canceled
+
+	ctx2 := context.Background()
+	ctx2, _ = context.WithTimeout(ctx2, 50 * time.Millisecond)
+	fmt.Println(ctx2.Err()) // <nil>
+	time.Sleep(100 * time.Millisecond)
+	fmt.Println(ctx2.Err()) // context deadline exceeded
+}
+```
+
+## §2.8 `sync`
+
+为了等待多个`goroutine`全部退出后再执行后续逻辑，Go语言提供了`sync`库，作为多线程管理的高级封装库。
+
+### §2.8.1 `.WaitGroup`
+
+`sync.WaitGroup`是一个用于`goroutine`同步的结构体，实现了以下方法：
+
+- `sync.WaitGroup.Add(int)`：指定控制`goroutine`的数量的**增量**，使得内部计数器增加，要求为自然数，否则传入负数会导致`panic`。
+- `sync.WaitGroup.Done()`：将`sync.WaitGroup`内部计数器减`1`。当计数器降到`0`时再次调用会导致`panic`。
+- `sync.WaitGroup.Wait()`：执行后会陷入阻塞，直到`sync.WaitGroup`内部计数器为`0`。
+
+```go
+package main
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+func main() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		time.Sleep(500 * time.Microsecond)
+		fmt.Println("[goroutine] shutting down WaitGroup ...")
+		wg.Done()
+		fmt.Println("[goroutine] shut down successfully")
+	}()
+	fmt.Println("[main] Blocking by WaitGroup ...")
+	wg.Wait()
+	fmt.Println("[main] restored from WaitGroup")
+}
+// [main] Blocking by WaitGroup ...
+// [goroutine] shutting down WaitGroup ...
+// [goroutine] shut down successfully
+// [main] restored from WaitGroup
+```
+
+### §2.8.2 `.Locker`
+
+`go test/build`均支持`-race`选项，用于检测代码中潜在的条件竞争，但不保证能找出所有的条件竞争。下面的代码同时对`map[int]int`读写，且使用`Context`确保写入操作全部执行完毕：
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+	"testing"
+)
+func TestMain(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 50 * time.Millisecond)
+	defer cancel()
+
+	m := map[int]int{}
+	go func() {
+		for i := 1; i <= 3; i++ {
+			m[i] = i
+		}
+		cancel()
+	}()
+	go func() {
+		for k, v := range m {
+			fmt.Printf("m[%d]: %d", k, v)
+		}
+	}()
+	<-ctx.Done()
+	if len(m) != 3 {
+		t.Fatalf("Expected 3 elements but got %d", len(m))
+	}
+}
+```
+
+```shell
+$ go test -v -race
+	=== RUN   TestMain
+	=== PAUSE TestMain
+	=== CONT  TestMain
+	==================
+	WARNING: DATA RACE
+	Write at 0x00c0000cc480 by goroutine 8:
+	  runtime.mapassign_fast64()
+	      /share/go/src/runtime/map_fast64.go:113 +0x0
+	  demo.TestMain.func1()
+	      main_test.go:17 +0x49
+	
+	Previous read at 0x00c0000cc480 by goroutine 9:
+	  runtime.mapiterinit()
+	      /share/go/src/runtime/map.go:877 +0x0
+	  demo.TestMain.func2()
+	      main_test.go:22 +0x68
+	
+	Goroutine 8 (running) created at:
+	  demo.TestMain()
+	      main_test.go:15 +0x13b
+	  testing.tRunner()
+	      /share/go/src/testing/testing.go:1690 +0x226
+	  testing.(*T).Run.gowrap1()
+	      /share/go/src/testing/testing.go:1743 +0x44
+	
+	Goroutine 9 (finished) created at:
+	  demo.TestMain()
+	      main_test.go:21 +0x1b0
+	  testing.tRunner()
+	      /share/go/src/testing/testing.go:1690 +0x226
+	  testing.(*T).Run.gowrap1()
+	      /share/go/src/testing/testing.go:1743 +0x44
+	==================
+	    testing.go:1399: race detected during execution of test
+	--- FAIL: TestMain (0.00s)
+	FAIL
+	exit status 1
+	FAIL    demo    0.008s
+```
+
+`sync`包提供了`.Locker`接口，用于创建互斥锁。
+
+## §2.9 `golang.org/x/sync/errgroup`
+
+Go自带的`sync`包虽然能管理多个`goroutine`，但是没有提供错误处理的功能。`golang.org/x/sync/errgroup`包在此基础上进行了二次封装——它不需要手动操纵计数器。
+
+```shell
+$ go get golang.org/x/sync/errgroup
+	go: downloading golang.org/x/sync v0.12.0
+
+$ go doc --short golang.org/x/sync/errgroup
+	type Group struct{ ... }
+	    func WithContext(ctx context.Context) (*Group, context.Context)
+
+$ go doc --short golang.org/x/sync/errgroup.Group
+	func WithContext(ctx context.Context) (*Group, context.Context)
+	func (g *Group) Go(f func() error)
+	......
+	func (g *Group) Wait() error
+```
+
+使用`.Go(func)`传入一个函数，使用`.Wait()`阻塞进程，直到所有`goroutine`执行完毕后才获取第一个发生的错误。但凡有一个`goroutine`发生了错误，其余协程也会立刻退出。
+
+```go
+package main
+import (
+	"fmt"
+	"math/rand/v2"
+	"time"
+	"golang.org/x/sync/errgroup"
+)
+func main() {
+	var wg errgroup.Group
+	for i := 1; i <= 6; i++ {
+		wg.Go(func() error {
+			time.Sleep(time.Duration(rand.IntN(10)) * time.Microsecond)
+			if i % 3 == 0 {
+				return fmt.Errorf("Error occurred in goroutine %d!", i)
+			} else {
+				return nil
+			}
+		})
+	}
+	err := wg.Wait()
+	if err != nil {
+		fmt.Println(err) // Error occurred in goroutine 6!
+	}
+}
+```
+
+我们还可以使用`.WithContext(context.Context) (errgroup.Group, context.Context)`，为`goroutine`是否全部执行完毕创建一个监控用的`Context`。
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+	"golang.org/x/sync/errgroup"
+)
+func main() {
+	wg, ctx := errgroup.WithContext(context.Background())
+	quit := make(chan struct{})
+	go func() {
+		fmt.Println("[goroutine] Waiting for context to be canceled ...")
+		<-ctx.Done()
+		fmt.Println("[goroutine] Context canceled.")
+		close(quit) // 阻塞主进程
+	}()
+	wg.Go(func() error {
+		time.Sleep(50 * time.Microsecond)
+		return nil
+	})
+	fmt.Println("[main] Waiting for errgroup.group to be donw ...")
+	err := wg.Wait()
+	fmt.Println("[main] errgroup.group returned.")
+	if err != nil {
+		fmt.Println("[main] error:", err)
+	}
+	<-quit
+}
+// [main] Waiting for errgroup.group to be donw ...
+// [goroutine] Waiting for context to be canceled ...
+// [main] errgroup.group returned.
+// [goroutine] Context canceled.
 ```
