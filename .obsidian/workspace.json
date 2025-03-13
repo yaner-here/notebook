@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "81a880d130d48656",
+        "id": "b046e0bf4cf3dd5c",
         "type": "tabs",
         "children": [
           {
-            "id": "abe0ddde17b53333",
+            "id": "d04ff69ec28891cd",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -91,7 +91,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 200,
+    "collapsed": true
   },
   "right": {
     "id": "6ac2a4cb39577b94",
@@ -109,10 +110,10 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "cb9847649a182d9a",
+  "active": "d04ff69ec28891cd",
   "lastOpenFiles": [
-    "Linux/Linux脚本编程.md",
     "Go.md",
+    "Linux/Linux脚本编程.md",
     "Linux/home_config",
     "Linux/NixOS/modules/shell.nix",
     "Linux/NixOS/modules/nvidia.nix",
