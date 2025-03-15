@@ -15,8 +15,8 @@
               "state": {
                 "file": "Go.md",
                 "mode": "source",
-                "backlinks": false,
-                "source": false
+                "source": false,
+                "backlinks": false
               },
               "icon": "lucide-file",
               "title": "Go"
@@ -53,7 +53,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Go.md"
+                "file": "Go.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-list",
               "title": "Outline of Go"
@@ -91,8 +94,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "right": {
     "id": "6ac2a4cb39577b94",

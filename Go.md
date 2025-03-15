@@ -2609,3 +2609,299 @@ func main() {
 // [main] errgroup.group returned.
 // [goroutine] Context canceled.
 ```
+
+## §2.10 `os`
+
+### §2.10.1 列举文件
+
+在目录读取方面，`os`中的大量结构体均直接继承自`fs`包。
+
+```shell
+$ go doc os
+	type os.DirEntry = fs.DirEntry
+	......
+	
+$ go doc --short fs.FileInfo
+	type fs.FileInfo interface {
+	    Name() fs.string
+	    Size() int64
+	    Mode() fs.FileMode
+	    ModTime() time.Time
+	    IsDir() bool
+	    Sys() any
+	}
+```
+
+`os.ReadDir(name string) ([]os.DirEntry, error)`用于获取指定当前路径下的文件和文件夹：
+
+```go
+package main
+import (
+	"fmt"
+	"os"
+)
+func main() {
+	files, err := os.ReadDir("./")
+	if err != nil { fmt.Errorf("%v", err) }
+	for _, file := range files {
+		if file.IsDir() {
+			fmt.Println("Folder:", file.Name())
+		} else {
+			fmt.Println("File:", file.Name())
+		}
+	}
+	for _, file := range files {
+		info, err := file.Info()
+		if err != nil { fmt.Errorf("%v", err) }
+		fmt.Printf("%s  %d  %s  %s\n", info.Mode(), info.Size(), info.Name(), info.ModTime())
+	}
+}
+/*
+File: go.mod
+File: go.sum
+File: main.go
+File: main_test.go
+-rw-r--r--  216  go.mod  2025-03-13 10:07:30.407222109 +0800 CST
+-rw-r--r--  690  go.sum  2025-03-13 10:07:30.407222109 +0800 CST
+-rw-r--r--  463  main.go  2025-03-14 16:47:14.228541228 +0800 CST
+-rw-r--r--  465  main_test.go  2025-03-13 11:24:06.812899088 +0800 CST
+*/
+```
+
+`os.Stat(name string) (fs.FileInfo, error)`根据文件路径，直接返回其`fs.FileInfo`。
+
+### §2.10.2 创建文件夹
+
+`os.Mkdir(name string, perm FileMode) error`用于创建指定权限的文件夹。
+
+```go
+package main
+import (
+	"fmt"
+	"os"
+)
+func main() {
+	if err := os.Mkdir("data", 0755); err != nil {
+		fmt.Println(err)
+	}
+}
+```
+
+`os.MkdirAll(path string, perm os.FileMode) error`用于一次性创建目标文件夹上级的所有父文件夹。
+
+### §2.10.3 文件
+
+- `os.Create(name string) (*os.File, error)`用于创建文件。如果文件已存在，则会覆盖。
+- `os.ReadFile(name string) ([]byte, error)`用于读取文件内容。
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+)
+func main() {
+	file, err := os.Create("./data.txt")
+	if err != nil { fmt.Println(err) }
+	file.Write([]byte("Hello world"))
+	file.Close()
+	
+	content, err := os.ReadFile("./data.txt")
+	if err != nil { fmt.Println(err) }
+	fmt.Println(string(content)) // Hello world
+}
+```
+
+- `os.File`是一个表示文件的结构体。
+- `os.OpenFile(name string, flag int, perm fs.FileMode) (*os.File, error)`用于打开文件，并创建一个`os.File`实例。通过传入的位标志决定覆盖写入还是追加写入。
+
+```shell
+$ go doc --short os.File
+	func (f *File) Chdir() error
+	func (f *File) Chmod(mode FileMode) error
+	func (f *File) Chown(uid, gid int) error
+	func (f *File) Close() error
+	func (f *File) Fd() uintptr
+	func (f *File) Name() string
+	func (f *File) Read(b []byte) (n int, err error)
+	func (f *File) ReadAt(b []byte, off int64) (n int, err error)
+	func (f *File) ReadDir(n int) ([]DirEntry, error)
+	func (f *File) ReadFrom(r io.Reader) (n int64, err error)
+	func (f *File) Readdir(n int) ([]FileInfo, error)
+	func (f *File) Readdirnames(n int) (names []string, err error)
+	func (f *File) Seek(offset int64, whence int) (ret int64, err error)
+	func (f *File) SetDeadline(t time.Time) error
+	func (f *File) SetReadDeadline(t time.Time) error
+	func (f *File) SetWriteDeadline(t time.Time) error
+	func (f *File) Stat() (FileInfo, error)
+	func (f *File) Sync() error
+	func (f *File) SyscallConn() (syscall.RawConn, error)
+	func (f *File) Truncate(size int64) error
+	func (f *File) Write(b []byte) (n int, err error)
+	func (f *File) WriteAt(b []byte, off int64) (n int, err error)
+	func (f *File) WriteString(s string) (n int, err error)
+	func (f *File) WriteTo(w io.Writer) (n int64, err error)
+```
+
+```go
+package main
+import (
+	"fmt"
+	"os"
+)
+func main() {
+	file, err := os.OpenFile("./data.txt", os.O_APPEND | os.O_CREATE | os.O_WRONLY, 0644)
+	if err != nil { fmt.Println(err) }
+	file.Write([]byte("!"))
+}
+```
+
+对于大文件来说，内存不足以一次性装载文件，因此我们可以使用`io.Writer`和`io.copy(io.Writer, os.File)`，然后操作`io.Writer`即可。
+
+```go
+package main
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+)
+func main() {
+	file, _ := os.OpenFile("./data.txt", os.O_APPEND | os.O_CREATE | os.O_RDWR, 0644)
+	buffer := &bytes.Buffer{}
+	io.Copy(buffer, file)
+	fmt.Println(buffer.String()) // Hello world!
+}
+```
+
+## §2.11 `path`
+
+### §2.11.1 `path.filepath`
+
+```shell
+$ go doc --short filepath
+	func Abs(path string) (string, error)
+	func Base(path string) string
+	func Clean(path string) string
+	func Dir(path string) string
+	func EvalSymlinks(path string) (string, error)
+	func Ext(path string) string
+	func FromSlash(path string) string
+	func Glob(pattern string) (matches []string, err error)
+	func HasPrefix(p, prefix string) bool
+	func IsAbs(path string) bool
+	func IsLocal(path string) bool
+	func Join(elem ...string) string
+	func Localize(path string) (string, error)
+	func Match(pattern, name string) (matched bool, err error)
+	func Rel(basepath, targpath string) (string, error)
+	func Split(path string) (dir, file string)
+	func SplitList(path string) []string
+	func ToSlash(path string) string
+	func VolumeName(path string) string
+	func Walk(root string, fn WalkFunc) error
+	func WalkDir(root string, fn fs.WalkDirFunc) error
+	type WalkFunc func(path string, info fs.FileInfo, err error) error
+```
+
+`path.filepath.Base(path string) string`用于获取文件或目录的名称（不带路径）：
+
+```go
+package main
+import (
+	"fmt"
+	"path/filepath"
+)
+func main() {
+	fmt.Println(filepath.Base("/home/yaner/main.go")) // main.go
+}
+```
+
+`path.filepath.Dir(path string) string`用于获取文件或目录所在的父目录路径：
+
+```go
+package main
+import (
+	"fmt"
+	"path/filepath"
+)
+func main() {
+	fmt.Println(filepath.Dir("/home/yaner/main.go")) // /home/yaner
+}
+```
+
+`path.filepath.Ext(path string) string`用于获取文件的扩展名：
+
+```go
+package main
+import (
+	"fmt"
+	"path/filepath"
+)
+func main() {
+	fmt.Println(filepath.Ext("./main.go")) // .go
+}
+```
+
+类似于JavaScript中的`array.map()`方法，`path.filepath.WalkDir(string, fs.WalkDirFunc)`也提供了类似的批量调用方法：
+
+```go
+package main
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+)
+func main() {
+	filepath.WalkDir("./", func(path string, d os.DirEntry, err error) error {
+		fmt.Printf("%s\n", path)
+		return nil
+	})
+}
+```
+
+## §2.12 `io`
+
+### §2.12.1 `io/fs`
+
+`io/fs`包提供了一种对只读文件系统的抽象层。只要能实现`fs.FS`和`fs.File`两个接口，理论上就创建了一种文件系统。例如Go的标准库实现了两种文件系统：`fs.File`和`fstest.File`。
+
+```shell
+$ go doc --short fs.FS
+	type FS interface {
+	    Open(name string) (File, error)
+	}
+
+$ go doc --short fs.File
+	type File interface {
+	    Stat() (FileInfo, error)
+	    Read([]byte) (int, error)
+	    Close() error
+	}
+```
+
+除此之外，`io/fs`包提供了一些抽象方法：
+
+- `func WalkDir(fsys FS, root string, fn WalkDirFunc) error`用于遍历目录，相等于抽象版本的`path.filepath.WalkDir()`。
+
+```go
+package main
+import (
+	"fmt"
+	"io/fs"
+	"os"
+)
+func main() {
+	entries := []string{}
+	err := fs.WalkDir(os.DirFS("./"), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil { return err }
+		if d.IsDir() && (d.Name() == "." || d.Name() == "..") { return nil }
+		if d.IsDir() && (d.Name() == "test") { return fs.SkipDir }
+		entries = append(entries, d.Name())
+		return nil
+	})
+	if err != nil { fmt.Println(err) }
+	fmt.Println(entries) // [data.txt go.mod go.sum main.go main_test.go]
+}
+```
