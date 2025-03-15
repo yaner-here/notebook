@@ -2885,6 +2885,8 @@ $ go doc --short fs.File
 
 - `func WalkDir(fsys FS, root string, fn WalkDirFunc) error`用于遍历目录，相等于抽象版本的`path.filepath.WalkDir()`。
 
+下面的例子使用了`os.DirFS`定义的文件系统：
+
 ```go
 package main
 import (
@@ -2903,5 +2905,78 @@ func main() {
 	})
 	if err != nil { fmt.Println(err) }
 	fmt.Println(entries) // [data.txt go.mod go.sum main.go main_test.go]
+}
+```
+
+下面的例子使用了`fstest.MapFS`定义的文件系统：
+
+```go
+package main
+
+import (
+	"fmt"
+	"io/fs"
+	"testing/fstest"
+)
+func main() {
+	files := map[string]string{
+		"readme.txt": "Welcome to fstest.MapFS", 
+		"data/1.txt": "Alice",
+		"data/2.txt": "Bob",
+	}
+
+	cab := fstest.MapFS{}
+	for k, v := range files {
+		cab[k] = &fstest.MapFile{
+			Data: []byte(v),
+		}
+	}
+
+	entries := []string{}
+	err := fs.WalkDir(cab, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil { return err }
+		if d.IsDir() && (d.Name() == "." || d.Name() == "..") { return nil }
+		if d.IsDir() && (d.Name() == "test") { return fs.SkipDir }
+		entries = append(entries, path)
+		return nil
+	})
+	if err != nil { fmt.Println(err) }
+	fmt.Println(entries) // [data data/1.txt data/2.txt readme.txt]
+}
+```
+
+### §2.13 `embed`
+
+`embed`包允许将外界的资源文件打包到Go最终编译形成的二进制文件中。需要在源代码中使用指示符`//go:embed <路径>`引入。
+
+```go
+package main
+import (
+	"fmt"
+	"io/fs"
+	"embed"
+)
+
+//go:embed main.go
+//go:embed go.mod
+//go:embed go.sum
+var cab embed.FS
+
+//go:embed readme.txt
+var goMod string
+
+func main() {
+
+	entries := []string{}
+	err := fs.WalkDir(cab, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil { return err }
+		if d.IsDir() && (d.Name() == "." || d.Name() == "..") { return nil }
+		if d.IsDir() && (d.Name() == "test") { return fs.SkipDir }
+		entries = append(entries, path)
+		return nil
+	})
+	if err != nil { fmt.Println(err) }
+	fmt.Println(entries) // [go.mod go.sum main.go]
+	fmt.Println(goMod) // hello world
 }
 ```
