@@ -90,7 +90,8 @@
               "title": "书签"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -113,7 +114,7 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "5d9f778572ae3a8e",
+  "active": "cb9847649a182d9a",
   "lastOpenFiles": [
     "Linux/Linux基础.md",
     "Linux.md",
