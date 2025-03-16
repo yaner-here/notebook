@@ -75,3 +75,26 @@ $ lssubsys -a
 	misc
 	debug
 ```
+
+下面的例子展示了如何创建一个Cgroup根节点。挂载点中的文件表示了该节点的各项配置：
+
+```shell
+$ mkdir cgroup
+
+$ sudo mount -t cgroup -o none,name=cgroup_folder cgroup_folder ./cgroup
+
+$ tree ./cgroup
+	cgroup/
+	├── cgroup.clone_children
+	├── cgroup.procs
+	├── cgroup.sane_behavior
+	├── notify_on_release
+	├── release_agent
+	└── tasks
+```
+
+- `cgroup.clone_children`：由Subsystem`cpuset`读取，若为`1`则子Cgroup会继承父Cgroup的配置，若为`0`则不继承。
+- `cgroup.procs`：当前Cgroup中所有进程组ID。Cgroup根节点本身就是最高级Cgroup，包含了当前系统中的所有进程PID。
+- `notify_on_release`：当前Cgroup退出时是否要执行`release_agent`，`1`为执行，`0`为不执行。
+- `release_agent`：当前Cgroup退出时执行的程序路径
+- `task`：当前Cgroup中所有进程的PID
