@@ -3,10 +3,6 @@
     options = { };
     config = {
 
-        # environment.systemPackages = with pkgs; [
-        #     (config.boot.kernelPackages.nvidiaPackages.beta)
-        # ];
-
         systemd.timers."nvidia-power-limit-high" = {
             wantedBy = [ "timers.target" ];
             timerConfig = {
