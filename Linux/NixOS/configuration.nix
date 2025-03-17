@@ -19,8 +19,7 @@
   boot.supportedFilesystems = [ "btrfs" "ntfs" ];
 
   # Network
-  # networking.proxy.default = "http://user:password@proxy:port/";
-    networking.proxy.default = "http://127.0.0.1:7897";
+  networking.proxy.default = "http://127.0.0.1:7897";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
   # boot.kernel.sysctl."new.ipv6.conf.eth0.disable_ipv6" = true; # Disable IPv6
   networking.hostName = "nixos";
@@ -34,7 +33,7 @@
   services.snapper = {
     snapshotRootOnBoot = false;
     snapshotInterval = "hourly";
-    cleanupInterval = "1d";
+    cleanupInterval = "1h";
     persistentTimer = true;
     configs.root = {
       # Need to execute `sudo btrfs subvolume create /.snapshots` in advanced manually
@@ -46,7 +45,7 @@
       TIMELINE_LIMIT_HOURLY = 1;
       TIMELINE_LIMIT_DAILY = 12;
       TIMELINE_LIMIT_WEEKLY = 1;
-      TIMELINE_LIMIT_MONTHLY = 1;
+      TIMELINE_LIMIT_MONTHLY = 0;
       TIMELINE_LIMIT_YEARLY = 0;
     };
   };
@@ -68,9 +67,10 @@
       noto-fonts-emoji-blob-bin
       nerd-fonts.caskaydia-cove
       cascadia-code
-      sarasa-gothic
+      maple-mono
     ];
     fontconfig = {
+      enable = true;
       defaultFonts = {
         monospace = [ "CascadiaCode" ];
       };
@@ -246,6 +246,7 @@
 
   # Shell
   environment.shellAliases = {
+    #cd = "z"
     ls = "lsd -laAhFg --total-size --inode --header --hyperlink always --date +'%Y-%m-%d %H:%M:%S'";
     cp = "cp -i";
     mv = "mv -i";
@@ -269,7 +270,14 @@
   # NixOS Package Manager Mirror Source
   # nix-channel --add https://nixos.org/channels/nixos-unstable nixos
   # nix-channel --add https://mirrors.tuna.tsinghua.edu.cn/nix-channels/nixos-unstable nixos
-  nix.settings.substituters = [ "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store" ];
+  nix.settings.substituters = [ 
+    "https://cache.nixos.org" 
+    "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store" 
+  ];
+  nix.settings.trusted-substituters = [
+    "https://cache.nixos.org"
+    "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store"
+  ];
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   # System
@@ -458,16 +466,30 @@
     # diff
     meld
 
+    # cd
+    zoxide
+
+    # ls
     lsd
-    eza # ls
+    eza
 
     # find
     fd
     television
+
+    # postman
     xh
+
+    # grep
+    ripgrep
+
+    # neofetch
     fastfetch
+
     cmd-wrapped
+    
     yazi
+    
     curl
     wget
     
@@ -540,6 +562,9 @@
     # Image
     imagemagick
 
+    # RDP Client
+    remmina
+
     nmap
     file
     tldr
@@ -570,7 +595,7 @@
   services.openssh = {
     enable = true;
     listenAddresses = [{ addr = "0.0.0.0"; port = 22; }];
-    banner = "Welcome to yaner's nixos host.";
+    banner = "Welcome to yaner's nixos host.\r\n";
     allowSFTP = true;
     settings = {
       AllowGroups = [ "users" ];
