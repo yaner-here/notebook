@@ -98,3 +98,22 @@ $ tree ./cgroup
 - `notify_on_release`：当前Cgroup退出时是否要执行`release_agent`，`1`为执行，`0`为不执行。
 - `release_agent`：当前Cgroup退出时执行的程序路径
 - `task`：当前Cgroup中所有进程的PID
+
+要创建子Cgroup，只需新建文件夹即可，Linux会自动在新目录下创建相关文件：
+
+```shell
+$ sudo mkdir cgroup/subgroup_1
+$ tree cgroup/
+	cgroup/
+	├── cgroup.clone_children
+	├── cgroup.procs
+	├── cgroup.sane_behavior
+	├── notify_on_release
+	├── release_agent
+	├── subgroup_1
+	│   ├── cgroup.clone_children
+	│   ├── cgroup.procs
+	│   ├── notify_on_release
+	│   └── tasks
+	└── tasks
+```
