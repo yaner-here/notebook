@@ -11,15 +11,12 @@
             "id": "5d9f778572ae3a8e",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "tldraw-view",
               "state": {
-                "file": "Linux.md",
-                "mode": "source",
-                "source": false,
-                "backlinks": false
+                "file": "AI/Tldraw 2024-12-04 8.40晚上.md"
               },
               "icon": "lucide-file",
-              "title": "Linux"
+              "title": "Tldraw 2024-12-04 8.40晚上"
             }
           }
         ]
@@ -54,13 +51,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Linux.md",
+                "file": "AI/OVD/开放目标检测.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Linux 的大纲"
+              "title": "开放目标检测 的大纲"
             }
           },
           {
@@ -90,8 +87,7 @@
               "title": "书签"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -114,10 +110,18 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "cb9847649a182d9a",
+  "active": "5d9f778572ae3a8e",
   "lastOpenFiles": [
-    "Linux/Linux基础.md",
+    "AI/PyTorch.md",
+    "AI/Pandas.md",
+    "AI/DINO.md",
+    "AI/Tldraw 2024-12-04 8.40晚上.md",
+    "AI/OVD/开放目标检测.md",
+    "AI/Prompt/CoT.md",
+    "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
+    "AI/图神经网络.md",
     "Linux.md",
+    "Linux/Linux基础.md",
     "Linux/Linux脚本编程.md",
     "后端/SQL.md",
     "后端/Go.md",
@@ -137,24 +141,16 @@
     "Linux/NixOS/flake.lock",
     "Linux/NixOS/configuration.nix",
     "Btrfs.md",
-    "AI/OVD/开放目标检测.md",
     "算法/ACM.md",
-    "AI/Tldraw 2024-12-04 8.40晚上.md",
-    "AI/DINO.md",
-    "AI/PyTorch.md",
     "AI/Tldraw 2024-11-11 4.15下午.md",
     "Tldraw 2024-12-04 8.37晚上.md",
-    "AI/Prompt/CoT.md",
     "网络安全/深入PHP.md",
     "网络安全/密码学.md",
     "网络安全/公钥密码学.md",
     "网络安全/XSS.md",
-    "网络安全/SQL注入.md",
-    "网络安全/Java代码审计.md",
     "网络安全/CTF/attachment/Pasted image 20220529000114.png",
     "网络安全/CTF/attachment/Pasted image 20220529002801.png",
     "网络安全/CTF/attachment/Pasted image 20220529000049.png",
-    "网络安全/CTF/千峰网络安全.md",
     "undefined/icons/align-center-horizontal.svg",
     "undefined/icons/align-bottom.svg",
     "undefined/icons/zoom-out.svg",
