@@ -13,6 +13,8 @@ Namespace是Linux内核引入的隔离功能。
 | Network     | `CLONE_NEWNET`    | `0x40000000` | 隔离网络设备、IP地址、端口号                    |
 | Time        | `CLONE_NEWTIME`   | `0x00000080` | 隔离时间                               |
 
+以Go语言为例：
+
 ```go
 package main
 import (
@@ -76,7 +78,7 @@ $ lssubsys -a
 	debug
 ```
 
-下面的例子展示了如何创建一个Cgroup根节点。挂载点中的文件表示了该节点的各项配置：
+下面的例子展示了如何创建一个层级结构（Hierarchy）及其Cgroup根节点。挂载点中的文件表示了该节点的各项配置：
 
 ```shell
 $ mkdir cgroup
@@ -103,6 +105,7 @@ $ tree ./cgroup
 
 ```shell
 $ sudo mkdir cgroup/subgroup_1
+
 $ tree cgroup/
 	cgroup/
 	├── cgroup.clone_children
@@ -116,4 +119,28 @@ $ tree cgroup/
 	│   ├── notify_on_release
 	│   └── tasks
 	└── tasks
+```
+
+将进程的PID追加到Cgroup的`tasks`文件，即可在Cgroup中添加进程。删除进程同理。
+
+```shell
+$ bash
+
+$ echo $$
+	175234
+
+$ sudo sh -c "echo $$ >> cgroup/subgroup_1/tasks"
+
+$ cat /proc/$$/cgroup
+	1:name=cgroup_folder:/subgroup_1
+	0::/user.slice/user-1000.slice/session-2.scope
+
+$ mount | grep "memory"
+	cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
+```
+
+我们使用Go语言实现Cgroup对内存的限制：
+
+```go
+
 ```
