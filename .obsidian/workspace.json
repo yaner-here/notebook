@@ -13,13 +13,47 @@
             "state": {
               "type": "tldraw-view",
               "state": {
-                "file": "AI/Tldraw 2024-12-04 8.40晚上.md"
+                "file": "IPv6.md",
+                "mode": "source",
+                "source": false,
+                "backlinks": false
               },
               "icon": "lucide-file",
-              "title": "Tldraw 2024-12-04 8.40晚上"
+              "title": "IPv6"
+            }
+          },
+          {
+            "id": "6f004be94cdc5186",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "后端/SpringBoot.md",
+                "mode": "source",
+                "source": false,
+                "backlinks": false
+              },
+              "icon": "lucide-file",
+              "title": "SpringBoot"
+            }
+          },
+          {
+            "id": "7207251fb8121db1",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Redis.md",
+                "mode": "source",
+                "source": false,
+                "backlinks": false
+              },
+              "icon": "lucide-file",
+              "title": "Redis"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -42,7 +76,7 @@
                 "autoReveal": false
               },
               "icon": "lucide-folder-closed",
-              "title": "文件列表"
+              "title": "Files"
             }
           },
           {
@@ -51,13 +85,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "AI/OVD/开放目标检测.md",
+                "file": "Redis.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "开放目标检测 的大纲"
+              "title": "Outline of Redis"
             }
           },
           {
@@ -103,23 +137,21 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "markdown-importer:打开 Markdown 格式转换器": false,
-      "switcher:打开快速切换": false,
-      "canvas:新建白板": false,
-      "command-palette:打开命令面板": false,
+      "switcher:Open quick switcher": false,
+      "canvas:Create new canvas": false,
+      "command-palette:Open command palette": false,
+      "markdown-importer:Open format converter": false,
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "5d9f778572ae3a8e",
+  "active": "7207251fb8121db1",
   "lastOpenFiles": [
-    "AI/PyTorch.md",
-    "AI/Pandas.md",
-    "AI/DINO.md",
-    "AI/Tldraw 2024-12-04 8.40晚上.md",
-    "AI/OVD/开放目标检测.md",
-    "AI/Prompt/CoT.md",
-    "AI/APE - Aligning and Prompting Everything All at Once for Universal Visual Perception.md",
-    "AI/图神经网络.md",
+    "().md",
+    "Redis.md",
+    "后端/SpringBoot.md",
+    "IPv6.md",
+    "Untitled",
+    "CMake.md",
     "Linux.md",
     "Linux/Linux基础.md",
     "Linux/Linux脚本编程.md",
@@ -127,7 +159,6 @@
     "后端/Go.md",
     "PyQt6.md",
     "LLMDet.md",
-    "IPv6.md",
     "readme.md",
     "Python网络编程.md",
     "Linux/home_config",
@@ -139,7 +170,6 @@
     "Linux/NixOS/hardware-configuration.nix",
     "Linux/NixOS/flake.nix",
     "Linux/NixOS/flake.lock",
-    "Linux/NixOS/configuration.nix",
     "Btrfs.md",
     "算法/ACM.md",
     "AI/Tldraw 2024-11-11 4.15下午.md",
@@ -147,7 +177,6 @@
     "网络安全/深入PHP.md",
     "网络安全/密码学.md",
     "网络安全/公钥密码学.md",
-    "网络安全/XSS.md",
     "网络安全/CTF/attachment/Pasted image 20220529000114.png",
     "网络安全/CTF/attachment/Pasted image 20220529002801.png",
     "网络安全/CTF/attachment/Pasted image 20220529000049.png",
