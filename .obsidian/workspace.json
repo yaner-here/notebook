@@ -114,8 +114,10 @@
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "cb9847649a182d9a",
+  "active": "5d9f778572ae3a8e",
   "lastOpenFiles": [
+    "后端/SpringBoot.md",
+    "Redis.md",
     "Linux.md",
     "Linux/Linux基础.md",
     "Linux/Linux脚本编程.md",
@@ -150,11 +152,9 @@
     "网络安全/公钥密码学.md",
     "网络安全/XSS.md",
     "网络安全/SQL注入.md",
-    "网络安全/Java代码审计.md",
     "网络安全/CTF/attachment/Pasted image 20220529000114.png",
     "网络安全/CTF/attachment/Pasted image 20220529002801.png",
     "网络安全/CTF/attachment/Pasted image 20220529000049.png",
-    "网络安全/CTF/千峰网络安全.md",
     "undefined/icons/align-center-horizontal.svg",
     "undefined/icons/align-bottom.svg",
     "undefined/icons/zoom-out.svg",
