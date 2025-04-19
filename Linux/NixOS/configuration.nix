@@ -61,13 +61,8 @@
     enableDefaultPackages = true;
     fontDir = { enable = true; };
     packages = with pkgs; [
-      noto-fonts
-      noto-fonts-cjk-sans
-      noto-fonts-cjk-serif
-      noto-fonts-emoji-blob-bin
-      nerd-fonts.caskaydia-cove
       cascadia-code
-      maple-mono
+      maple-mono.NF-CN
     ];
     fontconfig = {
       enable = true;
@@ -232,6 +227,15 @@
       openFirewall = true;
   };
 
+  # postgresql
+  services.postgresql = {
+      enable = true;
+      settings = {
+          port = 5432;
+      };
+      extensions = ext: [ ext.pgvector ];
+  };
+
   # User
   users.users.yaner = {
     isNormalUser = true;
@@ -378,7 +382,7 @@
       flags = [ "--all" ];
     };
   };
-  hardware.nvidia-container-toolkit.enable = true;
+  hardware.nvidia-container-toolkit.enable = true; # see https://discourse.nixos.org/t/nvidia-docker-container-runtime-doesnt-detect-my-gpu/51336/2
 
   # Firefox
   programs.firefox.enable = true;
@@ -501,8 +505,11 @@
     nginx # Web Server
     php
     phpPackages.composer # PHP
+    
+    # Database
     sqlite
-    litecli # Database
+    litecli
+ 
     zip
     p7zip # Compression
 
@@ -533,15 +540,19 @@
     pnpm
     bun
     waveterm # Shell Emulator
+
     rustc
     rustup
     cargo # Rust
+
     antigen # zsh
+
     vscode-fhs
+
     obsidian
+
     doggo # DNS
-    clash-nyanpasu
-    v2rayn
+
     gnome-tweaks
     gnome-shell
     gnome-shell-extensions
