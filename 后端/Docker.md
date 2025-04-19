@@ -55,7 +55,16 @@ subgraph VirtualMachine1 ["第一类虚拟机"]
 
 ## §1.2 联合文件系统
 
-相比于传统的文件系统而言，联合文件系统/联合挂载允许多个文件系统叠加，并表现为一个单一的文件系统，`Docker`支持的联合文件系统包括`AUFS`、`Overlay`/`Overlay2`(Windows+Ubuntu默认)、`devicemapper`、`BTRFS`、`ZFS`等，具体取决于主机操作系统，可以通过`docker info | grep "Storage Driver"`查看。
+相比于传统的文件系统而言，联合文件系统/联合挂载允许多个文件系统叠加，并表现为一个单一的文件系统，`Docker`支持的联合文件系统包括`AUFS`（最原始）、`Overlay`/`Overlay2`(Windows+Ubuntu默认，最佳选择)、`devicemapper`、`BTRFS`、`ZFS`等，具体取决于主机操作系统，可以通过`docker info | grep "Storage Driver"`查看。
+
+联合文件系统的存储目录在`/var/lib/docker/<STORAGE_DRIVER>/`中，配置在`/etc/docker/daemon.json`中：
+
+```json
+{
+	"storage-driver": "overlay2"
+}
+```
+
 
 `Docker`的镜像由多个只读的层(`layer`)组成，DockerFile里的每一个指令都会在前面层的基础之上创建一个新层。当镜像被用于创建容器时，`Docker`会在这些层之上创建一个最高级别的可读写层，同时对网络、资源配额、ID与名称分配进行初始化。
 
@@ -102,6 +111,38 @@ graph TB
 - 客户端：通过`HTTP`与`Docker`守护进程进行通信，默认使用Unix域套接字(Unix domain socket)实现，与远程客户端通信时也可使用`TCP socket`。
 - 寄存服务：负责储存和发布镜像，默认为DockerHub，详见[§2.10 DockerHub](#§2.10 DockerHub)一节。
 
+```mermaid
+graph LR
+    client["Docker Client<br>Docker CLI界面"]
+    daemon["Docker daemon<br>提供API"]
+    containerd["containerd<br>容器的Supervisor"]
+    subgraph subgraph1["容器1"]
+        direction LR
+        shim1["shim<br>启动无守护进程容器"] -->
+            runc1["runc<br>提供原语接口的容器运行时"] -->
+            image1["运行容器"]
+    end
+    subgraph subgraph2["容器2"]
+        direction LR
+        shim2["shim<br>启动无守护进程容器"] -->
+            runc2["runc<br>提供原语接口的容器运行时"] -->
+            image2["运行容器"]
+    end
+    subgraph subgraph3["容器3"]
+        direction LR
+        shim3["shim<br>启动无守护进程容器"] -->
+            runc3["runc<br>提供原语接口的容器运行时"] -->
+            image3["运行容器"]
+    end
+
+    client --> daemon --> containerd
+    containerd --> subgraph1 & subgraph2 & subgraph3
+```
+
+- `daemon`：负责镜像管理、镜像构建、REST API、身份验证、安全、核心网络、编排。
+- `runc`：OCI层的一种实现，只能用于创建容器
+- `containerd`：管理容器的生命周期（`start`/`stop`/`pause`/`rm`/...）
+- `shim`：将`daemon`与容器解耦，每次新建容器时就`fork`一个`runc`进程，创建成功后退出`runc`进程。
 ## §1.4 镜像生成
 
 `docker build`指令需要提供`dockerfile`和构建环境的上下文(Build Context，一组可被`ADD`/`COPY`指令引用的目录或文件，可能为空)构成。例如`docker build -t test/cowsay_dockerfile .`的上下文就是`.`，代表当前目录下的所有文件和目录。
@@ -1204,8 +1245,6 @@ C:\> docker images redis
 ### §2.10.11 `docker logout`
 
 `docker logout [SERVER]`从指定的寄存服务`SERVER`退出账户(缺省为`DockerHub`托管平台)。
-
-## 
 
 ## §2.11 `docker attach`
 
