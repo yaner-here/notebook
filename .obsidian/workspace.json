@@ -19,7 +19,7 @@
                 "backlinks": false
               },
               "icon": "lucide-file",
-              "title": "IPv6"
+              "title": "插件不再活动"
             }
           },
           {
@@ -76,7 +76,7 @@
                 "autoReveal": false
               },
               "icon": "lucide-folder-closed",
-              "title": "Files"
+              "title": "文件列表"
             }
           },
           {
@@ -121,7 +121,8 @@
               "title": "书签"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "horizontal",
@@ -137,14 +138,14 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:Open quick switcher": false,
-      "canvas:Create new canvas": false,
-      "command-palette:Open command palette": false,
-      "markdown-importer:Open format converter": false,
+      "switcher:打开快速切换": false,
+      "canvas:新建白板": false,
+      "command-palette:打开命令面板": false,
+      "markdown-importer:打开 Markdown 格式转换器": false,
       "tldraw:Create new tldrawing": false
     }
   },
-  "active": "7207251fb8121db1",
+  "active": "6e6b094409e26ba9",
   "lastOpenFiles": [
     "().md",
     "Redis.md",
