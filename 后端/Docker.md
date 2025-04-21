@@ -65,7 +65,6 @@ subgraph VirtualMachine1 ["第一类虚拟机"]
 }
 ```
 
-
 `Docker`的镜像由多个只读的层(`layer`)组成，DockerFile里的每一个指令都会在前面层的基础之上创建一个新层。当镜像被用于创建容器时，`Docker`会在这些层之上创建一个最高级别的可读写层，同时对网络、资源配额、ID与名称分配进行初始化。
 
 > 注意：不必要的层会使镜像的体积显著增加，并且某些联合文件系统对层数有限制（例`AUX`最多只有127个层），因此在编写DockerFile时经常将多个指令合并为一行。
@@ -73,7 +72,8 @@ subgraph VirtualMachine1 ["第一类虚拟机"]
 容器的状态有以下五种：
 
 - 已创建(created)：容器已通过`docker craete`命令初始化，但未曾启动过。
-- 重启中(restarting)：上一次该容器启动失败，现在重新尝试启动中。
+- 重启中(restarting)：上一次该容器启动失败，现在重新尝试启动中
+- 。
 - 运行中(running)
 - 已暂停(paused)
 - 已退出/已停止(exited)：容器内没有运行的进程。
@@ -489,27 +489,27 @@ root
 
 `docker run`附带了多种参数：
 
-| 参数                                             | 作用                                                         | 补充说明                                                     |
-| ------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| `-a`/`--attach`                                  | 将指定的数据流(例`STDOUT`)连接至终端(缺省为`stdout`和`stderr`) | 不指定该选项时，默认以`-i`启动                               |
-| `-d`/`--detach`                                  | 使得容器不占用当前主机的Shell，(如果指定)而是在后台运行容器，并输出容器ID | 要保持其持续在后台运行，需要同时指定`-t`参数<br />可用[`docker logs`](#§2.5 `docker logs`)查看CLI输出的内容<br />不能和`-rm`共用 |
-| `--entrypoint`                                   | 覆盖`dockerfile`中的`ENTRYPOINT`指令                         |                                                              |
-| `-e`/`--env`+`VARIABLE=VALUE`                    | 设置容器内的环境变量                                         | 其参数不能为列表形式，如需批量设置环境变量可以多用几个`-e`，例`docker run -e var1=1 -e var2=2` |
-| `--expose`                                       | 与`dockerfile`中的`EXPOSE`指令一样，向主机申请端口或端口范围 | 单纯使用该命令只是占用端口而非开放端口，需要与`-P`共同使用   |
-| `-h`/`--hostname`+`NAME`                         | 设置容器内`Linux`系统的主机名为`NAME`                        |                                                              |
-| `-i`/`--interactive`                             | 保持`stdin`始终打开，即使没有任何终端向`stdin`写入数据流     | 常与`-t`搭配使用，或直接使用`-it`，用于与容器内的shell进行交互 |
-| `--link LIST(CONTAINER:DOMAIN)`                  | 将容器与旧容器`CONTAINER`相关联，并在新容器中更改`/etc/hosts`使得`DOMAIN`指向`CONTAINER`的IP地址 |                                                              |
-| `--name NAME`                                    | 指定容器的名称                                               |                                                              |
-| `-p`/`--publish`+ `HOST_PORT:CONTAINER_PORT`     | 将容器内的`CONTAINER_PORT`端口转发至主机`localhost`的`HOST_PORT`端口上 | 可使用`docker port CONTAINER`查看主机为容器分配了哪些端口    |
-| ``--publish-all``                                | 发布所有已经被指定为开放状态的容器端口(`dockerfile`中的`EXPOSE`或`docker run --expose`)，主机会挨个分配主机端口用于转发 |                                                              |
-| `-P`                                             | 发布容器制定的端口，使主机能够访问                           | 可以在Linux内执行`$ ID=$(docker run -d -P nginx:latest)`和`docker port $ID 80`让Linux自动分配主机上的一个空闲端口 |
-| `--restart STRING`                               | 设置容器停止运行时的重启策略：<br />`always`：无论退出代码是什么，永远尝试重新启动<br />`no`：永远不尝试重新启动<br />`on-failure[:MAX_TRY]`：当退出代码不为0时才尝试重启，最多尝试`MAX_TRY`次 |                                                              |
-| `--rm`                                           | 退出容器时自动将其销毁                                       | 不能与`-d`同时使用                                           |
-| `-t`/`--tty`                                     | 分配一个虚拟的终端设备，从而连接到容器的shell                | 常与`-i`搭配使用，或直接使用`-it`，用于与容器内的shell进行交互 |
-| `-u`/`--user`                                    | 指定容器内`Linux`系统的用户名或UID，这将会覆盖掉`dockerfile`中的`USER`指令 |                                                              |
-| `-v`/`--volume LIST([HOST_PATH:]CONTAINER_PATH)` | 在容器的`CONTAINER_PATH`目录下挂载数据卷，并使数据卷存储在主机的`HOST_PATH`目录下 | `HOST_PATH`缺省时为`/var/lib/docker`                         |
-| `--volume-from LIST(CONTAINER)`                  | 从指定的`CONTAINER`进行挂载数据卷                            |                                                              |
-| `-w`/`--workdir`+`FILE_PATH`                     | 切换到容器内的`FILE_PATH`作为工作目录，这将会覆盖`dockerfile`中的`WORKDIR`指令 |                                                              |
+| 参数                                               | 作用                                                                                                                                                                                                     | 补充说明                                                                                           |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `-a`/`--attach`                                  | 将指定的数据流(例`STDOUT`)连接至终端(缺省为`stdout`和`stderr`)                                                                                                                                                          | 不指定该选项时，默认以`-i`启动                                                                              |
+| `-d`/`--detach`                                  | 使得容器不占用当前主机的Shell，(如果指定)而是在后台运行容器，并输出容器ID                                                                                                                                                              | 要保持其持续在后台运行，需要同时指定`-t`参数<br />可用[`docker logs`](#§2.5 `docker logs`)查看CLI输出的内容<br />不能和`-rm`共用 |
+| `--entrypoint`                                   | 覆盖`dockerfile`中的`ENTRYPOINT`指令                                                                                                                                                                         |                                                                                                |
+| `-e`/`--env`+`VARIABLE=VALUE`                    | 设置容器内的环境变量                                                                                                                                                                                             | 其参数不能为列表形式，如需批量设置环境变量可以多用几个`-e`，例`docker run -e var1=1 -e var2=2`                              |
+| `--expose`                                       | 与`dockerfile`中的`EXPOSE`指令一样，向主机申请端口或端口范围                                                                                                                                                               | 单纯使用该命令只是占用端口而非开放端口，需要与`-P`共同使用                                                                |
+| `-h`/`--hostname`+`NAME`                         | 设置容器内`Linux`系统的主机名为`NAME`                                                                                                                                                                              |                                                                                                |
+| `-i`/`--interactive`                             | 保持`stdin`始终打开，即使没有任何终端向`stdin`写入数据流                                                                                                                                                                    | 常与`-t`搭配使用，或直接使用`-it`，用于与容器内的shell进行交互                                                         |
+| `--link LIST(CONTAINER:DOMAIN)`                  | 将容器与旧容器`CONTAINER`相关联，并在新容器中更改`/etc/hosts`使得`DOMAIN`指向`CONTAINER`的IP地址                                                                                                                                 |                                                                                                |
+| `--name NAME`                                    | 指定容器的名称                                                                                                                                                                                                |                                                                                                |
+| `-p`/`--publish`+ `HOST_PORT:CONTAINER_PORT`     | 将容器内的`CONTAINER_PORT`端口转发至主机`localhost`的`HOST_PORT`端口上                                                                                                                                                 | 可使用`docker port CONTAINER`查看主机为容器分配了哪些端口                                                       |
+| ``--publish-all``                                | 发布所有已经被指定为开放状态的容器端口(`dockerfile`中的`EXPOSE`或`docker run --expose`)，主机会挨个分配主机端口用于转发                                                                                                                      |                                                                                                |
+| `-P`                                             | 发布容器制定的端口，使主机能够访问                                                                                                                                                                                      | 可以在Linux内执行`$ ID=$(docker run -d -P nginx:latest)`和`docker port $ID 80`让Linux自动分配主机上的一个空闲端口    |
+| `--restart STRING`                               | 设置容器停止运行时的重启策略：<br />`always`：无论退出代码是什么，永远尝试重新启动，会随着Daemon的重启和重启<br />`no`：永远不尝试重新启动<br />`on-failure[:MAX_TRY]`：当退出代码不为0时才尝试重启，最多尝试`MAX_TRY`次<br>`unless-stopped`：无论退出代码是什么，永远尝试重新启动，不会随着Daemon的重启而重启 |                                                                                                |
+| `--rm`                                           | 退出容器时自动将其销毁                                                                                                                                                                                            | 不能与`-d`同时使用                                                                                    |
+| `-t`/`--tty`                                     | 分配一个虚拟的终端设备，从而连接到容器的shell                                                                                                                                                                              | 常与`-i`搭配使用，或直接使用`-it`，用于与容器内的shell进行交互                                                         |
+| `-u`/`--user`                                    | 指定容器内`Linux`系统的用户名或UID，这将会覆盖掉`dockerfile`中的`USER`指令                                                                                                                                                    |                                                                                                |
+| `-v`/`--volume LIST([HOST_PATH:]CONTAINER_PATH)` | 在容器的`CONTAINER_PATH`目录下挂载数据卷，并使数据卷存储在主机的`HOST_PATH`目录下                                                                                                                                                 | `HOST_PATH`缺省时为`/var/lib/docker`                                                               |
+| `--volume-from LIST(CONTAINER)`                  | 从指定的`CONTAINER`进行挂载数据卷                                                                                                                                                                                 |                                                                                                |
+| `-w`/`--workdir`+`FILE_PATH`                     | 切换到容器内的`FILE_PATH`作为工作目录，这将会覆盖`dockerfile`中的`WORKDIR`指令                                                                                                                                                |                                                                                                |
 
 
 
@@ -1910,7 +1910,18 @@ C:\> docker run -it --name Application --volumes-from Database alpine:latest
 
 `Docker`的容器特性决定了其天生适合采用微服务和并发集群的方式，常用于在一天之内安全地多次更新生产环境，即持续部署(Continuous Deployment)技术，本章将讲解一系列相关的实战项目。
 
-## §4.1 Hello World Web
+## §4.1 Dockerfile
+
+Dockerfile有以下常用语法：
+
+| 命令  | 语法  | 作用  |
+| --- | --- | --- |
+|     |     |     |
+
+
+## §4.x 项目开发实战
+
+### §4.x.1 Hello World Web
 
 首先在主机创建工作目录，并编写一个简单的Python程序：
 
@@ -2054,7 +2065,7 @@ USER uwsgi
 CMD ["/cmd.sh"] # 运行脚本
 ```
 
-## §4.2 `docker-compose`
+### §4.x.2 `docker-compose`
 
 `docker-compose`是一种`.yaml`格式的文件，其中包括了`dockerfile`、容器内`bash`脚本、容器外`docker`脚本等一系列配置过程，旨在迅速建立和运行打包好的`docker`环境。
 
@@ -2247,7 +2258,7 @@ pythonserver-identidock-1 exited with code 1
 - `stop`：停止容器的运行
 - `rm`：删除容器
 
-## §4.3 `identicon`
+### §4.x.3 `identicon`
 
 `identicon`由`identify`和`icon`两个词复合而成，能基于用户的某些特征值(例IP地址、用户名哈希值等)，生成一个独一无二的图像，从而实现用户的个性化视觉表达需求。`identicon`的概念可以追溯到[2007年](https://github.com/donpark/identicon)，现在被网站广泛用于生成用户初始头像，例如`GitHub`和`StackOverflow`。
 
