@@ -1,6 +1,6 @@
 参考文献：
 
-- [Spring Redis实战开发](https://wqbook.wqxuetang.com/book/3251192)
+- [《Spring Redis实战开发》](https://wqbook.wqxuetang.com/book/3251192)
 
 # §1 基础语法
 
