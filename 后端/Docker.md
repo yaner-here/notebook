@@ -1914,9 +1914,17 @@ C:\> docker run -it --name Application --volumes-from Database alpine:latest
 
 Dockerfile有以下常用语法：
 
-| 命令  | 语法  | 作用  |
-| --- | --- | --- |
-|     |     |     |
+| 命令           | 语法                    | 作用                              | 是否产生镜像层 |
+| ------------ | --------------------- | ------------------------------- | ------- |
+| `FROM`       | `FROM <IMAGE>`        | 指定基础镜像层                         | √       |
+| `LABEL`      | `LABEL <KEY>=<VALUE>` | 自定义元数据的键值对                      | ×       |
+| `RUN`        | `RUN <COMMAND>`       | 在容器内的Shell中执行`<COMMAND>`指令      | √       |
+| `COPY`       | `COPY <SRC> <DES>`    | 将主机目录`<SRC>`中的文件复制到容器内目录`<DES>` | √       |
+| `WORKDIR`    | `WORKDIR <PATH>`      | 设置容器运行时所在的工作目录                  | ×       |
+| `EXPOSE`     | `EXPOSE <PORT>`       | 开放容器端口                          | ×       |
+| `ENTRYPOINT` | `ENTRYPOINT [<ARG>+]` |                                 | ×       |
+| `ENV`        |                       |                                 |         |
+|              |                       |                                 |         |
 
 
 ## §4.x 项目开发实战
