@@ -2,7 +2,7 @@
 
 - [《深入浅出Spring Boot 3.x》](https://www.epubit.com/bookDetails?id=UBda9eaf729796)
 
-# §1 基础知识
+# §1 Spring
 
 我们先写一个简单的`Hello, world`程序。使用Spring官方提供的模版生成器[Spring initializer](https://yaclt.cn/sysm.jpg)，我们可以得到以下模版工程：
 
@@ -47,9 +47,7 @@ $ curl.exe http://127.0.0.1:8080/hello?name=yaner
 	Hello, yaner
 ```
 
-## §1.1 Spring
-
-### §1.1.1 IoC
+## §1.1 IoC
 
 控制反转（Inversion of Control，IoC）是Spring中的两个基本概念之一。
 
@@ -179,11 +177,11 @@ public class Application {
 }
 ```
 
-### §1.1.2 配置容器与Bean
+## §1.2 配置容器与Bean
 
 Bean特指Java中一种特殊的类，它同时满足这些条件——可序列化和持久化、提供无参构造器、提供Getter和Setter方法以访问实例字段的**可重用组件**。按照这一定义，Spring也将可重用的容器称为Bean，使用Beans的配置元数据来管理容器之间的依赖关系。
 
-#### §1.1.2.1 XML配置
+### §1.2.1 XML配置
 
 前文提到，Spring可以读取XML文件中的`<beans>`标签来配置Bean。具体来说，一个`<bean>`标签用于配制一个Bean
 
@@ -308,7 +306,7 @@ class Container {
 }
 ```
 
-#### §1.1.2.2 注解配置
+### §1.2.2 注解配置
 
 Spring支持通过注解来简化Bean配置。
 
@@ -425,7 +423,7 @@ class App {
    [BeanB] info: name=BeanB */
 ```
 
-#### §1.1.2.3 Java类配置
+### §1.2.3 Java类配置
 
 前文说过，`@Bean`用于修饰某个方法，该方法的返回值是一个Bean实例。也就是说，`@Bean`的低位有点类似于Python中的修饰器——它不产生新的Class，只产生新的BeanID，它只是对原先的Class做了一点侵入式更改。
 
@@ -451,7 +449,7 @@ Spring框架对`@Configuration`修饰的配置类中的`@Bean`一律认为是单
 public class Config { }
 ```
 
-### §1.1.3 Bean生命周期
+## §1.3 Bean生命周期
 
 Spring容器负责管理Bean的整个生命周期。
 
@@ -480,7 +478,58 @@ Spring提供了以下四种方式指定创建后回调函数和销毁前回调�
 2. 重载了接口`Initializing`的`.afterPropertiesSet()`方法，或接口`DisposableBean`的`.destroy()`方法
 3. 在XML或Java类配置的方法
 
-### §1.1.4 Bean感知容器
+Spring将生命周期抽象成了`org.springframework.context.LifeCycle`接口：
+
+- `void .start()`：启动
+- `void .stop()`：终止
+- `boolean isRunning()`：是否正在运行
+
+其中`.start()`/`.stop()`会在`ApplicationContext`实例调用`.start()`/`.stop()`方法时被调用：
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.context.Lifecycle;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+class Person implements Lifecycle {
+    private boolean isAlive = false;
+    public void printInfo() { System.out.println("[Person]: isAlive=" + isAlive); }
+    @Override public void start() { this.isAlive = true; System.out.println("[Person]: Started."); }
+    @Override public void stop() { this.isAlive = false; System.out.println("[Person]: Stopped."); }
+    @Override public boolean isRunning() { return this.isAlive; }
+}
+
+@Configuration
+class ApplicationConfig {
+    @Bean
+    public Person person() { return new Person(); }
+}
+
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);
+
+        Person person = context.getBean("person", Person.class);
+        person.printInfo();
+
+        context.start();
+        person.printInfo();
+
+        context.close();
+        person.printInfo();
+    }
+}
+/* [Person]: isAlive=false
+   [Person]: Started.
+   [Person]: isAlive=true
+   [Person]: Stopped.
+   [Person]: isAlive=false */
+```
+
+## §1.4 Bean感知容器
 
 在工程中，我们设计的Bean业务逻辑应该是与Spring无耦合的。如果遇到特殊情况需要耦合，Spring提供了两种方式，让Bean能感知到容器的信息：
 
@@ -489,7 +538,43 @@ Spring提供了以下四种方式指定创建后回调函数和销毁前回调�
 
 这两种方式在本质上是一样的——都是在函数体内拿到了`BeanFactory`或`ApplicationContextAware`实例，在该实例上进行操作。
 
-### §1.1.5 事件机制
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+class BeanA implements BeanFactoryAware {
+    private BeanFactory beanFactory;
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException { this.beanFactory = beanFactory; }
+    public void checkBeanB() { System.out.println("Does BeanB exist? " + beanFactory.containsBean("beanB")); }
+}
+
+class BeanB { }
+
+@Configuration
+class ApplicationConfig {
+    @Bean
+    public BeanA beanA() { return new BeanA(); }
+    @Bean
+    public BeanB beanB() { return new BeanB(); }
+}
+
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);
+        BeanA beanA = context.getBean("beanA", BeanA.class);
+        beanA.checkBeanB(); // Does BeanB exist? true
+    }
+}
+```
+
+## §1.5 事件机制
 
 `ApplicationContext`提供了一套事件机制，允许开发者通过`ApplicationEvent`通知所有实现了`ApplicationListener`接口的类。
 
@@ -497,9 +582,13 @@ Spring提供了以下四种方式指定创建后回调函数和销毁前回调�
 
 - 对于自定义事件：
 	1. 继承`ApplicationEvent`父类，创建了`MyEvent`类。在构造方法中接收了一个未知的`Object source`形参，这个`source`是由消息发布者指定的。我们直接把`source`传给父类的构造方法。
-	2. 新建`MyEventPublisher`类。它实现了`ApplicationEventPublishAware`接口的`.setApplicationEventPublisher(ApplicationEventPublisher publisher)`方法，将Spring传入的`publisher`实例保存在类内变量中。同时公开一个发送自定义事件的API，它调用这个`publisher`的`.publishEvent()`方法，传入一个`Object source`表示事件内容来实例化`MyEvent`，将该实例传入`.publishEvent()`。
+	2. 新建`MyEventPublisher`类。它实现了`ApplicationEventPublishAware`接口的`.setApplicationEventPublisher(ApplicationEventPublisher publisher)`方法，将Spring传入的`publisher`实例保存在类内变量中。同时公开一个发送自定义事件的API`.setMyEvent()`，它调用这个`publisher`的`.publishEvent()`方法，传入一个`Object source`表示事件内容来实例化`MyEvent`，将该实例传入`.publishEvent()`。
 	3. 新建`MyEventListener`类。它自定义了一个由`@EventListener`修饰的回调函数，该函数接受一个`MyEvent`实例，并调用其父类的`.getSource()`拿到`Object source`事件内容。
-	4. 在主函数中，我们通过Spring
+	4. 在主函数中，我们通过Spring拿到了一个`MyEventPublisher`实例，调用它的`.sendMyEvent()`方法。这样会触发`MyEventListener`实例的回调函数，即使我们没有显式地创建`MyEventListener`实例。
+- 对于其它的预定义事件（以关闭事件为例）：Spring提供了一系列预定义事件。例如`ApplicationContext`在启动、停止、关闭、刷新时分别发出`ContextStartedEvent`、`ContextStoppedEvent`、`ContextClosedEvent`、`ContextRefreshedEvent`事件，它们都导入自`org.framework.context.event.*`。**为了监听预定义事件，Spring提供了两种方法：为监听类实现`org.springframework.context.ApplicationListener<Event>`泛型事件接口，或为形参是`Event`的方法使用`org.springframework.context.event.EventListener`给出的`@EventListener`注解修饰**。
+	1. 为监听类实现`ApplicationListener<Event>`泛型事件接口。创建自定义类`ContextClosedEventListener`，并且实现`ApplicationListener<ContextClosedEvent>`接口的`public void onApplicationEvent(ContextClosedEvent)`方法作为回调函数。
+	2. 为形参是`Event`的方法使用`@EventListener`注解修饰。创建自定义类`ContextClosedEventAnnotationListener`，自定义其`.onEvent(ContextClosedEvent)`作为回调函数，并使用`@EventListener`注解修饰。
+	3. `org.springframework.core.annotation.Order`提供的`@Order`注解可以规定同一事件的不同监听器的触发顺序。
 
 ```java
 package top.yaner_here.javasite;
@@ -560,8 +649,180 @@ public class Application {
         context.close();
     }
 }
+/* [MyEventPublisher]: Got publisher.
+   [CustomEventListener]: Get MyEvent -> This is my event!
+   [@ApplicationListener(1)] Closed Event received.
+   [@EventListener(2)] Closed Event received. */
 ```
 
-## §1.2 AOP
+## §1.6 后处理
+
+Spring允许开发者定制Bean，封装自己的框架或功能。具体来说，Spring提供了`org.springframework.beans.factory.config.BeanPostProcessor`接口，它包含两个方法：
+
+- `postProcessBeforeInitialization(Object bean, String beanName)`：在Bean初始化前运行。
+- `postProcessAfterInitialization(Object bean, String beanName)`：在Bean初始化后运行。
+
+在下面的例子中：
+
+1. 我们不使用`@Component`与`@ComponentScan`导入所有Bean，而是通过`@Bean`只定义了一个Bean——`Speaker`，使用`@PostConstruct`注解注册了一个后处理方法。
+2. 定义`SpeakerPostProcessor`类，它实现了`BeanPostProcessor`接口的两个方法。
+
+```java
+package top.yaner_here.javasite;
+
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+class Speaker {
+    @PostConstruct
+    public void init() { System.out.println("[Speaker] @PostConstruct is called."); }
+    public void hello() { System.out.println("[Speaker] hello() is called."); }
+}
+
+class SpeakerPostProcessor implements BeanPostProcessor {
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+        System.out.println("[SpeakerPostProcessor] postProcessBeforeInitialization() is called with beanName=" + beanName);
+        return bean;
+    }
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        System.out.println("[SpeakerPostProcessor] postProcessAfterInitialization() is called with beanName=" + beanName);
+        return bean;
+    }
+}
+
+@Configuration
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(Application.class);
+        context.close();
+    }
+    @Bean
+    public Speaker speaker() { return new Speaker(); }
+    @Bean
+    public SpeakerPostProcessor speakerPostProcessor() { return new SpeakerPostProcessor(); }
+}
+
+/* [SpeakerPostProcessor] postProcessBeforeInitialization() is called with beanName=speaker
+   [Speaker] @PostConstruct is called.
+   [SpeakerPostProcessor] postProcessAfterInitialization() is called with beanName=speaker */
+```
+
+同理，Spring也允许开发者定制Bean配置本身。具体来说，Spring提供了`org.springframework.beans.factory.config.BeanFactoryPostProcessor`接口，它包含了`postProcessBeanFactory(ConfigurableListableBeanFactory)`方法。在该方法内，开发者可以编辑`ConfigurableListableBeanFactory`中的配置信息。
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+class BeanA {
+    private String name;
+    public void setName(String name) { this.name = name; }
+    public String getName() { return this.name; }
+}
+
+class MyBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        System.out.println("[MyBeanFactoryPostProcessor] postProcessBeanFactory() is called.");
+        if(beanFactory.containsBeanDefinition("beanA")) {
+            BeanDefinition definition = beanFactory.getBeanDefinition("beanA");
+            // 改变Scope
+            definition.setScope(BeanDefinition.SCOPE_SINGLETON);
+            // 改变Metadata
+            definition.getPropertyValues().addPropertyValue("name", "Modified name by MyBeanFactoryPostProcessor");
+        }
+    }
+}
+
+@Configuration
+class ApplicationConfig {
+    @Bean
+    public static MyBeanFactoryPostProcessor myBeanFactoryPostProcessor() { return new MyBeanFactoryPostProcessor(); }
+    @Bean
+    public BeanA beanA() { return new BeanA(); }
+}
+
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);
+        BeanA beanA = context.getBean("beanA", BeanA.class);
+        System.out.println("[beanA] name=" + beanA.getName());
+        context.close();
+    }
+}
+```
+
+## §1.7 环境抽象
+
+虽然Java宣称自己是“Write Once, Run Anywhere”，但是受制于JVM和宿主机环境的各种差异，我们常常需要在多个配置之间切换。Spring提供了`org.springframework.core.env.Environment`接口表示对环境的抽象。这种对环境的抽象由`org.springframework.context.annotation.Profile`和`org.springframework.context.annotation.PropertySource`两部分描述。
+
+我们先看`Profile`。在前文中，我们初始化`AnnotationConfigApplicationContext`实例的时候，总是给构造函数传入一个配置类的类对象。在本节中，我们先不传入实参，而是先初始化之后，为它的`environment`设置Profile名称，**然后再**注册若干个配置类，最后刷新上下文实例即可。这里的每个配置类都需要使用`@Profile()`注解指定Profile名称。
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.ConfigurableEnvironment;
+
+class Person {
+    private String name;
+    public String getName() { return this.name; }
+    public void setName(String name) { this.name = name; }
+    public void greet() { System.out.printf("[Person]: %s says hello!\n", this.name); }
+}
+
+@Configuration
+@Profile("dev")
+class ApplicationDevConfig {
+    @Bean public Person person() { Person person = new Person(); person.setName("DevEnv"); return person; }
+}
+
+@Configuration
+@Profile("test")
+class ApplicationTestConfig {
+    @Bean public Person person() { Person person = new Person(); person.setName("TestEnv"); return person; }
+}
+
+public class Application {
+    public static void main(String[] args) {
+        Person person;
+
+        AnnotationConfigApplicationContext context1 = new AnnotationConfigApplicationContext();
+        ConfigurableEnvironment environment1 = context1.getEnvironment();
+        environment1.setActiveProfiles("dev");
+        context1.register(ApplicationDevConfig.class, ApplicationTestConfig.class);
+        context1.refresh();
+        Person person1 = context1.getBean("person", Person.class);
+        person1.greet();
+        context1.close();
+
+        AnnotationConfigApplicationContext context2 = new AnnotationConfigApplicationContext();
+        ConfigurableEnvironment environment2 = context2.getEnvironment();
+        environment2.setActiveProfiles("test");
+        context2.register(ApplicationDevConfig.class, ApplicationTestConfig.class);
+        context2.refresh();
+        Person person2 = context2.getBean("person", Person.class);
+        person2.greet();
+        context2.close();
+    }
+}
+```
+
+## §1.x AOP
 
 面向切面编程（Aspect Oriented Programming，AOP）是Spring中的两个基本概念之一。
