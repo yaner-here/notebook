@@ -1906,6 +1906,51 @@ C:\> docker run -it --name Application --volumes-from Database alpine:latest
 - 该数据卷没有被指定主机目录(即`docker run -v HOST_PATH:CONTAINER:PATH`)，类似于自毁命令
 - **当前没有任何容器与该数据卷关联**
 
+## §3.4 网络
+
+Docker网络架构由三部分组成：容器网络模型（CNM）、LIbnetwork和驱动。CNM是设计标准，规定了Docker网络架构的基本组成要素。Libnetwork是Docker公司对CNM的一种实现，使用Go语言编写。驱动用于实现各种网络拓扑方式。
+
+CNM由三部分组成：沙盒、终端和网络。
+
+- 沙盒：一个独立的网络栈，包含以太网接口、端口、路由表、DNS配置。
+- 终端：虚拟网络接口，负责创建连接，将沙盒连接到网络。**每个终端只能连接到一个网络**。
+- 网络：`802.1d`网桥（即交换机）的软件实现，连接各个需要相互交互的终端。**只有连接到同一个网络的终端才能互相通信，而不是同一个沙盒内的终端**。
+
+```mermaid
+graph TB
+	subgraph container1["容器1"]
+		subgraph sandbox1["沙盒1"]
+			endpoint1["终端1"]
+		end
+	end
+	subgraph container2["容器2"]
+		subgraph sandbox2["沙盒2"]
+			endpoint2["终端2"]
+			endpoint3["终端3"]
+		end
+	end
+	endpoint1 & endpoint2 --> network1["网络1"]
+	endpoint3 --> network2["网络2"]
+```
+
+Docker内置了若干驱动。例如在Linux平台上包含`Bridge`、`Overlay`和`Macvlan`；在Windows平台上包含`NAT`、`Overlay`、`Transport`、`L2 Bridge`。除此之外，Docker也支持第三方驱动，例如`Calico`、`Contiv`、`Kuryr`、`Weave`。
+
+`docker network`提供了以下常用命令：
+
+- `docker network ls`：查看Docker在主机上创建的网络，包括网络ID、网络名、驱动名和作用域
+- `docker network inspect <NAME>`：查看Docker在主机上创建的网络`<NAME>`的详细信息
+- `docker network create <OPTION> <DRIVER> <NAME>`：用驱动`<DRIVER>`创建一个名为`<NAME>`的Docker网络
+
+Docker创建的网桥可以通过`brctl show`命令行工具查看详细信息，包括网桥名称、网桥ID、STP开启状态、正在连接的设备。`brctl`需要通过`apt install bridge-utils`安装。
+
+### §3.4.1 单机桥接网络（`Bridge`/`NAT`）
+
+单机桥接网络只能在单个Docker主机上运行，只能与Docker主机上运行的容器通信，是`802.1.d`协议（二层交换机）的一种软件实现。它在Linux上叫做`Bridge`，在Windows上叫做`NAT`，本质上完全一样。
+
+每个主机安装Docker时都会默认创建一个单机桥接网络，在Linux上叫做`bridge`，在Windows上叫做`nat`。Linux上的单机桥接网络驱动实现是基于Linux内核中的Linux Bridge技术，在内核中映射为`docker0`网桥，在`docker network inspect bridge`中也能看到`com.docker.network.bridge.name: "docker0"`键值对。
+
+受制于二层交换机的实现原理，即使容器共用同一个单机桥接网络，但是各个网络之间互相隔离，等价于若干个独立的网络，所以容器之间无法直接通信。
+
 # §4 Docker项目开发
 
 `Docker`的容器特性决定了其天生适合采用微服务和并发集群的方式，常用于在一天之内安全地多次更新生产环境，即持续部署(Continuous Deployment)技术，本章将讲解一系列相关的实战项目。
@@ -1914,18 +1959,95 @@ C:\> docker run -it --name Application --volumes-from Database alpine:latest
 
 Dockerfile有以下常用语法：
 
-| 命令           | 语法                    | 作用                              | 是否产生镜像层 |
-| ------------ | --------------------- | ------------------------------- | ------- |
-| `FROM`       | `FROM <IMAGE>`        | 指定基础镜像层                         | √       |
-| `LABEL`      | `LABEL <KEY>=<VALUE>` | 自定义元数据的键值对                      | ×       |
-| `RUN`        | `RUN <COMMAND>`       | 在容器内的Shell中执行`<COMMAND>`指令      | √       |
-| `COPY`       | `COPY <SRC> <DES>`    | 将主机目录`<SRC>`中的文件复制到容器内目录`<DES>` | √       |
-| `WORKDIR`    | `WORKDIR <PATH>`      | 设置容器运行时所在的工作目录                  | ×       |
-| `EXPOSE`     | `EXPOSE <PORT>`       | 开放容器端口                          | ×       |
-| `ENTRYPOINT` | `ENTRYPOINT [<ARG>+]` |                                 | ×       |
-| `ENV`        |                       |                                 |         |
-|              |                       |                                 |         |
+| 命令            | 语法                                                     | 作用                                                                                                              | 是否产生镜像层 |
+| ------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ------- |
+| `FROM`        | `FROM <IMAGE>`                                         | 指定基础镜像层                                                                                                         | √       |
+| `LABEL`       | `LABEL <KEY>=<VALUE>`                                  | 自定义元数据的键值对                                                                                                      | ×       |
+| `RUN`         | `RUN <COMMAND>`                                        | 在容器内的Shell中执行`<COMMAND>`指令                                                                                      | √       |
+| `COPY`        | `COPY <SRC> <DES>`                                     | 将主机目录`<SRC>`中的文件复制到容器内目录`<DES>`                                                                                 | √       |
+| `WORKDIR`     | `WORKDIR <PATH>`                                       | 设置容器运行时所在的工作目录                                                                                                  | ×       |
+| `EXPOSE`      | `EXPOSE <PORT>`                                        | 开放容器端口                                                                                                          | ×       |
+| `ENTRYPOINT`  | `ENTRYPOINT [<ARG>+]`或`ENTRYPOINT {"<ARG>",...}`       | 指定容器运行时执行的命令。前者会先开一个Shell，后者直接将`argv[0]`作为PID是`1`的进程                                                            | ×       |
+| `ENV`         | `ENV [<KEY>=<VALUE>]+`                                 | 指定容器内的环境变量                                                                                                      | ×       |
+| `CMD`         | `CMD <PARAM>+`或`CMD ["<ARG>",...]`或`CMD["<ARG1>",...]` | 前者会先开一个Shell，中者直接将`argv[0]`作为PID是`1`的进程，后者与`ENTRYPOINT`一起使用时表示给`ENTRYPOINT`添加的命令行选项                             | √       |
+| `ONBUILD`     | `ONBUILD <命令>`                                         | 若其它Dockerfile引用了该镜像，则它们构建时会先触发`ONBUILD`的`<指令>`，这里的`<指令>`不包括`FROM`、`MAINTAINER`、`ONBUILD`。若有多条`ONBUILD`指令，则按顺序触发 | ×       |
+| `HEALTHCHECK` | `HEALTHCHECK <OPTIONS> CMD <COMMAND>`                  | 根据`<COMMAND>`的返回值是否为`0`判断容器是否健康                                                                                 |         |
 
+Dockerfile支持多阶段构建，每个`FROM`指令都表示一个构建阶段。以下面的Dockerfile为例，我们分别拉取了前后端的开发环境容器，构建了对应的产物，最后通过`COPY --from <构建层名>`指令从前面的容器中拿到对应文件。
+
+```dockerfile
+FROM node:latest AS storefront
+WORKDIR /usr/src/website/frontend
+COPY frontend .
+RUN npm install
+RUN npm run build
+
+FROM maven:latest AS appserver
+WORKDIR /usr/src/website/backend
+COPY pom.xml .
+RUN mvn -B -s /usr/share/maven/ref/settings-docker.xml package -DskipTests
+
+FROM java:8-jdk-alpine AS production
+RUN adduser -Dh /home/yaner yaner
+WORKDIR /static
+COPY --from=storefront /usr/src/website/frontend/build/ .
+WORKDIR /app
+COPY --from appserver /usr/src/website/backend/target/Backend-0.0.1.jar .
+ENTRYPOINT ["java", "-jar", "/app/Backend-0.0.1.jar"]
+CMD ["--spring.profiles.acivate=postgres"]
+```
+
+## §4.2 Docker Compose
+
+以下面的`docker-compose.yaml`为例，我们讲解各个字段的含义：
+
+- `version`：Docker Compose文件格式的版本号，可以从官方文档查询Docker引擎和Docker Compose支持的版本号区间。
+- `services`：定义不同的应用服务。每个二级`key`都代表着一个要创建的服务，服务名称会在`key`的基础上生成。
+	- `build`：指定一个目录，Docker Compose会使用该目录下的`.Dockerfile`创建镜像。
+	- `image`：创建镜像的镜像名。
+	- `command`：在容器内执行的命令。
+	- `ports`：将容器内端口暴露到主机上。其中`target`表示容器内的端口号，`published`表示主机的端口号。
+	- `networks`：该服务要连接的Docker网络。
+	- `volumes`：该服务挂载的数据卷。其中`source`表示主机内的路径，`target`表示容器内的挂载点。
+- `networks`：定义Docker创建的网络。
+- `volumes`：定义Docker创建的数据卷。
+
+```yaml
+version: "3.5"
+services:
+	flask:
+		build: .
+		command: python app.py
+		ports:
+			- target: 5000
+			  published: 5000
+		networks:
+			counter-net
+		volumes:
+			- type: volume
+			  source: counter-vol
+			  target: /code
+	redis:
+		image: "redis:alpine"
+		networks:
+			counter-net:
+networks:
+	counter-net:
+	driver: overlay
+	attachable: true
+volumes:
+	counter-vol:
+```
+
+`docker-compose`CLI提供了以下常用命令：
+
+- `docker-compose up`：自动搜索当前目录下的`docker-compose.yml`或`docker-compose.yaml`文件，也可以使用`-f <FILE_PATH>`选项指定Docker Compose文件。使用`-d`选项可以在后台启动。
+- `docker-compose down`：停止服务，并移除所有相关的服务、网络、数据卷。
+- `docker-compose ps`：查看所有服务的名称、启动命令、服务状态、监听端口。
+- `docker-compose top`：查看所有服务容器内运行的进程，及其在主机上的PID（而非容器内的PID）、创建该进程的用户名、持续运行时间、带参数的命令行指令。
+- `docker-compose stop`：只是停止服务而已。
+- `docker-compose restart`：重启所有服务。
+- 
 
 ## §4.x 项目开发实战
 
@@ -3675,3 +3797,8 @@ C:/> docker run -d -p 2379:2379 -p 2380:2380 -p 4001:4001 --name etcd quay.io/co
 > 	Login Succeeded
 > ```
 
+## §6.3 Docker Swarm
+
+Docker Swarm是一项集成在Docker引擎中的功能。一个Swarm集群由若干Docker节点构成，每个节点会被配置为管理节点或工作节点。管理节点负责集群控制面（Control Plane），也就是监控集群状态、分发节点任务。工作节点负责接受管理节点的任务并执行。
+
+TODO：？？？
