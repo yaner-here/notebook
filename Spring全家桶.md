@@ -764,7 +764,9 @@ public class Application {
 }
 ```
 
-## §1.7 环境抽象
+## §1.7 Spring抽象层
+
+### §1.7.1 Profile
 
 虽然Java宣称自己是“Write Once, Run Anywhere”，但是受制于JVM和宿主机环境的各种差异，我们常常需要在多个配置之间切换。Spring提供了`org.springframework.core.env.Environment`接口表示对环境的抽象。这种对环境的抽象由`org.springframework.context.annotation.Profile`和`org.springframework.context.annotation.PropertySource`两部分描述。
 
@@ -823,6 +825,513 @@ public class Application {
 }
 ```
 
-## §1.x AOP
+除了在Java代码中切换Profile，Spring也支持在启动命令行时使用`-Dspring.profiles.active="..."`指定Profile。
 
-面向切面编程（Aspect Oriented Programming，AOP）是Spring中的两个基本概念之一。
+Spring默认使用的Profile名称为`default`，可以使用`ConfigurableEnvironment.setDefaultProfiles()`或`-Dspring.profiles.default`修改。
+
+### §1.7.2 PropertySource
+
+在Spring的惯例中，属性通常由小数点分隔的小写单词构成，例如`foo.bar`。如果属性是从环境变量中获取，则Spring会依次检索`foo.bar`、`foo_bar`、`FOO.BAR`、`FOO_BAR`环境变量。
+
+Spring的属性名可以使用`${属性名:默认值}`的占位符语法，表示属性名不存在时的默认值。为了获取属性值，Spring提供了两种方法：
+
+- `org.springframework.core.env.Environment`类提供的`.getProperty(String)`方法，**不支持占位符语法**。
+- 给实例变量添加`@Value(String)`注解修饰。**支持占位符**，默认值表示属性名不存在时的属性默认值。
+
+Spring会频繁读取属性值，而属性值的来源多种多样，例如JNDI、`-D`命令行参数、操作系统环境变量等。PropertySource将属性来源抽象成一个统一的类。具体来说，对`@Configuration`增加`@PropertySource("classpath:...")`可以指定属性来源。
+
+```inf
+// /src/main/resources/application.properties
+spring.application.name=javasite
+```
+
+```java
+package top.yaner_here.javasite;  
+  
+import org.springframework.beans.factory.annotation.Value;  
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;  
+import org.springframework.context.annotation.ComponentScan;  
+import org.springframework.context.annotation.Configuration;  
+import org.springframework.context.annotation.PropertySource;  
+import org.springframework.core.env.Environment;  
+import org.springframework.stereotype.Component;  
+  
+@Component  
+class ApplicationInfo {  
+    @Value("spring.application.name") public String appName;  
+    @Value("${app.version:UnknownVersion}") public String version;  
+}  
+  
+@Configuration  
+@PropertySource("classpath:/application.properties")  
+@ComponentScan  
+class ApplicationConfig { }  
+  
+public class Application {  
+    public static void main(String[] args) {  
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);  
+        ApplicationInfo info = context.getBean("applicationInfo", ApplicationInfo.class);  
+  
+        // 使用Environment.getProperty()方法获取属性值  
+        Environment environment = context.getEnvironment();  
+        System.out.println("spring.application.name: " + environment.getProperty("spring.application.name"));  
+        System.out.println("version: " + environment.getProperty("${spring.application.name:UnknownVersion}"));  
+  
+        // 使用@Value注解获取属性值  
+        System.out.println("spring.application.name: " + info.appName);  
+        System.out.println("version: " + info.version);  
+    }  
+}
+/* spring.application.name: javasite
+   version: null
+   spring.application.name: spring.application.name
+   version: UnknownVersion */
+```
+
+Spring允许开发者自定义属性来源，只需要定义一个自己的`org.springframework.core.env.PropertySource`子类即可。在下面的例子中，我们将`Map<String, String>`自定义为一种新的属性来源：
+
+1. 新建`MyMapPropertySource`类，继承自`org.springframework.core.envProperty<Map<String, String>>`子类。重载负载的`.getProperty()`和`.containsProperty()`方法，改成从`Map<String, String>`中查找键值对。
+2. 新建自定义配置类`ApplicationConfig`，使用`@PostConstruct`注解修饰自定义`.addCustomPropertySource()`方法，对于`Environment.getPropertySources()`返回的`org.springframework.core.env.MutablePropertySources`实例调用它的`.addFirst()`方法，传入自定义的`MyMapPropertySource`实例。
+3. 正常调用`Context.getEnvironment()`返回的实例，即可获取键值对。
+
+```java
+package top.yaner_here.javasite;  
+  
+import jakarta.annotation.PostConstruct;  
+import org.springframework.beans.factory.annotation.Autowired;  
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;  
+import org.springframework.context.annotation.ComponentScan;  
+import org.springframework.context.annotation.Configuration;  
+import org.springframework.core.env.ConfigurableEnvironment;  
+import org.springframework.core.env.Environment;  
+import org.springframework.core.env.MutablePropertySources;  
+import org.springframework.core.env.PropertySource;  
+import org.springframework.stereotype.Component;  
+  
+import java.util.HashMap;  
+import java.util.Map;  
+  
+class MyMapPropertySource extends PropertySource<Map<String, String>> {  
+    public MyMapPropertySource(String name, Map<String, String> source) { super(name, source); }  
+    @Override public String getProperty(String name) { return this.source.get(name); }  
+    @Override public boolean containsProperty(String name) { return this.source.containsKey(name); }  
+}  
+  
+@Configuration  
+@ComponentScan  
+@org.springframework.context.annotation.PropertySource("classpath:application.properties")  
+class ApplicationConfig {  
+    @Autowired private ConfigurableEnvironment environment;  
+    @PostConstruct public void addCustomPropertySource() {  
+        MutablePropertySources sources = environment.getPropertySources();  
+  
+        HashMap<String, String> map = new HashMap<String, String>();  
+        map.put("email", "admin@yaner-here.top");  
+        MyMapPropertySource source = new MyMapPropertySource("yaner_propertysource", map);  
+  
+        sources.addFirst(source);  
+    }  
+}  
+  
+public class Application {  
+    public static void main(String[] args) {  
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);  
+        Environment environment = context.getEnvironment();  
+        System.out.println("email: " + environment.getProperty("email")); /* email: admin@yaner-here.top */
+    }  
+}
+```
+
+### §1.7.3 TaskExecutor
+
+我们知道，Java以`java.util.concurrent.Executor`接口的形式提供了对线程池的抽象。Spring在此基础上又进行了一层封装，提供了`org.springframework.core.task.TaskExecutor`接口。
+
+针对该接口，Spring提供了各种类的实现：
+
+| `TaskExecutor`实现类         | 路径                                           | 作用        |
+| ------------------------- | -------------------------------------------- | --------- |
+| `SimpleAsyncTaskExecutor` | `org.springframework.core.task.`             | 每次创建一个新线程 |
+| `SyncTaskExecutor`        | `org.springframework.core.task.`             | 同步线程      |
+| `ConcurrentTaskExecutor`  | `org.springframework.scheduling.concurrent.` | 并发线程      |
+| `ThreadPoolTaskExecutor`  | `org.springframework.scheduling.concurrent.` | 线程池       |
+
+下面的代码以`ThreadPoolTaskExecutor`为例，创建了一个线程池：
+
+```java
+package top.yaner_here.javasite;  
+  
+import org.springframework.beans.factory.annotation.Autowired;  
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;  
+import org.springframework.context.annotation.Bean;  
+import org.springframework.context.annotation.ComponentScan;  
+import org.springframework.context.annotation.Configuration;  
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;  
+import org.springframework.stereotype.Component;  
+  
+import java.util.concurrent.RejectedExecutionException;  
+import java.util.concurrent.ThreadPoolExecutor;  
+import java.util.concurrent.TimeUnit;  
+  
+class MyTask implements Runnable {  
+    private final int id;  
+    public MyTask(int id) { this.id = id; }  
+    @Override public void run() {  
+        System.out.printf("Executing task %d by %s\n", this.id, Thread.currentThread().getName());  
+        try {  
+            TimeUnit.MICROSECONDS.sleep(200);  
+        } catch (InterruptedException e) {  
+            Thread.currentThread().interrupt();  
+        }  
+    }  
+}  
+  
+@Configuration  
+@ComponentScan  
+class MyThreadPoolConfig {  
+    @Bean public ThreadPoolTaskExecutor threadPoolTaskExecutor() {  
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();  
+        executor.setCorePoolSize(1);  
+        executor.setMaxPoolSize(1);  
+        executor.setQueueCapacity(1);  
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());  
+        executor.setThreadNamePrefix("MyTask-");  
+        executor.initialize();  
+        return executor;  
+    }  
+}  
+  
+@Component  
+class MyTaskSubmitter {  
+    @Autowired private ThreadPoolTaskExecutor executor;  
+    public void submitTasks(int taskNum) {  
+        for(int i = 1; i <= taskNum; ++i) {  
+            try {  
+                System.out.printf("Submitting Task %d\n", i);  
+                executor.execute(new MyTask(i));  
+                System.out.printf("Submitted Task %d\n", i);  
+            } catch (RejectedExecutionException e) {  
+                System.err.printf("Task %d is rejected\n", i);  
+            }  
+        }  
+    }  
+}  
+  
+public class Application {  
+    public static void main(String[] args) {  
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MyThreadPoolConfig.class);  
+        MyTaskSubmitter submitter = context.getBean(MyTaskSubmitter.class);  
+        submitter.submitTasks(5);  
+        context.close();  
+    }  
+}
+/* Submitting Task 1
+   Submitted Task 1
+   Submitting Task 2
+   Submitted Task 2
+   Submitting Task 3
+   Executing task 1 by MyTask-1
+   Submitting Task 4
+   Submitting Task 5
+   Executing task 2 by MyTask-1
+   Task 3 is rejected
+   Task 4 is rejected
+   Task 5 is rejected */
+```
+
+### §1.7.4 TaskScheduler
+
+Spring提供了`org.springframework.scheduling.TaskScheduler`接口用于实现定时任务，既包含预期时间点执行的任务，也包含重复执行的任务。Spring提供了以下常用的实现：
+
+| `TaskScheduler`实现             | 路径                                           | 作用                           |
+| ----------------------------- | -------------------------------------------- | ---------------------------- |
+| `ThreadPoolTaskScheduler`     | `org.springframework.scheduling.concurrent.` | 线程池                          |
+| `SimpleAsyncTaskScheduler`    | `org.springframework.scheduling.concurrent.` | 同步线程                         |
+| `DefaultManagedTaskScheduler` | `org.springframework.scheduling.concurrent.` | 委托Java EE的应用服务器提供的`schedule` |
+
+下面的代码展示了如何使用`ThreadPoolTaskScheduler`。
+
+- 新建`MyTaskScheduleTask`类，实现`Runnable`接口的`.run()`方法，定义自己的任务。
+- 新建`MyTaskScheduler`类作为Bean，自动装载Spring提供的`ThreadPoolTaskScheduler`实例，调用该实例的`.schedule()`、`.scheduleAtFixedRate()`、`.scheduleWithFixedDelay()`方法定义定时任务。
+- 新建`MyTaskScheduleConfig`配置类，使用`@Configuration`注解修饰，在内部基于`MaskTaskScheduler`定义一个新的`Bean`，设置`ThreadPoolTaskScheduler`实例的线程池参数。
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.stereotype.Component;
+
+import java.util.Date;
+import java.util.concurrent.ScheduledFuture;
+
+class MyTaskScheduleTask implements Runnable {
+    private final String taskName;
+    public MyTaskScheduleTask(String taskName) { this.taskName = taskName; }
+    @Override public void run() {
+        System.out.printf("Task %s starts executing at %s\n", this.taskName, new Date());
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            System.err.printf("Task %s is interrupted at %s", this.taskName, new Date());
+            Thread.currentThread().interrupt();
+        }
+    }
+}
+
+@Configuration @ComponentScan class MyTaskScheduleConfig {
+    @Bean public ThreadPoolTaskScheduler myThreadPoolTaskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1);
+        scheduler.setThreadNamePrefix("MyThreadPoolTaskScheduler-");
+        scheduler.setDaemon(true);
+        scheduler.initialize();
+        return scheduler;
+    }
+}
+
+@Component
+class MyTaskScheduler {
+    private final TaskScheduler scheduler;
+    @Autowired public MyTaskScheduler(TaskScheduler scheduler) { this.scheduler = scheduler; }
+    public void startTask() {
+        Date futrueTime = new Date(System.currentTimeMillis() + 2000);
+        ScheduledFuture<?> futureTask1 = this.scheduler.schedule(new MyTaskScheduleTask("Task 1"), futrueTime);
+        ScheduledFuture<?> futureTask2 = this.scheduler.scheduleAtFixedRate(new MyTaskScheduleTask("Task 2"), 2000);
+        ScheduledFuture<?> futureTask3 = this.scheduler.scheduleWithFixedDelay(new MyTaskScheduleTask("Task 3"), 1000);
+    }
+    public void cancelTask(ScheduledFuture<?> future) {
+        if(future == null) { return; }
+        future.cancel(false);
+    }
+}
+
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MyTaskScheduleConfig.class);
+        MyTaskScheduler scheduler = context.getBean(MyTaskScheduler.class);
+        scheduler.startTask();
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        context.close();
+    }
+}
+/* Task Task 2 starts executing at Thu Apr 24 20:09:00 SGT 2025
+   Task Task 3 starts executing at Thu Apr 24 20:09:00 SGT 2025
+   Task Task 3 starts executing at Thu Apr 24 20:09:01 SGT 2025
+   Task Task 1 starts executing at Thu Apr 24 20:09:02 SGT 2025
+   Task Task 2 starts executing at Thu Apr 24 20:09:02 SGT 2025
+   Task Task 3 starts executing at Thu Apr 24 20:09:03 SGT 2025
+   Task Task 3 starts executing at Thu Apr 24 20:09:04 SGT 2025
+   Task Task 2 starts executing at Thu Apr 24 20:09:04 SGT 2025 */
+```
+## §1.8 AOP及其代理
+
+面向切面编程（Aspect Oriented Programming，AOP）是Spring中的两个基本概念之一。模块中的各种功能称为**关注点**。在工程中常见一种情况：若干模块都需要调用逻辑相同的功能，我们将这段共用的功能称为**横切关注点**（也叫**切面**）。
+
+AOP对应着设计模式中的代理模式。AOP代理指的是实现切面的对象，有JDK动态代理和CGLIB代理两种实现。
+
+|                   | JDK动态代理 | CGLIB代理 | AspectJ代理 |
+| ----------------- | ------- | ------- | --------- |
+| 必须实现接口            | ✔       | ❌       | ❌         |
+| 支持拦截`public`方法    | ✔       | ✔       | ✔         |
+| 支持拦截`protected`方法 | ❌       | ✔       | ✔         |
+| 支持拦截默认作用域方法       | ❌       | ✔       | ✔         |
+| 支持拦截`private`方法   | ❌       | ❌       | ✔         |
+
+### §1.8.1 JDK动态代理
+
+下面的代码使用了JDK动态代理：
+
+- 创建一个接口`PersonInterface`，以及一个实现了该接口的类`Person`。
+- 创建一个实现了`java.lang.reflect.InvocationHandler`接口的`.invoke(Object proxy,Method method, Object[] args)`方法的自定义类`LogHandler`。其中`proxy`为实现了接口的实例，`method`为接口中的方法，`args`为调用代理对象传入的其它实参列表。
+- 在主函数中，我们用`Person`类初始化一个接口`PersonInterface`接口实例`origin`，可以正常地调用`origin.greet()`方法。随后，我们使用`java.lang.reflect.Proxy()`方法分别传入接口类的ClassLoader、接口实例的类对象的接口列表，以及自己初始化的一个`LogHandler`实例，得到了一个代理对象`target`，它也能调用`target.greet()`方法。
+
+```java
+package top.yaner_here.javasite;  
+  
+import java.lang.reflect.InvocationHandler;  
+import java.lang.reflect.Method;  
+import java.lang.reflect.Proxy;  
+  
+interface PersonInterface {  
+    public void greet();  
+}  
+  
+class Person implements PersonInterface {  
+    @Override public void greet() { System.out.println("Hello!"); }  
+}  
+  
+class LogHandler implements InvocationHandler {  
+    private PersonInterface source;  
+    public LogHandler(PersonInterface source) { this.source = source; }  
+    @Override public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {  
+        System.out.printf("[LogHandler] Start: proxy called by method.\n");  
+        try {  
+            return method.invoke(source, args);  
+        } finally {  
+            System.out.printf("[LogHandler] Finished: proxy is called successfully.\n");  
+        }  
+    }  
+}  
+  
+public class Application {  
+    public static void main(String[] args) {  
+        PersonInterface origin = new Person();  
+        origin.greet();  
+  
+        PersonInterface target = (PersonInterface) Proxy.newProxyInstance(  
+            PersonInterface.class.getClassLoader(),  
+            origin.getClass().getInterfaces(),  
+            new LogHandler(origin)  
+        );  
+        target.greet();  
+    }  
+}
+/* Hello!
+   [LogHandler] Start: proxy called by method.
+   Hello!
+   [LogHandler] Finished: proxy is called successfully. */
+```
+
+### §1.8.2 `@Aspect`配置代理
+
+AspectJ是Eclipse开发的一款代理库。不同于其它代理库创建代理对象，AspectJ直接修改Java字节码，因此理论上能做到其它代理库的一切操作。
+
+为了安装AspectJ，我们需要引入`aspectjrt`和`aspectjweaver`依赖：
+
+```xml
+<dependency>  
+    <groupId>org.aspectj</groupId>  
+    <artifactId>aspectjrt</artifactId>  
+    <version>1.9.19</version>  
+</dependency>  
+  
+<dependency>  
+    <groupId>org.aspectj</groupId>  
+    <artifactId>aspectjweaver</artifactId>  
+    <version>1.9.19</version>  
+</dependency>
+```
+
+AspectJ要求使用`@Aspect`注解将某个类声明为AspectJ配置类。AspectJ使用的语法中，有着一系列**切入点标识符**（PCD，Pointcut Designator），这已经超出了Spring的范围。
+
+下面是一段示例代码：
+
+- 自定义`SayHelloInterface`接口及其实现类`SayHello`。
+- 自定义`SayHelloAspect`类，使用`@Aspect`注解声明为AspectJ的代理类，使用`@Order()`注解声明代理顺序。其中定义一个回调方法，使用`@Before()`或`@After()`注解，传入AspectJ表达式来声明该回调方法的触发条件。
+
+```java
+package top.yaner_here.javasite;
+
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+interface SayHelloInterface {
+    String sayHello(StringBuffer words);
+}
+
+@Component class SayHello implements SayHelloInterface {
+    @Override public String sayHello(StringBuffer words) { return "Hello! " + words; }
+}
+
+@Aspect @Component @Order(1) class SayHelloAspect {
+    @Before("target(top.yaner_here.javasite.SayHelloInterface) && args(words)")
+    public void addWords(StringBuffer words) {
+        words.append(" SayHelloAspect add a word.");
+    }
+}
+
+@Configuration
+@EnableAspectJAutoProxy
+@ComponentScan("top.yaner_here.javasite")
+class ApplicationConfig { }
+
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);
+        SayHelloInterface sayHello = context.getBean("sayHello", SayHelloInterface.class);
+        System.out.println(sayHello.sayHello(new StringBuffer("test1."))); // Hello! test1. SayHelloAspect add a word.
+    }
+}
+```
+
+### §1.8.3 Spring AOP配置代理
+
+Spring AOP对AspectJ框架提供了大部分支持。
+
+以下面的代码为例：
+
+- 创建自定义类`OrderService`模拟业务，提供`placeOrder()`和`cancelOrder()`方法。
+- 创建`@Aspect`类，并且用Spring的`@Component`注册为Bean。在其中先使用`@Pointcut(AspectJ表达式)`将被修饰的空方法定义为切入点，再使用`@Before(空方法名)`或`@After(空方法名)`注册切入点的监听函数。
+
+```java
+package top.yaner_here.javasite;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+
+@Service class OrderService {
+    public void placeOrder() { System.out.println("[OrderService] 提交订单"); }
+    public void cancelOrder() { System.out.println("[OrderService] 取消订单"); }
+}
+
+@Aspect @Component class LoggerAspect {
+    @Pointcut("execution(public * top.yaner_here.javasite.OrderService.*(..))")
+    public void loggerTrigger() { }
+
+    @Before("loggerTrigger()")
+    public void createLog(JoinPoint joinPoint) {
+        System.out.printf("[LoggerAspect] 监听到OrderService.%s()被调用了\n", joinPoint.getSignature().getName());
+    }
+}
+
+@Configuration @ComponentScan class ApplicationConfig { }
+
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);
+        OrderService service = context.getBean("orderService", OrderService.class);
+        service.placeOrder();
+        service.cancelOrder();
+    }
+}
+/* [LoggerAspect] 监听到OrderService.placeOrder()被调用了
+   [OrderService] 提交订单
+   [LoggerAspect] 监听到OrderService.cancelOrder()被调用了
+   [OrderService] 取消订单 */
+```
+
+> 注意：虽然Spring AOP和AspectJ都使用了AspectJ语法，但是它们之间并不完全互通。由于Spring AOP的实现依赖于动态代理，因此它无法拦截静态初始化方法、构造方法、属性赋值等操作。而且Spring AOP并不完全支持AspectJ的所有PCD。
+
+Spring的通知类型十分灵活，支持在方法的各个执行阶段进行拦截，例如执行前、执行后、抛出异常后，甚至可以完全替代方法的实现，或给某个类添加原先没有的接口实现。Spring的通知类型及其注解如下所示：
+
+- 前置通知`@Before()`：引用事先定义的切入点或切入点表达式，在切入点执行前抢先一步执行。
+- 后置通知`@AfterReturning()`：若切入点正常返回，则在返回前调用该回调方法。
+- 环绕通知`@Around()`：被该注解修饰的方法的第一个形参必须是`ProceedingJoinPoint`，返回类型就是被拦截方法的返回类型或其父类。TODO：？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+- 引入通知`@DeclareParents()`
+
+
+
+
+### §1.8.3 XML配置代理
