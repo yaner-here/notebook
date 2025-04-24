@@ -1939,7 +1939,7 @@ Docker内置了若干驱动。例如在Linux平台上包含`Bridge`、`Overlay`�
 
 - `docker network ls`：查看Docker在主机上创建的网络，包括网络ID、网络名、驱动名和作用域
 - `docker network inspect <NAME>`：查看Docker在主机上创建的网络`<NAME>`的详细信息
-- `docker network create <OPTION> <DRIVER> <NAME>`：用驱动`<DRIVER>`创建一个名为`<NAME>`的Docker网络
+- `docker network create <OPTION> -d <DRIVER> <NAME>`：用驱动`<DRIVER>`创建一个名为`<NAME>`的Docker网络
 
 Docker创建的网桥可以通过`brctl show`命令行工具查看详细信息，包括网桥名称、网桥ID、STP开启状态、正在连接的设备。`brctl`需要通过`apt install bridge-utils`安装。
 
@@ -1950,6 +1950,60 @@ Docker创建的网桥可以通过`brctl show`命令行工具查看详细信息�
 每个主机安装Docker时都会默认创建一个单机桥接网络，在Linux上叫做`bridge`，在Windows上叫做`nat`。Linux上的单机桥接网络驱动实现是基于Linux内核中的Linux Bridge技术，在内核中映射为`docker0`网桥，在`docker network inspect bridge`中也能看到`com.docker.network.bridge.name: "docker0"`键值对。
 
 受制于二层交换机的实现原理，即使容器共用同一个单机桥接网络，但是各个网络之间互相隔离，等价于若干个独立的网络，所以容器之间无法直接通信。
+
+### §3.4.2 Docker DNS
+
+Docker引擎为创建的Docker网络提供了DNS服务，可以将容器名称直接解析为IP地址。需要注意：**Linux上默认的`bridge`网络不支持Docker DNS，必须手动额外创建一个`bridge`驱动的单机桥接网络才能使用**。
+
+```shell
+# Linux创建网桥
+$ docker network create -d bridge localnet
+# Windows创建网桥
+PS C:\> docker network create -d nat localnet 
+
+# 创建container1，后台静默
+$ docker container run -d --name container1 --network localnet alpine sleep 1h
+
+# 创建container2，进入Shell
+$ docker container run -it --name container2 --network localnet alpine sh
+> ping container1
+	Ping container1 [xxx.xxx.xxx.xxx] with 32 bytes of data:
+	Reply from [xxx.xxx.xxx.xxx] bytes=32 times=1ms TTL=128
+```
+
+### §3.4.3 多机覆盖网络（`Overlay`）
+
+```mermaid
+graph TB
+	subgraph
+
+```
+
+```shell
+host1@172.0.0.1 $ docker swarm init --advertise-addr=172.0.0.1 --listen-addr=172.0.0.1:2377
+	Swarm initialized: current node (<NODE_ID>) is now a manager.
+
+host2@192.168.1.1 $ docker swarm join --token <>
+
+```
+
+### §3.4.4 接入现有网络（`Macvlan`/`Transparent`）
+
+通过Linux上的`Macvlan`或Windows上的`Transparent`驱动，Docker容器可以连接到外部物理网络。它要求将主机网卡设置为混杂模式（Promiscuous Mode）。
+
+举例：给定一个物理网络，与VLANID为`100`的`10.0.0.0/24`网段。Docker主机地址为`10.0.0.2`，网关为`10.0.0.1`。我们按照以下步骤创建一个Docker容器：
+
+```shell
+$ docker network create -d macvlan \
+	--subnet=10.0.0.0/24 \ # VLAN网段
+	--ip-range=10.0.0.0/26 \ # VLAN分配的空闲网段，不能与DHCP冲突
+	--gateway=10.0.0.1 \ # 默认网关
+	-o parent=eth0.100 \ # 父网卡,这里使用以太网口eth0的VLANID=100子接口
+	macvlan100
+$ docker container run -d --name container3 --network macvlan100 alpine sleep 1h
+```
+
+
 
 # §4 Docker项目开发
 
