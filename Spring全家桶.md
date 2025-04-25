@@ -1328,10 +1328,340 @@ Spring的通知类型十分灵活，支持在方法的各个执行阶段进行�
 
 - 前置通知`@Before()`：引用事先定义的切入点或切入点表达式，在切入点执行前抢先一步执行。
 - 后置通知`@AfterReturning()`：若切入点正常返回，则在返回前调用该回调方法。
-- 环绕通知`@Around()`：被该注解修饰的方法的第一个形参必须是`ProceedingJoinPoint`，返回类型就是被拦截方法的返回类型或其父类。TODO：？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
-- 引入通知`@DeclareParents()`
-
-
-
+- 环绕通知`@Around()`：用于在执行点前后插入逻辑、替换切入点本身的逻辑、替换掉用参数，**效果等价于Python的装饰器**。被该注解修饰的方法的第一个形参必须是`ProceedingJoinPoint`，返回类型就是被拦截方法的返回类型或其父类。
+- 引入通知`@DeclareParents()`：为Bean添加新的接口。
 
 ### §1.8.3 XML配置代理
+
+XML提供了上文提到的所有通知类型：
+
+```xml
+<beans ...>
+	<aop:config>
+		<aop:aspect id="Bean名" ref="Aspect_Bean名">
+			<aop:pointcut id="切入点方法名" expression="AspectJ表达式"/> 
+			<aop:before pointcut="切入点方法名" method="before"/> <!-- 前置通知 -->
+			<aop:after-returning pointcut="AspectJ表达式" returning="返回值变量名" method="printWords"/> <!-- 后置通知-正常返回 -->
+			<aop:after-throwing pointcut="AspectJ表达式" throwing="异常类名" method="printException"/> <!-- 后置通知-抛出异常 -->
+			<aop:after pointcut="AspectJ表达式" method="printWords"/> <!-- 后置通知-正常返回或抛出异常 -->
+			<aop:around pointcut="AspectJ表达式" method="方法名"/> <!-- 环绕通知 -->
+			<aop:declare-parents types-matching="匹配类表达式" implement-interface="接口类名" default-impl="接口类名"/> <!-- 引入通知 -->
+		</aop:aspect>
+	</aop:config>
+</beans>
+```
+
+除此之外，Spring还提供了更简单的`<aop:advisor>`通知器：
+
+```xml
+<beans>
+	<aop:config>
+		<aop:pointcut id="切入点方法名" expression="AspectJ表达式"/>
+		<aop:advisor pointcut-ref="方法名" advice-ref="方法名"/>
+	</app:config>
+</beans>
+```
+
+## §2 SpringBoot
+
+SpringBoot的意义在于自动生成Spring配置。一个SpringBoot项目的目录结构与Spring完全一致。
+
+### §2.1 起步依赖
+
+在传统Spring开发流程中，我们需要自己指定各种依赖项的版本，难免发生冲突。得益于Maven的传递依赖机制，SpringBoot提供了一系列以功能为单位的[依赖组](https://github.com/spring-projects/spring-boot/blob/main/spring-boot-project/spring-boot-starters/README.adoc)，均经过测试保证无冲突问题。
+
+如果要指定使用特定版本的依赖，可以在`pom.xml`中更改`<properties>`标签：
+
+```xml
+<project>
+	<properties>
+		<jackson-bom.version>2.11.0</jackson-bom.version>
+	</properties>
+</project>
+```
+
+如果想使用其它功能相同的依赖，可以排除依赖组中的某个组件，换用其它组件：
+
+```xml
+<project>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>prg.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-logging</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-log4j2</artifactId>
+		</dependency>
+	</dependencies>
+</project>
+```
+
+### §2.2 自动配置
+
+在Spring时代，我们想要通过环境的属性值动态地加载Bean，需要进行以下步骤：
+
+- 创建一个包含`speak()`方法的`Speaker`接口，及其两个实现类`ChineseSpeaker`与`EnglishSpeaker`。
+- 创建一个类`SpeakerBeanFactoryPostProcessor`用于动态地注册Bean。
+	- 这个类需要实现`EnvironmentAware`接口的`setEnvironment(Environment)`方法，从而后续调用其`.getProperty()`方法得到配置值。
+	- 这个类需要实现`BeanFactoryPostProcessor`接口的`postProcessBeanFactory(ConfigurableListableBeanFactory)`方法。该方法拿到`ConfigurableListableBeanFactory`实例后，调用其`.registerBeanDefinition()`方法传入Bean类的路径来注册Bean。
+
+```properties
+spring.application.name=javasite  
+spring.speaker.enable=true  
+spring.application.language=Chinese
+```
+
+```java
+package top.yaner_here.javasite;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.context.annotation.*;
+import org.springframework.core.env.Environment;
+import org.springframework.util.ClassUtils;
+
+interface Speaker { public void speak(); }
+
+class ChineseSpeaker implements Speaker {
+    public void speak() { System.out.println("[ChineseSpeaker] 你好!"); }
+}
+
+class EnglishSpeaker implements Speaker {
+    public void speak() { System.out.println("[EnglishSpeaker] Hello!"); }
+}
+
+class SpeakerBeanFactoryPostProcessor implements BeanFactoryPostProcessor, EnvironmentAware {
+    private static final Log log = LogFactory.getLog(SpeakerBeanFactoryPostProcessor.class);
+    private Environment environment;
+    private void registerBeanDefinition(BeanDefinitionRegistry registry, String className) {
+        GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClassName(className);
+        registry.registerBeanDefinition("speaker", beanDefinition);
+    }
+    private void registerBean(ConfigurableListableBeanFactory beanFactory, String className) {
+        try {
+            Speaker speaker = (Speaker) ClassUtils.forName(className, SpeakerBeanFactoryPostProcessor.class.getClassLoader()).getDeclaredConstructor().newInstance();
+            beanFactory.registerSingleton("speaker", speaker);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    @Override public void setEnvironment(Environment environment) { this.environment = environment; }
+    @Override public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        String enable = environment.getProperty("spring.speaker.enable");
+        String language = environment.getProperty("spring.application.language");
+        String className = String.format("top.yaner_here.javasite.%sSpeaker", language);
+
+        if (enable != null && enable.equals("false")) { return; }
+        if (!ClassUtils.isPresent(className, SpeakerBeanFactoryPostProcessor.class.getClassLoader())) { return; }
+        if(beanFactory instanceof BeanDefinitionRegistry) {
+            registerBeanDefinition((BeanDefinitionRegistry) beanFactory, className);
+        } else {
+            registerBean(beanFactory, className);
+        }
+    }
+}
+
+@Configuration
+@ComponentScan
+@PropertySource("classpath:/application.properties")
+class ApplicationConfig {
+    @Bean public static SpeakerBeanFactoryPostProcessor speakerBeanFactoryPostProcessor() {
+        return new SpeakerBeanFactoryPostProcessor();
+    }
+}
+
+public class Application {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ApplicationConfig.class);
+        Speaker speaker = context.getBean("speaker", Speaker.class);
+        speaker.speak();
+    }
+}
+```
+
+进入SpringBoot的时代，完成上面的步骤只需要使用**条件注解**（`org.springframework.boot.autoconfigure.*`）就能全部解决，看起来更加简洁。
+
+- 创建一个包含`speak()`方法的`Speaker`接口，及其两个实现类`ChineseSpeaker`与`EnglishSpeaker`。
+- 创建一个使用`@Configuration`修饰的配置类`ApplicationConfig`，使用`@Bean`定义上面的两个实现类为Bean。但是在此基础上，我们使用SpringBoot提供的一系列自动配置注解来添加限定条件，决定最终是否注册为Bean。
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
+import org.springframework.context.annotation.*;
+
+interface Speaker { public void speak(); }
+
+class ChineseSpeaker implements Speaker {
+    public void speak() { System.out.println("[ChineseSpeaker] 你好!"); }
+}
+
+class EnglishSpeaker implements Speaker {
+    public void speak() { System.out.println("[EnglishSpeaker] Hello!"); }
+}
+
+class EnableChineseSpeaker {}
+
+@Configuration @ComponentScan class ApplicationConfig {
+    @Bean
+    @ConditionalOnClass(EnableChineseSpeaker.class)
+    @ConditionalOnMissingBean(EnableChineseSpeaker.class)
+    public Speaker chineseSpeaker() {
+        return new ChineseSpeaker();
+    }
+
+    @Bean
+    @ConditionalOnMissingClass("top.yaner_here.javasite.EnableChineseSpeaker")
+    @ConditionalOnMissingBean(EnableChineseSpeaker.class)
+    public Speaker englishSpeaker() {
+        return new EnglishSpeaker();
+    }
+}
+
+@SpringBootApplication
+public class Application implements CommandLineRunner {
+    @Autowired private Speaker speaker;
+    @Override public void run(String[] args) { speaker.speak(); } /* [ChineseSpeaker] 你好! */
+    public static void main(String[] args) { SpringApplication.run(Application.class, args); }
+}
+```
+
+SpringBoot支持以下常用的条件注解：
+
+| 条件注解名                               | 条件含义                           |
+| ----------------------------------- | ------------------------------ |
+| `@ConditionalOnBean()`              | 存在指定名称、类型、泛型参数、特定注解的Bean       |
+| `@ConditionalOnMissingBean()`       | 不存在指定名称、类型、泛型参数、特定注解的Bean      |
+| `@ConditionalOnClass()`             | 存在指定的类                         |
+| `@ConditionalOnMissingClass()`      | 不存在指定路径的类                      |
+| `@ConditionalOnCloudPlatform()`     | 运行在特定的云平台上，例如Azure、Kubernetes等 |
+| `@ConditionalOnExpression()`        | 指定的SpEL表达式为真                   |
+| `@ConditionalOnJava()`              | 运行在特定版本范围内的Java上               |
+| `@ConditionalOnJndi()`              | 运行在指定的JNDI上                    |
+| `@ConditionalOnProperty()`          | 属性值满足特定条件                      |
+| `@ConditionalOnResource()`          | 存在指定资源                         |
+| `@ConditionalOnSingleCandidate()`   | 在当前上下文中只存在一个指定Bean类的实例         |
+| `@ConditionalOnWarDeployment()`     | 通过War部署，而非内嵌容器                 |
+| `@ConditionalOnWebApplication()`    | 是Web应用程序                       |
+| `@ConditionalOnNotWebApplication()` | 不是Web应用程序                      |
+
+这还不够，SpringBoot的重磅功能是自动配置。从代码层面，它把配置类的`@Configuration`和`@ComponentScan`全部替换为`@AutoConfiguration`，然后将应用入口类使用`@SpringBootApplication`修饰，该注解自带`@EnableAutoConfiguration`注解，从而允许开发者直接使用`@Autowired`实例化Bean。
+
+```java
+/* 上略 */
+@AutoConfiguration class ApplicationConfig {
+    @Bean
+    @ConditionalOnClass(EnableChineseSpeaker.class)
+    @ConditionalOnMissingBean(EnableChineseSpeaker.class)
+    public Speaker chineseSpeaker() {
+        return new ChineseSpeaker();
+    }
+
+    @Bean
+    @ConditionalOnMissingClass("top.yaner_here.javasite.EnableChineseSpeaker")
+    @ConditionalOnMissingBean(EnableChineseSpeaker.class)
+    public Speaker englishSpeaker() {
+        return new EnglishSpeaker();
+    }
+}
+
+@SpringBootApplication
+public class Application implements CommandLineRunner {
+    @Autowired private Speaker speaker;
+    @Override public void run(String[] args) { speaker.speak(); }
+    public static void main(String[] args) { SpringApplication.run(Application.class, args); }
+}
+```
+
+### §2.3 属性加载机制
+
+前文提到，Spring提供了`PropertySource`抽象的属性机制。SpringBoot在其基础上进行了进一步的封装。
+
+SpringBoot按以下优先级加载属性：
+
+1. 测试类的`@TestPropertySource`注解
+2. 测试类的`@SpringBootTest().properties`字段
+3. 命令行参数
+4. `java:comp/env`的JNDI属性
+5. `System.getProperties()`返回值
+6. 操作系统环境变量
+7. `RandomValuePropertySource`提供的`${random.*}`属性
+8. 应用配置文件
+   在以下位置：
+	1. `./config/`
+	2. `./`
+	3. `<CLASSPATH>/config/`
+	4. `<CLASSPATH>/`
+   尝试依次读取以下文件（`.yml`优先级高于`.properties`）：
+	5. Jar包以外的`application-<PROFILE>-.[properties|yml]`
+	6. Jar包以外的`application.properties`
+	7. Jar包以内的`application-<PROFILE>-.[properties|yml]`
+	8. Jar包以内的`application.properties`
+9. 配置类的`@PropertySource`注解
+
+> 在Spring 2.4.0之前，Spring会先读取Jar以内的文件。从2.4.0开始，Jar以外的文件优先级更高，可以通过`spring.config.use-legacy-processing=true`来开启兼容逻辑。该配置项在Spring 3.0被废弃并移除。
+> 
+> 可以使用命令行选项`--spring.config.name=<BASENAME>`指定配置文件的Basename，缺省为`application`。
+> 
+> 可以使用命令行选项`[classpath:<PATH>,]+`指定查找配置文件的路径，越靠后优先级越高，缺省为`classpath:/,classpath:/config/,file:./config/*,file:./config`。
+
+SpringBoot提供了`org.springframework.boot.context.properties.*`的`@ConfigurationProperties()`注解。它有两种功能：
+
+- 修饰类时，自动加载属性值到实例的同名变量中。
+- 修饰`@Bean`方法时，自动加载属性值到返回值Bean的同名变量中。
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Component
+@ConfigurationProperties(prefix = "spring.application")
+class MyProperties {
+    private String name; /* 通过Setter方法被自动绑定name到spring.application.name */
+    public void setName(String name) { this.name = name; }
+    public String getName() { return this.name; }
+}
+
+@SpringBootApplication
+public class Application implements CommandLineRunner {
+    @Autowired private MyProperties properties;
+    @Override public void run(String[] args) { System.out.println("properties.name = " + properties.getName()); }
+    public static void main(String[] args) { SpringApplication.run(Application.class, args); }
+}
+```
+
+SpringBoot绑定属性的规则非常灵活，它支持四种命名匹配方式：
+
+- 短横线分隔：例如`spring.datasource.driver-class-name`
+- 小驼峰命名：例如`spring.datasource.driverClassName`
+- 下划线分割：例如`spring.datasource.driver_class_name`
+- 全大写下划线分割：例如`SPRING_DATASOURCE_DRIVERCLASSNAME`
+
+
+
