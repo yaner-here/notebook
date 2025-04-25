@@ -1850,3 +1850,32 @@ $ curl "http://127.0.0.1:8080/actuator/info"
 	{"version":"0.0.1 alpha"}
 ```
 
+除了HTTP以外，SpringBoot Actuator也支持JMX协议。常用的JMX客户端有JVisualVM和JConsole。连接对应的SpringBoot进程后查看MBean信息，找到`org.springframework.boot.Endpoint.Info`一项，即可访问`info`端点。
+
+在实际工程中，我们不推荐让SpringBoot和SpringBoot Actuator共用同一个端口，这样容易暴露系统敏感信息。工程上有两种解决方法：
+
+- 使用服务器中间件或防火墙，屏蔽`/actuator`的URL路由。
+- 在`application.properties`中更改`management.server.port=<端口号>`指定一个新的端口号，使用`management.endpoints.web.base-path`更改SpringBoot Actuator的URL的基础路径，使用`management.server.base-path`更改进入端点前的前缀（缺省为空）。
+
+```properties
+management.server.port=8081
+management.server.base-path=/management
+management.endpoints.web.base-path=/my-actuator
+# curl "http://127.0.0.1:8081/management/my-actuator/info"
+```
+
+在SpringBoot Actuate中，`InfoEndpointAutoConfiguration`是一个`@AutoConfiguration`修饰的类，利用了SpringBoot的自动注入机制，让`InfoEndpoint`注入到Spring的所有`InfoContributor`接口的Bean实例。
+
+| `InfoContributor`实现             | 是否默认启用 | 作用                                                                               |
+| ------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| `BuildInfoContributor`          | ✔      | 提供`BuildProperties`信息，由`spring.info.build`指定，缺省为`META-INF/build-info.properties` |
+| `EnvironmentInfoContributor`    | ✔      | 配置中所有以`info.`开头的属性                                                               |
+| `GitInfoContributor`            | ✔      | 提供`GitProperties`信息，由`spring.info.git`指定，缺省为`git.properties`                     |
+| `InfoPropertiesInfoContributor` | ❌      | `InfoContributor`接口的一个抽象层实现，常用于作为其它`InfoContributor`的父类                          |
+| `MapInfoContributor`            | ❌      | 提供`Map`指定的信息                                                                     |
+| `SimpleInfoContributor`         | ❌      | 仅包含一个属性键值对的信息                                                                    |
+
+`InfoEndpointAutoConfiguration`默认注册了`env`、`git`、`build`的`InfoContributor`。
+
+```
+```
