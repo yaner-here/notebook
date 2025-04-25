@@ -1663,5 +1663,100 @@ SpringBoot绑定属性的规则非常灵活，它支持四种命名匹配方式�
 - 下划线分割：例如`spring.datasource.driver_class_name`
 - 全大写下划线分割：例如`SPRING_DATASOURCE_DRIVERCLASSNAME`
 
+如果我们只定义一个由`@ConfigurationProperties`注解修饰的类，那么它本身不会发挥作用，要么再使用`@Component`注册为Bean从而实例化，要么在`/src/resources/META-INF/spring.factories`里添加一行`org.springframework.boot.autoconfigure.EnableAutoConfiguration=<配置类路径>`。
 
+下面是一个综合性的代码例子：
+
+- 定义一个描述奶茶店属性的属性类`TeaProperties`，使用`@ConfigurationProperties("tea")`修饰。里面定义了是否开门`boolean ready`和开门时间`String openHours`，并配备了Getter和Setter方法。
+- 定义一个自动给`TeaProperties`绑定属性值的配置空类`ShopConfiguration`。该类首先是个配置类，使用`@Configuration`修饰；然后指定要被绑定的属性类，使用`@EnableConfigurationProperties()`修饰；最后添加一个是否绑定的开关，用`@ConditionalOnproperty()`修饰，只有当属性值`tea.ready`为`"true"`时才会自动绑定。
+- 创建`/src/main/resources/application.properties`文件，添加`tea.ready`和`tea.open-hours`的属性值。
+- 编辑`/src/main/resources/META-INF/spring.factories`，添加一行`org.springframework.boot.autoconfigure.EnableAutoConfiguration=top.yaner_here.javasite.ShopConfiguration`，使得SpringBoot能发现自动配置类`ShopConfiguration`。
+- 定义应用运行的主类`TeaApplication`，在主函数中正常启动SpringBoot项目。
+- 为了验证变量是否绑定成功，我们撰写了两个单元测试，分别表示`tea.ready`为`"true"`或`"false"`时，`TeaProperties`是否会被注册为Bean，并从该实例中读取属性值。
+
+```properties
+# /src/main/java/resources/application.properties
+spring.application.name=javasite
+tea.ready=true
+tea.open-hours=8:30-22:00
+```
+
+```ini
+# /src/main/java/resources/META-INF/spring.factories
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=top.yaner_here.javasite.ShopConfiguration
+```
+
+```java
+// /src/main/java/top/yaner_here/javasite/TeaApplication.java
+package top.yaner_here.javasite;  
+  
+import org.springframework.boot.SpringApplication;  
+import org.springframework.boot.autoconfigure.SpringBootApplication;  
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;  
+import org.springframework.boot.context.properties.ConfigurationProperties;  
+import org.springframework.boot.context.properties.EnableConfigurationProperties;  
+import org.springframework.context.annotation.Configuration;  
+  
+@ConfigurationProperties("tea")  
+class TeaProperties {  
+    private boolean ready;  
+    public boolean isReady() { return ready; }  
+    public void setReady(boolean ready) { this.ready = ready; }  
+    private String openHours;  
+    public String getOpenHours() { return openHours; }  
+    public void setOpenHours(String openHours) { this.openHours = openHours; }  
+}  
+  
+@Configuration  
+@EnableConfigurationProperties(TeaProperties.class)  
+@ConditionalOnProperty(name = "tea.ready", havingValue = "true")  
+class ShopConfiguration { }  
+  
+@SpringBootApplication  
+public class TeaApplication {  
+    public static void main(String[] args) {  
+        SpringApplication.run(TeaApplication.class, args);  
+    }  
+}
+```
+
+```java
+// /src/test/java/top/yaner_here/javasite/ShopConfigureTest.java
+package top.yaner_here.javasite;  
+  
+import org.junit.jupiter.api.Test;  
+import org.springframework.beans.factory.annotation.Autowired;  
+import org.springframework.boot.test.context.SpringBootTest;  
+import org.springframework.context.ApplicationContext;  
+  
+import static org.junit.jupiter.api.Assertions.assertEquals;  
+import static org.junit.jupiter.api.Assertions.assertFalse;  
+import static org.junit.jupiter.api.Assertions.assertNotNull;  
+import static org.junit.jupiter.api.Assertions.assertTrue;  
+  
+public interface ShopConfigureTest { }  
+  
+@SpringBootTest(classes = TeaApplication.class, properties = {"tea.ready=false"})  
+class ShopConfigurationDisableTest implements ShopConfigureTest {  
+    @Autowired private ApplicationContext context;  
+    @Test void testPropertiesBeanUnavailable() {  
+        assertEquals(context.getEnvironment().getProperty("tea.ready"), "false");  
+        assertFalse(context.containsBean("top.yaner_here.javasite.TeaProperties"));  
+    }  
+}  
+  
+@SpringBootTest(classes = TeaApplication.class, properties = {"tea.ready=true"})  
+class ShopConfigurationEnableTest implements ShopConfigureTest {  
+    @Autowired private ApplicationContext context;  
+    @Test void testPropertiesBeanAvailable() {  
+        assertNotNull(context.getBean(TeaProperties.class));  
+        assertTrue(context.containsBean("top.yaner_here.javasite.TeaProperties"));  
+    }  
+    @Test void testPropertyValues() {  
+        TeaProperties properties = context.getBean(TeaProperties.class);  
+        assertTrue(properties.isReady());  
+        assertEquals("8:30-22:00", properties.getOpenHours());  
+    }  
+}
+```
 
