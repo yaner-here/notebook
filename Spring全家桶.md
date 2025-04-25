@@ -1362,11 +1362,11 @@ XML提供了上文提到的所有通知类型：
 </beans>
 ```
 
-## §2 SpringBoot
+# §2 SpringBoot
 
 SpringBoot的意义在于自动生成Spring配置。一个SpringBoot项目的目录结构与Spring完全一致。
 
-### §2.1 起步依赖
+## §2.1 起步依赖
 
 在传统Spring开发流程中，我们需要自己指定各种依赖项的版本，难免发生冲突。得益于Maven的传递依赖机制，SpringBoot提供了一系列以功能为单位的[依赖组](https://github.com/spring-projects/spring-boot/blob/main/spring-boot-project/spring-boot-starters/README.adoc)，均经过测试保证无冲突问题。
 
@@ -1403,7 +1403,7 @@ SpringBoot的意义在于自动生成Spring配置。一个SpringBoot项目的目
 </project>
 ```
 
-### §2.2 自动配置
+## §2.2 自动配置
 
 在Spring时代，我们想要通过环境的属性值动态地加载Bean，需要进行以下步骤：
 
@@ -1593,7 +1593,7 @@ public class Application implements CommandLineRunner {
 }
 ```
 
-### §2.3 属性加载机制
+## §2.3 属性加载机制
 
 前文提到，Spring提供了`PropertySource`抽象的属性机制。SpringBoot在其基础上进行了进一步的封装。
 
@@ -1758,5 +1758,95 @@ class ShopConfigurationEnableTest implements ShopConfigureTest {
         assertEquals("8:30-22:00", properties.getOpenHours());  
     }  
 }
+```
+
+## §2.4 SpringBoot Actuator
+
+Spring到目前为止的缺点显而易见——它几乎无法维护。拿到一个大工程后，我们无法快速方便地得知上下文中存在哪些Bean，哪些自动配置最终生效等信息。SpringBoot Actuator提供了监控、度量、配置管理等功能，通过HTTP提供了大量的端点——信息类端点、监控类端点、操作类端点、继承类端点。
+
+SpringBoot Actuator提供的HTTP端点URL均为：`http://<HOSTNAME>:<PORT>/actuator/<ENDPOINT>`。
+
+| **信息类**端点ID        | 是否默认启用HTTP | 是否默认即用JMX | 提供的信息                          |
+| ------------------ | ---------- | --------- | ------------------------------ |
+| `auditevents`      | ❌          | ✔         | 系统审计信息                         |
+| `beans`            | ❌          | ✔         | 系统中的Bean列表                     |
+| `caches`           | ❌          | ✔         | 系统中的缓存信息                       |
+| `conditions`       | ❌          | ✔         | 配置类的匹配情况与条件运算结果                |
+| `configprops`      | ❌          | ✔         | `@ConfigurationProperties`列表   |
+| `env`              | ❌          | ✔         | `ConfigurableEnvironment`的属性信息 |
+| `flyway`           | ❌          | ✔         | 已执行的Flyway数据库迁移信息              |
+| `httptrace`        | ❌          | ✔         | HTTP跟踪信息                       |
+| `info`             | ✔          | ✔         | 事先设置的系统信息                      |
+| `integrationgraph` | ❌          | ✔         | Spring Integration信息           |
+| `liquibase`        | ❌          | ✔         | 已执行的Liquibase数据库迁移信息           |
+| `logfile`          | ❌          | 不支持JMX    | 日志文件内容                         |
+| `mappings`         | ❌          | ✔         | `@RequestMapping`映射列表          |
+| `scheduledtasks`   | ❌          | ✔         | 系统的调度任务列表                      |
+
+| **监控类**端点ID  | 是否默认启用HTTP | 是否默认即用JMX | 提供的信息                |
+| ------------ | ---------- | --------- | -------------------- |
+| `health`     | ✔          | ✔         | 系统运行的健康状态            |
+| `metrics`    | ❌          | ✔         | 系统的度量信息              |
+| `prometheus` | ❌          | 不支持JMX    | Prometheus系统可解析的度量信息 |
+
+| **操作类**端点ID  | 是否默认启用HTTP | 是否默认即用JMX | 提供的功能                      |
+| ------------ | ---------- | --------- | -------------------------- |
+| `heapdump`   | ❌          | 不支持JMX    | 执行HeapDump操作               |
+| `loggers`    | ❌          | ✔         | 查看并修改日志信息                  |
+| `sessions`   | ❌          | ✔         | 获取和删除Spring Session提供的用户信息 |
+| `shutdown`   | ❌          | ❌         | 安全地关闭系统                    |
+| `threaddump` | ❌          | ✔         | 执行ThreadDump操作             |
+|              |            |           |                            |
+
+| **集成类**端点ID | 是否默认启用HTTP | 是否默认即用JMX | 提供的功能      |
+| ----------- | ---------- | --------- | ---------- |
+| `heapdump`  | ❌          | 不支持JMX    | 发布JMX Bean |
+
+SpringBoot Actuator在`application.properties`中提供了以下配置项：
+
+- `management.endpoints.enabled-by-default`：是否按照默认值启用端点，还是全部关闭。取值范围为`true`/`false`。
+- `management.endpoint.<ENDPOINT>.enabled`：是否启用指定的端点。取值范围为`true`/`false`。可以覆盖上一条的全局配置。
+- `management.endpoints.exposure.include`：由逗号分隔的若干`<ENDPOINT>`，或者直接一个通配符`*`。表示要启用HTTP的端点。
+- `management.endpoints.exposure.include`：由逗号分隔的若干`<ENDPOINT>`，或者直接一个通配符`*`。表示要关闭HTTP的端点。优先级高于上一条。
+
+### §2.4.1 `info`端点
+
+`info`端点的实现依赖于SpringBoot Actuate中的`org.springframework.boot.actuate.info.Info`。为了自定义`info`端点返回的信息，我们使用下面的步骤：
+
+- 新建一个`@Configuration`修饰的配置类，在其中用`@Bean`定义一个基于`InfoContributor`的Bean，重载其`contribute(Info.Builder builder)`方法，调用`builder.withDetail(key, value)`方法添加信息。
+- 正常运行一个`@SpringBootApplication`类的主函数即可。访问HTTP URL`/actuator/info`即可。
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.actuate.info.Info;
+import org.springframework.boot.actuate.info.InfoContributor;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+class ApplicationConfiguration {
+    @Bean public InfoContributor myInfoContributor() {
+        return new InfoContributor() {
+            @Override public void contribute(Info.Builder builder) {
+                builder.withDetail("version", "0.0.1 alpha");
+            }
+        };
+    }
+}
+
+@SpringBootApplication
+public class TestApp {
+    public static void main(String[] args) {
+        SpringApplication.run(TestApp.class, args);
+    }
+}
+```
+
+```shell
+$ curl "http://127.0.0.1:8080/actuator/info"
+	{"version":"0.0.1 alpha"}
 ```
 
