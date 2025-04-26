@@ -1875,7 +1875,501 @@ management.endpoints.web.base-path=/my-actuator
 | `MapInfoContributor`            | ❌      | 提供`Map`指定的信息                                                                     |
 | `SimpleInfoContributor`         | ❌      | 仅包含一个属性键值对的信息                                                                    |
 
-`InfoEndpointAutoConfiguration`默认注册了`env`、`git`、`build`的`InfoContributor`。
+### §2.4.2 `health`端点
 
+`health`端点依赖于`org.springframework.boot.actuate.health.HealthIndicator`接口的各种实现类。
+
+| `HealthIndicator`实现类            | 是否默认启用 | 作用                           |
+| ------------------------------- | ------ | ---------------------------- |
+| `DataSourceHealthIndicator`     | ✔      | Spring上下文所有`DataSource`的健康状态 |
+| `DiskSpaceHealthIndicator`      | ✔      | 磁盘空间状态                       |
+| `LivenessStateHealthIndicator`  | ✔      | Kubernetes存活状态               |
+| `ReadinessStateHealthIndicator` | ✔      | Kubernetes就绪状态               |
+| `RedisHealthIndicator`          | ✔      | Redis健康状态                    |
+
+SpringBoot Actuator默认启用了所有的`HealthIndicator`，也可以通过`management.health.<ENDPOINT>.enabled`选择性地关闭某个`HealthIndicator`。
+
+SpringBoot Actuator默认不显示`HealthIndicator`的信息，需要通过`management.endpoint.health.show-details`从`never`更改为`always`。
+
+为了自定义一个`HealthIndicator`，可以参考以下步骤：
+
+- 注册一个`@Bean`的自定义`ShopReadyHealthIndicator`类，它继承自`AbstractHealthIndicator`抽象类。重载了`doHealthCheck()`方法，该方法传入了一个`Health.Builder`实例，可以调用其`.up()`或`.down()`方法更改健康状态。
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.actuate.health.AbstractHealthIndicator;
+import org.springframework.boot.actuate.health.Health;
+import org.springframework.stereotype.Component;
+
+@Component
+public class ShopReadyHealthIndicator extends AbstractHealthIndicator {
+    private TeaProperties teaProperties;
+    public ShopReadyHealthIndicator(ObjectProvider<TeaProperties> teaProperties) {
+        this.teaProperties = teaProperties.getIfAvailable();
+    }
+    @Override protected void doHealthCheck(Health.Builder builder) throws Exception {
+        if ((teaProperties == null || !teaProperties.isReady())) {
+            builder.down();
+        } else {
+            builder.up();
+        }
+    }
 ```
+
+```java
+package top.yaner_here.javasite;  
+  
+import org.junit.jupiter.api.Test;  
+import org.springframework.beans.factory.annotation.Autowired;  
+import org.springframework.boot.actuate.health.HealthContributorRegistry;  
+import org.springframework.boot.test.context.SpringBootTest;  
+  
+import static org.junit.jupiter.api.Assertions.assertNotNull;  
+  
+@SpringBootTest  
+public class ShopReadyHealthIndicatorTest {  
+    @Autowired private HealthContributorRegistry registry;  
+    @Test void testRegistryContainsShopReady() {  
+        assertNotNull(registry.getContributor("shopReady"));  
+    }  
+}
+```
+
+### §2.4.3 自定义端点
+
+SpringBoot Acutator提供了`@Endpoint()`系列的注解，允许开发者自定义端点。
+
+- `@Endpoint`：既支持HTTP也支持JMX
+- `@JmxEndpoint`：只支持JMX
+- `@WebEndpoint`：只支持HTTP
+
+被`@Endpoint`系列注解修饰的类，需要在内部定义由`@ReadOperation`等注解修饰的方法：
+
+- `@ReadOperation`：HTTP的GET请求
+- `@WriteOperation`：HTTP的POST请求
+- `@DeleteOperation`：HTTP的DELETE请求
+
+最后将自定义端点名以Web形式发布：
+
+```properties
+management.endpoints.web.exposure.include=health,info,shop
+```
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
+import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
+import org.springframework.stereotype.Component;
+
+@Component
+@Endpoint(id = "shop") // 自定义端点名
+public class ShopEndpoint {
+    private TeaProperties teaProperties;
+    public ShopEndpoint(ObjectProvider<TeaProperties> teaProperties) {
+        this.teaProperties = teaProperties.getIfAvailable();
+    }
+    @ReadOperation public String state() {
+        return (teaProperties == null || !teaProperties.isReady()) ?
+                "TeaShop is not ready" :
+                "TeaShop is ready.";
+    }
+}
+```
+
+```shell
+$ curl http://127.0.0.1:8080/actuator/shop
+	TeaShop is ready.
+```
+
+### §2.4.4 `metrics`端点
+
+Micrometer是一个著名的第三方库，旨在为不同的监控系统提供一套统一的客户端API。它支持以下监控系统：
+
+| 监控系统            | 是否支持多标签的度量指标 | 数据聚合方式 | 数据获取方式 |
+| --------------- | ------------ | ------ | ------ |
+| AppOptics       | ✔            | 客户端    | 客户端    |
+| Atlas           | ✔            | 客户端    | 客户端    |
+| Azure Monitor   | ✔            | 客户端    | 客户端    |
+| Cloudwatch      | ✔            | 客户端    | 客户端    |
+| Datadog         | ✔            | 客户端    | 客户端    |
+| Datadog StatsD  | ✔            | 客户端    | 服务端    |
+| Dumatrace       | ✔            | 客户端    | 客户端    |
+| Elastic         | ✔            | 客户端    | 客户端    |
+| Etsy StatsD     | ❌            | 客户端    | 服务端    |
+| Ganglia         | ❌            | 客户端    | 客户端    |
+| Graphite        | ❌            | 客户端    | 客户端    |
+| Humio           | ✔            | 客户端    | 客户端    |
+| Influx          | ✔            | 客户端    | 客户端    |
+| JMX             | ❌            | 客户端    | 客户端    |
+| KairosDB        | ✔            | 客户端    | 客户端    |
+| New Relic       | ✔            | 客户端    | 客户端    |
+| Prometheus      | ✔            | 服务端    | 服务端    |
+| SignalFx        | ✔            | 客户端    | 客户端    |
+| Sysdig StatsD   | ✔            | 客户端    | 服务端    |
+| Telegraf StatsD | ✔            | 客户端    | 服务端    |
+| Wavefront       | ✔            | 服务端    | 客户端    |
+
+Micrometer使用`Meter`接口获取系统度量数据，使用`MeterRegister`创建并管理`Meter`实例。
+
+以奶茶店为例，我们先重构一下前文中的代码：
+
+```powershell
+PS C:\Users\Yaner\javasite> tree ./ /F
+├─src
+│  ├─main
+│  │  ├─java
+│  │  │  └─top
+│  │  │      └─yaner_here
+│  │  │          └─javasite
+│  │  │              │  TeaApplication.java
+│  │  │              │  TeaProperties.java
+│  │  │              │  TestApp.java
+│  │  │              ├─actuator
+│  │  │              │  SalesMetrics.java
+│  │  │              │  ShopEndpoint.java
+│  │  │              │  ShopReadyHealthIndicator.java
+│  │  │              └─config
+│  │  │                 ShopConfiguration.java
+│  │  └─resources
+│  │      │  application.properties
+│  │      └─META-INF
+│  │         spring.factories
+│  └─test
+│      └─java
+│          └─top
+│              └─yaner_here
+│                  └─javasite
+│                      ShopConfigureTest.java
+│                      ShopReadyHealthIndicatorTest.java
+```
+
+- 定义一个新的`SalesMetrics`类作为`@Bean`Bean，负责管理度量指标。
+	- 实现`io.micrometer.core.instrument.binder.MeterBinder`接口的`bindTo(MeterRegistry)`，调用该`MeterRegistry`实例注册一系列Micrometer提供的度量指标变量。
+	- 提供`.makeNewOrder()`API，供SpringBoot应用调用。
+- 在SpringBoot应用类`TeaApplication`中，创建定时任务`periodicallyMakeAnOrder()`，负责调用上面的创建订单API。
+
+```java
+// /src/main/java/top/yaner_here/javasite/actuator/SalesMetrics.java
+package top.yaner_here.javasite.actuator;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.MeterBinder;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+@Component
+public class SalesMetrics implements MeterBinder {
+    private Counter orderCounter; // 总订单数
+    private Counter totalAmount; // 总订单金额
+    private DistributionSummary orderSummary;
+    private AtomicInteger averageAmount = new AtomicInteger(); // 订单平均单价
+    @Override public void bindTo(MeterRegistry registry) {
+        this.orderCounter = registry.counter("order.count", "direction", "income");
+        this.totalAmount = registry.counter("order.amount.sum", "direction", "income");
+        this.orderSummary = registry.summary("order.summary", "direction", "income");
+        registry.gauge("order.amount.average", averageAmount);
+    }
+    public void makeNewOrder(int amount) {
+        orderCounter.increment();
+        totalAmount.increment(amount);
+        orderSummary.record(amount);
+        averageAmount.set((int)orderSummary.mean());
+    }
+}
+```
+
+```java
+// /src/main/java/top/yaner_here/javasite/TeaApplication.java
+package top.yaner_here.javasite;
+
+import top.yaner_here.javasite.actuator.SalesMetrics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import java.util.Random;
+
+@SpringBootApplication
+@EnableScheduling
+public class TeaApplication {
+    private static final Logger logger = LoggerFactory.getLogger(TeaApplication.class);
+    private final Random random = new Random();
+    @Autowired private SalesMetrics salesMetrics;
+    @Scheduled(fixedRate = 2000, initialDelay = 500) public void periodicallyMakeAnOrder() {
+        int amount = random.nextInt(100);
+        salesMetrics.makeNewOrder(amount);
+        logger.info(String.format("Make an order of $%d", amount));
+    }
+    public static void main(String[] args) {
+        SpringApplication.run(TeaApplication.class, args);
+    }
+}
+```
+
+```shell
+$ curl "http://127.0.0.1:8080/actuator/metrics"
+	{
+	  "names": [
+		// ......
+	    "order.amount.average",
+	    "order.amount.sum",
+	    "order.count",
+	    "order.summary",
+	  ]
+	}
+
+$ curl "http://127.0.0.1:8080/actuator/metrics/order.amount.average"
+	{
+	  "name": "order.amount.average",
+	  "measurements": [
+	    {
+	      "statistic": "VALUE",
+	      "value": 49
+	    }
+	  ],
+	  "availableTags": []
+	}
+
+$ curl "http://127.0.0.1:8080/actuator/metrics/order.amount.sum"
+	{
+	  "name": "order.amount.sum",
+	  "measurements": [
+	    {
+	      "statistic": "COUNT",
+	      "value": 29381
+	    }
+	  ],
+	  "availableTags": [
+	    {
+	      "tag": "direction",
+	      "values": [
+	        "income"
+	      ]
+	    }
+	  ]
+	}
+
+$ curl "http://127.0.0.1:8080/actuator/metrics/order.count"
+	{
+	  "name": "order.count",
+	  "measurements": [
+	    {
+	      "statistic": "COUNT",
+	      "value": 695
+	    }
+	  ],
+	  "availableTags": [
+	    {
+	      "tag": "direction",
+	      "values": [
+	        "income"
+	      ]
+	    }
+	  ]
+	}
+
+$ curl "http://127.0.0.1:8080/actuator/metrics/order.summary"
+	{
+	  "name": "order.summary",
+	  "measurements": [
+	    {
+	      "statistic": "COUNT",
+	      "value": 199
+	    },
+	    {
+	      "statistic": "TOTAL",
+	      "value": 9880
+	    },
+	    {
+	      "statistic": "MAX",
+	      "value": 98
+	    }
+	  ],
+	  "availableTags": [
+	    {
+	      "tag": "direction",
+	      "values": [
+	        "income"
+	      ]
+	    }
+	  ]
+	}
+```
+
+Micrometer提供了`LoggingMeterRegistry`，可以将各个度量指标输出到日志系统中（例如ElasticSearch、Logstash、Kibana等）。还可以使用`CompositeMeterRegsitry`，调用其实例的`.add(MeterRegistry)`方法添加多个`LoggingMeterRegistry`。
+
+## §2.5 编译选项
+
+在命令行中使用`mvn clean package -Dmaven.test.skip=true`构建生产环境的编译产物：
+
+```powershell
+PS C:\Users\Yaner\Desktop\Thoughts\javasite> mvn clean package 
+	[INFO] Scanning for projects...
+	[INFO] 
+	[INFO] --------------------------< com.example:demo >--------------------------
+	[INFO] Building demo 0.0.1-SNAPSHOT
+	[INFO]   from pom.xml
+	[INFO] --------------------------------[ jar ]---------------------------------
+	[INFO] 
+	[INFO] --- clean:3.4.1:clean (default-clean) @ demo ---
+	[INFO] Deleting C:\Users\Yaner\Desktop\Thoughts\javasite\target
+	[INFO] 
+	[INFO] --- resources:3.3.1:resources (default-resources) @ demo ---
+	[INFO] Copying 1 resource from src\main\resources to target\classes
+	[INFO] Copying 1 resource from src\main\resources to target\classes
+	[INFO]
+	[INFO] --- compiler:3.13.0:compile (default-compile) @ demo ---
+	[INFO] Recompiling the module because of changed source code.
+	[INFO] Compiling 7 source files with javac [debug parameters release 21] to target\classes
+	[INFO] 
+	[INFO] --- resources:3.3.1:testResources (default-testResources) @ demo ---
+	[INFO] skip non existing resourceDirectory C:\Users\Yaner\Desktop\Thoughts\javasite\src\test\resources
+	[INFO]
+	[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ demo ---
+	[INFO] Recompiling the module because of changed dependency.
+	[INFO] Compiling 2 source files with javac [debug parameters release 21] to target\test-classes
+	[INFO] 
+	[INFO] --- surefire:3.5.2:test (default-test) @ demo ---
+	[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+	[INFO] 
+	[INFO] -------------------------------------------------------
+	[INFO]  T E S T S
+	[INFO] -------------------------------------------------------
+	[INFO] Running top.yaner_here.javasite.ShopConfigurationDisableTest
+	# ......
+	[INFO] BUILD SUCCESS
+	[INFO] ------------------------------------------------------------------------
+	[INFO] Total time:  17.160 s
+	[INFO] Finished at: 2025-04-26T16:50:19+08:00
+	[INFO] ------------------------------------------------------------------------
+```
+
+编译后查看`/target`目录，容易发现两个`.jar`文件：
+
+- `demo-0.0.1-SNAPSHOT.jar.original`：本质上是`*.zip`文件，只包含Maven描述文件与`spring.factories`。
+- `demo-0.0.1-SNAPSHOT.jar`：本质上是`*.zip`文件，还包含了SpringBoot用来引导工程启动的相关`Loader`类、工程自身的类与资源文件、依赖的其它Jar文件。
+
+默认情况下，`pom.xml`定义了编译产物实质上是`*.zip`文件的Jar包：
+
+```xml
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+```
+
+目前为止，Java的编译技术已经形成了丰富的生态：
+
+- `spring-boot-maven-plugin`（`*.jar -> *.zip`）：需要使用`java -jar`运行。
+- `spring-boot-maven-plugin`带有`<executable>true</executable>`的`<configuration>`（`*.jar -> *.sh`）：作为Linux Shell脚本直接执行。
+- GraalVM（`*.jar -> *.elf`）：作为Linux二进制直接运行。
+
+## §2.6 自定义SpringApplication
+
+在前文中，我们使用SpringBoot提供的`org.springframework.boot.SpringApplication`提供的静态方法`.run()`运行一个SpringBoot应用。在Spring时代，我们当然可以写一个继承自`SpringAppliation`的子类，然后调用其父类的API。但是在SpringBoot时代，我们有`SpringApplicationBuilder`用于自定义一个SpringBoot应用。
+
+```java
+public static void main(String[] args) {
+	new SpringApplicationBuilder()
+		.sources(TeaApplication.class)
+		.main(TeaApplication.class)
+		.bannerMode(Banner.Mode.OFF)
+		.web(WebApplicatoinType.SERVLET)
+		.run(args);
+}
+```
+
+## §2.7 命令行选项
+
+SpringBoot提供了两种方法来解析命令行参数：
+
+- `org.springframework.boot.CommandLineRunner`接口的`run(String... args)`方法：解析命令行参数为`String[]`，其中`args[-1]`为类名，`args[-2...]`才为类似于`--wait=3`的裸字符串，这与C语言中的`char **argv`的顺序是相反的。
+- `org.springframework.boot.ApplicationRunner`接口的`run(ApplicationArguments args)`方法：解析命令行参数为`org.springframework.boot.ApplicationArguments`实例。该实例提供了以下方法：
+	- `boolean containsOption(String name)`：
+	- `List<String> getOptionValues(String name)`：
+	- `List<String> getNonOptionsArgs()`：
+
+```java
+package top.yaner_here.javasite.customer;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeansException;
+import org.springframework.boot.*;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.util.NumberUtils;
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+
+@Component
+@Slf4j
+@Order(1)
+class ArgsPrinterRunner implements CommandLineRunner {
+    @Override public void run(String[] args) {
+        log.info("[ArgsPrinterRunner] {} parameters passed in: {}", args.length, StringUtils.arrayToCommaDelimitedString(args));
+    }
+}
+
+@Component
+@Slf4j
+@Order(2)
+class WaitForOpenRunner implements ApplicationRunner, ApplicationContextAware {
+    private ApplicationContext context;
+    @Override public void run(ApplicationArguments args) throws Exception {
+        boolean needWait = args.containsOption("wait");
+        if(needWait) {
+            List<String> waitSeconds = args.getOptionValues("wait");
+            if(!waitSeconds.isEmpty()) {
+                int seconds = NumberUtils.parseNumber(waitSeconds.get(0), Integer.class);
+                log.info("[ArgsPrinterRunner] Need to wait for {} seconds.", seconds);
+                Thread.sleep(seconds * 1000L);
+            }
+        } else {
+            log.info("[ArgsPrinterRunner] No need to wait for TeaShop.");
+        }
+        System.exit(SpringApplication.exit(context));
+    }
+    @Override public void setApplicationContext(ApplicationContext context) throws BeansException {
+        this.context = context;
+    }
+}
+
+
+@Configuration
+class CustomerApplicationConfiguration {
+    @Bean ExitCodeGenerator waitExitCodeGenerator(ApplicationArguments args) {
+        return () -> (args.containsOption("wait") ? 0 : 1);
+    }
+}
+
+public class CustomerApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(CustomerApplication.class);
+    }
+}
+/*
+[ArgsPrinterRunner] 2 parameters passed in: --wait=3,CustomerApplication
+[ArgsPrinterRunner] Need to wait for 3 seconds.
+
+*/
 ```
