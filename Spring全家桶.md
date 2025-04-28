@@ -2730,15 +2730,84 @@ public class MySpringJDBCApplication {
 
 ### §2.8.3 事务
 
-Spring提供了`@Transactional`注解表示数据库交互层面的事务。如果被`@Transctional`修饰的方法在执行过程中发生了错误，那么Spring会
+Spring提供了`@Transactional`注解表示数据库交互层面的事务。该功能通过给配置类`@Configuration`修饰`@EnableTransactionManagement`启用。如果被`@Transctional`修饰的方法在执行过程中发生了错误，那么Spring会自动捕捉到该错误，执行回滚操作，再将错误抛出。
+
+`@Transactional()`注解支持以下参数：
+
+| `@Transactional()`参数     | 默认值                                          | 含义           |
+| ------------------------ | -------------------------------------------- | ------------ |
+| `transactionManager`     | `context.getBean("transactionManager")`的Bean | 事务管理器实例      |
+| `propagation`            | `Propagation.REQUIRED`                       | 事务传播性        |
+| `isolation`              | `Isolation.DEFAULT`                          | 事务隔离性        |
+| `timeout`                | `-1`，由JDBC驱动决定                               | 事务超时时间       |
+| `readOnly`               | `false`                                      | 事务只读性        |
+| `rollbackFor`            | 无                                            | 需要回滚事务的异常类型  |
+| `rollbackForClassName`   | 无                                            | 需要回滚事务的异常类型名 |
+| `noRollbackFor`          | 无                                            | 无需回滚事务的异常类型  |
+| `noRollbackForClassName` | 无                                            | 无需回滚事务的异常类型名 |
+
+Spring定义了以下七个级别的事务传播性，表示事务自身的边界：
+
+| 事务传播性常量名                                          | 常量值 | 含义                       |
+| ------------------------------------------------- | --- | ------------------------ |
+| `TransactionDefinition.PROPAGATION_REQUIRED`      | `0` | 如果当前有事务就用这个，若当前没有事务则新建事务 |
+| `TransactionDefinition.PROPAGATION_SUPPORTS`      | `1` | 事务不是必须的，有或没有都可以          |
+| `TransactionDefinition.PROPAGATION_MANDATORY`     | `2` | 事务是必须的，如果当前没有就报错         |
+| `TransactionDefinition.PROPAGATION_REQUIRES_NEW`  | `3` | 如果当前有事务则挂起，并新建事务         |
+| `TransactionDefinition.PROPAGATION_NOT_SUPPORTED` | `4` | 不支持事务                    |
+| `TransactionDefinition.PROPAGATION_NEVER`         | `5` | 不支持事务，如果当前有事务就报错         |
+| `TransactionDefinition.PROPAGATION_NESTED`        | `6` | 如果当前有事务，则在其内部再创建一个事务     |
+
+Spring定义了以下四个级别的事务隔离级别，表示事务之间的可见性。其中❌表示存在该问题，✔表示不存在该问题：
+
+- 脏读：事务A读取数据后，该数据被事务B回滚了。
+- 不可重复读：事务A多次读取数据库的同一条记录，得到的结果字段值不一致。强调数据被修改。
+- 幻读：事务A多次读取数据库，得到的记录数量不一致。强调数据被插入或删除。
+
+| 事务隔离级别常量名                                          | 常量值  | 脏读  | 不可重复读 | 幻读  |
+| -------------------------------------------------- | ---- | --- | ----- | --- |
+| `TransactionDefinition.ISOLATION_READ_UNCOMMITTED` | `1`  | ❌   | ❌     | ❌   |
+| `TransactionDefinition.ISOLATION_READ_COMMITTED`   | `2`  | ✔   | ❌     | ❌   |
+| `TransactionDefinition.ISOLATION_REPEATABLE_READ`  | `3`  | ✔   | ✔     | ❌   |
+| `TransactionDefinition.ISOLATION_SERIALIZABLE`     | `4`  | ✔   | ✔     | ✔   |
+| JDBC驱动实现内部配置（缺省值）                                  | `-1` | ❓   | ❓     | ❓   |
+
+
+
+
+继上面的例子：
 
 ```java
-class 支付货款 {
-	@Autowired AccountRepository repo; // 数据访问层接口
-	@Transactional public void 转账() {
-		repo.add(甲方账户, 100元);
-		repo.minus(乙方账户, 100元);
+@Repository class ProductRepository {
+	// ...
+	@Transactional public void insertTwoProductsSuccessfully() {  
+	    Product product1 = Product.builder().name("Apple").price(2.00).build();  
+	    Product product2 = Product.builder().name("Banana").price(3.00).build();  
+	    this.insert(product1);  
+	    this.insert(product2);  
+	}  
+	@Transactional public void insertTwoProductsWithFailure() {  
+	    Product product1 = Product.builder().name("Cheery").price(5.00).build();  
+	    Product product2 = Product.builder().name(null).price(4.00).build(); // 故意违反name的NOT NULL约束
+	    this.insert(product1);  
+	    this.insert(product2);  
 	}
+}
+
+@Configuration @ComponentScan @EnableTransactionManagement 
+class MySpringJDBCApplicationConfig {
+	// ...
+}
+
+@Log4j2  
+public class MySpringJDBCApplication {  
+    public static void main(String[] args) {  
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringJDBCApplicationConfig.class)) {  
+            ProductRepository productRepository = context.getBean(ProductRepository.class);  
+            productRepository.insertTwoProductsSuccessfully();  
+            productRepository.insertTwoProductsWithFailure();  
+        }  
+    }  
 }
 ```
 
