@@ -4539,5 +4539,48 @@ class Complex {
 
 除了给单个包撰写文档注释，我们也可以给一组包撰写文档注释。需要在这一组包的根目录内添加一个名为`overview.html`的文件，`javadoc`能根据其中的内容生成最高层概览。
 
+# §6 常用第三方库
+
+## §6.1 Lombok
+
+[Lombok](https://projectlombok.org/)是一个小巧的注解库，旨在简化Java中的繁琐操作，例如自动设置Getter和Setter等。
+
+```xml
+<dependency>  
+    <groupId>org.projectlombok</groupId>  
+    <artifactId>lombok</artifactId>  
+    <optional>true</optional>  
+</dependency>
+
+<plugin>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-maven-plugin</artifactId>
+	<configuration>
+		<excludes>
+			<exclude>
+				<groupId>org.projectlombok</groupId>
+				<artifactId>lombok</artifactId>
+			</exclude>
+		</excludes>
+	</configuration>
+</plugin>
+```
+
+| 注解名称                       | 作用                                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| `@Getter`                  | 修饰实例变量，自动生成其Getter方法                                                                         |
+| `@Setter`                  | 修饰实例变量，自动生成其Setter方法                                                                         |
+| `@ToString`                | 修饰类，自动生成其`toString()`方法，默认拼接实例的所有变量                                                          |
+| `@NoArgsConstructor`       | 修饰类，自动生成无参数的构造方法                                                                             |
+| `@RequiredArgsConstructor` | 修饰类，自动生成指定参数的构造方法                                                                            |
+| `@AllArgsConstructor`      | 修饰类，自动生成全部参数的构造方法                                                                            |
+| `@EqualsAndHashCode`       | 修饰类，自动生成`equals()`和`hashCode()`方法                                                            |
+| `@Data`                    | 修饰类，效果等价于同时使用`@ToString`、`@EqualsAndHashCode`、`@Getter`、`@Setter`、`@RequiredArgsConstructor` |
+| `@Builder`                 | 修饰类，自动生成一个该类的`Builder`                                                                       |
+| `@Slf4j`                   | 修饰类，提供Slf4j日志框架的`Logger`实例注入到类的`log`变量                                                       |
+| `@CommonsLog`              | 修饰类，提供CommonsLog日志框架的`Logger`实例注入到类的`log`变量                                                  |
+| `@Log4j2`                  | 修饰类，提供Log4j2日志框架的`Logger`实例注入到类的`log`变量                                                      |
+
+
 
 
