@@ -16,6 +16,9 @@
       },
       "d2-obsidian": {
         "startupType": "instant"
+      },
+      "fix-callout": {
+        "startupType": "instant"
       }
     }
   }

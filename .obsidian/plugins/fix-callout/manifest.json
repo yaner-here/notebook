@@ -1,0 +1,9 @@
+{
+    "id": "fix-callout",
+    "name": "Fix Callout",
+    "version": "0.0.1",
+    "minAppVersion": "0.15.0",
+    "description": "Fix <> parsing errors of codeblock in Callout",
+    "author": "the_tree",
+    "isDesktopOnly": false
+}
