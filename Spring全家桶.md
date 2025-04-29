@@ -1331,7 +1331,7 @@ Spring的通知类型十分灵活，支持在方法的各个执行阶段进行�
 - 环绕通知`@Around()`：用于在执行点前后插入逻辑、替换切入点本身的逻辑、替换掉用参数，**效果等价于Python的装饰器**。被该注解修饰的方法的第一个形参必须是`ProceedingJoinPoint`，返回类型就是被拦截方法的返回类型或其父类。
 - 引入通知`@DeclareParents()`：为Bean添加新的接口。
 
-### §1.8.3 XML配置代理
+### §1.8.4 XML配置代理
 
 XML提供了上文提到的所有通知类型：
 
@@ -1360,6 +1360,740 @@ XML提供了上文提到的所有通知类型：
 		<aop:advisor pointcut-ref="方法名" advice-ref="方法名"/>
 	</app:config>
 </beans>
+```
+
+## §1.8 JDBC
+
+在Java时代，开发者使用JDBC（`java.sql`）提供的相关API来操作数据库。后来`javax.sql.DataSource`接口为不同的数据库提供了统一的抽象层。但是这样做需要手动维护数据库连接，并且创建一个JDBC连接的成本非常高，因此后续Java社区出现了一些连接池库，例如HirariCP、Druid、DBCP2、Tomcat等持久化数据源，以及HSQL、H2、Derby等嵌入数据源。
+
+SpringBoot在此基础上做了大量的封装工作，简化了`DataSource`的配置步骤，默认使用HirariCP作为连接池。
+
+```java
+package top.yaner_here.javasite;
+
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.pool.HikariProxyConnection;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@SpringBootTest
+public class DatasourceDemoApplicationTests {
+    @Autowired ApplicationContext context;
+    @Test void testDatasource() throws SQLException {
+        assertTrue(context.containsBean("dataSource"));
+        DataSource dataSource = context.getBean("dataSource", DataSource.class);
+        assertTrue(dataSource instanceof HikariDataSource);
+        Connection connection = dataSource.getConnection();
+        assertTrue(connection instanceof HikariProxyConnection);
+        connection.close();
+        assertEquals(10, ((HikariDataSource) dataSource).getMaximumPoolSize());
+    }
+}
+```
+
+### §1.8.1 连接池
+
+- HikariCP是迄今为止速度最快的连接池库，它使用了大量的底层优化（字节码注入、使用FastList代替`ArrayList`等）。
+- Druid是阿里巴巴开源的连接池库，功能最全（例如SQL注入防火墙、数据库密码加密等）。
+
+```xml
+<dependency> <!-- HikariCP -->
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-jdbc</artifactId>
+</dependency>
+
+<dependency> <!-- Druid -->
+	<groupId>com.alibaba</groupId>
+	<artifactId>druid-spring-boot-starter</artifactId>
+</dependency>
+```
+
+SpringBoot为HikariCP和Druid提供了以下配置项：
+
+| 构造方法形参              | SpringBoot配置属性                                | 含义                     |
+| ------------------- | --------------------------------------------- | ---------------------- |
+| `jdbcUrl`           | `spring.datasource.url`                       | JDBC URL               |
+| `username`          | `spring.datasource.username`                  | 数据库用户名                 |
+| `password`          | `spring.datasource.password`                  | 数据库密码                  |
+| -                   | `spring.datasource.name`                      | 数据源名称，内嵌数据库缺省为`testdb` |
+| -                   | `spring.datasource.jndi-name`                 | 数据源的JNDI名称             |
+| -                   | `spring.datasource.type`                      | 连接池实现的全限定类名            |
+| -                   | `spring.datasource.driver-class-name`         | JDBC驱动类的全限定类名          |
+| -                   | `spring.datasource.generate-unique-name`      | 是否羧基生成数据源名称，缺省为`true`  |
+| `maximumPoolSize`   | `spring.datasource.hikari.maximum-pool-size`  | 连接池的最大连接数              |
+| `minimumIdle`       | `spring.datasource.hikari.minumum-idle`       | 连接池的最小空闲连接数            |
+| `connectionTimeout` | `spring.datasource.hikari.connection-timeout` | 建立连接的超时时间，单位为秒         |
+| `idleTimeout`       | `spring.datasource.hikari.idle-timeout`       | 清理连接的空闲时间，单位为秒         |
+| `maxLifetime`       | `spring.datasource.hikari.max-lifetime`       | 连接的最大存活时间，单位为秒         |
+| `initialSize`       | `spring.datasource.druid.initial-size`        | 连接池初始连接数               |
+| `maxActive`         | `spring.datasource.druid.max-active`          | 连接池最大连接数               |
+| `minIdle`           | `spring.datasource.druid.min-idle`            | 连接池最小空闲连接数             |
+| `maxWait`           | `spring.datasource.druid.max-wait`            | 连接池最大获取连接等待时间          |
+| `testOnBorrow`      | `spring.datasource.druid.test-on-borrow`      | 获取连接前检查连接              |
+| `testOnReturn`      | `spring.datasource.druid.test-on-return`      | 归还连接后检查连接              |
+| `testWhileIdle`     | `spring.datasource.druid.test-while-idle`     | 检查空闲连接                 |
+| `filters`           | `spring.datasource.druid.filters`             | 配置的过滤器插件列表             |
+
+SpringBoot为提供了以下配置项：
+
+| 构造方法形参     | SpringBoot配置属性               | 含义       |
+| ---------- | ---------------------------- | -------- |
+| `url`      | `spring.datasource.url`      | JDBC URL |
+| `username` | `spring.datasource.username` | 数据库用户名   |
+| `password` | `spring.datasource.password` | 数据库密码    |
+
+### §1.8.2 数据源自动配置
+
+SpringBoot为数据源提供了以下配置项：
+
+| SpringBoot配置项（新）                    | SpringBoot配置项（旧）                        | 作用                                                                    |
+| ----------------------------------- | --------------------------------------- | --------------------------------------------------------------------- |
+| `spring.sql.init.mode`              | `spring.datasource.initialization-mode` | 使用DDL或DML脚本初始化数据源的触发条件，可选值为`embedded`、`always`、`never`，缺省值为`embedded` |
+| `spring.sql.init.platform`          | `spring.datasource.platform`            | 脚本对应的平台名，负责生成SQL脚本文件名`schema-<PLATFORM>.sql`                          |
+| `spring.sql.init.seperator`         | `spring.datasource.separator`           | 脚本中的语句分隔符，缺省为`;`                                                      |
+| `spring.sql.init.encoding`          | `spring.datasource.sql-script-encoding` | SQL脚本的字符编码                                                            |
+| `spring.sql.init.continue-on-error` | `spring.datasource.continue-on-error`   | 初始化过程中遇到报错是否停止，缺省为`false`                                             |
+| `spring.sql.init.schema-locations`  | `spring.datasource.schema`              | DDL脚本的文件名，缺省为`schema.sql`                                             |
+| `spring.sql.init.data-locations`    | `spring.datasource.data`                | DML脚本的文件名，缺省为`data.sql`                                               |
+| `spring.sql.init.username`          | `spring.datasource.schema-username`     | DDL脚本运行时的用户名                                                          |
+|                                     | `spring.datasource.data-username`       | DML脚本运行时的用户名                                                          |
+| `spring.sql.init.password`          | `spring.datasource.schema-password`     | DDL脚本运行时的密码                                                           |
+|                                     | `spring.datasource.data-password`       | DML脚本运行时的密码                                                           |
+
+### §1.8.3 数据库交互
+
+Spring对Java原生的JDBC做了一层封装，作为`org.springframework.jdbc`包发布。
+
+下面的例子展示了Spring提供的JDBC用法：
+
+- 将产品表中的记录抽象成一个`Product`类，带有`id`、`name`、`price`字段及其Getter/Setter方法。
+- 将产品表的数据库交互操作封装成一个仓库类`ProductRepository`，使用Spring提供的`@Repository`注解修饰。
+	- 在内部设置Spring封装的`JdbcTemplate`实例和`NamedParameterJdbcTemplate`实例，并使用`@Autowired`自动注入。
+	- 定义从数据库记录到`Product`实例的逻辑，这需要通过自定义的`RowMapper<Product> productRowMapper`实例实现。初始化该实例时，如要重载其`mapRow()`方法。该方法传入`ResultSet rs`和`int rowNum`形参，可以调用`rs.getInt/getString/getDouble(列名)`来获取结果集`rs`中的字段。
+	- `JdbcTemplate`实例支持以下方法：
+		- `.execute(SQL字符串)`：直接执行SQL语句。
+		- `.update(connection -> {return PreparedStatement}, [KeyHolder])`：传入一个Lambda表达式，它要求传入一个`java.sql.Connection`裸连接作为形参，返回一个经过`.setString/.setDouble(列下标, 列字段值)`注入的`java.sql.PreparedStatement`实例。可选传入一个新初始化的`KeyHolder`实例，执行之后调用其`.getKey()`获取被更新记录对应的主键值。
+		- `.batchUpdate(SQL字符串, BatchPreparedStatementSetter)`：传入SQL语句与Spring提供的`BatchPreparedStatementSetter`实例。该实例初始化时需要重载两个方法——`.getBatchSize()`负责返回要更新的记录条数，`.setValues(PreparedStatement ps, int i)`负责将第`i`个要更新的记录信息，通过`.setString/.setDouble()`加载到传入的`PreparedStatement`实例中。
+		- `.batchUpdate(SQL字符串, SqlParameterSource[])`：传入SQL语句与Spring提供的` org.springframework.jdbc.core.namedparam.SqlParameterSource`构成的列表。为了得到这个列表，我们需要将`List<Product>`先`.toArray()`变成`Product[]`，然后作为实参传入Spring提供的工具类`org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils.createBatch()`方法，才最终得到`BeanPropertySqlParameterSource[]`列表。
+		- `.queryForObject(SQL语句, RowMapper<Product>, id)`：将`id`注入到SQL字符串模版中，然后通过`RowMapper<Product>`实例映射为`Product`实例。
+		- `query(SQL语句, RowMapper<Product>)`：根据传入的`SELECT`SQL语句，查询并返回由`RowMapper<Product>`实例映射成的`List<Product>`实例列表。
+		- `.update(SQL语句, MapSqlParameterSource)`：自定义一个`MapSqlParameterSource`实例，调用其`.addValue(列名, 列值)`方法填充参数，传入到`.update()`方法中完成`UPDATE`更新或`DELETE`删除。
+	- 定义一系列CRUD方法。
+- 定义配置类`MySpringJDBCApplicationConfig`，使用`@Configuration`修饰。在其中注册以下三个Bean：
+	- `javax.sql.DataSource`：初始化一个`org.springframework.jdbc.datasource.DriverManagerDataSource`实例，调用其`.setDriverClassName(驱动包名)`和`.setUrl(数据源URL)`配置数据源相关信息，最后作为返回值。
+	- `org.springframework.jdbc.core.JdbcTemplate`：传入一个`DataSource`实例，作为`JdbcTemplate`的构造方法实参，返回创建的`JdbcTemplate`实例。
+	- `org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate`：传入一个`DataSource`实例，作为`NamedParameterJdbcTemplate`的构造方法实参，返回创建的`NamedParameterJdbcTemplate`实例。
+- 定义主函数，通过Spring拿到一个`ProductRepository`实例，并执行后续的自定义CRUD方法即可。
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Repository;
+
+import javax.sql.DataSource;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+@Data @Builder class Product {
+    private int id;
+    private String name;
+    private double price;
+}
+
+@Repository
+class ProductRepository {
+    @Autowired private final JdbcTemplate jdbcTemplate;
+    @Autowired private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final RowMapper<Product> productRowMapper = new RowMapper<Product>() {
+        @Override public Product mapRow(ResultSet rs, int rowNum) throws SQLException {
+            Product product = Product.builder().build();
+            product.setId(rs.getInt("id"));
+            product.setName(rs.getString("name"));
+            product.setPrice(rs.getDouble("price"));
+            return product;
+        }
+    };
+
+    ProductRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+    }
+
+    public void createTable() {
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS products (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name VARCHAR(128) NOT NULL," +
+                "price REAL NOT NULL" +
+                ")"
+        );
+    }
+
+    public int insert(Product product) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO products (name, price) VALUES (?, ?)");
+            ps.setString(1, product.getName());
+            ps.setDouble(2, product.getPrice());
+            return ps;
+        }, keyHolder);
+        Number generatedId = keyHolder.getKey();
+        return generatedId != null ? generatedId.intValue() : null;
+    }
+
+    public int[] insertBatch(List<Product> products) {
+        return jdbcTemplate.batchUpdate(
+                "INSERT INTO products (name, price) VALUES (?, ?)",
+                new BatchPreparedStatementSetter() {
+                    @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
+                        Product product = products.get(i);
+                        ps.setString(1, product.getName());
+                        ps.setDouble(2, product.getPrice());
+                    }
+                    @Override public int getBatchSize() {
+                        return products.size();
+                    }
+                }
+        );
+    }
+
+    public int[] insertBatchNamed(List<Product> products) {
+        SqlParameterSource[] batchArgs = SqlParameterSourceUtils.createBatch(products.toArray());
+        return namedParameterJdbcTemplate.batchUpdate("INSERT INTO products (name, price) VALUES (:name, :price)", batchArgs);
+    }
+
+    public Optional<Product> findById(int id) {
+        try {
+            Product product = jdbcTemplate.queryForObject(
+                    "SELECT id, name, price FROM products WHERE id = ?",
+                    productRowMapper,
+                    id
+            );
+            return Optional.ofNullable(product);
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    public List<Product> findAll() {
+        return jdbcTemplate.query("SELECT id, name, price FROM products", productRowMapper);
+    }
+
+    public int update(Product product) {
+        MapSqlParameterSource parameterSource = new MapSqlParameterSource()
+                .addValue("name", product.getName())
+                .addValue("price", product.getPrice())
+                .addValue("id", product.getId());
+        return namedParameterJdbcTemplate.update(
+                "UPDATE products SET name = :name, price = :price WHERE id = :id",
+                parameterSource
+        );
+    }
+
+    public int deleteById(int id) {
+        return jdbcTemplate.update("DELETE FROM products WHERE id = ?", id);
+    }
+}
+
+@Configuration @ComponentScan class MySpringJDBCApplicationConfig {
+    @Bean public DataSource dataSource() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.sqlite.JDBC");
+        dataSource.setUrl("jdbc:sqlite:products.db");
+        return dataSource;
+    }
+    @Bean JdbcTemplate jdbcTemplate(DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+    @Bean NamedParameterJdbcTemplate namedParameterJdbcTemplate(DataSource dataSource) {
+        return new NamedParameterJdbcTemplate(dataSource);
+    }
+}
+
+@Log4j2
+public class MySpringJDBCApplication {
+    public static void main(String[] args) {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringJDBCApplicationConfig.class)) {
+            ProductRepository productRepository = context.getBean(ProductRepository.class);
+
+            // 创建表
+            productRepository.createTable();
+            log.info("Created table.");
+
+            // 单个插入
+            Product product1 = Product.builder().name("Laptop").price(6000.00).build();
+            int generatedId = productRepository.insert(product1);
+            product1.setId(generatedId);
+            log.info("Inserted a entry (id={}).", generatedId);
+
+            // 批量插入
+            List<Product> batchProducts1 = Arrays.asList(
+                    Product.builder().name("Keyboard").price(75.00).build(),
+                    Product.builder().name("Mouse").price(25.00).build()
+            );
+            int[] batchResult1 = productRepository.insertBatch(batchProducts1);
+            log.info("Inserted two entries with affected rows {}.", batchResult1);
+
+            // 批量插入
+            List<Product> batchProducts2 = Arrays.asList(
+                    Product.builder().name("Monitor").price(300.00).build(),
+                    Product.builder().name("Webcam").price(50.00).build()
+            );
+            int[] batchResult2 = productRepository.insertBatchNamed(batchProducts2);
+            log.info("Inserted two entries with affected rows {}.", batchResult2);
+
+            // 查找表
+            List<Product> allProducts = productRepository.findAll();
+
+            // 按字段查找表
+            Optional<Product> foundProductOpt1 = productRepository.findById(999);
+            foundProductOpt1.ifPresentOrElse(
+                    product -> { log.info("Found an entry with id={} for the query.", 999); ;},
+                    () -> { log.info("Not found an entry with id={}.", 999); }
+            );
+            Optional<Product> foundProductOpt2 = productRepository.findById(1);
+            foundProductOpt2.ifPresentOrElse(
+                    product -> { log.info("Found an entry with id={} for the query.", 1); ;},
+                    () -> { log.info("Not found an entry."); }
+            );
+
+            // 更改表
+            if(foundProductOpt2.isPresent()) {
+                Product productToUpdate = foundProductOpt2.get();
+                productToUpdate.setPrice(1150.00);
+                int updatedRows = productRepository.update(productToUpdate);
+                log.info("Updated {} rows.", updatedRows);
+            }
+
+            // 删除表
+            int deletedRows = productRepository.deleteById(2);
+            log.info("Deleted {} rows.", deletedRows);
+        }
+    }
+}
+/*
+21:39:22.734 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Created table.
+21:39:22.758 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Inserted a entry (id=11).
+21:39:22.775 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Inserted two entries with affected rows [1, 1].
+21:39:22.791 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Inserted two entries with affected rows [1, 1].
+21:39:22.799 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Not found an entry with id=999.
+21:39:22.800 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Found an entry with id=1 for the query.
+21:39:22.803 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Updated 1 rows.
+21:39:22.804 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Deleted 0 rows.
+*/
+```
+
+### §1.8.4 事务
+
+#### §1.8.4.1 声明式事务
+
+Spring提供了`@Transactional`注解表示数据库交互层面的事务。该功能通过给配置类`@Configuration`修饰`@EnableTransactionManagement`启用。如果被`@Transctional`修饰的方法在执行过程中发生了错误，那么Spring会自动捕捉到该错误，执行回滚操作，再将错误抛出。
+
+`@Transactional()`注解支持以下参数：
+
+| `@Transactional()`参数     | 默认值                                          | 含义           |
+| ------------------------ | -------------------------------------------- | ------------ |
+| `transactionManager`     | `context.getBean("transactionManager")`的Bean | 事务管理器实例      |
+| `propagation`            | `Propagation.REQUIRED`                       | 事务传播性        |
+| `isolation`              | `Isolation.DEFAULT`                          | 事务隔离性        |
+| `timeout`                | `-1`，由JDBC驱动决定                               | 事务超时时间       |
+| `readOnly`               | `false`                                      | 事务只读性        |
+| `rollbackFor`            | 无                                            | 需要回滚事务的异常类型  |
+| `rollbackForClassName`   | 无                                            | 需要回滚事务的异常类型名 |
+| `noRollbackFor`          | 无                                            | 无需回滚事务的异常类型  |
+| `noRollbackForClassName` | 无                                            | 无需回滚事务的异常类型名 |
+
+Spring定义了以下七个级别的事务传播性，表示事务自身的边界：
+
+| 事务传播性常量名                                          | 常量值 | 含义                       |
+| ------------------------------------------------- | --- | ------------------------ |
+| `TransactionDefinition.PROPAGATION_REQUIRED`      | `0` | 如果当前有事务就用这个，若当前没有事务则新建事务 |
+| `TransactionDefinition.PROPAGATION_SUPPORTS`      | `1` | 事务不是必须的，有或没有都可以          |
+| `TransactionDefinition.PROPAGATION_MANDATORY`     | `2` | 事务是必须的，如果当前没有就报错         |
+| `TransactionDefinition.PROPAGATION_REQUIRES_NEW`  | `3` | 如果当前有事务则挂起，并新建事务         |
+| `TransactionDefinition.PROPAGATION_NOT_SUPPORTED` | `4` | 不支持事务                    |
+| `TransactionDefinition.PROPAGATION_NEVER`         | `5` | 不支持事务，如果当前有事务就报错         |
+| `TransactionDefinition.PROPAGATION_NESTED`        | `6` | 如果当前有事务，则在其内部再创建一个事务     |
+
+Spring定义了以下四个级别的事务隔离级别，表示事务之间的可见性。其中❌表示存在该问题，✔表示不存在该问题：
+
+- 脏读：事务A读取数据后，该数据被事务B回滚了。
+- 不可重复读：事务A多次读取数据库的同一条记录，得到的结果字段值不一致。强调数据被修改。
+- 幻读：事务A多次读取数据库，得到的记录数量不一致。强调数据被插入或删除。
+
+| 事务隔离级别常量名                                          | 常量值  | 脏读  | 不可重复读 | 幻读  |
+| -------------------------------------------------- | ---- | --- | ----- | --- |
+| `TransactionDefinition.ISOLATION_READ_UNCOMMITTED` | `1`  | ❌   | ❌     | ❌   |
+| `TransactionDefinition.ISOLATION_READ_COMMITTED`   | `2`  | ✔   | ❌     | ❌   |
+| `TransactionDefinition.ISOLATION_REPEATABLE_READ`  | `3`  | ✔   | ✔     | ❌   |
+| `TransactionDefinition.ISOLATION_SERIALIZABLE`     | `4`  | ✔   | ✔     | ✔   |
+| JDBC驱动实现内部配置（缺省值）                                  | `-1` | ❓   | ❓     | ❓   |
+
+```java
+@Repository class ProductRepository {
+	// ...
+	@Transactional public void insertTwoProductsSuccessfully() {  
+	    Product product1 = Product.builder().name("Apple").price(2.00).build();  
+	    Product product2 = Product.builder().name("Banana").price(3.00).build();  
+	    this.insert(product1);  
+	    this.insert(product2);  
+	}  
+	@Transactional public void insertTwoProductsWithFailure() {  
+	    Product product1 = Product.builder().name("Cheery").price(5.00).build();  
+	    Product product2 = Product.builder().name(null).price(4.00).build(); // 故意违反name的NOT NULL约束
+	    this.insert(product1);  
+	    this.insert(product2);  
+	}
+}
+
+@Configuration @ComponentScan @EnableTransactionManagement 
+class MySpringJDBCApplicationConfig {
+	// ...
+}
+
+@Log4j2  
+public class MySpringJDBCApplication {  
+    public static void main(String[] args) {  
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringJDBCApplicationConfig.class)) {  
+            ProductRepository productRepository = context.getBean(ProductRepository.class);  
+            productRepository.insertTwoProductsSuccessfully();  
+            productRepository.insertTwoProductsWithFailure();  
+        }  
+    }  
+}
+```
+
+#### §1.8.4.2 编程式事务
+
+除了使用注解自动包装事务，开发者也可以选择手动包装事务。
+
+- 在配置类`MySpringJDBCApplicationConfig`中创建两个新的Bean：
+	- `PlatformTransactionManager`：由`DataSource`实例作为`DataSourceTransactionManager`类的构造函数实参直接得到。
+	- `TransactionTemplate`：由`PlatformTransactionManager`实例作为`Transaction`类的构造函数实参直接得到
+
+
+继上例，下面的代码展示了变化的部分。
+
+```java
+@Repository  
+class ProductRepository {  
+    @Autowired private final JdbcTemplate jdbcTemplate;  
+    @Autowired private final TransactionTemplate transactionTemplate;  
+    @Autowired private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    ProductRepository(JdbcTemplate jdbcTemplate, TransactionTemplate transactionTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {  
+        this.transactionTemplate = transactionTemplate;  
+        // this.jdbcTemplate = jdbcTemplate;  
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;  
+    }
+	// ......
+	public void insertTwoProductsSuccessfully() {  
+	    Product product1 = Product.builder().name("Apple").price(2.00).build();  
+	    Product product2 = Product.builder().name("Banana").price(3.00).build();  
+	    transactionTemplate.executeWithoutResult(status -> { // 传入Lambda  
+	        this.insert(product1);  
+	        this.insert(product2);  
+	    });  
+	}  
+	public void insertTwoProductsWithFailure() {  
+	    Product product1 = Product.builder().name("Cheery").price(5.00).build();  
+	    Product product2 = Product.builder().name(null).price(4.00).build();  
+	    transactionTemplate.execute(new TransactionCallbackWithoutResult() {  
+	        @Override protected void doInTransactionWithoutResult(TransactionStatus status) {  
+	            insert(product1);  
+	            insert(product2);  
+	        }  
+	    });  
+	    transactionTemplate.execute(new TransactionCallback<Double>() {  
+	        @Override public Double doInTransaction(TransactionStatus status) {  
+	            return jdbcTemplate.queryForObject("SELECT price FROM products WHERE name = 'Cheery'", Double.class);  
+	        }  
+	    });  
+	}
+}
+
+@Configuration @ComponentScan @EnableTransactionManagement class MySpringJDBCApplicationConfig {
+    @Bean public DataSource dataSource() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.sqlite.JDBC");
+        dataSource.setUrl("jdbc:sqlite:products.db");
+        return dataSource;
+    }
+    @Bean public PlatformTransactionManager platformTransactionManager(DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
+    @Bean public TransactionTemplate transactionTemplate(PlatformTransactionManager transactionManager) {
+        return new TransactionTemplate(transactionManager);
+    }
+}
+```
+
+### §1.8.5 异常处理
+
+我们知道，不同数据库的JDBC驱动都用`SQLException`实现了异常处理，然而它们之间的异常类名并不统一。Spring提供了更抽象的`org.springframework.dao.DataAccessException`抽象类基类，并在此基础上提供了更细粒度的异常类。
+
+```mermaid
+graph RL
+	InvalidDataAccessResourceUsageException["InvalidDataAccessResourceUsageException"] & NonTransientDataAccessException["NonTransientDataAccessException"] & TransientDataAccessException["TransientDataAccessException"] --> DataAccessException["DataAccessException<br/>抽象基类"]
+
+	BadSqlGrammarException["BadSqlGrammarException<br/>SQL语法错误"] --> InvalidDataAccessResourceUsageException
+	
+	DataRetrievalFailureException["DataRetrievalFailureException"] & DataIntegrityViolationException["DataIntegrityViolationException<br/>主键冲突"] & NonTransientDataAccessResourceException["NonTransientDataAccessResourceException"] & UncategorizedDataAccessException["UncategorizedDataAccessException"] --> NonTransientDataAccessException
+
+	QueryTimeoutException["QueryTimeoutException<br/>查询超时"] --> TransientDataAccessException
+
+	DuplicateKeyException["DuplicateKeyException"] --> DataIntegrityViolationException
+	DataAccessResourceFailureException["DataAccessResourceFailureException"] --> NonTransientDataAccessResourceException
+	UncategorizedSQLException["UncategorizedSQLException"] -->UncategorizedDataAccessException
+
+	CannotGetJdbcConnectionException["CannotGetJdbcConnectionException<br/>数据库连接失败"] --> DataAccessResourceFailureException
+```
+
+Spring通过`org.springframework.jdbc.support.SQLExceptionTranslator`接口，将不同的`SQLException`转换为Spring提供的`DataAccessException`。它的转换原理是：先通过`SQLErrorCodeSQLExceptionTranslator`尝试匹配错误返回码，若匹配失败，则通过`SQLExceptionSubclassTranslator`尝试匹配`SQLException`子类，若匹配失败，则通过`SQLStateSQLExceptionTranslator`尝试匹配`SQLState`。
+
+这里提到的错误返回码匹配数据库，位于`org/springframework/jdbc/support/sql-error-codes.xml`。它为各种数据库的错误返回码都打好了表。以MySQL为例：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+	   https://www.springframework.org/schema/beans/spring-beans.xsd">
+	<bean id="MySQL" class="org.springframework.jdbc.support.SQLErrorCodes">
+		<property name="databaseProductNames">
+			<list>
+				<value>MySQL</value>
+				<value>MariaDB</value>
+			</list>
+		</property>
+		<property name="badSqlGrammarCodes">
+			<value>1054,1064,1146</value>
+		</property>
+		<property name="duplicateKeyCodes">
+			<value>1062</value>
+		</property>
+		<property name="dataIntegrityViolationCodes">
+			<value>630,839,840,893,1169,1215,1216,1217,1364,1451,1452,1557</value>
+		</property>
+		<!-- ... -->
+	</bean>
+</beans>
+```
+
+为了自定义错误返回码到`DataAccessException`的映射关系，我们可以在`CLASSPATH`的根目录创建`sql-error-codes.xml`，参考上面的Schema，为`<bean>`指定`<property name="customTranslation">`属性，填写如下属性值。这会调用Spring预留的`CustomSQLErrorCodesTranslation`类，额外注册映射关系。
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans ...>
+	<bean id="MySQL" class="org.springframework.jdbc.support.SQLErrorCodes">
+		<!-- ... -->
+		<property>
+			<bean class="org.springframework.jdbc.support.CustomSQLErrorCodesTranslation">
+				<property name="errorCodes" value="123456" />
+				<property name="exceptionClass" value="top.yaner_here.javasite.MyDatabaseException" />
+			</bean>
+		</property>
+	</bean>
+</beans>
+```
+
+## §1.9 ORM
+
+下面的代码使用了Hibernate作为ORM框架，与Spring相结合：
+
+- 定义`Product`类，使用Hibernate的`@Entity`声明为实体，`@Table(name="...")`声明表名。在内部如法炮制使用Hibernate注解修饰字段。
+- 定义`ProductRepository`接口，继承自Spring提供的`JpaRepository<实体类型T=Product, 主键类型ID=int>`泛型接口。Hibernate会自动生成对应的实现类。该接口提供了以下部分方法：
+	- `T .save(T)`：插入或更新
+	- `Optional<T> .findById(int)`：按主键查找
+	- `List<T> .findAll()`：返回所有记录
+	- `void .deleteById(ID)`：删除记录
+- 定义配置类`MySpringJDBCApplicationConfig`，它需要被Spring提供的`@EnableJpaRepositories(basePackages="...")`注解修饰，表示查找该路径下的所有`@Repository`。在其中我们定义三个Bean：
+	- `DataSource`：源于`javax.sql.DataSource`，配置数据源。
+	- `LocalContainerEntityManagerFactoryBean`：源于`org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean`。它的初始化需要以下步骤：
+		- 使用`.setDataSource()`配置数据源实例。
+		- 使用`.setPackagesToScan("...")`查找指定路径下的`@Entity`类。
+		- 使用`.setJpaVendorAdapter()`传入一个新创建的Hibernate实现的`HibernateJpaVendorAdapter`。
+		- 使用`.setJpaProperties(Properties)`传入一个`Properties`实例，需要通过该实例的`.setProperty(key, value)`设置一系列键值对，例如指定`hibernate.dialect`为Hibernate社区维护的SQLite方言类`org.hibernate.community.dialect.SQLiteDialect`。
+
+```xml
+<dependency>  
+    <groupId>org.hibernate.orm</groupId>  
+    <artifactId>hibernate-community-dialects</artifactId>  
+</dependency>
+<dependency>  
+    <groupId>org.springframework.boot</groupId>  
+    <artifactId>spring-boot-starter-data-jpa</artifactId>  
+</dependency>
+```
+
+```java
+package top.yaner_here.javasite;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Entity @Table(name = "products")
+class Product {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Integer id;
+    @Column(name = "name", nullable = false) private String name;
+    @Column(name = "price", nullable = false) private Double price;
+}
+
+@Repository
+interface ProductRepository extends JpaRepository<Product, Integer> {
+    @Transactional default void insertTwoProductsSuccessfully() {
+        Product product1 = Product.builder().name("Apple").price(2.00).build();
+        Product product2 = Product.builder().name("Banana").price(3.00).build();
+        save(product1);
+        save(product2);
+    }
+    @Transactional default void insertTwoProductsWithFailure() {
+        Product product1 = Product.builder().name("Cheery").price(5.00).build();
+        Product product2 = Product.builder().name(null).price(4.00).build();
+        save(product1);
+        save(product2);
+    }
+}
+
+@Configuration
+@ComponentScan
+@EnableTransactionManagement
+@EnableJpaRepositories(basePackages = "top.yaner_here.javasite")
+class MySpringJDBCApplicationConfig {
+    @Bean public DataSource dataSource() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.sqlite.JDBC");
+        dataSource.setUrl("jdbc:sqlite:products.db");
+        return dataSource;
+    }
+    @Bean public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource) {
+        LocalContainerEntityManagerFactoryBean entityManager =new LocalContainerEntityManagerFactoryBean();
+        entityManager.setDataSource(dataSource);
+        entityManager.setPackagesToScan("top.yaner_here.javasite");
+        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+        entityManager.setJpaVendorAdapter(vendorAdapter);
+        Properties jpaProperties = new Properties();
+        jpaProperties.setProperty("hibernate.hbm2ddl.auto", "update");
+        jpaProperties.setProperty("hibernate.dialect", "org.hibernate.community.dialect.SQLiteDialect");
+        jpaProperties.setProperty("hibernate.show_sql", "true");
+        jpaProperties.setProperty("hibernate.format_sql", "true");
+        entityManager.setJpaProperties(jpaProperties);
+        return entityManager;
+    }
+    @Bean public PlatformTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
+        JpaTransactionManager transactionManager = new JpaTransactionManager();
+        transactionManager.setEntityManagerFactory(entityManagerFactory);
+        return transactionManager;
+    }
+}
+
+@Log4j2
+public class MySpringJDBCApplication {
+    public static void main(String[] args) {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringJDBCApplicationConfig.class)) {
+            ProductRepository productRepository = context.getBean(ProductRepository.class);
+
+            // 插入(.save())
+            Product product1 = Product.builder().name("Laptop").price(1200.00).build();
+            Product product2 = Product.builder().name("Phone").price(3000.00).build();
+            Product savedProduct1 = productRepository.save(product1);
+            Product savedProduct2 = productRepository.save(product2);
+
+            log.info("Saved product: {}", savedProduct1);
+
+            // 查找(.findById())
+            Optional<Product> foundProduct1 = productRepository.findById(savedProduct1.getId());
+            foundProduct1.ifPresent(p -> log.info("Found product: {}", p));
+
+            // 查找所有(.findAll())
+            List<Product> allProducts = productRepository.findAll();
+            log.info("All products: {}", allProducts);
+
+            // 更新(.save())
+            if(savedProduct1.getId() != null){
+                savedProduct1.setPrice(30.00);
+                Product updatedProduct = productRepository.save(savedProduct1);
+                log.info("Updated product: {}", updatedProduct);
+            }
+
+            // 删除(.deleteById())
+            if(savedProduct1.getId() != null){
+                productRepository.deleteById(savedProduct1.getId());
+                log.info("Deleted product with id={}", savedProduct1.getId());
+            }
+
+            // 事务
+            try {
+                productRepository.insertTwoProductsSuccessfully();
+                productRepository.insertTwoProductsWithFailure();
+            } catch (Exception e) {
+                log.info("Transaction rollbacked.");
+            }
+        }
+    }
+}
+/*
+21:56:04.579 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Saved product: Product(id=63, name=Laptop, price=1200.0)
+21:56:04.623 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Found product: Product(id=63, name=Laptop, price=1200.0)
+21:56:04.756 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- All products: [Product(id=57, name=Apple, price=2.0), Product(id=58, name=Banana, price=3.0), Product(id=60, name=Phone, price=3000.0), Product(id=61, name=Apple, price=2.0), Product(id=62, name=Banana, price=3.0), Product(id=63, name=Laptop, price=1200.0), Product(id=64, name=Phone, price=3000.0)]
+21:56:04.787 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Updated product: Product(id=63, name=Laptop, price=30.0)
+21:56:04.807 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Deleted product with id=63
+21:56:04.832 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Transaction rollbacked.
+*/
 ```
 
 # §2 SpringBoot
@@ -2374,444 +3108,4 @@ public class CustomerApplication {
 [ArgsPrinterRunner] Need to wait for 3 seconds.
 */
 ```
-
-## §2.8 JDBC
-
-在Java时代，开发者使用JDBC（`java.sql`）提供的相关API来操作数据库。后来`javax.sql.DataSource`接口为不同的数据库提供了统一的抽象层。但是这样做需要手动维护数据库连接，并且创建一个JDBC连接的成本非常高，因此后续Java社区出现了一些连接池库，例如HirariCP、Druid、DBCP2、Tomcat等持久化数据源，以及HSQL、H2、Derby等嵌入数据源。
-
-SpringBoot在此基础上做了大量的封装工作，简化了`DataSource`的配置步骤，默认使用HirariCP作为连接池。
-
-```java
-package top.yaner_here.javasite;
-
-import com.zaxxer.hikari.HikariDataSource;
-import com.zaxxer.hikari.pool.HikariProxyConnection;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.SQLException;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-@SpringBootTest
-public class DatasourceDemoApplicationTests {
-    @Autowired ApplicationContext context;
-    @Test void testDatasource() throws SQLException {
-        assertTrue(context.containsBean("dataSource"));
-        DataSource dataSource = context.getBean("dataSource", DataSource.class);
-        assertTrue(dataSource instanceof HikariDataSource);
-        Connection connection = dataSource.getConnection();
-        assertTrue(connection instanceof HikariProxyConnection);
-        connection.close();
-        assertEquals(10, ((HikariDataSource) dataSource).getMaximumPoolSize());
-    }
-}
-```
-
-### §2.8.1 连接池
-
-- HikariCP是迄今为止速度最快的连接池库，它使用了大量的底层优化（字节码注入、使用FastList代替`ArrayList`等）。
-- Druid是阿里巴巴开源的连接池库，功能最全（例如SQL注入防火墙、数据库密码加密等）。
-
-```xml
-<dependency> <!-- HikariCP -->
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-jdbc</artifactId>
-</dependency>
-
-<dependency> <!-- Druid -->
-	<groupId>com.alibaba</groupId>
-	<artifactId>druid-spring-boot-starter</artifactId>
-</dependency>
-```
-
-SpringBoot为HikariCP和Druid提供了以下配置项：
-
-| 构造方法形参              | SpringBoot配置属性                                | 含义                     |
-| ------------------- | --------------------------------------------- | ---------------------- |
-| `jdbcUrl`           | `spring.datasource.url`                       | JDBC URL               |
-| `username`          | `spring.datasource.username`                  | 数据库用户名                 |
-| `password`          | `spring.datasource.password`                  | 数据库密码                  |
-| -                   | `spring.datasource.name`                      | 数据源名称，内嵌数据库缺省为`testdb` |
-| -                   | `spring.datasource.jndi-name`                 | 数据源的JNDI名称             |
-| -                   | `spring.datasource.type`                      | 连接池实现的全限定类名            |
-| -                   | `spring.datasource.driver-class-name`         | JDBC驱动类的全限定类名          |
-| -                   | `spring.datasource.generate-unique-name`      | 是否羧基生成数据源名称，缺省为`true`  |
-| `maximumPoolSize`   | `spring.datasource.hikari.maximum-pool-size`  | 连接池的最大连接数              |
-| `minimumIdle`       | `spring.datasource.hikari.minumum-idle`       | 连接池的最小空闲连接数            |
-| `connectionTimeout` | `spring.datasource.hikari.connection-timeout` | 建立连接的超时时间，单位为秒         |
-| `idleTimeout`       | `spring.datasource.hikari.idle-timeout`       | 清理连接的空闲时间，单位为秒         |
-| `maxLifetime`       | `spring.datasource.hikari.max-lifetime`       | 连接的最大存活时间，单位为秒         |
-| `initialSize`       | `spring.datasource.druid.initial-size`        | 连接池初始连接数               |
-| `maxActive`         | `spring.datasource.druid.max-active`          | 连接池最大连接数               |
-| `minIdle`           | `spring.datasource.druid.min-idle`            | 连接池最小空闲连接数             |
-| `maxWait`           | `spring.datasource.druid.max-wait`            | 连接池最大获取连接等待时间          |
-| `testOnBorrow`      | `spring.datasource.druid.test-on-borrow`      | 获取连接前检查连接              |
-| `testOnReturn`      | `spring.datasource.druid.test-on-return`      | 归还连接后检查连接              |
-| `testWhileIdle`     | `spring.datasource.druid.test-while-idle`     | 检查空闲连接                 |
-| `filters`           | `spring.datasource.druid.filters`             | 配置的过滤器插件列表             |
-
-
-SpringBoot为提供了以下配置项：
-
-| 构造方法形参     | SpringBoot配置属性               | 含义       |
-| ---------- | ---------------------------- | -------- |
-| `url`      | `spring.datasource.url`      | JDBC URL |
-| `username` | `spring.datasource.username` | 数据库用户名   |
-| `password` | `spring.datasource.password` | 数据库密码    |
-
-### §2.8.2 数据源自动配置
-
-SpringBoot为数据源提供了以下配置项：
-
-| SpringBoot配置项（新）                    | SpringBoot配置项（旧）                        | 作用                                                                    |
-| ----------------------------------- | --------------------------------------- | --------------------------------------------------------------------- |
-| `spring.sql.init.mode`              | `spring.datasource.initialization-mode` | 使用DDL或DML脚本初始化数据源的触发条件，可选值为`embedded`、`always`、`never`，缺省值为`embedded` |
-| `spring.sql.init.platform`          | `spring.datasource.platform`            | 脚本对应的平台名，负责生成SQL脚本文件名`schema-<PLATFORM>.sql`                          |
-| `spring.sql.init.seperator`         | `spring.datasource.separator`           | 脚本中的语句分隔符，缺省为`;`                                                      |
-| `spring.sql.init.encoding`          | `spring.datasource.sql-script-encoding` | SQL脚本的字符编码                                                            |
-| `spring.sql.init.continue-on-error` | `spring.datasource.continue-on-error`   | 初始化过程中遇到报错是否停止，缺省为`false`                                             |
-| `spring.sql.init.schema-locations`  | `spring.datasource.schema`              | DDL脚本的文件名，缺省为`schema.sql`                                             |
-| `spring.sql.init.data-locations`    | `spring.datasource.data`                | DML脚本的文件名，缺省为`data.sql`                                               |
-| `spring.sql.init.username`          | `spring.datasource.schema-username`     | DDL脚本运行时的用户名                                                          |
-|                                     | `spring.datasource.data-username`       | DML脚本运行时的用户名                                                          |
-| `spring.sql.init.password`          | `spring.datasource.schema-password`     | DDL脚本运行时的密码                                                           |
-|                                     | `spring.datasource.data-password`       | DML脚本运行时的密码                                                           |
-
-### §2.8.3 数据库交互
-
-Spring对Java原生的JDBC做了一层封装，作为`org.springframework.jdbc`包发布。
-
-下面的例子展示了Spring提供的JDBC用法：
-
-- 将产品表中的记录抽象成一个`Product`类，带有`id`、`name`、`price`字段及其Getter/Setter方法。
-- 将产品表的数据库交互操作封装成一个仓库类`ProductRepository`，使用Spring提供的`@Repository`注解修饰。
-	- 在内部设置Spring封装的`JdbcTemplate`实例和`NamedParameterJdbcTemplate`实例，并使用`@Autowired`自动注入。
-	- 定义从数据库记录到`Product`实例的逻辑，这需要通过自定义的`RowMapper<Product> productRowMapper`实例实现。初始化该实例时，如要重载其`mapRow()`方法。该方法传入`ResultSet rs`和`int rowNum`形参，可以调用`rs.getInt/getString/getDouble(列名)`来获取结果集`rs`中的字段。
-	- `JdbcTemplate`实例支持以下方法：
-		- `.execute(SQL字符串)`：直接执行SQL语句。
-		- `.update(connection -> {return PreparedStatement}, [KeyHolder])`：传入一个Lambda表达式，它要求传入一个`java.sql.Connection`裸连接作为形参，返回一个经过`.setString/.setDouble(列下标, 列字段值)`注入的`java.sql.PreparedStatement`实例。可选传入一个新初始化的`KeyHolder`实例，执行之后调用其`.getKey()`获取被更新记录对应的主键值。
-		- `.batchUpdate(SQL字符串, BatchPreparedStatementSetter)`：传入SQL语句与Spring提供的`BatchPreparedStatementSetter`实例。该实例初始化时需要重载两个方法——`.getBatchSize()`负责返回要更新的记录条数，`.setValues(PreparedStatement ps, int i)`负责将第`i`个要更新的记录信息，通过`.setString/.setDouble()`加载到传入的`PreparedStatement`实例中。
-		- `.batchUpdate(SQL字符串, SqlParameterSource[])`：传入SQL语句与Spring提供的` org.springframework.jdbc.core.namedparam.SqlParameterSource`构成的列表。为了得到这个列表，我们需要将`List<Product>`先`.toArray()`变成`Product[]`，然后作为实参传入Spring提供的工具类`org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils.createBatch()`方法，才最终得到`BeanPropertySqlParameterSource[]`列表。
-		- `.queryForObject(SQL语句, RowMapper<Product>, id)`：将`id`注入到SQL字符串模版中，然后通过`RowMapper<Product>`实例映射为`Product`实例。
-		- `query(SQL语句, RowMapper<Product>)`：根据传入的`SELECT`SQL语句，查询并返回由`RowMapper<Product>`实例映射成的`List<Product>`实例列表。
-		- `.update(SQL语句, MapSqlParameterSource)`：自定义一个`MapSqlParameterSource`实例，调用其`.addValue(列名, 列值)`方法填充参数，传入到`.update()`方法中完成`UPDATE`更新或`DELETE`删除。
-	- 定义一系列CRUD方法。
-- 定义配置类`MySpringJDBCApplicationConfig`，使用`@Configuration`修饰。在其中注册以下三个Bean：
-	- `javax.sql.DataSource`：初始化一个`org.springframework.jdbc.datasource.DriverManagerDataSource`实例，调用其`.setDriverClassName(驱动包名)`和`.setUrl(数据源URL)`配置数据源相关信息，最后作为返回值。
-	- `org.springframework.jdbc.core.JdbcTemplate`：传入一个`DataSource`实例，作为`JdbcTemplate`的构造方法实参，返回创建的`JdbcTemplate`实例。
-	- `org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate`：传入一个`DataSource`实例，作为`NamedParameterJdbcTemplate`的构造方法实参，返回创建的`NamedParameterJdbcTemplate`实例。
-- 定义主函数，通过Spring拿到一个`ProductRepository`实例，并执行后续的自定义CRUD方法即可。
-
-```java
-package top.yaner_here.javasite;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Repository;
-
-import javax.sql.DataSource;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-@Data @Builder class Product {
-    private int id;
-    private String name;
-    private double price;
-}
-
-@Repository
-class ProductRepository {
-    @Autowired private final JdbcTemplate jdbcTemplate;
-    @Autowired private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    private final RowMapper<Product> productRowMapper = new RowMapper<Product>() {
-        @Override public Product mapRow(ResultSet rs, int rowNum) throws SQLException {
-            Product product = Product.builder().build();
-            product.setId(rs.getInt("id"));
-            product.setName(rs.getString("name"));
-            product.setPrice(rs.getDouble("price"));
-            return product;
-        }
-    };
-
-    ProductRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
-    }
-
-    public void createTable() {
-        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS products (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name VARCHAR(128) NOT NULL," +
-                "price REAL NOT NULL" +
-                ")"
-        );
-    }
-
-    public int insert(Product product) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement("INSERT INTO products (name, price) VALUES (?, ?)");
-            ps.setString(1, product.getName());
-            ps.setDouble(2, product.getPrice());
-            return ps;
-        }, keyHolder);
-        Number generatedId = keyHolder.getKey();
-        return generatedId != null ? generatedId.intValue() : null;
-    }
-
-    public int[] insertBatch(List<Product> products) {
-        return jdbcTemplate.batchUpdate(
-                "INSERT INTO products (name, price) VALUES (?, ?)",
-                new BatchPreparedStatementSetter() {
-                    @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
-                        Product product = products.get(i);
-                        ps.setString(1, product.getName());
-                        ps.setDouble(2, product.getPrice());
-                    }
-                    @Override public int getBatchSize() {
-                        return products.size();
-                    }
-                }
-        );
-    }
-
-    public int[] insertBatchNamed(List<Product> products) {
-        SqlParameterSource[] batchArgs = SqlParameterSourceUtils.createBatch(products.toArray());
-        return namedParameterJdbcTemplate.batchUpdate("INSERT INTO products (name, price) VALUES (:name, :price)", batchArgs);
-    }
-
-    public Optional<Product> findById(int id) {
-        try {
-            Product product = jdbcTemplate.queryForObject(
-                    "SELECT id, name, price FROM products WHERE id = ?",
-                    productRowMapper,
-                    id
-            );
-            return Optional.ofNullable(product);
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
-    }
-
-    public List<Product> findAll() {
-        return jdbcTemplate.query("SELECT id, name, price FROM products", productRowMapper);
-    }
-
-    public int update(Product product) {
-        MapSqlParameterSource parameterSource = new MapSqlParameterSource()
-                .addValue("name", product.getName())
-                .addValue("price", product.getPrice())
-                .addValue("id", product.getId());
-        return namedParameterJdbcTemplate.update(
-                "UPDATE products SET name = :name, price = :price WHERE id = :id",
-                parameterSource
-        );
-    }
-
-    public int deleteById(int id) {
-        return jdbcTemplate.update("DELETE FROM products WHERE id = ?", id);
-    }
-}
-
-@Configuration @ComponentScan class MySpringJDBCApplicationConfig {
-    @Bean public DataSource dataSource() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName("org.sqlite.JDBC");
-        dataSource.setUrl("jdbc:sqlite:products.db");
-        return dataSource;
-    }
-    @Bean JdbcTemplate jdbcTemplate(DataSource dataSource) {
-        return new JdbcTemplate(dataSource);
-    }
-    @Bean NamedParameterJdbcTemplate namedParameterJdbcTemplate(DataSource dataSource) {
-        return new NamedParameterJdbcTemplate(dataSource);
-    }
-}
-
-@Log4j2
-public class MySpringJDBCApplication {
-    public static void main(String[] args) {
-        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringJDBCApplicationConfig.class)) {
-            ProductRepository productRepository = context.getBean(ProductRepository.class);
-
-            // 创建表
-            productRepository.createTable();
-            log.info("Created table.");
-
-            // 单个插入
-            Product product1 = Product.builder().name("Laptop").price(6000.00).build();
-            int generatedId = productRepository.insert(product1);
-            product1.setId(generatedId);
-            log.info("Inserted a entry (id={}).", generatedId);
-
-            // 批量插入
-            List<Product> batchProducts1 = Arrays.asList(
-                    Product.builder().name("Keyboard").price(75.00).build(),
-                    Product.builder().name("Mouse").price(25.00).build()
-            );
-            int[] batchResult1 = productRepository.insertBatch(batchProducts1);
-            log.info("Inserted two entries with affected rows {}.", batchResult1);
-
-            // 批量插入
-            List<Product> batchProducts2 = Arrays.asList(
-                    Product.builder().name("Monitor").price(300.00).build(),
-                    Product.builder().name("Webcam").price(50.00).build()
-            );
-            int[] batchResult2 = productRepository.insertBatchNamed(batchProducts2);
-            log.info("Inserted two entries with affected rows {}.", batchResult2);
-
-            // 查找表
-            List<Product> allProducts = productRepository.findAll();
-
-            // 按字段查找表
-            Optional<Product> foundProductOpt1 = productRepository.findById(999);
-            foundProductOpt1.ifPresentOrElse(
-                    product -> { log.info("Found an entry with id={} for the query.", 999); ;},
-                    () -> { log.info("Not found an entry with id={}.", 999); }
-            );
-            Optional<Product> foundProductOpt2 = productRepository.findById(1);
-            foundProductOpt2.ifPresentOrElse(
-                    product -> { log.info("Found an entry with id={} for the query.", 1); ;},
-                    () -> { log.info("Not found an entry."); }
-            );
-
-            // 更改表
-            if(foundProductOpt2.isPresent()) {
-                Product productToUpdate = foundProductOpt2.get();
-                productToUpdate.setPrice(1150.00);
-                int updatedRows = productRepository.update(productToUpdate);
-                log.info("Updated {} rows.", updatedRows);
-            }
-
-            // 删除表
-            int deletedRows = productRepository.deleteById(2);
-            log.info("Deleted {} rows.", deletedRows);
-        }
-    }
-}
-/*
-21:39:22.734 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Created table.
-21:39:22.758 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Inserted a entry (id=11).
-21:39:22.775 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Inserted two entries with affected rows [1, 1].
-21:39:22.791 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Inserted two entries with affected rows [1, 1].
-21:39:22.799 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Not found an entry with id=999.
-21:39:22.800 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Found an entry with id=1 for the query.
-21:39:22.803 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Updated 1 rows.
-21:39:22.804 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Deleted 0 rows.
-*/
-```
-
-### §2.8.3 事务
-
-Spring提供了`@Transactional`注解表示数据库交互层面的事务。该功能通过给配置类`@Configuration`修饰`@EnableTransactionManagement`启用。如果被`@Transctional`修饰的方法在执行过程中发生了错误，那么Spring会自动捕捉到该错误，执行回滚操作，再将错误抛出。
-
-`@Transactional()`注解支持以下参数：
-
-| `@Transactional()`参数     | 默认值                                          | 含义           |
-| ------------------------ | -------------------------------------------- | ------------ |
-| `transactionManager`     | `context.getBean("transactionManager")`的Bean | 事务管理器实例      |
-| `propagation`            | `Propagation.REQUIRED`                       | 事务传播性        |
-| `isolation`              | `Isolation.DEFAULT`                          | 事务隔离性        |
-| `timeout`                | `-1`，由JDBC驱动决定                               | 事务超时时间       |
-| `readOnly`               | `false`                                      | 事务只读性        |
-| `rollbackFor`            | 无                                            | 需要回滚事务的异常类型  |
-| `rollbackForClassName`   | 无                                            | 需要回滚事务的异常类型名 |
-| `noRollbackFor`          | 无                                            | 无需回滚事务的异常类型  |
-| `noRollbackForClassName` | 无                                            | 无需回滚事务的异常类型名 |
-
-Spring定义了以下七个级别的事务传播性，表示事务自身的边界：
-
-| 事务传播性常量名                                          | 常量值 | 含义                       |
-| ------------------------------------------------- | --- | ------------------------ |
-| `TransactionDefinition.PROPAGATION_REQUIRED`      | `0` | 如果当前有事务就用这个，若当前没有事务则新建事务 |
-| `TransactionDefinition.PROPAGATION_SUPPORTS`      | `1` | 事务不是必须的，有或没有都可以          |
-| `TransactionDefinition.PROPAGATION_MANDATORY`     | `2` | 事务是必须的，如果当前没有就报错         |
-| `TransactionDefinition.PROPAGATION_REQUIRES_NEW`  | `3` | 如果当前有事务则挂起，并新建事务         |
-| `TransactionDefinition.PROPAGATION_NOT_SUPPORTED` | `4` | 不支持事务                    |
-| `TransactionDefinition.PROPAGATION_NEVER`         | `5` | 不支持事务，如果当前有事务就报错         |
-| `TransactionDefinition.PROPAGATION_NESTED`        | `6` | 如果当前有事务，则在其内部再创建一个事务     |
-
-Spring定义了以下四个级别的事务隔离级别，表示事务之间的可见性。其中❌表示存在该问题，✔表示不存在该问题：
-
-- 脏读：事务A读取数据后，该数据被事务B回滚了。
-- 不可重复读：事务A多次读取数据库的同一条记录，得到的结果字段值不一致。强调数据被修改。
-- 幻读：事务A多次读取数据库，得到的记录数量不一致。强调数据被插入或删除。
-
-| 事务隔离级别常量名                                          | 常量值  | 脏读  | 不可重复读 | 幻读  |
-| -------------------------------------------------- | ---- | --- | ----- | --- |
-| `TransactionDefinition.ISOLATION_READ_UNCOMMITTED` | `1`  | ❌   | ❌     | ❌   |
-| `TransactionDefinition.ISOLATION_READ_COMMITTED`   | `2`  | ✔   | ❌     | ❌   |
-| `TransactionDefinition.ISOLATION_REPEATABLE_READ`  | `3`  | ✔   | ✔     | ❌   |
-| `TransactionDefinition.ISOLATION_SERIALIZABLE`     | `4`  | ✔   | ✔     | ✔   |
-| JDBC驱动实现内部配置（缺省值）                                  | `-1` | ❓   | ❓     | ❓   |
-
-
-
-
-继上面的例子：
-
-```java
-@Repository class ProductRepository {
-	// ...
-	@Transactional public void insertTwoProductsSuccessfully() {  
-	    Product product1 = Product.builder().name("Apple").price(2.00).build();  
-	    Product product2 = Product.builder().name("Banana").price(3.00).build();  
-	    this.insert(product1);  
-	    this.insert(product2);  
-	}  
-	@Transactional public void insertTwoProductsWithFailure() {  
-	    Product product1 = Product.builder().name("Cheery").price(5.00).build();  
-	    Product product2 = Product.builder().name(null).price(4.00).build(); // 故意违反name的NOT NULL约束
-	    this.insert(product1);  
-	    this.insert(product2);  
-	}
-}
-
-@Configuration @ComponentScan @EnableTransactionManagement 
-class MySpringJDBCApplicationConfig {
-	// ...
-}
-
-@Log4j2  
-public class MySpringJDBCApplication {  
-    public static void main(String[] args) {  
-        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringJDBCApplicationConfig.class)) {  
-            ProductRepository productRepository = context.getBean(ProductRepository.class);  
-            productRepository.insertTwoProductsSuccessfully();  
-            productRepository.insertTwoProductsWithFailure();  
-        }  
-    }  
-}
-```
-
-
-
-
 
