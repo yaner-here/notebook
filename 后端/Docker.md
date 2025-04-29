@@ -1679,6 +1679,8 @@ C:\> docker run --rm -it --link myredis:redis redis /bin/bash
 
 在[联合文件系统](#§1.2 联合文件系统)一节中，我们知道``Docker``支持一系列的联合文件系统格式，然而这些格式不能让容器与主机和其它容器之间自由地共享数据，只能通过TCP/IP等高级协议实现共享。为此`Docker`提供了数据卷（Volume）这一方式。
 
+默认情况下，Docker
+
 数据卷是直接挂载于主机的文件或目录，不属于联合文件系统的一部分，对其进行任何修改都会直接发生在主机的文件系统里。创建数据卷有以下两种方法：
 
 - 在`DockerFile`中声明
@@ -1975,16 +1977,47 @@ $ docker container run -it --name container2 --network localnet alpine sh
 
 ```mermaid
 graph TB
-	subgraph
-
+	subgraph Node1["Manager节点"]
+		direction LR
+		subgraph NetworkNamespace1["Network Namespace"]
+			Bridge1["虚拟交换机"]
+		end
+		VirtualEthernet1["虚拟适配器<br/>10.0.0.3"]
+		VXLANTunnelEndpoint1["VXLAN隧道终端<br/>udp:4789"]
+	end
+	subgraph Node2["Worker节点"]
+		direction LR
+		subgraph NetworkNamespace2["Network Namespace"]
+			Bridge2["虚拟交换机"]
+		end
+		VirtualEthernet2["虚拟适配器<br/>10.0.0.4"]
+		VXLANTunnelEndpoint2["VXLAN隧道终端<br/>udp:4789"]
+	end
+	VXLANTunnel["VXLAN隧道"]
+	Bridge1 --> VirtualEthernet1 & VXLANTunnelEndpoint1
+	VXLANTunnel <--> VXLANTunnelEndpoint1 & VXLANTunnelEndpoint2
+	Bridge2 --> VirtualEthernet2 & VXLANTunnelEndpoint2
 ```
 
 ```shell
+# 声明Swarm Manager节点
 host1@172.0.0.1 $ docker swarm init --advertise-addr=172.0.0.1 --listen-addr=172.0.0.1:2377
 	Swarm initialized: current node (<NODE_ID>) is now a manager.
 
-host2@192.168.1.1 $ docker swarm join --token <>
+host1@172.0.0.1 $ docker swarm join-token worker
+	To add a worker to this swarm, run the following command:
+		docker swarm join --token <TOKEN> 172.0.0.1:2377
 
+# 声明Swarm Worker节点
+host2@192.168.1.1 $ docker swarm join --token <TOKEN> 172.0.0.1
+	This node joined a swarm as a worker.
+
+# 创建网络
+host1@172.0.0.1 $ docker network create -d overlay uber-net
+	<网络ID>
+
+# 运行2个服务并加入到网络
+host1@172.0.0.1 $ docker service create --name test --network uber-net --replicas 2 ubuntu sleep infinity
 ```
 
 ### §3.4.4 接入现有网络（`Macvlan`/`Transparent`）
@@ -2002,8 +2035,6 @@ $ docker network create -d macvlan \
 	macvlan100
 $ docker container run -d --name container3 --network macvlan100 alpine sleep 1h
 ```
-
-
 
 # §4 Docker项目开发
 
