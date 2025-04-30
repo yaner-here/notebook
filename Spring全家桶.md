@@ -1929,6 +1929,8 @@ Spring通过`org.springframework.jdbc.support.SQLExceptionTranslator`接口，�
 
 ## §1.9 ORM
 
+### §1.9.1 CRUD
+
 下面的代码使用了Hibernate作为ORM框架，与Spring相结合：
 
 - 定义`Product`类，使用Hibernate的`@Entity`声明为实体，`@Table(name="...")`声明表名。在内部如法炮制使用Hibernate注解修饰字段。
@@ -2093,6 +2095,425 @@ public class MySpringJDBCApplication {
 21:56:04.787 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Updated product: Product(id=63, name=Laptop, price=30.0)
 21:56:04.807 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Deleted product with id=63
 21:56:04.832 [main] INFO top.yaner_here.javasite.MySpringJDBCApplication -- Transaction rollbacked.
+*/
+```
+
+### §1.9.2 表映射关系
+
+下面展示了一个更复杂的多表例子：
+
+- 一个`Category`对应多个`Product`。
+- 一个`Customer`对应多个`Order`。
+- 一个`Order`对应多个`OrderItem`。
+- 一个`OrderItem`对应一个`Product`。
+- 多个`Tag`对应多个`Product`。
+
+Hibernete提供了以下关系注解，用于表示上面的对应关系：
+
+| 表关系 | 关系注解                                  | 数据库实现方式 |
+| --- | ------------------------------------- | ------- |
+| 一对一 | `@OneToOne`                           | 外键      |
+| 一对多 | `@OneToMany`+`@JoinColumn`+`@OrderBy` | 外键      |
+| 多对一 | `@ManyToOne`+`@JoinColumn`            | 外键      |
+| 多对多 | `@ManyToMany`+`@JoinTable`+`@OrderBy` | 内联表     |
+
+如果A字段对B字段是多对一的关系，那么B字段对A字段就是一对多的关系。这两个关系都需要在Hibernete关系注解中体现出来。
+
+```java
+class Product {
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(nanme)
+}
+
+class Category {
+	// ......
+	@OneToMany(mappedBy = "category", cascade = CascadeType.PERSIST, orphanRemoval = true)
+	@Builder.Default
+	private List<Product> products = new ArrayList<>();
+}
+```
+
+
+```mermaid
+erDiagram
+	direction LR
+    Category {
+        int id PK
+        string name
+    }
+    Product {
+        int id PK
+        string name
+        double price
+        int category_id FK "nullable=false"
+    }
+    Tag {
+        int id PK
+        string name "unique=true"
+    }
+    Customer {
+        int id PK
+        string name
+    }
+    Order {
+        int id PK
+        date order_date
+        int customer_id FK "nullable=false"
+    }
+    OrderItem {
+        int id PK
+        int quantity
+        int order_id FK "nullable=false"
+        int product_id FK "nullable=false"
+    }
+    product_tag {
+        int product_id FK
+        int tag_id FK
+    }
+    Category ||--o{ Product : "has"
+    Customer ||--o{ Order : "places"
+    Order ||--o{ OrderItem : "contains"
+    OrderItem }|--|| Product : "refers to"
+    Product }|--|{ product_tag : ""
+    Tag }|--|{ product_tag : ""
+```
+
+```java
+package top.yaner_here.javasite;  
+  
+import jakarta.persistence.*;  
+import lombok.*;  
+import lombok.extern.log4j.Log4j2;  
+import org.springframework.beans.factory.annotation.Autowired;  
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;  
+import org.springframework.context.annotation.Bean;  
+import org.springframework.context.annotation.ComponentScan;  
+import org.springframework.context.annotation.Configuration;  
+import org.springframework.data.jpa.repository.JpaRepository;  
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;  
+import org.springframework.jdbc.datasource.DriverManagerDataSource;  
+import org.springframework.orm.jpa.JpaTransactionManager;  
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;  
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;  
+import org.springframework.stereotype.Repository;  
+import org.springframework.stereotype.Service;  
+import org.springframework.transaction.PlatformTransactionManager;  
+import org.springframework.transaction.annotation.EnableTransactionManagement;  
+import org.springframework.transaction.annotation.Transactional;  
+  
+import javax.sql.DataSource;  
+import java.io.File;  
+import java.util.*;  
+  
+@Data @Builder @NoArgsConstructor @AllArgsConstructor @Entity @Table(name = "products")  
+class Product {  
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)  
+    private Integer id;  
+  
+    @Column(name = "name", nullable = false)  
+    private String name;  
+  
+    @Column(name = "price", nullable = false)  
+    private Double price;  
+  
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)  
+    @JoinColumn(name = "category_id", nullable = false, foreignKey = @ForeignKey(name = "FK_PRODUCT_CATEGORY"))  
+    @ToString.Exclude  
+    private Category category;  
+  
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})  
+    @JoinTable(name = "product_tag", joinColumns = @JoinColumn(name = "product_id", referencedColumnName = "id"), inverseJoinColumns = @JoinColumn(name = "tag_id", referencedColumnName = "id"))  
+    @ToString.Exclude  
+    @Builder.Default    private List<Tag> tags = new ArrayList<>();  
+  
+    public void addTag(Tag tag) {  
+        tags.add(tag);  
+        tag.getProducts().add(this);  
+    }  
+  
+    public void removeTag(Tag tag) {  
+        tags.remove(tag);  
+        tag.getProducts().remove(this);  
+    }  
+}  
+  
+@Data @Builder @NoArgsConstructor @AllArgsConstructor  
+@Entity @Table(name = "customers")  
+class Customer {  
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)  
+    private Integer id;  
+  
+    @Column(name = "name", nullable = false)  
+    private String name;  
+  
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)  
+    @ToString.Exclude  
+    @Builder.Default    private List<Order> orders = new ArrayList<>();  
+  
+    public void addOrder(Order order) {  
+        orders.add(order);  
+        order.setCustomer(this);  
+    }  
+  
+    public void removeOrder(Order order) {  
+        orders.remove(order);  
+        order.setCustomer(null);  
+    }  
+}  
+  
+@Data @Builder @NoArgsConstructor @AllArgsConstructor  
+@Entity @Table(name = "orders")  
+class Order {  
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)  
+    private Integer id;  
+  
+    @Column(name = "order_date", nullable = false)  
+    private Date orderDate;  
+  
+    @ManyToOne(fetch = FetchType.LAZY)  
+    @JoinColumn(name = "customer_id", nullable = false, foreignKey = @ForeignKey(name = "FK_ORDER_CUSTOMER"))  
+    @ToString.Exclude  
+    private Customer customer;  
+  
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)  
+    @ToString.Exclude  
+    @Builder.Default    private List<OrderItem> items = new ArrayList<>();  
+  
+    public void addItem(OrderItem item) {  
+        items.add(item);  
+        item.setOrder(this);  
+    }  
+  
+    public void removeItem(OrderItem item) {  
+        items.remove(item);  
+        item.setOrder(null);  
+    }  
+}  
+  
+@Data @Builder @NoArgsConstructor @AllArgsConstructor  
+@Entity @Table(name = "order_items")  
+class OrderItem {  
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)  
+    private Integer id;  
+  
+    @Column(name = "quantity", nullable = false)  
+    private Integer quantity;  
+  
+    @ManyToOne(fetch = FetchType.LAZY)  
+    @JoinColumn(name = "order_id", nullable = false, foreignKey = @ForeignKey(name = "FK_ORDERITEM_ORDER"))  
+    @ToString.Exclude  
+    private Order order;  
+  
+    @ManyToOne(fetch = FetchType.LAZY)  
+    @JoinColumn(name = "product_id", nullable = false, foreignKey = @ForeignKey(name = "FK_ORDERITEM_PRODUCT"))  
+    @ToString.Exclude  
+    private Product product;  
+}  
+  
+@Data @Builder @NoArgsConstructor @AllArgsConstructor  
+@Entity @Table(name = "tags")  
+class Tag {  
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)  
+    private Integer id;  
+  
+    @Column(name = "name", nullable = false, unique = true)  
+    private String name;  
+  
+    @ManyToMany(mappedBy = "tags")  
+    @ToString.Exclude  
+    @Builder.Default    private List<Product> products = new ArrayList<>();  
+}  
+  
+@Data @Builder @NoArgsConstructor @AllArgsConstructor  
+@Entity @Table(name = "categories")  
+class Category {  
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)  
+    private Integer id;  
+  
+    @Column(name = "name", nullable = false)  
+    private String name;  
+  
+    @OneToMany(mappedBy = "category", cascade = CascadeType.PERSIST, orphanRemoval = true) @ToString.Exclude  
+    @Builder.Default    private List<Product> products = new ArrayList<>();  
+  
+    public void addProduct(Product product) {  
+        products.add(product);  
+        product.setCategory(this);  
+    }  
+  
+    public void removeProduct(Product product) {  
+        products.remove(product);  
+        product.setCategory(null);  
+    }  
+}  
+  
+@Repository interface ProductRepository extends JpaRepository<Product, Integer> { }  
+@Repository interface CategoryRepository extends JpaRepository<Category, Integer> { }  
+@Repository interface CustomerRepository extends JpaRepository<Customer, Integer> { }  
+@Repository interface OrderRepository extends JpaRepository<Order, Integer> { }  
+@Repository interface OrderItemRepository extends JpaRepository<OrderItem, Integer> { }  
+@Repository interface TagRepository extends JpaRepository<Tag, Integer> { }  
+  
+@Configuration @ComponentScan @EnableTransactionManagement  
+@EnableJpaRepositories(basePackages = "top.yaner_here.javasite")  
+class MySpringHibernateConfig {  
+    @Bean public DataSource dataSource() {  
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();  
+        dataSource.setDriverClassName("org.sqlite.JDBC");  
+        dataSource.setUrl("jdbc:sqlite:products.db");  
+        return dataSource;  
+    }  
+    @Bean public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource) {  
+        LocalContainerEntityManagerFactoryBean entityManager =new LocalContainerEntityManagerFactoryBean();  
+        entityManager.setDataSource(dataSource);  
+        entityManager.setPackagesToScan("top.yaner_here.javasite");  
+        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();  
+        entityManager.setJpaVendorAdapter(vendorAdapter);  
+        Properties jpaProperties = new Properties();  
+        jpaProperties.setProperty("hibernate.hbm2ddl.auto", "update");  
+        jpaProperties.setProperty("hibernate.dialect", "org.hibernate.community.dialect.SQLiteDialect");  
+        entityManager.setJpaProperties(jpaProperties);  
+        return entityManager;  
+    }  
+    @Bean public PlatformTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {  
+        JpaTransactionManager transactionManager = new JpaTransactionManager();  
+        transactionManager.setEntityManagerFactory(entityManagerFactory);  
+        return transactionManager;  
+    }  
+}  
+  
+@Service @Log4j2  
+class MySpringHibernateService {  
+    @Autowired CategoryRepository categoryRepository;  
+    @Autowired ProductRepository productRepository;  
+    @Autowired CustomerRepository customerRepository;  
+    @Autowired OrderRepository orderRepository;  
+    @Autowired OrderItemRepository orderItemRepository;  
+    @Autowired TagRepository tagRepository;  
+    @Transactional public void run() {  
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringHibernateConfig.class)) {  
+            // 插入  
+            Category electronicsCategory = Category.builder().name("Laptop").build();  
+            Category booksCategory = Category.builder().name("Books").build();  
+            Product laptopProduct = Product.builder().name("Laptop").price(500.00).build();  
+            Product phoneProduct = Product.builder().name("Phone").price(2000.00).build();  
+            Product bookProduct = Product.builder().name("Books").price(40.00).build();  
+  
+            electronicsCategory.addProduct(laptopProduct);  
+            electronicsCategory.addProduct(phoneProduct);  
+            booksCategory.addProduct(bookProduct);  
+  
+            categoryRepository.save(electronicsCategory);  
+            categoryRepository.save(booksCategory);  
+  
+            Tag technologyTag = Tag.builder().name("Technology").build();  
+            Tag fictionalTag = Tag.builder().name("Fiction").build();  
+            Tag portableTag = Tag.builder().name("Portable").build();  
+  
+            tagRepository.save(technologyTag);  
+            tagRepository.save(fictionalTag);  
+            tagRepository.save(portableTag);  
+  
+            laptopProduct.addTag(fictionalTag);  
+            laptopProduct.addTag(portableTag);  
+            bookProduct.addTag(portableTag);  
+            phoneProduct.addTag(fictionalTag);  
+            phoneProduct.addTag(portableTag);  
+  
+            productRepository.save(laptopProduct);  
+            productRepository.save(phoneProduct);  
+            productRepository.save(bookProduct);  
+  
+            Customer aliceCustomer = Customer.builder().name("Alice").build();  
+            Customer bobCustomer = Customer.builder().name("Bob").build();  
+  
+            customerRepository.save(aliceCustomer);  
+            customerRepository.save(bobCustomer);  
+  
+            Order order1 = Order.builder().orderDate(new Date()).build();  
+            Order order2 = Order.builder().orderDate(new Date()).build();  
+  
+            aliceCustomer.addOrder(order1);  
+            bobCustomer.addOrder(order2);  
+  
+            OrderItem orderItem1 = OrderItem.builder().quantity(1).build();  
+            OrderItem orderItem2 = OrderItem.builder().quantity(2).build();  
+            OrderItem orderItem3 = OrderItem.builder().quantity(3).build();  
+  
+            orderItem1.setProduct(laptopProduct);  
+            orderItem2.setProduct(bookProduct);  
+            orderItem3.setProduct(phoneProduct);  
+  
+            order1.addItem(orderItem1);  
+            order1.addItem(orderItem2);  
+            order2.addItem(orderItem3);  
+  
+            orderRepository.save(order1);  
+            orderRepository.save(order2);  
+  
+            // 查询  
+            Optional<Category> foundElectronics = categoryRepository.findById(electronicsCategory.getId());  
+            foundElectronics.ifPresent(category -> {  
+                log.info("Products in category {}: {}", category.getName(), category.getProducts().stream().map(Product::getName).toList());  
+            });  
+            Optional<Product> foundLaptop = productRepository.findById(laptopProduct.getId());  
+            foundLaptop.ifPresent(product -> {  
+                log.info("Product {} is in category {} with tags {}", product.getName(), product.getCategory().getName(), product.getTags().stream().map(Tag::getName).toList());  
+            });  
+            Optional<Order> foundOrder1 = orderRepository.findById(order1.getId());  
+            foundOrder1.ifPresent(order -> {  
+                log.info("Order {} is created by Customer {} with items {}", order.getId(), order.getCustomer().getName(), order.getItems().stream().map(OrderItem::getProduct).map(Product::getName).toList());  
+            });  
+            Optional<Tag> foundTechnologyTag = tagRepository.findById(technologyTag.getId());  
+            foundTechnologyTag.ifPresent(tag -> {  
+                log.info("Products with tag {}: {}", tag.getName(), tag.getProducts().stream().map(Product::getName).toList());  
+            });  
+  
+            // 更新  
+            Product laptopProductPendingUpdate = productRepository.findById(laptopProduct.getId()).get();  
+            Category oldCategory = foundElectronics.get();  
+            oldCategory.removeProduct(laptopProductPendingUpdate);  
+            productRepository.save(laptopProductPendingUpdate);  
+            log.info("Delete laptop product from category electronics");  
+  
+            oldCategory.addProduct(laptopProductPendingUpdate);  
+            productRepository.save(laptopProductPendingUpdate);  
+            log.info("Product {} is in category {}", laptopProductPendingUpdate.getName(), laptopProductPendingUpdate.getCategory().getName());  
+  
+            // 删除  
+            Optional<Product> foundLaptopProduct = productRepository.findById(laptopProduct.getId());  
+            foundTechnologyTag = tagRepository.findById(technologyTag.getId());  
+            if(foundLaptopProduct.isPresent() && foundTechnologyTag.isPresent()) {  
+                laptopProductPendingUpdate = foundLaptopProduct.get();  
+                Tag technologyTagPendingRemove = foundTechnologyTag.get();  
+                laptopProductPendingUpdate.removeTag(technologyTagPendingRemove);  
+                productRepository.save(laptopProductPendingUpdate);  
+                log.info("Removed Technology tag <--> Laptop product.");  
+            }  
+        }  
+    }  
+}  
+  
+public class MySpringHibernateApplication {  
+    public static void main(String[] args) {  
+        File databaseFile = new File("./products.db");  
+        if(databaseFile.exists()) {  
+            databaseFile.delete();  
+        }  
+        try(AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringHibernateConfig.class)){  
+            MySpringHibernateService service = context.getBean(MySpringHibernateService.class);  
+            service.run();  
+        }  
+    }  
+}
+/*
+10:20:03.792 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Products in category Laptop: [Laptop, Phone]
+10:20:03.794 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Product Laptop is in category Laptop with tags [Fiction, Portable]
+10:20:03.795 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Order 1 is created by Customer Alice with items [Laptop, Books]
+10:20:03.796 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Products with tag Technology: []
+10:20:03.798 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Delete laptop product from category electronics
+10:20:03.798 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Product Laptop is in category Laptop
+10:20:03.799 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Removed Technology tag <--> Laptop product.
 */
 ```
 
