@@ -1148,7 +1148,13 @@ public class Application {
 ```
 ## §1.8 AOP及其代理
 
-面向切面编程（Aspect Oriented Programming，AOP）是Spring中的两个基本概念之一。模块中的各种功能称为**关注点**。在工程中常见一种情况：若干模块都需要调用逻辑相同的功能，我们将这段共用的功能称为**横切关注点**（也叫**切面**）。
+面向切面编程（Aspect Oriented Programming，AOP）是Spring中的两个基本概念之一。
+
+- **连接点/关注点**（Jointpoint）：模块中的各种功能。它表示程序执行过程中的某一个执行的函数。
+- **横切关注点/切面**（Aspect）：在工程中常见一种情况，若干模块都需要调用逻辑相同的功能，例如事务管理、安全规则、日志审计等。它指的就是这段共用的功能。
+- **通知**（Advice）：切面在连接点采取的操作，及其执行的时机。通知有五种类型——前置通知、后置通知、返回通知、异常通知、返回通知。
+- **切点**（Pointcut）：表示在哪些连接点使用通知。
+- **引介**（Introduction）：将某个功能类的实例注入到当前实例中，使得当前实例能使用新的功能。
 
 AOP对应着设计模式中的代理模式。AOP代理指的是实现切面的对象，有JDK动态代理和CGLIB代理两种实现。
 
@@ -1160,7 +1166,7 @@ AOP对应着设计模式中的代理模式。AOP代理指的是实现切面的�
 | 支持拦截默认作用域方法       | ❌       | ✔       | ✔         |
 | 支持拦截`private`方法   | ❌       | ❌       | ✔         |
 
-### §3.1.1 JDK动态代理
+### §1.8.1 JDK动态代理
 
 下面的代码使用了JDK动态代理：
 
@@ -1215,7 +1221,7 @@ public class Application {
    [LogHandler] Finished: proxy is called successfully. */
 ```
 
-### §3.1.2 `@Aspect`配置代理
+### §1.8.2 `@Aspect`配置代理
 
 AspectJ是Eclipse开发的一款代理库。不同于其它代理库创建代理对象，AspectJ直接修改Java字节码，因此理论上能做到其它代理库的一切操作。
 
@@ -1283,7 +1289,7 @@ public class Application {
 }
 ```
 
-### §3.1.3 Spring AOP配置代理
+### §1.8.3 Spring AOP配置代理
 
 Spring AOP对AspectJ框架提供了大部分支持。
 
@@ -1345,7 +1351,7 @@ Spring的通知类型十分灵活，支持在方法的各个执行阶段进行�
 - 环绕通知`@Around()`：用于在执行点前后插入逻辑、替换切入点本身的逻辑、替换掉用参数，**效果等价于Python的装饰器**。被该注解修饰的方法的第一个形参必须是`ProceedingJoinPoint`，返回类型就是被拦截方法的返回类型或其父类。
 - 引入通知`@DeclareParents()`：为Bean添加新的接口。
 
-### §3.1.4 XML配置代理
+### §1.8.4 XML配置代理
 
 XML提供了上文提到的所有通知类型：
 
@@ -4068,3 +4074,51 @@ public class MySpringBatisApplication {
     }
 }
 ```
+
+## §3.3 Redis
+
+Java社区有很多针对Redis的客户端实现，其中SpringData提供了部分实现的支持：
+
+| Redis客户端(Java) | 是否支持SpringData | 特点                                                 |
+| -------------- | -------------- | -------------------------------------------------- |
+| Lettuce        | ✔              | 基于Netty实现，线程安全，功能完善，支持哨兵模式/集群模式/流水线，支持同步/异步/响应式编程。 |
+| Jedis          | ✔              | 基于TCP的裸Socket实现，功能简单，非线程安全，自带连接池实现                 |
+| Redisson       | ❌              | 基于Netty实现，支持哨兵/主从/单节点模式。                           |
+
+### §3.3.1 `RedisConnection`
+
+Spring的`org.springframework.data.redis.connection`包为各类Java Redis客户端提供了统一的**低层次封装**——`RedisConnection`和`RedisConnectionFactory`。
+
+```java
+/* Lettuce实现 */
+@Configuration @ComponentScan  
+class MyRedisApplicationConfiguration {  
+    @Bean public LettuceConnectionFactory redisConnectionFactory() {  
+        return new LettuceConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));  
+    }  
+}
+
+/* Jedis实现 */
+@Configuration @ComponentScan  
+class MyRedisApplicationConfiguration {  
+    @Bean public JedisConnectionFactory redisConnectionFactory() {  
+        return new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));  
+    }  
+}
+
+/* RedisConnectionFactory Bean的统一接口测试 */
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class)  
+public class MyRedisApplicationTest {  
+    @Autowired RedisConnectionFactory redisConnectionFactory;  
+    @Test public void testPing() {  
+        assertNotNull(redisConnectionFactory);  
+        RedisConnection connection = redisConnectionFactory.getConnection();  
+        assertNotNull(connection);  
+        assertEquals("PONG", connection.ping());  
+    }  
+}
+```
+
+### §3.3.2 `RedisTemplate`
+
+Spring的`org.springframework.data.redis.core.RedisTemplate`提供了Java Redis客户端的高层次封装。它额外提供了对其它格式结构化数据（JSON）的支持
