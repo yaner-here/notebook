@@ -1648,6 +1648,13 @@ uuidd  1370  1297  0  03:53  ?    00:00:00  nginx: worker process
   	c059bfaa849c
   ```
 
+## §2.28 `docker rm`
+
+`docker volume rm`负责删除指定的数据卷。
+
+## §2.29 `docker prune`
+
+`docker volume prune`删除所有当前未被使用的数据卷。
 
 # §3 容器数据共享
 
@@ -1679,7 +1686,11 @@ C:\> docker run --rm -it --link myredis:redis redis /bin/bash
 
 在[联合文件系统](#§1.2 联合文件系统)一节中，我们知道``Docker``支持一系列的联合文件系统格式，然而这些格式不能让容器与主机和其它容器之间自由地共享数据，只能通过TCP/IP等高级协议实现共享。为此`Docker`提供了数据卷（Volume）这一方式。
 
-默认情况下，Docker
+默认情况下，Docker使用的数据卷驱动是`local`，只能在本机上使用。可以使用`-d <DRIVER>`指定其他驱动：
+
+- 块存储驱动：小文件随机读写性能较高。例如HPE 3PAR、Amazon EBS、Cinder。
+- 文件存储驱动：以NFS、SMB协议为基础的文件系统。例如NetApp FAS、Azure文件存储、Amazon EFS。
+- 对象存储驱动：大文件冷存储。例如Amazon S3、Ceph、Minio。
 
 数据卷是直接挂载于主机的文件或目录，不属于联合文件系统的一部分，对其进行任何修改都会直接发生在主机的文件系统里。创建数据卷有以下两种方法：
 
@@ -3886,4 +3897,122 @@ C:/> docker run -d -p 2379:2379 -p 2380:2380 -p 4001:4001 --name etcd quay.io/co
 
 Docker Swarm是一项集成在Docker引擎中的功能。一个Swarm集群由若干Docker节点构成，每个节点会被配置为管理节点或工作节点。管理节点负责集群控制面（Control Plane），也就是监控集群状态、分发节点任务。工作节点负责接受管理节点的任务并执行。
 
-TODO：？？？
+## §6.4 Docker Stack
+
+Docker Stack可以视为Docker Compose的升级版，它完全集成在Docker中，并且可以管理应用中若干容器的生命周期。
+
+Dokcer Stack使用`docker-stack.yml`文件配置。它包含四个顶级关键字：
+
+- `version`：Docker Compose配置文件的版本号。Docker Stack要求`3.0`及以上。
+- `services`：定义服务。
+- `networks`：定义网络。
+- `secrets`：定义密钥。
+
+Docker官方提供了一个Docker Stack的实战例子[`dockersamples/atseasampleshopapp_reverse_proxy`](https://github.com/dockersamples/atsea-sample-shop-app)：整个应用由五个服务、三个网络（前端网络、后端网络、支付网络）、四个密钥和三个端口映射构成。
+
+```yml
+# docker-stack.yml
+version: "3.2"
+
+services:
+  reverse_proxy:
+    image: dockersamples/atseasampleshopapp_reverse_proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    secrets:
+      - source: revprox_cert
+        target: revprox_cert
+      - source: revprox_key
+        target: revprox_key
+    networks:
+      - front-tier
+
+  database:
+    image: dockersamples/atsea_db
+    environment:
+      POSTGRES_USER: gordonuser
+      POSTGRES_DB_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: atsea
+    networks:
+      - back-tier
+    secrets:
+      - postgres_password
+    deploy:
+      placement:
+        constraints:
+          - 'node.role == worker'
+
+  appserver:
+    image: dockersamples/atsea_app
+    networks:
+      - front-tier
+      - back-tier
+      - payment
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 2
+        failure_action: rollback
+      placement:
+        constraints:
+          - 'node.role == worker'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    secrets:
+      - postgres_password
+
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "8001:8080"
+    stop_grace_period: 1m30s
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      update_config:
+        failure_action: rollback
+      placement:
+        constraints:
+          - 'node.role == manager'
+
+  payment_gateway:
+    image: dockersamples/atseasampleshopapp_payment_gateway
+    secrets:
+      - source: staging_token
+        target: payment_token
+    networks:
+      - payment
+    deploy:
+      update_config:
+        failure_action: rollback
+      placement:
+        constraints:
+          - 'node.role == worker'
+          - 'node.labels.pcidss == yes'
+
+networks:
+  front-tier:
+  back-tier:
+  payment:
+    driver: overlay
+    driver_opts:
+      encrypted: 'yes'
+
+secrets:
+  postgres_password:
+    external: true
+  staging_token:
+    external: true
+  revprox_key:
+    external: true
+  revprox_cert:
+    external: true
+```
+
+Docker Stack会优先创建网络，默认使用`overlay`驱动。在本例中，我们定义了三个网络：前端网络、后端网络和支付网络。这里我们强行指定了支付网络开启数据层加密。
+
+本例创建了四个密钥，均使用`external: true`表示在Docker Stack部署之前就必须存在。或者可以将其替换为`file: <FILEPATH>`，表示在部署时按需现场创建。
