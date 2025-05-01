@@ -4085,6 +4085,11 @@ Java社区有很多针对Redis的客户端实现，其中SpringData提供了部�
 | Jedis          | ✔              | 基于TCP的裸Socket实现，功能简单，非线程安全，自带连接池实现                 |
 | Redisson       | ❌              | 基于Netty实现，支持哨兵/主从/单节点模式。                           |
 
+Spring提供了以下方式与Redis交互：
+
+- 原始方式：实例化一个`RedisConfiguration`，传入`RedisConnectionFactory`构造方法，拿到工厂实例，调用其`.getConnection()`拿到裸的`RedisConnection`实例。
+- Template方式：实例化一个`RedisConfiguration`，传入`RedisConnectionFactory`构造方法，拿到工厂实例，传入`RedisTemplate`拿到一个SpringData Redis Template实例。
+
 ### §3.3.1 `RedisConnection`
 
 Spring的`org.springframework.data.redis.connection`包为各类Java Redis客户端提供了统一的**低层次封装**——`RedisConnection`和`RedisConnectionFactory`。
@@ -4121,4 +4126,110 @@ public class MyRedisApplicationTest {
 
 ### §3.3.2 `RedisTemplate`
 
-Spring的`org.springframework.data.redis.core.RedisTemplate`提供了Java Redis客户端的高层次封装。它额外提供了对其它格式结构化数据（JSON）的支持
+Spring的`org.springframework.data.redis.core.RedisTemplate`提供了Java Redis客户端的高层次封装。它额外提供了对其它格式结构化数据（例如JSON、XML、POJO）的支持，自动管理连接池，提供多种序列化器，并且自动保证线程安全。
+
+`RedisTemplate`实例根据操作数据容器的不同，提供了以下子接口：
+
+| `RedisTemplate`实例方法    | `RedisTemplate`子接口            | 作用       |
+| ---------------------- | ----------------------------- | -------- |
+| `.opsForValue()`       | `ValueOperations<K, V>`       | 操作字符串    |
+| `.opsForList()`        | `ListOperations<K, V>`        | 操作列表     |
+| `.opsForSet()`         | `SetOperations<K, V>`         | 操作集合     |
+| `.opsForHash()`        | `HashOperations<K, V>`        | 操作哈希     |
+| `.opsForZSet()`        | `ZSetOperations<K, V>`        | 操作有序集合   |
+| `.opsForStream()`      | `StreamOperations<K, V>`      | 操作流      |
+| `.opsForHyperLogLog()` | `HyperLogLogOperations<K, V>` | 操作超级日志   |
+| `.opsForGeo()`         | `GeoOperations<K, V>`         | 操作地理空间数据 |
+
+```java
+package top.yaner_here.javasite;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Configuration @ComponentScan
+class MyRedisApplicationConfiguration {
+    @Bean public JedisConnectionFactory redisConnectionFactory() {
+        return new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));
+    }
+    @Bean public RedisTemplate<String, String> stringRedisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(redisConnectionFactory);
+        return template;
+    }
+}
+
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class)
+public class MyRedisApplicationTest {
+    @Autowired RedisTemplate<String, String> stringRedisTemplate;
+    @Test public void testInsertValue() {
+        assertNotNull(stringRedisTemplate);
+        stringRedisTemplate.opsForValue().set("name", "yaner");
+        assertEquals("yaner", stringRedisTemplate.opsForValue().get("name"));
+    }
+}
+```
+
+以`.opsForValue()`为例，它提供了以下常用的数据操作函数：
+
+| `.opsForValue()`方法原型                                                                        | Redis CLI等价命令 | 作用                         |
+| ------------------------------------------------------------------------------------------- | ------------- | -------------------------- |
+| `void set(K key, V value)`                                                                  | `SET`         | 添加键值对                      |
+| `V get(K key, V value)`                                                                     | `GET`         | 获取键值对                      |
+| `void set(K key, V value, long timeout, TimeUnit unit)`                                     | `SETEX`       | 添加键值对及其过期时间                |
+| `Boolean setIfAbsent(K key, V value)`                                                       | `SETNX`       | 若不存在则添加键值对，返回值表示是否添加       |
+| `void multiSet(Map<K, V> map)`                                                              | `MSET`        | 添加多个键值对                    |
+| `List<V> multiGet(Collection<K> keys)`                                                      | `MGET`        | 获取多个键值对                    |
+| `V getAndSet(K key, V value)`                                                               | `GETSET`      | 返回旧值并用新值覆盖                 |
+| `Long increment(K key, long delta)`                                                         | `INCRBY`      | 添加增量                       |
+| `Boolean setBit(K key, long offset, boolean value)`                                         | `SETBIT`      | 设置比特                       |
+| `Boolean getBit(K key, long offset)`                                                        | `GETBIT`      | 获取比特                       |
+| `Long leftPush(K key, V value)`                                                             | `LPUSH`       | 在列表头部插入值                   |
+| `Long rightPush(K key, V value)`                                                            | `RPUSH`       | 在列表末尾插入值                   |
+| `List<V> range(K key, long start, long end)`                                                | `LRANGE`      | 获取列表内闭区间`[start, end]`的元素  |
+| `Long rightPushAll(K key, Collection<V> values)`                                            | `RPUSH`       | 在列表尾部插入多个值                 |
+| `Long leftPushAll(K key, Collection<V> values)`                                             | `LPUSH`       | 在列表头部插入多个值                 |
+| `void trim(K key, long start, long end)`                                                    | `LTRIM`       | 只保留列表内闭区间`[start, end]`的元素 |
+| `V leftPop(K key)`                                                                          | `LPOP`        | 返回并移除列表头部的元素               |
+| `V rightPop(K key)`                                                                         | `RPOP`        | 返回并移除列表尾部的元素               |
+| `V move(Key source, RedislistCommands.Direction from, K destination, RedislistCommands to)` | `LMOVE`       | 将列表头部/尾部的元素移动到另一个列表的头部/尾部  |
+| `void set(K key, long index, V value)`                                                      | `LSET`        | 在列表的索引位置处设置新值              |
+| `V index(K key, long index)`                                                                | `LINDEX`      | 获取列表的索引位置处的值               |
+| `Long remove(K key, long count, Object value)`                                              | `LREM`        | 按值删除列表元素，详见`LREM`指令文档      |
+| `void put(K key, H hash, V value)`                                                          | `HSET`        | 在哈希表中添加键值对                 |
+| `HV get(K key, Object hashKey)`                                                             | `HGET`        | 在哈希表中获取键值对                 |
+| `Map<H, V> entries(K key)`                                                                  | `HGETALL`     | 在哈希表中获取所有键值对               |
+| `Set<H> keys(K key)`                                                                        | `HKEYS`       | 在哈希表中获取所有键                 |
+| `List<V> values(K key)`                                                                     | `HVALS`       | 在哈希表中获取所有值                 |
+| `Long size(K key)`                                                                          | `HLEN`        | 查询哈希表的键值对个数                |
+| `Boolean hasKey(K key, Object hashKey)`                                                     | `HEXISTS`     | 查询哈希表是否包含指定键值对             |
+| `Cursor<Map.Entry<H, V>> scan(K key, ScanOptions options)`                                  | `HSCAN`       | 迭代哈希表中的键值对                 |
+| `Long increment(K key, H hash, long delta)`                                                 | `HINCRBY`     | 给哈希表中的某个键值对添加增量            |
+| `void putAll(K key, Map<H, V> map)`                                                         | `HMSET`       | 设置哈希表中的指定多个键值对             |
+| `List<V> multiGet(K key, Collection<H> hashs)`                                              | `HMGET`       | 获取哈希表中的指定多个键值对             |
+| `Long delete(K key, Object[] hashs)`                                                        | `HDEL`        | 删除哈希表中的指定多个键值对             |
+| `Long add(K key, V[] values)`                                                               | `SADD`        |                            |
+| `Boolean move(K key, V value, K destKey)`                                                   | `SMOVE`       |                            |
+| `Set<V> members(K key)`                                                                     | `SMEMBERS`    |                            |
+| `List<V> pop(K key, long count)`                                                            | `SPOP`        |                            |
+| `Long remove(K key, Object[] values)`                                                       | `SREM`        |                            |
+| `Long size(K key)`                                                                          | `SCARD`       |                            |
+| `Boolean isMember(K key, Object value)`                                                     | `SISMEMBER`   |                            |
+| `Cursor<V> scan(K key, ScanOptions options)`                                                | `SSCAN`       |                            |
+| `Set<V> intersect(K key, Collection<K> otherKeys)`                                          | `SINTER`      |                            |
+| `Long intersectAndStore(K key, K otherKey, K destKey)`                                      |               |                            |
+|                                                                                             |               |                            |
+|                                                                                             |               |                            |
+|                                                                                             |               |                            |
+|                                                                                             |               |                            |
