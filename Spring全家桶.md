@@ -181,6 +181,20 @@ public class Application {
 
 Bean特指Java中一种特殊的类，它同时满足这些条件——可序列化和持久化、提供无参构造器、提供Getter和Setter方法以访问实例字段的**可重用组件**。按照这一定义，Spring也将可重用的容器称为Bean，使用Beans的配置元数据来管理容器之间的依赖关系。
 
+Spring使用以下注解来定义Bean：
+
+| 注解            | 作用                                      |
+| ------------- | --------------------------------------- |
+| `@Component`  | 声明类为Bean，可以位于应用中的任何层次                   |
+| `@Repository` | 声明类为数据访问层（DAO）层的Bean                    |
+| `@Service`    | 声明类为服务层（Service）层的Bean                  |
+| `@Controller` | 声明类为控制层（Controller）层的Bean               |
+| `@Autowired`  | 修饰Bean的实例变量、方法、构造方法，表示自动按照Bean的类型装配Bean |
+| `@Resource`   | 修饰Bean的实例变量、方法、构造方法，表示自动按照Bean的名称装配Bean |
+| `@Qualifier`  | 与`@Autowired`配合使用，表示限定Bean的名称           |
+| `@Value`      | 指定Bean实例的注入值                            |
+| `@Scope`      | 指定Bean实例的作用域                            |
+
 ### §1.2.1 XML配置
 
 前文提到，Spring可以读取XML文件中的`<beans>`标签来配置Bean。具体来说，一个`<bean>`标签用于配制一个Bean
@@ -3534,4 +3548,523 @@ public class MySpringHibernateApplication {
 10:20:03.798 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Product Laptop is in category Laptop
 10:20:03.799 [main] INFO top.yaner_here.javasite.MySpringHibernateService -- Removed Technology tag <--> Laptop product.
 */
+```
+
+或者用MyBatis实现：
+
+```sql
+--- /src/main/resources/schema.sql
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS product_tag;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS customers;
+
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    price REAL NOT NULL,
+    category_id INTEGER,
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE product_tag (
+    product_id INTEGER,
+    tag_id INTEGER,
+    PRIMARY KEY (product_id, tag_id),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE TABLE customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_date INTEGER NOT NULL,
+    customer_id INTEGER NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+CREATE TABLE order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quantity INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+```
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.*;
+import lombok.extern.log4j.Log4j2;
+import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.mapping.FetchType;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.mybatis.spring.SqlSessionFactoryBean;
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.DataSourceInitializer;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import javax.sql.DataSource;
+import java.util.*;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+class Product {
+    private Integer id;
+    private String name;
+    private Double price;
+    private Integer categoryId;
+    @ToString.Exclude private Category category;
+    @ToString.Exclude @Builder.Default private List<Tag> tags = new ArrayList<>();
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+class Customer {
+    private Integer id;
+    private String name;
+    @ToString.Exclude
+    @Builder.Default
+    private List<Order> orders = new ArrayList<>();
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+class Order {
+    private Integer id;
+    private Date orderDate;
+    private Integer customerId;
+    @ToString.Exclude private Customer customer;
+    @ToString.Exclude @Builder.Default private List<OrderItem> items = new ArrayList<>();
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+class OrderItem {
+    private Integer id;
+    private Integer quantity;
+    private Integer orderId;
+    private Integer productId;
+    @ToString.Exclude private Order order;
+    @ToString.Exclude private Product product;
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+class Tag {
+    private Integer id;
+    private String name;
+    @ToString.Exclude @Builder.Default private List<Product> products = new ArrayList<>();
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+class Category {
+    private Integer id;
+    private String name;
+    @ToString.Exclude @Builder.Default private List<Product> products = new ArrayList<>();
+}
+
+@Mapper interface CategoryMapper {
+    @Insert("INSERT INTO categories(name) VALUES(#{name})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    void insert(Category category);
+
+    @Select("SELECT id, name FROM categories WHERE id = #{id}")
+    @Results(id = "categoryResultMap", value = {
+            @Result(property = "id", column = "id"),
+            @Result(property = "name", column = "name"),
+            @Result(property = "products", column = "id", javaType = List.class, many = @Many(select = "top.yaner_here.javasite.ProductMapper.selectProductsByCategoryId", fetchType = FetchType.LAZY))
+    })
+    Optional<Category> selectById(Integer id);
+
+    @Select("SELECT id, name FROM categories")
+    @ResultMap("categoryResultMap")
+    List<Category> selectAll();
+
+    @Update("UPDATE categories SET name = #{name} WHERE id = #{id}")
+    void update(Category category);
+
+    @Delete("DELETE FROM categories WHERE id = #{id}")
+    void deleteById(Integer id);
+}
+
+@Mapper interface ProductMapper {
+    @Insert("INSERT INTO products(name, price, category_id) VALUES(#{name}, #{price}, #{categoryId})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    void insert(Product product);
+
+    @Select("SELECT id, name, price, category_id FROM products WHERE id = #{id}")
+    @Results(id = "productResultMap", value = {
+            @Result(property = "id", column = "id"),
+            @Result(property = "name", column = "name"),
+            @Result(property = "price", column = "price"),
+            @Result(property = "categoryId", column = "category_id"),
+            @Result(property = "category", column = "category_id", javaType = Category.class, one = @One(select = "top.yaner_here.javasite.CategoryMapper.selectById", fetchType = FetchType.LAZY)),
+            @Result(property = "tags", column = "id", javaType = List.class, many = @Many(select = "top.yaner_here.javasite.TagMapper.selectTagsByProductId", fetchType = FetchType.LAZY))
+    })
+    Optional<Product> selectById(Integer id);
+
+    @Select("SELECT id, name, price, category_id FROM products")
+    @ResultMap("productResultMap")
+    List<Product> selectAll();
+
+    @Select("SELECT id, name, price, category_id FROM products WHERE category_id = #{categoryId}")
+    @ResultMap("productResultMap")
+    List<Product> selectProductsByCategoryId(Integer categoryId);
+
+    @Update("UPDATE products SET name = #{name}, price = #{price}, category_id = #{categoryId} WHERE id = #{id}")
+    void update(Product product);
+
+    @Delete("DELETE FROM products WHERE id = #{id}")
+    void deleteById(Integer id);
+
+    @Insert("INSERT INTO product_tag(product_id, tag_id) VALUES(#{productId}, #{tagId})")
+    void insertProductTag(@Param("productId") Integer productId, @Param("tagId") Integer tagId);
+
+    @Delete("DELETE FROM product_tag WHERE product_id = #{productId} AND tag_id = #{tagId}")
+    void deleteProductTag(@Param("productId") Integer productId, @Param("tagId") Integer tagId);
+
+    @Delete("DELETE FROM product_tag WHERE product_id = #{productId}")
+    void deleteProductTagsByProductId(Integer productId);
+}
+
+@Mapper interface CustomerMapper {
+    @Insert("INSERT INTO customers(name) VALUES(#{name})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    void insert(Customer customer);
+
+    @Select("SELECT id, name FROM customers WHERE id = #{id}")
+    @Results(id = "customerResultMap", value = {
+            @Result(property = "id", column = "id"),
+            @Result(property = "name", column = "name"),
+            @Result(property = "orders", column = "id", javaType = List.class, many = @Many(select = "top.yaner_here.javasite.OrderMapper.selectOrdersByCustomerId", fetchType = FetchType.LAZY))
+    })
+    Optional<Customer> selectById(Integer id);
+
+    @Select("SELECT id, name FROM customers")
+    @ResultMap("customerResultMap")
+    List<Customer> selectAll();
+
+    @Update("UPDATE customers SET name = #{name} WHERE id = #{id}")
+    void update(Customer customer);
+
+    @Delete("DELETE FROM customers WHERE id = #{id}")
+    void deleteById(Integer id);
+}
+
+@Mapper interface OrderMapper {
+    @Insert("INSERT INTO orders(order_date, customer_id) VALUES(#{orderDate}, #{customerId})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    void insert(Order order);
+
+    @Select("SELECT id, order_date, customer_id FROM orders WHERE id = #{id}")
+    @Results(id = "orderResultMap", value = {
+            @Result(property = "id", column = "id"),
+            @Result(property = "orderDate", column = "order_date"),
+            @Result(property = "customerId", column = "customer_id"),
+            @Result(property = "customer", column = "customer_id", javaType = Customer.class, one = @One(select = "top.yaner_here.javasite.CustomerMapper.selectById", fetchType = FetchType.LAZY)),
+            @Result(property = "items", column = "id", javaType = List.class, many = @Many(select = "top.yaner_here.javasite.OrderItemMapper.selectOrderItemsByOrderId", fetchType = FetchType.LAZY))
+    })
+    Optional<Order> selectById(Integer id);
+
+    @Select("SELECT id, order_date, customer_id FROM orders WHERE customer_id = #{customerId}")
+    @ResultMap("orderResultMap")
+    List<Order> selectOrdersByCustomerId(Integer customerId);
+
+    @Select("SELECT id, order_date, customer_id FROM orders")
+    @ResultMap("orderResultMap")
+    List<Order> selectAll();
+
+    @Update("UPDATE orders SET order_date = #{orderDate}, customer_id = #{customerId} WHERE id = #{id}")
+    void update(Order order);
+
+    @Delete("DELETE FROM orders WHERE id = #{id}")
+    void deleteById(Integer id);
+}
+
+@Mapper interface OrderItemMapper {
+    @Insert("INSERT INTO order_items(quantity, order_id, product_id) VALUES(#{quantity}, #{orderId}, #{productId})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    void insert(OrderItem item);
+
+    @Select("SELECT id, quantity, order_id, product_id FROM order_items WHERE id = #{id}")
+    @Results(id = "orderItemResultMap", value = {
+            @Result(property = "id", column = "id"),
+            @Result(property = "quantity", column = "quantity"),
+            @Result(property = "orderId", column = "order_id"),
+            @Result(property = "productId", column = "product_id"),
+            @Result(property = "order", column = "order_id", javaType = Order.class, one = @One(select = "top.yaner_here.javasite.OrderMapper.selectById", fetchType = FetchType.LAZY)),
+            @Result(property = "product", column = "product_id", javaType = Product.class, one = @One(select = "top.yaner_here.javasite.ProductMapper.selectById", fetchType = FetchType.LAZY))
+    })
+    Optional<OrderItem> selectById(Integer id);
+
+    @Select("SELECT id, quantity, order_id, product_id FROM order_items WHERE order_id = #{orderId}")
+    @ResultMap("orderItemResultMap")
+    List<OrderItem> selectOrderItemsByOrderId(Integer orderId);
+
+    @Select("SELECT id, quantity, order_id, product_id FROM order_items")
+    @ResultMap("orderItemResultMap")
+    List<OrderItem> selectAll();
+
+    @Update("UPDATE order_items SET quantity = #{quantity}, order_id = #{orderId}, product_id = #{productId} WHERE id = #{id}")
+    void update(OrderItem item);
+
+    @Delete("DELETE FROM order_items WHERE id = #{id}")
+    void deleteById(Integer id);
+
+    @Delete("DELETE FROM order_items WHERE order_id = #{orderId}")
+    void deleteByOrderId(Integer orderId);
+}
+
+@Mapper interface TagMapper {
+    @Insert("INSERT INTO tags(name) VALUES(#{name})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    void insert(Tag tag);
+
+    @Select("SELECT id, name FROM tags WHERE id = #{id}")
+    Optional<Tag> selectById(Integer id);
+
+    @Select("SELECT id, name FROM tags")
+    List<Tag> selectAll();
+
+    @Select("SELECT t.id, t.name FROM tags t JOIN product_tag pt ON t.id = pt.tag_id WHERE pt.product_id = #{productId}")
+    List<Tag> selectTagsByProductId(Integer productId);
+
+    @Update("UPDATE tags SET name = #{name} WHERE id = #{id}")
+    void update(Tag tag);
+
+    @Delete("DELETE FROM tags WHERE id = #{id}")
+    void deleteById(Integer id);
+}
+
+@Configuration @ComponentScan(basePackages = "top.yaner_here.javasite")
+@EnableTransactionManagement
+@MapperScan(basePackages = "top.yaner_here.javasite")
+class MySpringBatisConfig {
+    @Bean
+    public DataSource dataSource() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.sqlite.JDBC");
+        dataSource.setUrl("jdbc:sqlite:products.db");
+        return dataSource;
+    }
+    @Bean
+    public DataSourceInitializer dataSourceInitializer(DataSource dataSource) {
+        DataSourceInitializer initializer = new DataSourceInitializer();
+        initializer.setDataSource(dataSource);
+        ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
+        populator.addScript(new ClassPathResource("schema.sql"));
+        initializer.setDatabasePopulator(populator);
+         initializer.setEnabled(true);
+        return initializer;
+    }
+    @Bean
+    public SqlSessionFactory sqlSessionFactory(DataSource dataSource) throws Exception {
+        SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
+        factoryBean.setDataSource(dataSource);
+        // 配置 MyBatis 设置，例如开启驼峰命名自动映射
+        org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
+        configuration.setMapUnderscoreToCamelCase(true); // 开启驼峰命名自动映射
+        configuration.setLazyLoadingEnabled(true); // 开启延迟加载
+        configuration.setAggressiveLazyLoading(false); // 延迟加载更彻底
+        factoryBean.setConfiguration(configuration);
+        return factoryBean.getObject();
+    }
+
+    @Bean
+    public PlatformTransactionManager transactionManager(DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
+}
+
+@Service @Log4j2
+class MySpringBatisService {
+    @Autowired CategoryMapper categoryMapper;
+    @Autowired ProductMapper productMapper;
+    @Autowired CustomerMapper customerMapper;
+    @Autowired OrderMapper orderMapper;
+    @Autowired OrderItemMapper orderItemMapper;
+    @Autowired TagMapper tagMapper;
+    public void run() {
+        Category electronicsCategory = Category.builder().name("Electronics").build(); // 名字改为 Electronics 更清晰
+        Category booksCategory = Category.builder().name("Books").build();
+
+        Product laptopProduct = Product.builder().name("Laptop").price(500.00).build();
+        Product phoneProduct = Product.builder().name("Phone").price(2000.00).build();
+        Product bookProduct = Product.builder().name("Books").price(40.00).build();
+
+        Tag technologyTag = Tag.builder().name("Technology").build();
+        Tag fictionalTag = Tag.builder().name("Fiction").build();
+        Tag portableTag = Tag.builder().name("Portable").build();
+
+        Customer aliceCustomer = Customer.builder().name("Alice").build();
+        Customer bobCustomer = Customer.builder().name("Bob").build();
+
+        Order order1 = Order.builder().orderDate(new Date()).build();
+        Order order2 = Order.builder().orderDate(new Date()).build();
+
+        OrderItem orderItem1 = OrderItem.builder().quantity(1).build();
+        OrderItem orderItem2 = OrderItem.builder().quantity(2).build();
+        OrderItem orderItem3 = OrderItem.builder().quantity(3).build();
+
+        // 插入，必须先插入才能拿到id
+        categoryMapper.insert(electronicsCategory);
+        categoryMapper.insert(booksCategory);
+
+        laptopProduct.setCategoryId(electronicsCategory.getId());
+        phoneProduct.setCategoryId(electronicsCategory.getId());
+        bookProduct.setCategoryId(booksCategory.getId());
+
+        productMapper.insert(laptopProduct);
+        productMapper.insert(phoneProduct);
+        productMapper.insert(bookProduct);
+
+        tagMapper.insert(technologyTag);
+        tagMapper.insert(fictionalTag);
+        tagMapper.insert(portableTag);
+
+        List<Product> allProducts = Arrays.asList(laptopProduct, phoneProduct, bookProduct);
+        for (Product product : allProducts) {
+            if (product.getTags() != null) {
+                for (Tag tag : product.getTags()) {
+                    if (product.getId() != null && tag.getId() != null) {
+                        productMapper.insertProductTag(product.getId(), tag.getId());
+                    }
+                }
+            }
+        }
+
+        customerMapper.insert(aliceCustomer);
+        customerMapper.insert(bobCustomer);
+
+        order1.setCustomerId(aliceCustomer.getId());
+        order2.setCustomerId(bobCustomer.getId());
+
+        orderMapper.insert(order1);
+        orderMapper.insert(order2);
+
+        orderItem1.setOrderId(order1.getId());
+        orderItem1.setProductId(laptopProduct.getId());
+
+        orderItem2.setOrderId(order1.getId());
+        orderItem2.setProductId(bookProduct.getId());
+
+        orderItem3.setOrderId(order2.getId());
+        orderItem3.setProductId(phoneProduct.getId());
+
+        orderItemMapper.insert(orderItem1);
+        orderItemMapper.insert(orderItem2);
+        orderItemMapper.insert(orderItem3);
+
+        // 查询
+        Optional<Category> foundElectronics = categoryMapper.selectById(electronicsCategory.getId());
+        foundElectronics.ifPresent(category -> {
+            log.info("Products in category {}: {}", category.getName(), category.getProducts().stream().map(Product::getName).toList());
+        });
+
+        Optional<Product> foundLaptop = productMapper.selectById(laptopProduct.getId());
+        foundLaptop.ifPresent(product -> {
+            log.info("Product {} (ID: {}) is in category {} (ID: {}) with tags {}",
+                    product.getName(), product.getId(),
+                    product.getCategory() != null ? product.getCategory().getName() : "N/A", // 加上 null 检查，虽然现在应该不会是 null 了
+                    product.getCategory() != null ? product.getCategory().getId() : "N/A",
+                    product.getTags().stream().map(Tag::getName).toList());
+        });
+
+        Optional<Order> foundOrder1 = orderMapper.selectById(order1.getId());
+        foundOrder1.ifPresent(order -> {
+            log.info("Order {} (ID: {}) is created by Customer {} (ID: {}) with items {}",
+                    order.getId(), order.getId(),
+                    order.getCustomer() != null ? order.getCustomer().getName() : "N/A", // 加上 null 检查
+                    order.getCustomer() != null ? order.getCustomer().getId() : "N/A",
+                    order.getItems().stream().map(OrderItem::getProduct).filter(Objects::nonNull).map(Product::getName).toList()); // 加上 null 检查
+        });
+
+        Optional<Tag> foundTechnologyTag = tagMapper.selectById(technologyTag.getId());
+        foundTechnologyTag.ifPresent(tag -> {
+            log.info("Products with tag {}: {}", tag.getName(), tag.getProducts().stream().map(Product::getName).toList());
+        });
+
+        // 更新
+        Product laptopProductPendingUpdate = productMapper.selectById(laptopProduct.getId()).get();
+        laptopProductPendingUpdate.setPrice(550.00);
+        productMapper.update(laptopProductPendingUpdate);
+        log.info("Updated Laptop price to 550.00");
+
+        Product bookProductPendingUpdate = productMapper.selectById(bookProduct.getId()).get();
+        bookProductPendingUpdate.setCategoryId(electronicsCategory.getId());
+        productMapper.update(bookProductPendingUpdate);
+        log.info("Moved Book product to Electronics category.");
+
+        Optional<Product> foundBookAfterUpdate = productMapper.selectById(bookProduct.getId());
+        foundBookAfterUpdate.ifPresent(product -> {
+            log.info("Book product after update is in category {}",
+                    product.getCategory() != null ? product.getCategory().getName() : "N/A");
+        });
+
+        // 删除
+        Product laptopProductForTagRemoval = productMapper.selectById(laptopProduct.getId()).get();
+        Tag technologyTagForRemoval = tagMapper.selectById(technologyTag.getId()).get();
+        productMapper.deleteProductTag(laptopProductForTagRemoval.getId(), technologyTagForRemoval.getId());
+        log.info("Removed Technology tag from Laptop product.");
+
+        Optional<Product> foundLaptopAfterTagRemoval = productMapper.selectById(laptopProduct.getId());
+        foundLaptopAfterTagRemoval.ifPresent(product -> {
+            log.info("Laptop product tags after removal: {}", product.getTags().stream().map(Tag::getName).toList());
+        });
+
+        Order orderToDelete = orderMapper.selectById(order2.getId()).get();
+        orderItemMapper.deleteByOrderId(orderToDelete.getId()); // 手动删除 OrderItem
+        orderMapper.deleteById(orderToDelete.getId());
+        log.info("Deleted Order {} and its items.", orderToDelete.getId());
+
+        Product productToDelete = productMapper.selectById(phoneProduct.getId()).get();
+        productMapper.deleteProductTagsByProductId(productToDelete.getId()); // 删除 Product-Tag 关联
+        productMapper.deleteById(productToDelete.getId());
+        log.info("Deleted Product {} and its tag associations.", productToDelete.getName());
+
+        Category categoryToDelete = categoryMapper.selectById(booksCategory.getId()).get();
+        List<Product> productsInCategory = productMapper.selectProductsByCategoryId(categoryToDelete.getId());
+        for (Product p : productsInCategory) {
+            productMapper.deleteProductTagsByProductId(p.getId());
+            productMapper.deleteById(p.getId());
+        }
+        categoryMapper.deleteById(categoryToDelete.getId());
+        log.info("Deleted Category {} and its products.", categoryToDelete.getName());
+    }
+}
+
+public class MySpringBatisApplication {
+    public static void main(String[] args) {
+        try(AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MySpringBatisConfig.class)){
+            MySpringBatisService service = context.getBean(MySpringBatisService.class);
+            service.run();
+        }
+    }
+}
 ```
