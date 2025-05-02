@@ -75,7 +75,9 @@
 | `ZREMRANGEBYRANK`  | 删   | `ZREMRANGEBYRANK <KEY> <START> <STOP>`                                                     | 删除有序集合中排名位于闭区间`[<START>, <STOP>]`中的元素，排名从`0`计数，支持负数排名                                                                                                                 |
 | `ZREVRANGEBYSCORE` | 查   | `ZREVRANGEBYSCORE <KEY> <MIN> <MAX> [WITHSCORES] [LIMIT <OFFSET> <COUNT>]`                 | 返回有序集合中`<SCORE>`位于闭区间`[<MIN>, <MAX>]`的所有`<MEMBER>`，按`<SCORE>`降序排列，若`<SCORE>`相同则按`<MEMBER>`字典序逆序排列                                                                     |
 | `ZRANDMEMBER`      | 查   | `ZRANDMEMBER <KEY> [<COUNT> [<WITHSCORES>]]`                                               | 从有序集合中随机返回`min(abs(<COUNT>), ZCOUNT <KEY>`个元素，缺省值为`1`。若`<COUNT>`为负，则允许重复地挑选随机元素                                                                                       |
-|                    |     |                                                                                            |                                                                                                                                                                       |
+| `PFADD`            | 增   | `PFADD <KEY> <VALUE>+`                                                                     | 向超级日志添加元素                                                                                                                                                             |
+| `PFCOUNT`          | 查   | `PFCOUNT <KEY>+`                                                                           | 查询超级日志中的元素数量近似值                                                                                                                                                       |
+| `PFMERGE`          | 并   | `PFMERGE <DESTKEY> <SRCKEY>+`                                                              | 取若干个超级日志的并集并保存                                                                                                                                                        |
 
 键值对的元数据：
 

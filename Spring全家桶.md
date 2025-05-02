@@ -4181,55 +4181,106 @@ public class MyRedisApplicationTest {
 }
 ```
 
-以`.opsForValue()`为例，它提供了以下常用的数据操作函数：
+| `.opsFor...()`方法原型                                                                                                                                               | Redis CLI等价命令      | 作用                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | --------------------------------- |
+| `void set(K key, V value)`                                                                                                                                       | `SET`              | 添加键值对                             |
+| `V get(K key, V value)`                                                                                                                                          | `GET`              | 获取键值对                             |
+| `void set(K key, V value, long timeout, TimeUnit unit)`                                                                                                          | `SETEX`            | 添加键值对及其过期时间                       |
+| `Boolean setIfAbsent(K key, V value)`                                                                                                                            | `SETNX`            | 若不存在则添加键值对，返回值表示是否添加              |
+| `void multiSet(Map<K, V> map)`                                                                                                                                   | `MSET`             | 添加多个键值对                           |
+| `List<V> multiGet(Collection<K> keys)`                                                                                                                           | `MGET`             | 获取多个键值对                           |
+| `V getAndSet(K key, V value)`                                                                                                                                    | `GETSET`           | 返回旧值并用新值覆盖                        |
+| `Long increment(K key, long delta)`                                                                                                                              | `INCRBY`           | 添加增量                              |
+| `Boolean setBit(K key, long offset, boolean value)`                                                                                                              | `SETBIT`           | 设置比特                              |
+| `Boolean getBit(K key, long offset)`                                                                                                                             | `GETBIT`           | 获取比特                              |
+| `Long leftPush(K key, V value)`                                                                                                                                  | `LPUSH`            | 在列表头部插入值                          |
+| `Long rightPush(K key, V value)`                                                                                                                                 | `RPUSH`            | 在列表末尾插入值                          |
+| `List<V> range(K key, long start, long end)`                                                                                                                     | `LRANGE`           | 获取列表内闭区间`[start, end]`的元素         |
+| `Long rightPushAll(K key, Collection<V> values)`                                                                                                                 | `RPUSH`            | 在列表尾部插入多个值                        |
+| `Long leftPushAll(K key, Collection<V> values)`                                                                                                                  | `LPUSH`            | 在列表头部插入多个值                        |
+| `void trim(K key, long start, long end)`                                                                                                                         | `LTRIM`            | 只保留列表内闭区间`[start, end]`的元素        |
+| `V leftPop(K key)`                                                                                                                                               | `LPOP`             | 返回并移除列表头部的元素                      |
+| `V rightPop(K key)`                                                                                                                                              | `RPOP`             | 返回并移除列表尾部的元素                      |
+| `V move(Key source, RedislistCommands.Direction from, K destination, RedislistCommands to)`                                                                      | `LMOVE`            | 将列表头部/尾部的元素移动到另一个列表的头部/尾部         |
+| `void set(K key, long index, V value)`                                                                                                                           | `LSET`             | 在列表的索引位置处设置新值                     |
+| `V index(K key, long index)`                                                                                                                                     | `LINDEX`           | 获取列表的索引位置处的值                      |
+| `Long remove(K key, long count, Object value)`                                                                                                                   | `LREM`             | 按值删除列表元素，详见`LREM`指令文档             |
+| `void put(K key, H hash, V value)`                                                                                                                               | `HSET`             | 在哈希表中添加键值对                        |
+| `HV get(K key, Object hashKey)`                                                                                                                                  | `HGET`             | 在哈希表中获取键值对                        |
+| `Map<H, V> entries(K key)`                                                                                                                                       | `HGETALL`          | 在哈希表中获取所有键值对                      |
+| `Set<H> keys(K key)`                                                                                                                                             | `HKEYS`            | 在哈希表中获取所有键                        |
+| `List<V> values(K key)`                                                                                                                                          | `HVALS`            | 在哈希表中获取所有值                        |
+| `Long size(K key)`                                                                                                                                               | `HLEN`             | 查询哈希表的键值对个数                       |
+| `Boolean hasKey(K key, Object hashKey)`                                                                                                                          | `HEXISTS`          | 查询哈希表是否包含指定键值对                    |
+| `Cursor<Map.Entry<H, V>> scan(K key, ScanOptions options)`                                                                                                       | `HSCAN`            | 迭代哈希表中的键值对                        |
+| `Long increment(K key, H hash, long delta)`                                                                                                                      | `HINCRBY`          | 给哈希表中的某个键值对添加增量                   |
+| `void putAll(K key, Map<H, V> map)`                                                                                                                              | `HMSET`            | 设置哈希表中的指定多个键值对                    |
+| `List<V> multiGet(K key, Collection<H> hashs)`                                                                                                                   | `HMGET`            | 获取哈希表中的指定多个键值对                    |
+| `Long delete(K key, Object[] hashs)`                                                                                                                             | `HDEL`             | 删除哈希表中的指定多个键值对                    |
+| `Long add(K key, V[] values)`                                                                                                                                    | `SADD`             | 向集合添加元素                           |
+| `Boolean move(K key, V value, K destKey)`                                                                                                                        | `SMOVE`            | 从原始集合移动                           |
+| `Set<V> members(K key)`                                                                                                                                          | `SMEMBERS`         | 返回集合中的所有元素                        |
+| `List<V> pop(K key, long count)`                                                                                                                                 | `SPOP`             | 随机返回并删除指定个数的元素                    |
+| `Long remove(K key, Object[] values)`                                                                                                                            | `SREM`             | 删除集合中的指定元素                        |
+| `Long size(K key)`                                                                                                                                               | `SCARD`            | 返回集合中的元素数量                        |
+| `Boolean isMember(K key, Object value)`                                                                                                                          | `SISMEMBER`        | 判断元素是否数据集合                        |
+| `Cursor<V> scan(K key, ScanOptions options)`                                                                                                                     | `SSCAN`            | 返回集合元素迭代器                         |
+| `Set<V> intersect(K key, Collection<K> otherKeys)`                                                                                                               | `SINTER`           | 取若干个集合的交集                         |
+| `Long intersectAndStore(K key, K otherKey, K destKey)`                                                                                                           | `SINTERSTORE`      | 取若干个集合的交集并存储在第三个集合中               |
+| `Set<V> union(K key, K otherKey)`                                                                                                                                | `SUNION`           | 取若干个集合的并集                         |
+| `Long unionAndStore(K key, K otherKey, K destKey)`                                                                                                               | `SUNIONSTORE`      | 取若干个集合的并集并保存                      |
+| `Set<V> difference(K key, K otherKey)`                                                                                                                           | `SDIFF`            | 取若干个集合的差集                         |
+| `Long differenceAndStore(Collection<K> keys, K destKey)`                                                                                                         | `SDIFFSTORE`       | 取若干个集合的差集并保存                      |
+| `Boolean add(K key, V value, double score)`                                                                                                                      | `ZADD`             | 向有序集合添加带权元素                       |
+| `Set<V> range(K key, long start, long end)`                                                                                                                      | `ZRANGE`           | 返回有序集合在闭区间`[start, end]`内的元素      |
+| `Set<V> reverseRangeByLex(K key, RedisZSetCommand.Ragne range)`                                                                                                  | `ZREVRANGEBYLEX`   | 返回有序集合所有元素，但是逆序排列                 |
+| `Set<ZSetOpeations.TypedTuple<V>> popMax(K key, long count)`                                                                                                     | -                  | 返回并删除有序集合内权重最大的前`count`个元素        |
+| `Long zCard(K key)`                                                                                                                                              | `ZCARD`            | 返回有序集合的键值对数量                      |
+| `Long removeRange(K key, long start, long end)`                                                                                                                  | `ZREMRANGEBYRANK`  | 删除有序集合在闭区间`[start, end]`内的元素      |
+| `Long count(K key, double min, double max)`                                                                                                                      | `ZCOUNT`           | 返回有序集合中权重位于闭区间`[min, max]`的元素个数   |
+| `Long rank(K key, Object o)`                                                                                                                                     | `ZRANK`            | 返回有序集合中指定元素的排名                    |
+| `Long reverRank(K key, Object o)`                                                                                                                                | `ZREVRANK`         | 返回有序集合中指定元素的逆序排名                  |
+| `Set<ZSetOperations.TypedTuple<V>> reverseRangeWithScores(K key, long start, long end)`                                                                          | `ZREVRANGEBYSCORE` | 返回有序集合中权重排名在闭区间`[start, end]`内的元素 |
+| `Double score(K key, object o)`                                                                                                                                  | `ZSCORE`           | 返回有序集合中指定元素的权重                    |
+| `Set<V> distinctRandomMembers(K key, long count)`                                                                                                                | `ZRANDMEMBER`      | 返回有序集合中的随机`count`个元素              |
+| `Double incrementScore(K key, V value, double delta)`                                                                                                            | `ZINCBRY`          | 给有序集合中指定元素的权重增加增量                 |
+| `Cursor<ZSetOperations.TypedTuple<V>> scan(K key, ScanOptions options)`                                                                                          | `ZSCAN`            | 返回有序集合元素的迭代器                      |
+| `Long unionAndStore(K key, Collection<K> otherKeys, K destKey, RedisZSetCommands.Aggregate aggregate, RdisZSetCommands weights)`                                 | `ZUNIONSTORE`      | 计算若干个有序集合的并集并保存                   |
+| `Set<ZSetOperations.TypedTuple<V>> unionWithScores(K key, Collection<K> otherKeys, RedisZSetCommands.Aggregate aggregate, RedisZSetCommands weights)`            | `ZUNION`           | 计算若干个有序集合的并集                      |
+| `Long intersectAndStore(K key, Collection<K> otherKeys, K destKey, RedisZSetCommands.Aggregate aggregate, RedisZSetCommands.Weights weights)`                    | `ZINTERSOTRE`      | 计算若干个有序集合的交集并保存                   |
+| `Set<ZSetOperations.TypedTuple<V>> intersectWithScores(K key, Collection<K> otherKeys, RedisZSetCommands.Aggregate aggregate, RedisZSetCommands.Weight weights)` | `ZINTER`           | 计算若干个有序集合的交集                      |
+| `Long differenceAndStore(K key, Collection<K> otherKeys, K destKey)`                                                                                             | `ZDIFFSTORE`       | 计算若干个有序集合的差集并保存                   |
+| `Set<ZSetOperations.TypedTuple<V>> differenceWithScores(K key, Collection<K> otherKeys)`                                                                         | `ZDIFF`            | 计算若干个有序集合的差集                      |
+| `Long add(K key, V[] values)`                                                                                                                                    | `PFADD`            | 向超级日志添加元素                         |
+| `void delete(K key)`                                                                                                                                             | -                  | 删除超级日志中的元素                        |
+| `Long size(K[] keys)`                                                                                                                                            | `PFCOUNT`          | 返回超级日志中元素数量的近似值                   |
+| `Long union(K dest, K[] src`)                                                                                                                                    | `PFMERGE`          | 合并若干个超级日志并保存                      |
+| `List<RedisClientInfo> getClientList()`                                                                                                                          | -                  | 返回当前的Redis所有连接                    |
+| `Boolean expire(K key, long timeout, TimeUnit unit)`                                                                                                             | -                  | 设置键的过期时间                          |
+| `Boolean persist(K key)`                                                                                                                                         | `PERSIST`          | 删除键的过期时间，使其永不过期                   |
+| `void rename(K oldKey, K newKey)`                                                                                                                                | `RENAME`           | 重命名键                              |
+| `Boolean hasKey(K key)`                                                                                                                                          | `EXISTS`           | 判断键是否存在                           |
+| `Boolean delete(K key)`                                                                                                                                          | `DEL`              | 删除键                               |
+| `Set<K> keys(K pattern)`                                                                                                                                         | `KEYS`             | 按名搜索键                             |
+| `K randomKey()`                                                                                                                                                  | `RANDOMKEY`        | 随机返回一个键                           |
+| `DataType type(K key)`                                                                                                                                           | `TYPE`             | 返回键的数据列性                          |
+| `Boolean move(K key, int dbIndex)`                                                                                                                               |                    |                                   |
+| `byte[] dump(K key)`                                                                                                                                             |                    |                                   |
+| `void restore(K key, byte[] value, long timeToLive, TimeUnit unit, boolean replace)`                                                                             |                    |                                   |
+| `List<V> sort(SortQuery<K> query)`                                                                                                                               |                    |                                   |
+|                                                                                                                                                                  |                    |                                   |
+|                                                                                                                                                                  |                    |                                   |
+|                                                                                                                                                                  |                    |                                   |
+|                                                                                                                                                                  |                    |                                   |
 
-| `.opsForValue()`方法原型                                                                        | Redis CLI等价命令 | 作用                         |
-| ------------------------------------------------------------------------------------------- | ------------- | -------------------------- |
-| `void set(K key, V value)`                                                                  | `SET`         | 添加键值对                      |
-| `V get(K key, V value)`                                                                     | `GET`         | 获取键值对                      |
-| `void set(K key, V value, long timeout, TimeUnit unit)`                                     | `SETEX`       | 添加键值对及其过期时间                |
-| `Boolean setIfAbsent(K key, V value)`                                                       | `SETNX`       | 若不存在则添加键值对，返回值表示是否添加       |
-| `void multiSet(Map<K, V> map)`                                                              | `MSET`        | 添加多个键值对                    |
-| `List<V> multiGet(Collection<K> keys)`                                                      | `MGET`        | 获取多个键值对                    |
-| `V getAndSet(K key, V value)`                                                               | `GETSET`      | 返回旧值并用新值覆盖                 |
-| `Long increment(K key, long delta)`                                                         | `INCRBY`      | 添加增量                       |
-| `Boolean setBit(K key, long offset, boolean value)`                                         | `SETBIT`      | 设置比特                       |
-| `Boolean getBit(K key, long offset)`                                                        | `GETBIT`      | 获取比特                       |
-| `Long leftPush(K key, V value)`                                                             | `LPUSH`       | 在列表头部插入值                   |
-| `Long rightPush(K key, V value)`                                                            | `RPUSH`       | 在列表末尾插入值                   |
-| `List<V> range(K key, long start, long end)`                                                | `LRANGE`      | 获取列表内闭区间`[start, end]`的元素  |
-| `Long rightPushAll(K key, Collection<V> values)`                                            | `RPUSH`       | 在列表尾部插入多个值                 |
-| `Long leftPushAll(K key, Collection<V> values)`                                             | `LPUSH`       | 在列表头部插入多个值                 |
-| `void trim(K key, long start, long end)`                                                    | `LTRIM`       | 只保留列表内闭区间`[start, end]`的元素 |
-| `V leftPop(K key)`                                                                          | `LPOP`        | 返回并移除列表头部的元素               |
-| `V rightPop(K key)`                                                                         | `RPOP`        | 返回并移除列表尾部的元素               |
-| `V move(Key source, RedislistCommands.Direction from, K destination, RedislistCommands to)` | `LMOVE`       | 将列表头部/尾部的元素移动到另一个列表的头部/尾部  |
-| `void set(K key, long index, V value)`                                                      | `LSET`        | 在列表的索引位置处设置新值              |
-| `V index(K key, long index)`                                                                | `LINDEX`      | 获取列表的索引位置处的值               |
-| `Long remove(K key, long count, Object value)`                                              | `LREM`        | 按值删除列表元素，详见`LREM`指令文档      |
-| `void put(K key, H hash, V value)`                                                          | `HSET`        | 在哈希表中添加键值对                 |
-| `HV get(K key, Object hashKey)`                                                             | `HGET`        | 在哈希表中获取键值对                 |
-| `Map<H, V> entries(K key)`                                                                  | `HGETALL`     | 在哈希表中获取所有键值对               |
-| `Set<H> keys(K key)`                                                                        | `HKEYS`       | 在哈希表中获取所有键                 |
-| `List<V> values(K key)`                                                                     | `HVALS`       | 在哈希表中获取所有值                 |
-| `Long size(K key)`                                                                          | `HLEN`        | 查询哈希表的键值对个数                |
-| `Boolean hasKey(K key, Object hashKey)`                                                     | `HEXISTS`     | 查询哈希表是否包含指定键值对             |
-| `Cursor<Map.Entry<H, V>> scan(K key, ScanOptions options)`                                  | `HSCAN`       | 迭代哈希表中的键值对                 |
-| `Long increment(K key, H hash, long delta)`                                                 | `HINCRBY`     | 给哈希表中的某个键值对添加增量            |
-| `void putAll(K key, Map<H, V> map)`                                                         | `HMSET`       | 设置哈希表中的指定多个键值对             |
-| `List<V> multiGet(K key, Collection<H> hashs)`                                              | `HMGET`       | 获取哈希表中的指定多个键值对             |
-| `Long delete(K key, Object[] hashs)`                                                        | `HDEL`        | 删除哈希表中的指定多个键值对             |
-| `Long add(K key, V[] values)`                                                               | `SADD`        |                            |
-| `Boolean move(K key, V value, K destKey)`                                                   | `SMOVE`       |                            |
-| `Set<V> members(K key)`                                                                     | `SMEMBERS`    |                            |
-| `List<V> pop(K key, long count)`                                                            | `SPOP`        |                            |
-| `Long remove(K key, Object[] values)`                                                       | `SREM`        |                            |
-| `Long size(K key)`                                                                          | `SCARD`       |                            |
-| `Boolean isMember(K key, Object value)`                                                     | `SISMEMBER`   |                            |
-| `Cursor<V> scan(K key, ScanOptions options)`                                                | `SSCAN`       |                            |
-| `Set<V> intersect(K key, Collection<K> otherKeys)`                                          | `SINTER`      |                            |
-| `Long intersectAndStore(K key, K otherKey, K destKey)`                                      |               |                            |
-|                                                                                             |               |                            |
-|                                                                                             |               |                            |
-|                                                                                             |               |                            |
-|                                                                                             |               |                            |
+在上面的方法中，我们每次操作都需要指定键`K key`形参。为了方便地对某一个键进行操作，`RedisTemplate`还提供了键绑定操作子接口：
+
+| 键绑定操作子接口               | 作用      |
+| ---------------------- | ------- |
+| `BoundGeoOpeartions`   | 地理信息绑定  |
+| `BoundHashOpeartions`  | 哈希键绑定   |
+| `BoundKeyOpeartions`   | 键绑定     |
+| `BoundListOpeartions`  | 列表键绑定   |
+| `BoundSetOpeartions`   | 集合键绑定   |
+| `BoundValueOpeartions` | 字符串绑定   |
+| `BoundZSetOpeartions`  | 有序集合键绑定 |
