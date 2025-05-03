@@ -2,9 +2,9 @@
 
 - [《Spring Redis实战开发》](https://wqbook.wqxuetang.com/book/3251192)
 
-# §1 基础语法
+# §1 基础语法与概念
 
-## §1.1 CLI语法
+## §1.1 CRUD
 
 增删改查：
 
@@ -91,3 +91,240 @@
 | `FLUSHDB`   | `FLUSHDB`                                                                                                                        | 清除当前数据库的所有键值对                                 |
 | `RANDOMKEY` | `RAMDOMKEY`                                                                                                                      | 从当前数据库随机返回一个键值对的键名。若数据库为空则返回`nil`             |
 | `SORT`      | `SORT <KEY> [BY <PATTERN>] [LIMIT <OFFSET> <COUNT>] [GET <PATTERN>[GET <PATTERN>...]] [ASC\|DESC] [ALPHA] [STORE <DESTINATION>]` | 排序                                            |
+
+## §1.2 消息机制
+
+Redis提供了基于发布-订阅的消息机制。准确来说，Redis只有消息，没有队列。很多其他专业的消息队列系统（例如Kafka、RabbitMQ）提供了完善的消息堆积与回溯的解决方案。
+
+| REDIS CLI命令    | 语法                                | 作用                             |
+| -------------- | --------------------------------- | ------------------------------ |
+| `SUBSCRIBE`    | `SUBSCRIBE <CHANNEL>+`            | 为客户端订阅若干个通道                    |
+| `UNSUBSCRIBE`  | `UNSUBSCRIBE <CHANNEL>*`          | 删除客户端订阅的若干个通道，若未指定`<PUB>`则全部删除 |
+| `PUBSUB`       | `PUBSUB <CHANNEL_PATTERN>`        | 查看订阅状态（支持通配符）                  |
+| `PUBLISH`      | `PUBLISH <CHANNEL> <MESSAGE>`     | 向频道发布消息                        |
+| `PSUBSCRIBE`   | `PSUBSCRIBE <CHANNEL_PATTERN>+`   | 为客户端订阅若干个通道（支持通配符）             |
+| `PUNSUBSCRIBE` | `PUNSUBSCRIBE <CHANNEL_PATTERN>+` | 为客户端订阅若干个分片通道（支持通配符）           |
+
+```shell
+shell_1:6379> SUBSCRIBE news chat
+1) "subscribe"
+2) "news"
+3) (integer) 1
+
+shell_1:6379> SUBSCRIBE news chat
+1) "subscribe"
+2) "chat"
+3) (integer) 2
+
+shell_2:6379> PUBLISH news "This is news channel."
+(integer) 1
+
+shell_1:6379>
+1) "message"
+2) "news"
+3) "This is news channel."
+```
+
+下面是使用Jedis的Java代码例子：
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.extern.log4j.Log4j2;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPubSub;
+
+@Log4j2
+public class MyRedisPublisher {
+    public static void main(String[] args) {
+        Jedis jedis = new Jedis("localhost", 6379);
+        log.info("[Publisher] Alice send a message: {}", "Hello");
+        jedis.publish("chat", "[Alice] Hello!");
+    }
+}
+
+@Log4j2
+public class MyRedisSubscriber extends JedisPubSub {
+    @Override public void onMessage(String channel, String message) {
+        log.info("[Subscriber] Channel {} got message: {}", channel, message);
+    }
+    @Override public void onSubscribe(String channel, int subscribedChannels) {
+        log.info("[Subscriber] Subscribed to channel {}", channel);
+    }
+    @Override public void onUnsubscribe(String channel, int subscribedChannels) {
+        log.info("[Subscriber] Unsubscribed to channel {}", channel);
+    }
+    public static void main(String[] args) {
+        MyRedisSubscriber subscriber = new MyRedisSubscriber();
+        Jedis jedis = new Jedis("localhost", 6379);
+        jedis.subscribe(subscriber, "chat");
+    }
+}
+/*
+[Subscriber] Subscribed to channel chat
+[Publisher] Alice send a message: Hello
+[Subscriber] Channel chat got message: [Alice] Hello!
+*/
+```
+
+## §1.3 Redis流
+
+自Redis 5.0起，Redis提供了一个新的数据结构——Redis流（Redis Stream）。它是一个专为日志设计的、可持久化的、只能在链表末尾添加元素的数据结构。Redis流维护了一个链表，其中的每个节点都代表一条信息。
+
+|     |     |
+| --- | --- |
+|     |     |
+
+
+
+## §1.x Redis风险
+
+### §1.x.1 缓存雪崩
+
+缓存雪崩指的是：由于缓存未加载、缓存在短时间内大面积失效等原因，大量并发请求访问数据库，导致资源占用率极高甚至宕机。
+
+生产场景中有以下解决方案：
+
+1. 提高缓存的高可用性。使用Redis哨兵模式或Redis集群。
+2. 优化缓存过期时间。要么牺牲更多内存保证缓存永不过期，要么使得各个缓存的过期时间巧妙地错开。
+3. 使用互斥锁。若某线程发现缓存未命中，则直接给键加锁后再查询数据库。若其他线程发现互斥锁，则直接阻塞。这样能保证多个针对同一数据的查询只会查询数据库一次。
+4. 定时更新。若不要求时效性，则可以使用定时任务定期刷新缓存。
+
+### §1.x.2 缓存穿透
+
+缓存穿透指的是：如果多个查询均指向数据库中不存在的数据，那么每次查询的结果虽然均为空值，但是不会写入到Redis中，导致缓存命中率为零，增大数据库查询压力。
+
+生产场景中有以下解决方案：
+
+1. 缓存空对象。如果查询结果依然为空对象，则依然存入Redis中。为了防止该方案占用过多内存，可以设置一个较短的过期时间；为了防止该方案导致缓存与数据库的数据不一致，可以使用消息系统实现同步。**适用于缓存命中率低、数据频繁更新、实时性要求高、代码维护简单**的场景。缺点是**内存占用大、数据不一致**。
+2. 使用布隆过滤器拦截。在查询数据库之前，先过一遍布隆过滤器判断是否查询条目是否存在。如果判定为不存在，那么数据库中肯定不存在，直接返回空值即可；如果判定为存在，则不一定存在，照常执行后续的逻辑。适用于**缓存命中率低、数据相对固定、实时性要求低、内存占用少**的场景。缺点是**代码维护复杂**。
+
+
+
+# §2x 场景实战
+
+以下例子均用Java演示，需要导入这些包作为前置：
+
+```java
+package top.yaner_here.javasite;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Configuration @ComponentScan
+class MyRedisApplicationConfiguration {
+    @Bean public JedisConnectionFactory redisConnectionFactory() {
+        return new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));
+    }
+    @Bean public RedisTemplate<String, String> stringRedisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(redisConnectionFactory);
+        return template;
+    }
+}
+```
+
+## §2.1 过期
+
+> 设计手机验证码登录的逻辑。手机验证码生成后的有效期只有一分钟，且每天每个手机号发送验证码的次数最多为三次。
+
+使用Redis设置两个变量——当前验证码与今日验证码发送次数。
+
+```java
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class) @Log4j2 
+public class MyRedisApplicationTest {
+    @Autowired RedisTemplate<String, String> stringRedisTemplate;
+    @Test public void testTextVerifyCode() {
+        final String phoneNumber = "123456789";
+        final String verifyCode = "123456";
+
+        String verifyCodeKey = "VERIFY_CODE_" + phoneNumber;
+        String verifyCodeCountKey = "VERIFY_CODE_COUNT_" + phoneNumber;
+        Integer verifyCodeCount = 0;
+        try {
+            String verifyCodeCountRedis = stringRedisTemplate.opsForValue().get(verifyCodeCountKey);
+            verifyCodeCount = Integer.parseInt(verifyCodeCountRedis);
+        } catch (NumberFormatException e) {
+            log.info("Phone {} verification code count isn't cached in Redis.", phoneNumber);
+        }
+        if(++verifyCodeCount > 3) {
+            log.info("Phone {} has exceeded verification code limit.", phoneNumber);
+            return;
+        }
+        stringRedisTemplate.opsForValue().set(verifyCodeKey, verifyCode, 60, TimeUnit.SECONDS);
+        stringRedisTemplate.opsForValue().set(
+            verifyCodeCountKey,
+            String.valueOf(verifyCodeCount),
+            verifyCodeCount == 1 ? 24 * 60 * 60 : stringRedisTemplate.getExpire(verifyCodeCountKey),
+            TimeUnit.SECONDS
+        );
+        log.info("Phone {} has refreshed the verify code.", phoneNumber);
+    }
+}
+```
+
+## §2x.x1 有序集合
+
+> 给定若干个字符串作为搜索关键词，和一个用户输入到一半的前缀`p`。请返回任意10个前缀完全匹配的搜索关键词。
+
+可以使用有序集合。我们根据字典序将搜索关键词存储在有序集合中。查询时我们只须设置上下界`p`和`p{`，进行区间查找即可。
+
+```java
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class) @Log4j2
+public class MyRedisApplicationTest {
+    public Set<String> getSimilarKeywords(RedisTemplate<String, String> redisTemplate, String[] keywordsList, String keywordPrefix) {
+        BoundZSetOperations<String, String> operations = redisTemplate.boundZSetOps("keywords");
+        Arrays.stream(keywordsList).forEach(word -> {
+            operations.add(word, 0);
+        });
+        String keywordPrefixStart = keywordPrefix + "`", keywordPrefixEnd = keywordPrefix + "{";
+        operations.add(keywordPrefixStart, 0);
+        operations.add(keywordPrefixEnd, 0);
+        Long indexStart = operations.rank(keywordPrefixStart), indexEnd = operations.rank(keywordPrefixEnd);
+        assert indexStart != null && indexEnd != null;
+        if(indexEnd - indexStart > 10) {
+            indexEnd = indexStart + 11;
+        }
+        return operations.range(indexStart + 1, indexEnd - 1);
+    }
+    @Test public void testIpCounter(@Autowired RedisTemplate<String, String> redisTemplate) {
+        final String[] keywordsList = {"alice", "apple", "absent", "abuse", "academic", "advance", "as", "AI", "artificial", "aside", "above", "always", "anywhere", "affiliation"};
+        assertTrue(getSimilarKeywords(redisTemplate, keywordsList, "b").isEmpty());
+        assertTrue(getSimilarKeywords(redisTemplate, keywordsList, "a").size() == 10);
+    }
+}
+```
+
+## §2x.x2 超级日志
+
+> 设计一个IPv4地址去重器。给定若干个IPv4地址构成的访问日志，求其去重后有多少个互异的IPv4地址。
+
+```java
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class) @Log4j2
+public class MyRedisApplicationTest {
+    @Autowired RedisTemplate<String, String> stringRedisTemplate;
+    private String generateRandomIPv4() {
+        Random random = new Random();
+        return random.nextInt(256) + "." + random.nextInt(256) + "." + random.nextInt(256) + "." + random.nextInt(256);
+    }
+    @Test public void testIpCounter() {
+        HyperLogLogOperations hllOps = stringRedisTemplate.opsForHyperLogLog();
+        hllOps.delete("IP_COUNTER");
+        for(int i = 0; i < 10000; ++i) {
+            hllOps.add("IP_COUNTER", generateRandomIPv4());
+        }
+        log.info("{} of 10000 IP was recorded", hllOps.size("IP_COUNTER"));
+    }
+}
+```

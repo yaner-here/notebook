@@ -4077,6 +4077,8 @@ public class MySpringBatisApplication {
 
 ## §3.3 Redis
 
+### §3.3.1 RedisConnection
+
 Java社区有很多针对Redis的客户端实现，其中SpringData提供了部分实现的支持：
 
 | Redis客户端(Java) | 是否支持SpringData | 特点                                                 |
@@ -4089,8 +4091,6 @@ Spring提供了以下方式与Redis交互：
 
 - 原始方式：实例化一个`RedisConfiguration`，传入`RedisConnectionFactory`构造方法，拿到工厂实例，调用其`.getConnection()`拿到裸的`RedisConnection`实例。
 - Template方式：实例化一个`RedisConfiguration`，传入`RedisConnectionFactory`构造方法，拿到工厂实例，传入`RedisTemplate`拿到一个SpringData Redis Template实例。
-
-### §3.3.1 `RedisConnection`
 
 Spring的`org.springframework.data.redis.connection`包为各类Java Redis客户端提供了统一的**低层次封装**——`RedisConnection`和`RedisConnectionFactory`。
 
@@ -4263,15 +4263,11 @@ public class MyRedisApplicationTest {
 | `Boolean delete(K key)`                                                                                                                                          | `DEL`              | 删除键                               |
 | `Set<K> keys(K pattern)`                                                                                                                                         | `KEYS`             | 按名搜索键                             |
 | `K randomKey()`                                                                                                                                                  | `RANDOMKEY`        | 随机返回一个键                           |
-| `DataType type(K key)`                                                                                                                                           | `TYPE`             | 返回键的数据列性                          |
-| `Boolean move(K key, int dbIndex)`                                                                                                                               |                    |                                   |
-| `byte[] dump(K key)`                                                                                                                                             |                    |                                   |
-| `void restore(K key, byte[] value, long timeToLive, TimeUnit unit, boolean replace)`                                                                             |                    |                                   |
-| `List<V> sort(SortQuery<K> query)`                                                                                                                               |                    |                                   |
-|                                                                                                                                                                  |                    |                                   |
-|                                                                                                                                                                  |                    |                                   |
-|                                                                                                                                                                  |                    |                                   |
-|                                                                                                                                                                  |                    |                                   |
+| `DataType type(K key)`                                                                                                                                           | `TYPE`             | 返回键的数据类型                          |
+| `Boolean move(K key, int dbIndex)`                                                                                                                               | `MOVE`             | 在数据库之间移动键                         |
+| `byte[] dump(K key)`                                                                                                                                             | `DUMP`             | 返回值的原始字节                          |
+| `void restore(K key, byte[] value, long timeToLive, TimeUnit unit, boolean replace)`                                                                             | `RESTORE`          | 执行还原命令                            |
+| `List<V> sort(SortQuery<K> query)`                                                                                                                               | `SORT`             | 排序                                |
 
 在上面的方法中，我们每次操作都需要指定键`K key`形参。为了方便地对某一个键进行操作，`RedisTemplate`还提供了键绑定操作子接口：
 
@@ -4284,3 +4280,532 @@ public class MyRedisApplicationTest {
 | `BoundSetOpeartions`   | 集合键绑定   |
 | `BoundValueOpeartions` | 字符串绑定   |
 | `BoundZSetOpeartions`  | 有序集合键绑定 |
+
+### §3.3.3 序列化
+
+把Java实例存储到Redis中涉及到序列化和反序列化的操作。SpringData Redis的`org.springframework.data.redis.serializer`包提供了两套序列化接口：`RedisSerializer`与`RedisElementReader`+`RedisElementWriter`。
+
+SpringData Redis提供了以下几种`RedisSerializer`的实现：
+
+- `JdkSerializationRedisSerializer`：通过JDK提供`ByteArrayOutputStream`和`ByteArrayInputStream`实现。向Redis中存储可读性极差的字节序列。使用时只需确保对象实现了`Serializable`接口。是默认实现。
+- `StringRedisSerializer`：通过`String`提供的`String.getBytes()`和`String(byte[] bytes)`实现。如果对象的键和值均为字符串，则直接向Redis存储字符序列。这是最轻量级、最高效的实现。
+- `Jackson2JsonRedisSerializer`：通过Jackson和Jackson Databind ObjectMapper实现。
+- `GenericJackson2JsonRedisSerializer`：通过Jackson实现。向Redis中存储JSON字符串。
+- `GenericToStringSerializer`：通过Spring的`ConversionService`实现。向Redis中存储UTF-8字符串。
+- `OxmSerializer`：通过Spring OXM实现。向Redis中存储XML字符串。
+
+`RedisTemplate`实例提供了序列化器的Getter和Setter方法：
+
+| 返回值                  | `RedisTemplate`序列化相关方法                                          | 作用          |
+| -------------------- | --------------------------------------------------------------- | ----------- |
+| `RedisSerializer<?>` | `getDefaultSerializer()`                                        | 获取模版的默认序列化器 |
+| `void`               | `setDefaultSerializer(RedisSerializer<?> serializer)`           | 设置模版的默认序列化器 |
+| `RedisSerializer<?>` | `getHashKeySerializer()`                                        | 获取哈希键的序列化器  |
+| `void`               | `setHashKeySerializer(RedisSerializer<?> hashKeySerializer)`    | 设置哈希键的序列化器  |
+| `RedisSerializer<?>` | `getHashValueSerializer()`                                      | 获取哈希值的序列化器  |
+| `void`               | `setHashValueSerialzer(RedisSerializer<?> hashValueSerializer)` | 设置哈希值的序列化器  |
+| `RedisSerializer<?>` | `getKeySerializer()`                                            | 获取模版的序列化器   |
+| `void`               | `setKeySerializer(RedisSerializer<?> serializer)`               | 设置模版的序列化器   |
+| `RedisSerializer<?>` | `getStringSerializer()`                                         | 获取字符串的序列化器  |
+| `void`               | `setStringSerializer(RedisSerializer<?> stringSerializer)`      | 设置字符串的序列化器  |
+| `RedisSerializer<?>` | `getValueSerializer()`                                          | 获取模版的值序列化器  |
+| `void`               | `setValueSerializer(RedisSerializer<?> serializer)`             | 设置模版的值序列化器  |
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
+
+import java.io.Serializable;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Configuration @ComponentScan
+class MyRedisApplicationConfiguration {
+    @Bean public JedisConnectionFactory redisConnectionFactory() {
+        return new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));
+    }
+    @Bean public RedisTemplate<String, Object> redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+        // template.setValueSerializer(RedisSerializer.java()); // Person(name=Alice, age=18)
+        // template.setValueSerializer(new Jackson2JsonRedisSerializer<>(Object.class)); // {name=Alice, age=18}
+        template.setValueSerializer(RedisSerializer.json()); // Person(name=Alice, age=18)
+        return template;
+    }
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class Person implements Serializable {
+    private String name;
+    private int age;
+}
+
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class) @Log4j2
+public class MyRedisApplicationTest {
+    @Test public void testIpCounter(@Autowired RedisTemplate<String, Object> redisTemplate) {
+        Person person1 = Person.builder().name("Alice").age(18).build();
+        redisTemplate.opsForValue().set("person", person1);
+        System.out.println(redisTemplate.opsForValue().get("person"));
+    }
+}
+```
+
+为了自定义序列化逻辑，SpringData Redis提供了以下三种方法：
+
+- 直接映射：使用`HashOperations`接口的各种实现，例如`Jackson2JsonRedisSerializer`。
+- Redis仓库：使用Redis仓库执行映射转换策略和域对象，支持辅助索引。
+- `HashMapper`接口：使用`HashMapper`接口的各种实现，例如`BeanUtilsHashMapper`、`ObjectHashMapper`、`Jackson2HashMapper`。
+
+以`ObjectHashMapper`为例：
+
+```java
+@Configuration @ComponentScan
+class MyRedisApplicationConfiguration {
+    @Bean public JedisConnectionFactory redisConnectionFactory() {
+        return new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));
+    }
+    @Bean public RedisTemplate<String, Object> redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+        template.setKeySerializer(RedisSerializer.string());
+        template.setValueSerializer(RedisSerializer.byteArray());
+        template.setHashKeySerializer(RedisSerializer.byteArray());
+        template.setHashValueSerializer(RedisSerializer.byteArray());
+        return template;
+    }
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class Person implements Serializable {
+    private String name;
+    private int age;
+}
+
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class) @Log4j2
+public class MyRedisApplicationTest {
+    private final HashMapper<Object, byte[], byte[]> hashMapper = new ObjectHashMapper();
+    @Test public void testSerialization(@Autowired RedisTemplate<String, Object> redisTemplate) {
+        Person person1 = Person.builder().name("Alice").age(18).build();
+        Map<byte[], byte[]> person1map = hashMapper.toHash(person1);
+        HashOperations<String, byte[], byte[]> operations = redisTemplate.opsForHash();
+        operations.putAll("person1", person1map);
+        person1map.forEach((key, value) -> System.out.println(Arrays.toString(key) + ": " + Arrays.toString(value)));
+
+		Map<byte[], byte[]> person2map = operations.entries("person1");  
+		Person person2 = (Person) hashMapper.fromHash(person2map);  
+		assertEquals(person1, person2);
+    }
+}
+/*
+[95, 99, 108, 97, 115, 115]: [116, 111, 112, 46, 121, 97, 110, 101, 114, 95, 104, 101, 114, 101, 46, 106, 97, 118, 97, 115, 105, 116, 101, 46, 80, 101, 114, 115, 111, 110]
+[97, 103, 101]: [49, 56]
+[110, 97, 109, 101]: [65, 108, 105, 99, 101]
+*/
+```
+
+以`Jackson2HashMapper`为例：
+
+```java
+@Configuration @ComponentScan
+class MyRedisApplicationConfiguration {
+    @Bean public JedisConnectionFactory redisConnectionFactory() {
+        return new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));
+    }
+    @Bean public RedisTemplate<String, Object> redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+        template.setKeySerializer(new Jackson2JsonRedisSerializer<>(Object.class));
+        template.setValueSerializer(new Jackson2JsonRedisSerializer<>(Object.class));
+        template.setHashKeySerializer(new Jackson2JsonRedisSerializer<>(Object.class));
+        template.setHashValueSerializer(new Jackson2JsonRedisSerializer<>(Object.class));
+        return template;
+    }
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class Person implements Serializable {
+    private String name;
+    private int age;
+}
+
+@SpringBootTest(classes = MyRedisApplicationConfiguration.class) @Log4j2
+public class MyRedisApplicationTest {
+    private final HashMapper<Object, String, Object> hashMapper = new Jackson2HashMapper(true);
+    @Test public void testIpCounter(@Autowired RedisTemplate<String, Object> redisTemplate) {
+        Person person1 = Person.builder().name("Alice").age(18).build();
+        Map<String, Object> person1map = hashMapper.toHash(person1);
+        HashOperations<String, String, Object> operations = redisTemplate.opsForHash();
+        operations.putAll("person1", person1map);
+        person1map.forEach((key, value) -> System.out.println(key + ": " + value));
+
+        Map<String, Object> person2map = operations.entries("person1");
+        Person person2 = (Person) hashMapper.fromHash(person2map);
+        assertEquals(person1, person2);
+    }
+}
+```
+
+### §3.3.4 缓存
+
+Spring本身并没有提供缓存的实现，它只提供了`org.springframework.cache.CacheManager`接口。而SpringData Redis提供了`org.springframework.data.redis.cache.RedisCacheManager`实现。
+
+Spring在`org.springframework.cache.annotation`包内提供了以下关于缓存的注解：
+
+| Spring缓存注解       | 作用                               |
+| ---------------- | -------------------------------- |
+| `@EnableCaching` | 修饰配置类或方法，开启Spring缓存              |
+| `@Cacheable`     | 修饰方法或类，若缓存命中则直接返回，若未命中则先调用再缓存并返回 |
+| `@CachePut`      | 修饰方法或类，一律先调用再缓存并返回               |
+| `@CacheEvict`    | 修饰方法或类，一律删除缓存                    |
+| `@Caching`       | 修饰方法或类，分组注解                      |
+| `@CacheConfig`   | 修饰类，使得类内方法默认使用同一个缓存名             |
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service;
+import redis.clients.jedis.JedisPoolConfig;
+
+import java.io.Serializable;
+import java.time.Duration;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@ComponentScan
+@EnableAutoConfiguration
+@EnableCaching
+class MyRedisCacheApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        jedisPoolConfig.setMaxTotal(4);
+        jedisPoolConfig.setMaxIdle(4);
+        jedisPoolConfig.setMinIdle(0);
+        jedisPoolConfig.setMaxWait(Duration.ofMillis(200));
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        redisStandaloneConfiguration.setHostName("localhost");
+        redisStandaloneConfiguration.setPort(6379);
+        redisStandaloneConfiguration.setDatabase(0);
+        JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfigurationBuilder = JedisClientConfiguration.builder();
+        jedisClientConfigurationBuilder.usePooling().poolConfig(jedisPoolConfig);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, jedisClientConfigurationBuilder.build());
+    }
+    @Bean StringRedisTemplate redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+    @Bean RedisTemplate<String, User> template(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, User> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(redisConnectionFactory);
+        return redisTemplate;
+    }
+    @Bean(name = {"redisCache1", "redisCache2"})
+    public CacheManager cacheManager(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return RedisCacheManager.create(redisConnectionFactory);
+    }
+}
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+class User implements Serializable {
+    private Long id;
+    private String username;
+    private Long balance;
+}
+
+@Repository("userDao")
+class UserDao {
+    @Autowired private JdbcTemplate jdbcTemplate;
+    public int insert(User user) {
+        return jdbcTemplate.update(
+                "INSERT INTO users(username, balance) VALUES (?, ?);",
+                user.getUsername(), user.getBalance()
+        );
+    }
+    public int update(User user) {
+        return jdbcTemplate.update(
+                "UPDATE users SET username = ?, balance = ? WHERE id = ?;",
+                user.getUsername(), user.getBalance(), user.getId()
+        );
+    }
+    public int delete(String name) {
+        return jdbcTemplate.update(
+                "DELETE FROM users WHERE username = ?;",
+                name
+        );
+    }
+    public User select(Long id) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT id, username, balance FROM users WHERE id = ?",
+                    new BeanPropertyRowMapper<>(User.class), id
+            );
+        } catch (EmptyResultDataAccessException exception) {
+            return null;
+        }
+
+    }
+    public User select(String name) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT id, username, balance FROM users WHERE username = ?",
+                    new BeanPropertyRowMapper<>(User.class), name
+            );
+        } catch (EmptyResultDataAccessException exception) {
+            return null;
+        }
+
+    }
+}
+
+@Service("userService")
+class UserService {
+    @Autowired private UserDao userDao;
+
+    @CachePut(value = "redisCache1", key = "'latest'")
+    public int insert(User user) { return userDao.insert(user); }
+
+    @Caching(evict = {@CacheEvict(value = "redisCache1", key = "'redis_user_1'"), @CacheEvict(cacheNames = "redisCache2", allEntries = true)})
+    public int update(User user) { return userDao.update(user); }
+
+    @Cacheable(value = "redisCache1")
+    public int delete(String name) { return userDao.delete(name); }
+
+    @Cacheable(cacheNames = {"redisCache1", "redisCache2"}, key = "'redis_user_' + #id", condition = "#id < 3")
+    public User select(Long id) { return userDao.select(id); }
+
+    public User select(String name) { return userDao.select(name); }
+}
+
+@SpringBootTest(classes = MyRedisCacheApplicationConfiguration.class)
+public class MyRedisCacheApplicationTest {
+    @Autowired UserService userService;
+    @Test public void testAddUser() {
+        User user1 = User.builder().username("Alice").balance(1000L).build();
+        userService.insert(user1);
+        User user2 = userService.select("Alice");
+        assertEquals(user1.getUsername(), user2.getUsername());
+        assertEquals(user1.getBalance(), user2.getBalance());
+    }
+}
+```
+
+### §3.3.5 消息队列
+
+SpringData Redis提供了基于消息机制的消息队列实现。
+
+对于发布消息，我们可以使用基于`RedisConnection`的`org.springframework.data.redis.connection.RedisPubSubCommands`子接口的`.publish()`/`.subscribe()`/`.psubscribe()`方法，也可以使用基于`RedisTemplate`的`.convertAndSend()`方法。
+
+对于接受消息，我们可以使用基于`RedisConnection`的`org.springframework.data.redis.connection.RedisPubSubCommands`子接口的`.subscribe()`/`.psubscribe()`阻塞方法，也可以使用SpringData Redis提供的异步消息处理组件：
+
+第一种异步处理方式是：自己定义一个实现了`MessageListener`接口的新类，实现其`onMessage(Message, byte[])`方法作为监听的回调函数，通过`message.getChannel()`和`message.getBody()`拿到`byte[]`，反序列化即得通道名和信息字符串。然后自己用`@Bean`包装一下`RedisMessageListenerContainer`的Bean，在其实例化后绑定`redisConnectionFactory`实例、`MessageListener`实例和`ChannelTopic`通道实例即可。
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.extern.log4j.Log4j2;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.data.redis.connection.Message;
+import org.springframework.data.redis.connection.MessageListener;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.stereotype.Component;
+import redis.clients.jedis.JedisPoolConfig;
+
+import java.time.Duration;
+
+@Component @Log4j2
+class MyRedisMessageApplicationListener implements MessageListener {
+    @Autowired private RedisTemplate<String, String> redisTemplate;
+    @Override public void onMessage(Message message, byte[] pattern) {
+        String patternString = pattern.toString();
+        byte[] messageBytes = message.getBody();
+        String messageString = redisTemplate.getStringSerializer().deserialize(messageBytes).toString();
+        byte[] channelBytes = message.getChannel();
+        String channelString = redisTemplate.getStringSerializer().deserialize(channelBytes).toString();
+        log.info("[Listener] onMessage(): pattern={}, channel={}, message={}", patternString, channelString, messageString);
+    }
+}
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@ComponentScan
+class MyRedisMessageApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        jedisPoolConfig.setMaxTotal(4);
+        jedisPoolConfig.setMaxIdle(4);
+        jedisPoolConfig.setMinIdle(0);
+        jedisPoolConfig.setMaxWait(Duration.ofMillis(200));
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        redisStandaloneConfiguration.setHostName("localhost");
+        redisStandaloneConfiguration.setPort(6379);
+        redisStandaloneConfiguration.setDatabase(0);
+        JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfigurationBuilder = JedisClientConfiguration.builder();
+        jedisClientConfigurationBuilder.usePooling().poolConfig(jedisPoolConfig);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, jedisClientConfigurationBuilder.build());
+    }
+    @Bean StringRedisTemplate redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+    @Bean public RedisMessageListenerContainer container(@Autowired RedisConnectionFactory redisConnectionFactory, @Autowired MyRedisMessageApplicationListener redisMessageListener) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(redisConnectionFactory);
+        container.addMessageListener(redisMessageListener, new ChannelTopic("news"));
+        container.addMessageListener(redisMessageListener, new ChannelTopic("chat"));
+        return container;
+    }
+}
+
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)
+public class MyRedisMessageApplicationTest {
+    @Autowired RedisTemplate<String, String> redisTemplate;
+    @Test public void testPublish() {
+        redisTemplate.convertAndSend("news", "hello");
+        redisTemplate.convertAndSend("chat", "world");
+    }
+}
+/*
+[Listener] onMessage(): pattern=[B@7c9b1036, channel=chat, message=world
+[Listener] onMessage(): pattern=[B@569dc0af, channel=news, message=hello
+*/
+```
+
+第二种异步处理方式是：自己随意新建一个Bean，定义一个形参列表为`(String message, String channel)`的方法作为监听的回调函数。然后自己用`@Bean`新建一个`MessageListenerAdapter`的包装Bean，只是设置了`RedisConnectionFactory`实例后就返回。另外一个`@Bean`还是包装后的`RedisMessageListenerContainer`Bean，在其实例化后绑定`RedisConnectionFactory`实例、`MessageListenerAdapter`适配器实例和`ChannelTopic`通道实例即可。
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.extern.log4j.Log4j2;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import org.springframework.stereotype.Component;
+import redis.clients.jedis.JedisPoolConfig;
+
+import java.time.Duration;
+
+@Component @Log4j2
+class MyRedisMessageReceiver {
+    public void receiveMessage(String message, String channel) {
+        log.info("[Receiver] Channel {} received message: {}", channel, message);
+    }
+}
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@ComponentScan
+class MyRedisMessageApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        jedisPoolConfig.setMaxTotal(4);
+        jedisPoolConfig.setMaxIdle(4);
+        jedisPoolConfig.setMinIdle(0);
+        jedisPoolConfig.setMaxWait(Duration.ofMillis(200));
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        redisStandaloneConfiguration.setHostName("localhost");
+        redisStandaloneConfiguration.setPort(6379);
+        redisStandaloneConfiguration.setDatabase(0);
+        JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfigurationBuilder = JedisClientConfiguration.builder();
+        jedisClientConfigurationBuilder.usePooling().poolConfig(jedisPoolConfig);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, jedisClientConfigurationBuilder.build());
+    }
+    @Bean StringRedisTemplate redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+    @Bean public MessageListenerAdapter listenerAdapter() {
+        MyRedisMessageReceiver receiver = new MyRedisMessageReceiver();
+        return new MessageListenerAdapter(receiver, "receiveMessage");
+    }
+    @Bean public RedisMessageListenerContainer container(RedisConnectionFactory factory, MessageListenerAdapter adapter) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(factory);
+        container.addMessageListener(adapter, new ChannelTopic("news"));
+        container.addMessageListener(adapter, new ChannelTopic("chat"));
+        return container;
+    }
+}
+
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)
+public class MyRedisMessageApplicationTest {
+    @Autowired RedisTemplate<String, String> redisTemplate;
+    @Test public void testPublish() {
+        redisTemplate.convertAndSend("news", "hello");
+        redisTemplate.convertAndSend("chat", "world");
+    }
+}
+```
+
+### §3.3.6 Redis流
+
+
+
+```java
+
+```
