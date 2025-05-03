@@ -4804,8 +4804,88 @@ public class MyRedisMessageApplicationTest {
 
 ### §3.3.6 Redis流
 
-
+我们先定义好预置代码：
 
 ```java
+package top.yaner_here.javasite;
 
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.connection.stream.ByteRecord;
+import org.springframework.data.redis.connection.stream.StreamRecords;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import redis.clients.jedis.JedisPoolConfig;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@ComponentScan
+class MyRedisMessageApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        jedisPoolConfig.setMaxTotal(4);
+        jedisPoolConfig.setMaxIdle(4);
+        jedisPoolConfig.setMinIdle(0);
+        jedisPoolConfig.setMaxWait(Duration.ofMillis(200));
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        redisStandaloneConfiguration.setHostName("localhost");
+        redisStandaloneConfiguration.setPort(6379);
+        redisStandaloneConfiguration.setDatabase(0);
+        JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfigurationBuilder = JedisClientConfiguration.builder();
+        jedisClientConfigurationBuilder.usePooling().poolConfig(jedisPoolConfig);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, jedisClientConfigurationBuilder.build());
+    }
+    @Bean StringRedisTemplate redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+}
+```
+
+SpringData Redis支持基于`RedisConnection.xAdd()`的`XADD`操作：
+
+```java
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)  
+public class MyRedisMessageApplicationTest {  
+    @Autowired RedisConnectionFactory redisConnectionFactory;  
+    @Test public void testPublish() {  
+        RedisConnection redisConnection = redisConnectionFactory.getConnection();  
+        Map<byte[], byte[]> map = new HashMap<>();  
+        map.put("username".getBytes(), "Alice".getBytes());  
+        map.put("loginTime".getBytes(), "2025.05.03".getBytes());  
+        ByteRecord byteRecord = StreamRecords.rawBytes(map).withStreamKey("loginfo".getBytes());  
+        redisConnection.xAdd(byteRecord);  
+    }  
+}
+```
+
+SpringData Redis支持基于` RedisTemplate.opsForStream().add()`的`XADD`操作：
+
+```java
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)
+public class MyRedisMessageApplicationTest {
+    @Autowired RedisTemplate<String, String> redisTemplate;
+    @Test public void testPublish() {
+        Map<String, String> map = new HashMap<>();
+        map.put("username", "Alice");
+        map.put("loginTime", "2025.05.03");
+        StreamOperations<String, String, String> streamOperations = redisTemplate.opsForStream();
+        streamOperations.add("loginfo", map);
+    }
+}
 ```
