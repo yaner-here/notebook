@@ -171,32 +171,34 @@ public class MyRedisSubscriber extends JedisPubSub {
 
 自Redis 5.0起，Redis提供了一个新的数据结构——Redis流（Redis Stream）。它是一个专为日志设计的、可持久化的、只能在链表末尾添加元素的数据结构。Redis流维护了一个链表，其中的每个节点都代表一条信息（Entry）。每条信息可以包含若干个键值对。
 
-| Redis CLI命令 | 语法                                           | 作用                                                                                       |
-| ----------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `XADD`      | `XADD <KEY> <ID> [<FIELD> <VALUE>]+`         | 向Redis流末尾追加一条信息。`<ID>`为`*`时表示自动生成ID                                                      |
-| `XLEN`      | `XLEN <KEY>`                                 | 返回Redis流的长度                                                                              |
-| `XRANGE`    | `XRANGE <KEY> <START> <END> [COUNT <COUNT>]` | 获取消息列表。`<START>`可为`-`表示最小值，`<END>`可为`+`表示最大值。若`[START, END]`的长度大于`<COUNT>`则以`<COUNT>`为准。 |
+| Redis CLI命令  | 语法                                                    | 作用                                                                                       |
+| ------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `XADD`       | `XADD <KEY> <ID> [<FIELD> <VALUE>]+`                  | 向Redis流末尾追加一条信息。`<ID>`为`*`时表示自动生成ID                                                      |
+| `XLEN`       | `XLEN <KEY>`                                          | 返回Redis流的长度                                                                              |
+| `XRANGE`     | `XRANGE <KEY> <START> <END> [COUNT <COUNT>]`          | 获取消息列表。`<START>`可为`-`表示最小值，`<END>`可为`+`表示最大值。若`[START, END]`的长度大于`<COUNT>`则以`<COUNT>`为准。 |
+| `XADDGROUP`  | ``                                                    |                                                                                          |
+| `XREADGROUP` | `XREADGROUP GROUP <GROUP> <CONSUMER> [COUNT <COUNT>]` | ``                                                                                       |
+|              |                                                       |                                                                                          |
 
 ```shel
 localhost:db0> XADD loginfo * username Bob loginTime 2025.05.04
 1746281356792-0
+
 localhost:db0> XLEN loginfo
 2
+
 localhost:db0> XRANGE loginfo - +
-1) 1) "1746281348896-0"
-2) 1) "username"
-3) "Alice"
-4) "loginTime"
-5) "2025.05.03"
-6) 1) "1746281356792-0"
-7) 1) "username"
-8) "Bob"
-9) "loginTime"
-10) "2025.05.04"
+1)1)"1746281348896-0"
+2)1)"username"
+2)"Alice"
+3)"loginTime"
+4)"2025.05.03"
+2)1)"1746281356792-0"
+2)1)"username"
+2)"Bob"
+3)"loginTime"
+4)"2025.05.04"
 ```
-
-Redis流提供了
-
 
 ## §1.x Redis风险
 
