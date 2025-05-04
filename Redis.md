@@ -326,7 +326,12 @@ Redis集群有三种模式：实现数据热备份的主从复制模式、保证
 2. 创建一个从节点，有以下三种方法：
 	- 修改配置文件。复制一份默认配置，设置其它的端口号（例如`8000`）启用`replicaof <masterip> <masterport>`这一行，其中`<masterip>`和`<masterport>`分别是主节点的主机名和端口号。使用该配置启动一个从节点。
 	- 指定命令行参数。使用`./redis-server.exe --port <port> --replicaof <masterip> <masterport>`命令行参数指定端口、主节点主机名、主节点端口号。
-	- 使用Redis CLI。
+	- 使用Redis CLI的`REPLICEOF`命令。
+
+| Redis CLI命令 | 语法                                    | 作用             |
+| ----------- | ------------------------------------- | -------------- |
+| `REPLICAOF` | `REPLICAOF <MASTER_IP> <MASTER_PORT>` | 将当前节点设置为从节点    |
+|             | `REPLICAOF NO ONE`                    | 让当前从节点退出主从复制模式 |
 
 在Redis CLI中使用`INFO REPLICATION`查看主从节点信息。其中`save_read_only:1`表示从节点是只读的。
 
