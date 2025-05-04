@@ -239,6 +239,53 @@ localhost:db0> XREADGROUP GROUP my_group consumer_1 COUNT 2 STREAMS my_stream >
 
 Redis事务是一组命令的集合，保证其中的所有命令都顺序执行，不存在两个事务同时执行的情况。
 
+| Redis CLI命令 | 语法             | 作用                                              |
+| ----------- | -------------- | ----------------------------------------------- |
+| `DISCARD`   | `DISCARD`      | 事务的结束符，取消执行事务                                   |
+| `EXEC`      | `EXEC`         | 事务的结束符，开始执行事务                                   |
+| `MULTI`     | `MULTI`        | 事务的开始符                                          |
+| `UNWATCH`   | `UNWATCH`      | 取消监视所有键                                         |
+| `WATCH`     | `WATCH <KEY>+` | 监视多个键，若事务由`EXEC`执行前被修改，则调用`DISCARD`终止事务。用于实现乐观锁 |
+
+```shell
+localhost:db0> MULTI
+OK
+
+localhost:db0> SADD user:1:follow user:2
+QUEUED
+
+localhost:db0> SADD user:2:fan user:1
+QUEUED
+
+localhost:db0> EXEC
+1) 1
+2) 1
+
+localhost:db0> MULTI
+OK
+
+localhost:db0> SADD user:1:follow user:3
+QUEUED
+
+localhost:db0> DISCARD # 取消执行事务
+OK
+```
+
+
+Redis事务不保证事务隔离和原子性。为了解决这个问题，Redis引入了Lua脚本，将其作为一个整体执行，所以自带原子性。
+
+| Redis CLI命令 | 语法                                      | 作用                                           |
+| ----------- | --------------------------------------- | -------------------------------------------- |
+| `EVAL`      | `EVAL <STRING> <NUM_KEY> <KEY>+ <ARG>+` | 把Lua脚本作为一个原子性事务来执行。`<NUM_KEY>`指定了`<KEY>`的数量。 |
+
+```shell
+localhost:db0> EVAL "return redis.call('SET', KEYS[1], ARGV[1])" 1 username yaner
+OK
+
+localhost:db0> GET username
+yaner
+```
+
 ## §1.x Redis风险
 
 ### §1.x.1 缓存雪崩
@@ -261,6 +308,74 @@ Redis事务是一组命令的集合，保证其中的所有命令都顺序执行
 1. 缓存空对象。如果查询结果依然为空对象，则依然存入Redis中。为了防止该方案占用过多内存，可以设置一个较短的过期时间；为了防止该方案导致缓存与数据库的数据不一致，可以使用消息系统实现同步。**适用于缓存命中率低、数据频繁更新、实时性要求高、代码维护简单**的场景。缺点是**内存占用大、数据不一致**。
 2. 使用布隆过滤器拦截。在查询数据库之前，先过一遍布隆过滤器判断是否查询条目是否存在。如果判定为不存在，那么数据库中肯定不存在，直接返回空值即可；如果判定为存在，则不一定存在，照常执行后续的逻辑。适用于**缓存命中率低、数据相对固定、实时性要求低、内存占用少**的场景。缺点是**代码维护复杂**。
 
+## §2 Redis集群
+
+Redis集群有三种模式：实现数据热备份的主从复制模式、保证可用性的哨兵模式、提升吞吐量和可用性的集群模式。
+
+## §2.1 主从复制模式
+
+主从复制模式将Redis服务器划分为主结点和从节点。主节点与从节点是一对多的关系，主节点负责向从节点同步数据。在客户端看来，主节点负责读写，而从节点是只读的。
+
+- 一主一从结构：最简单的主从复制模式，只有两个集群，分别是主节点和从节点。
+- 一主多从结构：一个主节点配多个从节点。优点是有多个从节点，可以分担主节点读操作的工作负载，确实是写入主节点操作较为频繁时，会导致频繁的同步，增加了主节点的工作负载。
+- 树状主从结构：一个主节点配少量从节点，一个从节点配少量从节点，以此类推，使得Redis数据库沿着树状的根节点向下同步。优点是解决了一主多从结构中的根节点对于数据同步的工作负载。
+
+使用以下步骤启用主从复制模式：
+
+1. 使用默认配置启动一个主节点（端口默认为`6379`）。
+2. 创建一个从节点，有以下两种方法：
+	- 修改配置文件。复制一份默认配置，设置其它的端口号（例如`8000`）启用`replicaof <masterip> <masterport>`这一行，其中`<masterip>`和`<masterport>`分别是主节点的主机名和端口号。使用该配置启动一个从节点。
+	- 指定命令行参数。使用`./redis-server.exe --port <port> --replicaof <masterip> <masterport>`命令行参数指定端口、主节点主机名、主节点端口号。
+
+在Redis CLI中使用`INFO REPLICATION`查看主从节点信息。其中`save_read_only:1`表示从节点是只读的。
+
+```shell
+localhost_6379_master:db0> INFO REPLICATION
+# Replication
+role:master
+connected_slaves:1
+slave0:ip=127.0.0.1,port=8000,state=online,offset=56,lag=0
+master_failover_state:no-failover
+master_replid:2645c133ae198e19831079d8867b258025569a6a
+master_replid2:0000000000000000000000000000000000000000
+master_repl_offset:56
+second_repl_offset:-1
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:1
+repl_backlog_histlen:56
+
+localhost_8000_slave:db0> INFO REPLICATION
+# Replication
+role:slave
+master_host:127.0.0.1
+master_port:6379
+master_link_status:up
+master_last_io_seconds_ago:3
+master_sync_in_progress:0
+slave_read_repl_offset:42
+slave_repl_offset:42
+slave_priority:100
+slave_read_only:1
+replica_announced:1
+connected_slaves:0
+master_failover_state:no-failover
+master_replid:2645c133ae198e19831079d8867b258025569a6a
+master_replid2:0000000000000000000000000000000000000000
+master_repl_offset:42
+second_repl_offset:-1
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:1
+repl_backlog_histlen:42
+
+localhost_8000_slave:db0> SET username yaner
+READONLY You can't write against a read only replica.
+```
+
+## §2.2 哨兵模式
+
+## §2.3 集群模式
 
 
 # §2x 场景实战
