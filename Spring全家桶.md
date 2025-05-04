@@ -4311,6 +4311,10 @@ SpringData Redis提供了以下几种`RedisSerializer`的实现：
 | `RedisSerializer<?>` | `getValueSerializer()`                                          | 获取模版的值序列化器  |
 | `void`               | `setValueSerializer(RedisSerializer<?> serializer)`             | 设置模版的值序列化器  |
 
+- `KeySerializer`：用于`ByteRecord.getStream()`方法。
+- `HashKeySerializer`：用于序列化Redis哈希表中的每个键
+- `HashValueSerializer`：用于序列化Redis哈希表中的每个值
+
 ```java
 package top.yaner_here.javasite;
 
@@ -4857,6 +4861,8 @@ class MyRedisMessageApplicationConfiguration {
 }
 ```
 
+#### §3.3.6.1 生产流
+
 SpringData Redis支持基于`RedisConnection.xAdd()`的`XADD`操作：
 
 ```java
@@ -4888,4 +4894,200 @@ public class MyRedisMessageApplicationTest {
         streamOperations.add("loginfo", map);
     }
 }
+```
+
+#### §3.3.6.2 消费流
+
+`RedisConnection`提供了`.xRead()`方法用于**同步**消费流，它会**阻塞**线程。这个方法已被弃用，取而代之的是`.streamCommands.xRead()`：
+
+```java
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)
+public class MyRedisMessageApplicationTest {
+    @Autowired RedisConnectionFactory redisConnectionFactory;
+    @Test public void testPublish() {
+        RedisConnection redisConnection = redisConnectionFactory.getConnection();
+        List<ByteRecord> results = redisConnection.streamCommands().xRead(StreamOffset.fromStart("loginfo".getBytes()));
+        results.forEach(result -> {
+            Map<byte[], byte[]> map = result.getValue();
+            System.out.println(map);
+        });
+    }
+}
+```
+
+`RedisTemplate`的子接口`opsForStream`提供了`.read(StreamReadOptions, StreamOffset)`方法，用于**同步**消费流，其中第一个形参指定读取方式（**阻塞或非阻塞**等），第二个形参指定读取的起点。该函数返回一个`List<MapRecord<String, String, String>`，其中的每个`MapRecord`实例都提供了`.getStream()`获取Redis流的`<KEY>`名、`.getId()`获取消息的`<ID>`、`.getValue()`获取JSON格式的键值对。
+
+```java
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)  
+public class MyRedisMessageApplicationTest {  
+    @Autowired RedisConnectionFactory redisConnectionFactory;  
+    @Autowired RedisTemplate<String, String> redisTemplate;  
+    @Test public void testConsumer() {  
+        StreamOperations<String, String, String> streamOperations = redisTemplate.opsForStream();  
+        StreamReadOptions streamReadOptions = StreamReadOptions.empty();  
+        // streamReadOptions.block(Duration.ofMillis(200)).count(1); // 可以设置阻塞读取  
+        List<MapRecord<String, String, String>> messages = streamOperations.read(streamReadOptions, StreamOffset.fromStart("loginfo"));  
+        if (messages != null) {  
+            messages.forEach(message -> {  
+                System.out.println(message.getStream() + ": " + message.getId() + ": " + message.getValue());  
+            });  
+        }  
+    }  
+}
+/*
+loginfo: 1746281348896-0: {username=Alice, loginTime=2025.05.03}
+loginfo: 1746281356792-0: {username=Bob, loginTime=2025.05.04}
+*/
+```
+
+#### §3.3.6.3 消费组
+
+`RedisConnection`提供了`.xReadGroup()`方法用于**同步**为消费组而消费流，它会**阻塞**线程。这个方法已被弃用，取而代之的是`.streamCommands.xReadGroup()`：
+
+```java
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)
+public class MyRedisMessageApplicationTest {
+    @Autowired RedisConnectionFactory redisConnectionFactory;
+    @Autowired RedisTemplate<String, String> redisTemplate;
+    @Test public void testPublish() {
+        RedisConnection connection = redisConnectionFactory.getConnection();
+        List<ByteRecord> messages = connection.streamCommands().xReadGroup(
+                Consumer.from("my_group", "consumer_1"),
+                StreamReadOptions.empty(),
+                StreamOffset.create("my_stream".getBytes(), ReadOffset.lastConsumed())
+        );
+        if (messages != null) {
+            messages.forEach(message -> {
+                System.out.println(message.getStream() + ": " + message.getId() + ": " + message.getValue());
+            });
+        }
+    }
+}
+```
+
+`RedisTemplate`的`.opsForStream()`子接口提供了`.read(Consumer, StreamReadOptions, StreamOffset)`方法，用于**同步**为消费组而消费流，其中第一个形参由`Consumer.from(<GROUP>,<CONSUMER>)`创建，第二个形参指定读取方式（**阻塞或非阻塞**等），第三个形参通过`StreamOffset(<KEY>,ReadOffset)`指定读取的起点。
+
+`ReadOffset`提供了三种偏移量：
+
+- `ReadOffset.latest()`：读取最新消息
+- `ReadOffset.from(<ID>)`：读取指定ID之后的消息
+- `ReadOffset.lastConsumed()`：读取第一个未被消费的消息
+
+```java
+@SpringBootTest(classes = MyRedisMessageApplicationConfiguration.class)
+public class MyRedisMessageApplicationTest {
+    @Autowired RedisTemplate<String, String> redisTemplate;
+    @Test public void testConsumer() {
+        StreamOperations<String, String, String> streamOperations = redisTemplate.opsForStream();
+        List<MapRecord<String, String, String>> messages = streamOperations.read(
+                Consumer.from("my_group", "consumer_1"),
+                StreamReadOptions.empty(),
+                StreamOffset.create("my_stream", ReadOffset.lastConsumed())
+        );
+        if(messages != null) {
+            messages.forEach(message -> {
+                System.out.printf("stream:%s, id:%s, value:%s", message.getStream(), message.getId(), message.getValue());
+                streamOperations.acknowledge("my_group", message);
+            });
+        }
+    }
+}
+/* stream:my_stream, id:1746348541662-0, value:{username=Bob, age=19} */
+```
+
+SpringData Redis提供了`StreamMessageListenerContainer`接口与`StreamReceiver`基类，共同配合用于**异步**接收消息。本节略。
+
+### §3.3.7 流水线
+
+在传统的Redis C/S架构中，服务端与客户端通过TCP通信，每次客户端发送请求后都会陷入阻塞状态，等待服务器响应后才会执行后续逻辑。这种通信方式会由于往返时间（RTT）而降低通信效率。
+
+Redis流水线允许客户端将打包一组请求，一次性向服务端发送后，接着执行后续逻辑。服务端等待全部命令执行结束后，将所有结果一次性返回给客户端，然后客户端会在后续逻辑中的某个步骤才读取返回值。
+
+`RedisTemplate`提供了以下流水线方法：
+
+| `RedisTemplate`流水线方法                                                    | 作用                    |
+| ----------------------------------------------------------------------- | --------------------- |
+| `List<Object> executePipelined(RedisCallback<?>)`                       | 使用流水线执行操作并返回结果        |
+| `List<Object> executePipelined(RedisCallback<?>, RedisSerializer<?>)`   | 使用流水线执行操作并返回指定序列化器的结果 |
+| `List<Object> executePipelined(SessionCallback<?>)`                     | 使用流水线执行会话并返回结果        |
+| `List<Object> executePipelined(SessionCallback<?>, RedisSerializer<?>)` | 使用流水线执行会话并返回执行序列化器的结构 |
+
+```java
+package top.yaner_here.javasite;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import redis.clients.jedis.JedisPoolConfig;
+
+import java.time.Duration;
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@ComponentScan
+class MyRedisPipelineApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        jedisPoolConfig.setMaxTotal(4);
+        jedisPoolConfig.setMaxIdle(4);
+        jedisPoolConfig.setMinIdle(0);
+        jedisPoolConfig.setMaxWait(Duration.ofMillis(200));
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        redisStandaloneConfiguration.setHostName("localhost");
+        redisStandaloneConfiguration.setPort(6379);
+        redisStandaloneConfiguration.setDatabase(0);
+        JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfigurationBuilder = JedisClientConfiguration.builder();
+        jedisClientConfigurationBuilder.usePooling().poolConfig(jedisPoolConfig);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, jedisClientConfigurationBuilder.build());
+    }
+    @Bean StringRedisTemplate redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+}
+
+@SpringBootTest(classes = MyRedisPipelineApplicationConfiguration.class)
+public class MyRedisPipelineApplicationTest {
+    @Autowired RedisConnectionFactory redisConnectionFactory;
+    @Autowired RedisTemplate<String, String> redisTemplate;
+    @Test public void testPipeline() {
+        ValueOperations<String, String> operations = redisTemplate.opsForValue();
+
+        long startTime = System.currentTimeMillis();
+        for(int i = 0; i < 10000; ++i) {
+            operations.set("key_" + i, String.valueOf(i));
+            operations.get("key_" + i);
+        }
+        long endTime = System.currentTimeMillis();
+        System.out.printf("Unpipelined Time: %d ms\n", endTime - startTime);
+
+        startTime = System.currentTimeMillis();
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for(int i = 0; i < 10000; ++i) {
+                operations.set("key_" + i, String.valueOf(i));
+                operations.get("key_" + i);
+            }
+            return null;
+        });
+        endTime = System.currentTimeMillis();
+        System.out.printf("Pipelined Time: %d ms\n", endTime - startTime);
+    }
+}
+/*
+Unpipelined Time: 2607 ms
+Pipelined Time: 2360 ms
+*/
 ```
