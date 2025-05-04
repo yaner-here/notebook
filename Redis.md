@@ -171,14 +171,12 @@ public class MyRedisSubscriber extends JedisPubSub {
 
 自Redis 5.0起，Redis提供了一个新的数据结构——Redis流（Redis Stream）。它是一个专为日志设计的、可持久化的、只能在链表末尾添加元素的数据结构。Redis流维护了一个链表，其中的每个节点都代表一条信息（Entry）。每条信息可以包含若干个键值对。
 
-| Redis CLI命令  | 语法                                                    | 作用                                                                                       |
-| ------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `XADD`       | `XADD <KEY> <ID> [<FIELD> <VALUE>]+`                  | 向Redis流末尾追加一条信息。`<ID>`为`*`时表示自动生成ID                                                      |
-| `XLEN`       | `XLEN <KEY>`                                          | 返回Redis流的长度                                                                              |
-| `XRANGE`     | `XRANGE <KEY> <START> <END> [COUNT <COUNT>]`          | 获取消息列表。`<START>`可为`-`表示最小值，`<END>`可为`+`表示最大值。若`[START, END]`的长度大于`<COUNT>`则以`<COUNT>`为准。 |
-| `XADDGROUP`  | ``                                                    |                                                                                          |
-| `XREADGROUP` | `XREADGROUP GROUP <GROUP> <CONSUMER> [COUNT <COUNT>]` | ``                                                                                       |
-|              |                                                       |                                                                                          |
+| Redis CLI命令 | 语法                                           | 作用                                                                                      |
+| ----------- | -------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `XADD`      | `XADD <KEY> <ID> [<FIELD> <VALUE>]+`         | 向Redis流末尾追加一条信息。`<ID>`为`*`时表示自动生成ID                                                     |
+| `XLEN`      | `XLEN <KEY>`                                 | 返回Redis流的长度                                                                             |
+| `XRANGE`    | `XRANGE <KEY> <START> <END> [COUNT <COUNT>]` | 获取消息列表。`<START>`可为`-`表示最小值，`<END>`可为`+`表示最大值。若`[START, END]`的长度大于`<COUNT>`则以`<COUNT>`为准 |
+| `XACK`      | `XACK <KEY> <GROUP> <ID>`                    | 消费者向Redis告知已经消费了`GROUP`中的标识符为`<ID>`的消息                                                  |
 
 ```shel
 localhost:db0> XADD loginfo * username Bob loginTime 2025.05.04
@@ -199,6 +197,47 @@ localhost:db0> XRANGE loginfo - +
 3)"loginTime"
 4)"2025.05.04"
 ```
+
+在负载均衡等场景中，我们不需要向所有客户端提供完整的Redis流，而是Redis流的一个划分形成的子集。为此Redis流提供了消费组概念，消息与消费者是多对一关系，每个消费者都要通过名称来表示，每个消费者组都维护一个指针，表示从未使用过的第一个ID。
+
+| Redis CLI命令        | 语法                                                                                                       | 作用                                                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `XGROUP CREATE`    | `XGROUP CREATE <KEY> <GROUP> <ID> [MKSTREAM]`                                                            | 为Redis流`<KEY>`创建名为`<GROUP>`的消费组，从`<ID>`处开始，表示消费者从第几条消息开始消费，设为`$`时表示只消费新追加消息。`MKSTREAM`表示如果`<KEY>`不存在则创建Redis流                                           |
+| `XREADGROUP GROUP` | `XREADGROUP GROUP <GROUP> <CONSUMER> [COUNT <COUNT>] [BLOCK <MILLSECONDS>] [NOACK] STREAMS <KEY>+ <ID>+` | 消费者`<CONSUMER>`从消费组`<GROUP>`中消费`<COUNT>`条消息，阻塞时间至多为`<MILLSECONDS>`毫秒。`<KEY>`表示要读取的消息字段，`<ID>`表示要读取的消息编号，设为`>`表示读取未被消费的信息。`NOACK`表示读取消息但不放入队列，也无须`XACK`。 |
+
+```shell
+localhost:db0> XGROUP CREATE my_stream my_group $ MKSTREAM
+OK
+
+localhost:db0> XADD my_stream * username Alice age 18
+1746342954851-0
+
+localhost:db0> XADD my_stream * username Bob age 19
+1746342968732-0
+
+localhost:db0> XREADGROUP GROUP my_group consumer_1 COUNT 2 STREAMS my_stream >
+1 ) "my_stream"
+2 )     1 )      1 ) "1746342954851-0"
+        2 )      1 ) "username"
+        2 ) "Alice"
+        3 ) "age"
+        4 ) "18"
+        2 )      1 ) "1746342968732-0"
+        2 )      1 ) "username"
+        2 ) "Bob"
+        3 ) "age"
+        4 ) "19"
+
+localhost:db0> XACK my_stream my_group 1746342954851-0 1746342968732-0
+2
+
+localhost:db0> XREADGROUP GROUP my_group consumer_1 COUNT 2 STREAMS my_stream >
+# 没有返回值
+```
+
+## §1.4 Redis事务
+
+Redis事务是一组命令的集合，保证其中的所有命令都顺序执行，不存在两个事务同时执行的情况。
 
 ## §1.x Redis风险
 
