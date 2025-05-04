@@ -5091,3 +5091,97 @@ Unpipelined Time: 2607 ms
 Pipelined Time: 2360 ms
 */
 ```
+
+### §3.3.8 事务
+
+SpringData Redis使用`RedisScript`实例化一个Lua脚本，传递给`RedisTemplate.execute(RedisScript<T>, List<K>, Object[] args)`执行事务。
+
+```lua
+local lottery_participant_key = KEYS[1] -- 抽奖玩家序号  
+local lottery_winner_key = KEYS[2] -- Redis中奖名单列表名  
+local lottery_winner_count = ARGV[1] --  中奖人数  
+  
+if tonumber(lottery_winner_count) <= 0 then  
+    return 0  
+end  
+  
+local lottery_winner_list = redis.call('SRANDMEMBER', lottery_participant_key, lottery_winner_count)  
+if not(lottery_winner_list) then  
+    return 0  
+end  
+  
+return redis.call('SADD', lottery_winner_key, unpack(lottery_winner_list))
+```
+
+```java
+package top.yaner_here.javasite;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
+import redis.clients.jedis.JedisPoolConfig;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Objects;
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@ComponentScan
+class MyRedisPipelineApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        jedisPoolConfig.setMaxTotal(4);
+        jedisPoolConfig.setMaxIdle(4);
+        jedisPoolConfig.setMinIdle(0);
+        jedisPoolConfig.setMaxWait(Duration.ofMillis(200));
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        redisStandaloneConfiguration.setHostName("localhost");
+        redisStandaloneConfiguration.setPort(6379);
+        redisStandaloneConfiguration.setDatabase(0);
+        JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfigurationBuilder = JedisClientConfiguration.builder();
+        jedisClientConfigurationBuilder.usePooling().poolConfig(jedisPoolConfig);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, jedisClientConfigurationBuilder.build());
+    }
+    @Bean StringRedisTemplate redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+    @Bean RedisConnection redisConnection(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return redisConnectionFactory.getConnection();
+    }
+}
+
+@SpringBootTest(classes = MyRedisPipelineApplicationConfiguration.class)
+public class MyRedisPipelineApplicationTest {
+    @Autowired RedisConnectionFactory redisConnectionFactory;
+    @Autowired RedisTemplate<String, String> redisTemplate;
+    @Test public void testPipeline() {
+        RedisScript<Long> redisScript = RedisScript.of(new ClassPathResource("lottery.lua"), Long.class);
+        redisTemplate.delete("lottery_participant");
+        redisTemplate.delete("lottery_winner");
+        
+        for(int i = 0; i < 10; ++i) { // 添加抽奖者
+            redisTemplate.opsForSet().add("lottery_participant", "user_" + i);
+        }
+        redisTemplate.execute(redisScript, List.of("lottery_participant", "lottery_winner"), "3");
+        Objects.requireNonNull(redisTemplate.opsForSet().members("lottery_winner")).forEach(winner -> {
+            System.out.println("Winner: " + winner);
+        });
+    }
+}
+```
