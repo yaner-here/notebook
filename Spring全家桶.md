@@ -5185,3 +5185,49 @@ public class MyRedisPipelineApplicationTest {
     }
 }
 ```
+
+### §3.3.9 集群
+
+在下面的例子中，我们假设主节点位于`127.0.0.1:6379`，从节点位于`127.0.0.1:8000`：
+
+```java
+package top.yaner_here.javasite;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.*;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Configuration
+@EnableAutoConfiguration
+@ComponentScan
+class MyRedisMasterSlaveApplicationConfiguration { }
+
+@SpringBootTest(classes = MyRedisMasterSlaveApplicationConfiguration.class)
+public class MyRedisMasterSlaveApplicationTest {
+    @Test public void testMasterSlave() {
+        JedisConnectionFactory masterJedisConnectionFactory = new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379), JedisClientConfiguration.builder().build()); masterJedisConnectionFactory.afterPropertiesSet();
+        JedisConnectionFactory slaveJedisConnectionFactory = new JedisConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379), JedisClientConfiguration.builder().build()); slaveJedisConnectionFactory.afterPropertiesSet();
+        RedisTemplate<String, String> masterRedisTemplate = new StringRedisTemplate(masterJedisConnectionFactory);
+        RedisTemplate<String, String> slaveRedisTemplate = new StringRedisTemplate(slaveJedisConnectionFactory);
+
+        masterRedisTemplate.opsForValue().set("username", "yaner");
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        assertEquals("yaner", slaveRedisTemplate.opsForValue().get("username"));
+    }
+}
+```
