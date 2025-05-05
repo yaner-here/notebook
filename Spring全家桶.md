@@ -5579,6 +5579,81 @@ public class MyRedisIndexApplicationTest {
 }
 ```
 
+### §3.3.12 示例查询
+
+？？？？？？？
+
+```java
+package top.yaner_here.javasite;  
+  
+import jakarta.annotation.Resource;  
+import lombok.Builder;  
+import lombok.Data;  
+import org.junit.jupiter.api.Test;  
+import org.springframework.beans.factory.annotation.Autowired;  
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;  
+import org.springframework.boot.test.context.SpringBootTest;  
+import org.springframework.context.annotation.*;  
+import org.springframework.data.annotation.Id;  
+import org.springframework.data.domain.Example;  
+import org.springframework.data.redis.connection.*;  
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;  
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;  
+import org.springframework.data.redis.core.RedisHash;  
+import org.springframework.data.redis.core.RedisTemplate;  
+import org.springframework.data.redis.core.index.Indexed;  
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;  
+import org.springframework.data.repository.CrudRepository;  
+import org.springframework.data.repository.query.QueryByExampleExecutor;  
+import org.springframework.stereotype.Repository;  
+  
+import java.util.List;  
+  
+@Data @Builder @RedisHash("person") class Person {  
+    @Id private Integer id;  
+    @Indexed private String name;  
+    private Integer salary;  
+}  
+  
+@Repository interface PersonRepository extends CrudRepository<Person, Integer>, QueryByExampleExecutor<Person> {}  
+  
+@Configuration @EnableAutoConfiguration @EnableRedisRepositories @ComponentScan  
+@PropertySource("classpath:application-test.properties")  
+class MyRedisIndexApplicationConfiguration {  
+    @Bean RedisConnectionFactory redisConnectionFactory() {  
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration("localhost", 6379);  
+        return new JedisConnectionFactory(redisStandaloneConfiguration, JedisClientConfiguration.builder().build());  
+    }  
+    @Bean RedisTemplate<Person, String> redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {  
+        RedisTemplate<Person, String> redisTemplate = new RedisTemplate<>();  
+        redisTemplate.setConnectionFactory(redisConnectionFactory);  
+        return redisTemplate;  
+    }  
+    @Bean RedisConnection redisConnection(@Autowired RedisConnectionFactory redisConnectionFactory) {  
+        return redisConnectionFactory.getConnection();  
+    }  
+}  
+  
+@SpringBootTest(classes = MyRedisIndexApplicationConfiguration.class)  
+public class MyRedisIndexApplicationTest {  
+    @Resource RedisTemplate<Person, String> redisTemplate;  
+    static List<Person> persons = List.of(  
+            Person.builder().id(1).name("Alice").salary(11000).build(),  
+            Person.builder().id(2).name("Bob").salary(14000).build(),  
+            Person.builder().id(3).name("Carol").salary(16000).build(),  
+            Person.builder().id(4).name("David").salary(18000).build()  
+    );  
+    @Autowired private PersonRepository personRepository;  
+    @Test public void testCustomIndex() {  
+        personRepository.saveAll(persons);  
+        Iterable<Person> results = personRepository.findAll(Example.of(Person.builder().name("Bob").build()));  
+        results.forEach(person -> {  
+            System.out.printf("Name: %s, Salary: %d\n", person.getName(), person.getSalary());  
+        });  
+    }  
+}
+```
+
 
 
 
