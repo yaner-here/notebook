@@ -5188,6 +5188,10 @@ public class MyRedisPipelineApplicationTest {
 
 ### §3.3.9 集群
 
+#### §3.3.9.1 主从复制模式
+
+`RedisTemplate`支持`.slaveOf(String hostname, int port)`设置从节点，支持`.slaveOfNoOne()`取消子节点。
+
 在下面的例子中，我们假设主节点位于`127.0.0.1:6379`，从节点位于`127.0.0.1:8000`：
 
 ```java
@@ -5228,6 +5232,181 @@ public class MyRedisMasterSlaveApplicationTest {
             e.printStackTrace();
         }
         assertEquals("yaner", slaveRedisTemplate.opsForValue().get("username"));
+    }
+}
+```
+
+#### §3.3.9.2 哨兵模式
+
+Spring提供了`RedisSentinelConfiguration.master().sentinel()`指定哨兵节点，传入`JedisConnectionFactory`用于创建`RedisSentinelConnection`实例。我们可以调用该实例的`.masters()`和`.replicas(RedisServer)`方法获取主节点和从节点信息。
+
+使用以下步骤搭建一个哨兵模式集群：
+
+1. 使用默认配置（`redis.conf`）启动一个主节点（本例在`6379`端口）
+2. 启动两个从节点（本例在`8001`和`8002`端口）
+3. 启动三个哨兵节点（本例在`26379`、`26380`、`26381`端口）。使用哨兵默认配置（`resential.conf`），编辑其中的`Sentinel monitor <MASTER_NAME> <MASTER_IP> <MASTER_PORT> <QUORUM>`指定监控的主节点与判定主节点下线所需的支持票数。最后使用`redis-sentinel.exe ./resential.conf`启动哨兵节点。
+
+```java
+@SpringBootTest(classes = MyRedisSentinelApplicationConfiguration.class)
+public class MyRedisSentinelApplicationTest {
+    @Test public void testSentinel() {
+        RedisSentinelConfiguration redisSentinelConfiguration = new RedisSentinelConfiguration().master("mymaster").sentinel("127.0.0.1", 26379).sentinel("127.0.0.1", 26380).sentinel("127.0.0.1", 26381);
+        JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(redisSentinelConfiguration);
+        jedisConnectionFactory.afterPropertiesSet();
+        RedisSentinelConnection redisConnection = jedisConnectionFactory.getSentinelConnection();
+
+        Collection<RedisServer> masters = redisConnection.masters();
+        masters.forEach(redisServer -> {
+            System.out.println("Master Node: " + redisServer.getPort());
+        });
+
+        Collection<RedisServer> slaves = redisConnection.replicas(masters.iterator().next());
+        slaves.forEach(redisServer -> {
+            System.out.println("Replica Node: " + redisServer.getPort());
+        });
+    }
+}
+```
+
+六个节点全部运行时，输出结果为：
+
+```log
+Master Node: 6379
+Replica Node: 8002
+Replica Node: 8001
+```
+
+现在手动终止主节点进程，Redis会进行故障转移，再次执行的输出结果为：
+
+```log
+Master Node: 8001
+Replica Node: 8002
+Replica Node: 6379
+```
+
+#### §3.3.9.3 分片集群模式
+
+SpringData Redis提供了`RedisClusterConnection`接口和`RedisTemplate.opsForCluster()`子接口用于读写分片集群。
+
+下面的例子展示了端口号为`8000~8005`这六个节点构成的分片集群：
+
+```java
+@SpringBootTest(classes = MyRedisSentinelApplicationConfiguration.class)
+public class MyRedisSentinelApplicationTest {
+    @Test public void testCluster() {
+        RedisClusterConfiguration redisClusterConfiguration = new RedisClusterConfiguration(List.of("127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8002", "127.0.0.1:8003", "127.0.0.1:8004", "127.0.0.1:8005"));
+        JedisConnectionFactory redisConnectionFactory = new JedisConnectionFactory(redisClusterConfiguration);
+        redisConnectionFactory.afterPropertiesSet();
+
+        // RedisClusterConnection(集群读写)
+        RedisClusterConnection redisClusterConnection = redisConnectionFactory.getClusterConnection();
+        redisClusterConnection.stringCommands().set("username".getBytes(), "yaner".getBytes());
+        assertEquals("yaner", new String(redisClusterConnection.stringCommands().get("username".getBytes())));
+
+        // RedisTemplate(集群读写)
+        RedisTemplate<String, String> redisTemplate = new StringRedisTemplate(redisConnectionFactory);
+        ClusterOperations<String, String> clusterOperations = redisTemplate.opsForCluster();
+        redisTemplate.opsForValue().set("gender", "male");
+        assertEquals("male", redisTemplate.opsForValue().get("gender"));
+
+        // RedisClusterNode(节点读)
+        List.of(8000, 8001, 8002, 8003, 8004, 8005).forEach(portNumber -> {
+            RedisClusterNode redisClusterNode = new RedisClusterNode("127.0.0.1", portNumber);
+            clusterOperations.keys(redisClusterNode, "*").forEach(key -> {
+                System.out.printf("[Node %d] %s\n", portNumber, key);
+            });
+        });
+    }
+}
+/*
+[Node 8002] username
+[Node 8002] gender
+[Node 8005] username
+[Node 8005] gender
+*/
+```
+
+除此以外，`ClusterOperations`子接口还提供了以下管理集群的方法：
+
+- `.flushDb(RedisClusterNode)`：用于刷新节点数据
+- `.save(RedisClusterNode)`：用于保存节点快照
+- `.bgSave(RedisClusterNode)`：用于后台保存节点数据
+- `.addSlots(RedisClusterNode, int[])`：向节点添加槽
+- `.addSlots(RedisClusterNode, RedisClusterNode.SlotRange)`：向节点添加一段范围内的槽
+- `.reshard(RedisClusterNode, int, RedisClusterNode)`：将指定的槽移动到另一个节点
+- `.forgot(RedisClusterNode)`：从集群中移除节点
+- `.meet(RedisClusterNode)`：向集群中添加节点
+- `.getReplicas(RedisClusterNode)`：返回指定主节点的所有从节点
+- `.shutdown(RedisClusterNode)`：关闭节点
+- `.bgReWriteAof(RedisClusterNode)`：为节点启用AOF重写
+
+### §3.3.10 Redis仓库
+
+Redis仓库是一款由Spring基于Java持久层API（Java Persistence API, JPA）提供的数据持久化存储工具。
+
+```java
+package top.yaner_here.javasite;
+
+import jakarta.persistence.Id;
+import lombok.Builder;
+import lombok.Data;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.*;
+import org.springframework.data.redis.connection.*;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import org.springframework.data.repository.CrudRepository;
+import org.springframework.stereotype.Repository;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Data @Builder @RedisHash("person")
+class Person {
+    @Id String id;
+    String name;
+    String age;
+}
+
+@Repository interface PersonRepository extends CrudRepository<Person, String> { }
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@EnableRedisRepositories
+@ComponentScan
+class MyRedisRepolApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration("localhost", 6379);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, JedisClientConfiguration.builder().build());
+    }
+    @Bean(name = "redisTemplate") RedisTemplate<String, String> redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+    @Bean(name = "personRedisTemplate") RedisTemplate<Person, String> personRedisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<Person, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+        return template;
+    }
+    @Bean RedisConnection redisConnection(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return redisConnectionFactory.getConnection();
+    }
+}
+
+@SpringBootTest(classes = MyRedisRepolApplicationConfiguration.class)
+public class MyRedisRepoApplicationTest {
+    @Autowired PersonRepository personRepository;
+    @Test public void testRepo() {
+        Person person = Person.builder().id("1").name("Alice").age("18").build();
+        personRepository.save(person);
+        assertTrue(personRepository.findById("1").isPresent());
+        assertEquals(person, personRepository.findById("1").get());
     }
 }
 ```
