@@ -308,9 +308,16 @@ yaner
 1. 缓存空对象。如果查询结果依然为空对象，则依然存入Redis中。为了防止该方案占用过多内存，可以设置一个较短的过期时间；为了防止该方案导致缓存与数据库的数据不一致，可以使用消息系统实现同步。**适用于缓存命中率低、数据频繁更新、实时性要求高、代码维护简单**的场景。缺点是**内存占用大、数据不一致**。
 2. 使用布隆过滤器拦截。在查询数据库之前，先过一遍布隆过滤器判断是否查询条目是否存在。如果判定为不存在，那么数据库中肯定不存在，直接返回空值即可；如果判定为存在，则不一定存在，照常执行后续的逻辑。适用于**缓存命中率低、数据相对固定、实时性要求低、内存占用少**的场景。缺点是**代码维护复杂**。
 
-## §2 Redis集群
+# §2 Redis集群
 
-Redis集群有三种模式：实现数据热备份的主从复制模式、保证可用性的哨兵模式、提升吞吐量和可用性的集群模式。
+Redis集群有三种模式：实现数据热备份的主从复制模式、保证可用性的哨兵模式、提升吞吐量和可用性的分片集群模式。
+
+| Redis集群模式 | 优点                                                       | 缺点                                                                                                                                   |
+| --------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 主从复制模式    | 1. 主节点宕机后可以手动指定从节点为新的主节点<br>2. 主从节点数据同步是非阻塞的，同步期间仍能保证可用性 | 1. 主从节点数据同步是非阻塞的，容易导致数据不一致<br>2. 主从节点数据同步为全量复制，网络开销大<br>3. 从节点数量过多时，容易导致复制风暴<br>4. 难以在线扩容                                            |
+| 哨兵模式      | 主从复制模式的所有优点                                              | 1. 部署困难，难以扩容<br>2. 哨兵节点不参与数据存储，造成资源浪费                                                                                                |
+| 分片集群模式    | 1. 使用哈希槽，降低主从节点同步的网络开销<br>2. 支持在线扩容                      | 1. 在集群层面无容错能力，一个集群宕机导致整个分片集群宕机<br>2. 不支持多个数据库空间，只能使用`db0`<br>3. 键是基本单位，无法对大体积的值进行分布式存储<br>4. 无法解决热点读写问题，数据均匀分布不代表均匀读写，容易出现某个槽负载过大的情况 |
+
 
 ## §2.1 主从复制模式
 
@@ -381,8 +388,290 @@ READONLY You can't write against a read only replica.
 
 ## §2.2 哨兵模式
 
-## §2.3 集群模式
+哨兵模式常常与主从复制模式搭配使用。哨兵节点负责监控主节点是否存活，如果超过半数的哨兵节点报告某个主节点失联，则随机选一个从节点晋升为主节点。
 
+使用以下步骤搭建一个哨兵模式集群：
+
+1. 使用默认配置（`redis.conf`）启动一个主节点（本例在`6379`端口）
+2. 启动两个从节点（本例在`8001`和`8002`端口）
+3. 启动三个哨兵节点（本例在`26379`、`26380`、`26381`端口）。使用哨兵默认配置（`resential.conf`），编辑其中的`Sentinel monitor <MASTER_NAME> <MASTER_IP> <MASTER_PORT> <QUORUM>`指定监控的主节点与判定主节点下线所需的支持票数。最后使用`redis-sentinel.exe ./resential.conf`启动哨兵节点。
+
+```conf
+sentinel monitor mymaster 127.0.0.1 6379 2
+sentinel down-after-millseconds <MASTER_NAME> <TIME> # 等待主节点回应的超时时间
+sentinel parrallel-syncs <MASTER_NAME> <NUM> # 指定最多有多少从节点并行参与主节点同步
+sentinel failover-timeout <MASTER_NAME> <TIME> # 指定故障转移的超时时间
+```
+
+| Redis CLI命令 | 语法                                                                  | 作用                           |
+| ----------- | ------------------------------------------------------------------- | ---------------------------- |
+| `SENTINEL`  | `SENTINEL MASTER <MASTER_NAME>`                                     | 返回主节点的信息                     |
+|             | `SENTINEL REPLICAS <MASTER_NAME>`                                   | 返回所有从节点的信息                   |
+|             | `SENTINEL SENTINELS <MASTER_NAME>`                                  | 返回监视主节点的所有哨兵节点信息             |
+|             | `SENTINEL GET-MASTER-ADDR-BY-NAME <MASTER_NAME>`                    | 返回主节点的主机名与端口号                |
+|             | `SENTINEL CKQUORUM <MASTER_NAME>`                                   | 验证哨兵节点数量能否满足`<QUORUM>`       |
+|             | `SENTINEL PENDING-SCRIPTS`                                          | 列出故障转移期间待执行的事务               |
+|             | `SENTINEL FAILOVER <MASTER_NAME>`                                   | 手动触发针对主节点的故障转移，只应该在测试环境中使用   |
+|             | `SENTINEL MONITOR <MASTER_NAME> <MASTER_IP> <MASTER_PORT> <QUORUM>` | 监视新的主节点                      |
+|             | `SENTINEL REMOVE <MASTER_NAME>`                                     | 停止监视主节点                      |
+|             | `SENTINEL SET <MASTER_NAME> <OPTION> <VALUE>`                       | 更改哨兵节点的属性                    |
+|             | `SENTINEL RESET <MASTER_NAME_PATTERN>`                              | 重置哨兵节点的所有属性，可以使用通配符`*`       |
+|             | `SENTINEL FLUSHCONFIG`                                              | 将哨兵节点的当前属性覆写到`sentinel.conf` |
+
+```shell
+$ redis-cli -h 127.0.0.1 -p 26379
+
+127.0.0.1:26379> SENTINEL MASTERS
+1)  1) "name"
+    2) "mymaster"
+    3) "ip"
+    4) "127.0.0.1"
+    5) "port"
+    6) "6379"
+    7) "runid"
+    8) "5a594985da7f494bc338df3bf42fc42617709e91"
+    9) "flags"
+   2) "master"
+   3) "link-pending-commands"
+   4) "0"
+   5) "link-refcount"
+   6) "1"
+   7) "last-ping-sent"
+   8) "0"
+   9) "last-ok-ping-reply"
+   10) "797"
+   11) "last-ping-reply"
+   12) "797"
+   13) "down-after-milliseconds"
+   14) "30000"
+   15) "info-refresh"
+   16) "6424"
+   17) "role-reported"
+   18) "master"
+   19) "role-reported-time"
+   20) "166974"
+   21) "config-epoch"
+   22) "0"
+   23) "num-slaves"
+   24) "1"
+   25) "num-other-sentinels"
+   26) "2"
+   27) "quorum"
+   28) "2"
+   29) "failover-timeout"
+   30) "180000"
+   31) "parallel-syncs"
+   32) "1"
+
+127.0.0.1:26379> SENTINEL MASTER mymaster
+ 1) "name"
+ 2) "mymaster"
+ 3) "ip"
+ 4) "127.0.0.1"
+ 5) "port"
+ 6) "6379"
+ 7) "runid"
+ 8) "5a594985da7f494bc338df3bf42fc42617709e91"
+ 9) "flags"
+10) "master"
+11) "link-pending-commands"
+12) "0"
+13) "link-refcount"
+14) "1"
+15) "last-ping-sent"
+16) "0"
+17) "last-ok-ping-reply"
+18) "545"
+19) "last-ping-reply"
+20) "545"
+21) "down-after-milliseconds"
+22) "30000"
+23) "info-refresh"
+24) "2401"
+25) "role-reported"
+26) "master"
+27) "role-reported-time"
+28) "273392"
+29) "config-epoch"
+30) "0"
+31) "num-slaves"
+32) "1"
+33) "num-other-sentinels"
+34) "2"
+35) "quorum"
+36) "2"
+37) "failover-timeout"
+38) "180000"
+39) "parallel-syncs"
+40) "1"
+
+127.0.0.1:26379> SENTINEL REPLICAS mymaster
+1)  1) "name"
+    2) "127.0.0.1:8000"
+    3) "ip"
+    4) "127.0.0.1"
+    5) "port"
+    6) "8000"
+    7) "runid"
+    8) "5ca19e05f99caf1d63e5638567e5cd15b2bc94d7"
+    9) "flags"
+   2) "slave"
+   3) "link-pending-commands"
+   4) "0"
+   5) "link-refcount"
+   6) "1"
+   7) "last-ping-sent"
+   8) "0"
+   9) "last-ok-ping-reply"
+   10) "890"
+   11) "last-ping-reply"
+   12) "890"
+   13) "down-after-milliseconds"
+   14) "30000"
+   15) "info-refresh"
+   16) "9409"
+   17) "role-reported"
+   18) "slave"
+   19) "role-reported-time"
+   20) "290422"
+   21) "master-link-down-time"
+   22) "0"
+   23) "master-link-status"
+   24) "ok"
+   25) "master-host"
+   26) "127.0.0.1"
+   27) "master-port"
+   28) "6379"
+   29) "slave-priority"
+   30) "100"
+   31) "slave-repl-offset"
+   32) "125564"
+   33) "replica-announced"
+   34) "1"
+
+127.0.0.1:26379> SENTINEL SENTINELS mymaster
+1)  1) "name"
+    2) "cd1975372d6f6f939c74c00557f1b96f005c9738"
+    3) "ip"
+    4) "127.0.0.1"
+    5) "port"
+    6) "26381"
+    7) "runid"
+    8) "cd1975372d6f6f939c74c00557f1b96f005c9738"
+    9) "flags"
+   2) "sentinel"
+   3) "link-pending-commands"
+   4) "0"
+   5) "link-refcount"
+   6) "1"
+   7) "last-ping-sent"
+   8) "0"
+   9) "last-ok-ping-reply"
+   10) "87"
+   11) "last-ping-reply"
+   12) "87"
+   13) "down-after-milliseconds"
+   14) "30000"
+   15) "last-hello-message"
+   16) "1688"
+   17) "voted-leader"
+   18) "?"
+   19) "voted-leader-epoch"
+   20) "0"
+21)  1) "name"
+    2) "ca09e4909f94e584eee83a55f4ce122b89fe53ca"
+    3) "ip"
+    4) "127.0.0.1"
+    5) "port"
+    6) "26380"
+    7) "runid"
+    8) "ca09e4909f94e584eee83a55f4ce122b89fe53ca"
+    9) "flags"
+   22) "sentinel"
+   23) "link-pending-commands"
+   24) "0"
+   25) "link-refcount"
+   26) "1"
+   27) "last-ping-sent"
+   28) "0"
+   29) "last-ok-ping-reply"
+   30) "87"
+   31) "last-ping-reply"
+   32) "87"
+   33) "down-after-milliseconds"
+   34) "30000"
+   35) "last-hello-message"
+   36) "1829"
+   37) "voted-leader"
+   38) "?"
+   39) "voted-leader-epoch"
+   40) "0"
+```
+
+## §2.3 分片集群模式
+
+我们将一个主从复制模式称为一个集群，若干集群之间互相通信就构成了分片集群模式。该模式去中心化，各个集群之间互相平等。
+
+每个集群只负责数据库中的一个子集，子集的划分方法有哈希分区和顺序分区两类，而Redis采用的是哈希分区中的虚拟槽分区算法。具体来说，对于客户端发来的键值对写入请求，Redis会计算其槽号`HashSlot(<KEY>) = CC16(<KEY>) % 16384`，并将这`16384`的槽空间按顺序均匀地分配给各个集群。
+
+使用以下步骤搭建一个具有三个集群的分片集群：
+
+1. 编辑默认配置（`redis.conf`），将端口号分别改为`8000`、`8001`、`8002`、`8003`、`8004`、`8005`，同时启用`cluster-enable true`、`replica-read-only yes`、`cluster-config-file <CONF_FILE>`，启动这六个节点。**这里的`<CONF_FILE>`表示该节点运行后的配置持久化文件，必须与`redis-server`指定的配置文件名不一致！并且使用`redis-server`执行前需要提前删除！**
+2. 执行`redis-cli --cluster create 127.0.0.1:8000 127.0.0.1:8001 127.0.0.1:8002 127.0.0.1:8003 127.0.0.1:8004 127.0.0.1:8005 --cluster-replicas 1`。其中`--cluster-replicas`指定每个分片集群的从节点数量。Redis CLI会自动计算出最佳分配方案。
+
+```shell
+$ redis-cli --cluster create 127.0.0.1:8000 127.0.0.1:8001 127.0.0.1:8002 127.0.0.1:8003 127.0.0.1:8004 127.0.0.1:8005 --cluster-replicas 1
+>>> Performing hash slots allocation on 6 nodes...
+Master[0] -> Slots 0 - 5460
+Master[1] -> Slots 5461 - 10922
+Master[2] -> Slots 10923 - 16383
+Adding replica 127.0.0.1:8004 to 127.0.0.1:8000
+Adding replica 127.0.0.1:8005 to 127.0.0.1:8001
+Adding replica 127.0.0.1:8003 to 127.0.0.1:8002
+>>> Trying to optimize slaves allocation for anti-affinity
+[WARNING] Some slaves are in the same host as their master
+M: b91deb96455a65bdf3f05ba56cd2446e1946642b 127.0.0.1:8000
+   slots:[0-5460] (5461 slots) master
+M: 2a5afbc8f83efdb0b684693b20e75d6dec9d7338 127.0.0.1:8001
+   slots:[5461-10922] (5462 slots) master
+M: c9db298e49b742f0870fae010faa5184ceb8062d 127.0.0.1:8002
+   slots:[10923-16383] (5461 slots) master
+S: 2d51e638e7568100c6096e55450466e98dc070d9 127.0.0.1:8003
+   replicates b91deb96455a65bdf3f05ba56cd2446e1946642b
+S: 8175b72faee276a6c1368d2af0812163c0217a75 127.0.0.1:8004
+   replicates 2a5afbc8f83efdb0b684693b20e75d6dec9d7338
+S: ba4419615d23721cabeeac01e4f797e6357521e5 127.0.0.1:8005
+   replicates c9db298e49b742f0870fae010faa5184ceb8062d
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join
+
+>>> Performing Cluster Check (using node 127.0.0.1:8000)
+M: b91deb96455a65bdf3f05ba56cd2446e1946642b 127.0.0.1:8000
+   slots:[0-5460] (5461 slots) master
+   1 additional replica(s)
+M: 2a5afbc8f83efdb0b684693b20e75d6dec9d7338 127.0.0.1:8001
+   slots:[5461-10922] (5462 slots) master
+   1 additional replica(s)
+M: c9db298e49b742f0870fae010faa5184ceb8062d 127.0.0.1:8002
+   slots:[10923-16383] (5461 slots) master
+   1 additional replica(s)
+S: 2d51e638e7568100c6096e55450466e98dc070d9 127.0.0.1:8003
+   slots: (0 slots) slave
+   replicates b91deb96455a65bdf3f05ba56cd2446e1946642b
+S: 8175b72faee276a6c1368d2af0812163c0217a75 127.0.0.1:8004
+   slots: (0 slots) slave
+   replicates 2a5afbc8f83efdb0b684693b20e75d6dec9d7338
+S: ba4419615d23721cabeeac01e4f797e6357521e5 127.0.0.1:8005
+   slots: (0 slots) slave
+   replicates c9db298e49b742f0870fae010faa5184ceb8062d
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+```
 
 # §2x 场景实战
 
