@@ -5344,6 +5344,12 @@ public class MyRedisSentinelApplicationTest {
 
 Redis仓库是一款由Spring基于Java持久层API（Java Persistence API, JPA）提供的数据持久化存储工具。
 
+我们遵循以下步骤：
+
+- 创建一个名为`Person`的`@Data`模型类，使用`@RedisHash(String)`指定Redis的哈希表键空间（即键的前缀），使用`jakarta.persistence`提供的`@Id`注解修饰主键字段`String id`。
+- 创建一个名为`PersonRepository`的`@Repository`仓库接口，作为`CrudRepository<Person, String>`接口的子类。
+- 创建一个名为`MyRedisRepoApplicationConfiguration`的`@Configuration`配置类，使用`@EnableRedisRepositories`注解，表示自动搜索所有`CrudRepository`的子类，并为其自动生成Redis的实现代理类。
+
 ```java
 package top.yaner_here.javasite;
 
@@ -5410,3 +5416,170 @@ public class MyRedisRepoApplicationTest {
     }
 }
 ```
+
+在上文中，我们使用`@RedisHash(String)`指定Redis的哈希表键空间（即键的前缀）。这个哈希表由以下键构成：
+
+- `键空间`：集合，存储所有`@Indexed`字段值
+- `键空间:@Id字段值`：哈希表，存储对象在序列化后的若干键值对
+- `键空间:@Id字段值:idx`：集合，存储指向另一个键的键名，与`@Indexed`名相关
+- `键空间:@Indexed字段名:@Indexed字段值`：集合，存储检索字段对应的`@Id字段值`
+
+在未指定`@Indexed`时，它的缺省值即为`@Id`指定的字段。我们可以给其它字段加上该索引：
+
+```java
+package top.yaner_here.javasite;
+
+import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.*;
+import org.springframework.data.redis.connection.*;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.index.Indexed;
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import org.springframework.data.repository.CrudRepository;
+import org.springframework.stereotype.Repository;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor @RedisHash("person")
+class Person {
+    @Id String id;
+    @Indexed String name;
+    String age;
+}
+
+@Repository interface PersonRepository extends CrudRepository<Person, String> { }
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@EnableRedisRepositories
+@ComponentScan
+class MyRedisRepoApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration("localhost", 6379);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, JedisClientConfiguration.builder().build());
+    }
+    @Bean(name = "redisTemplate") RedisTemplate<String, String> redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+    @Bean(name = "personRedisTemplate") RedisTemplate<Person, String> personRedisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<Person, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+        return template;
+    }
+    @Bean RedisConnection redisConnection(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return redisConnectionFactory.getConnection();
+    }
+}
+
+@SpringBootTest(classes = MyRedisRepoApplicationConfiguration.class)
+public class MyRedisRepoApplicationTest {
+    @Autowired PersonRepository personRepository;
+    @Test public void testRepo() {
+        personRepository.save(Person.builder().id("1").name("Alice").age("18").build());
+        personRepository.save(Person.builder().id("2").name("Bob").age("19").build());
+        assertTrue(personRepository.findById("1").isPresent());
+    }
+}
+```
+
+### §3.3.11 辅助索引
+
+有时我们不满足于以键值对为基础的索引，而更希望以桶为基础，每个桶负责处理值的一个范围。Redis提供了有序数据结构，我们可以让自定义的索引字段值作为该有序数据的元素，从而间接地通过二分查找模拟实现任意桶的查找操作。
+
+例如——找出工资在`10000~15000`的所有人：
+
+```java
+package top.yaner_here.javasite;
+
+import lombok.Builder;
+import lombok.Data;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.*;
+import org.springframework.data.redis.connection.*;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import org.springframework.data.redis.serializer.RedisSerializer;
+
+import java.util.List;
+import java.util.Set;
+
+@Data @Builder class Person {
+    private Integer id;
+    private String name;
+    private Integer salary;
+}
+
+@Configuration
+@PropertySource("classpath:application-test.properties")
+@EnableAutoConfiguration
+@EnableRedisRepositories
+@ComponentScan
+class MyRedisIndexApplicationConfiguration {
+    @Bean RedisConnectionFactory redisConnectionFactory() {
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration("localhost", 6379);
+        return new JedisConnectionFactory(redisStandaloneConfiguration, JedisClientConfiguration.builder().build());
+    }
+    @Bean RedisTemplate<String, Object> redisTemplate(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(redisConnectionFactory);
+        redisTemplate.setKeySerializer(RedisSerializer.string());
+        redisTemplate.setValueSerializer(RedisSerializer.string());
+        redisTemplate.setHashKeySerializer(RedisSerializer.string());
+        redisTemplate.setHashValueSerializer(RedisSerializer.json());
+        return redisTemplate;
+    }
+    @Bean RedisConnection redisConnection(@Autowired RedisConnectionFactory redisConnectionFactory) {
+        return redisConnectionFactory.getConnection();
+    }
+}
+
+@SpringBootTest(classes = MyRedisIndexApplicationConfiguration.class)
+public class MyRedisIndexApplicationTest {
+    @Autowired RedisTemplate<String, Object> redisTemplate;
+    @Test public void testCustomIndex() {
+        redisTemplate.delete("person");
+        redisTemplate.delete("person_salary");
+        HashOperations<String, String, Object> hashOperations = redisTemplate.opsForHash();
+        ZSetOperations<String, Object> zSetOperations = redisTemplate.opsForZSet();
+        List<Person> persons = List.of(
+                Person.builder().id(1).name("Alice").salary(11000).build(),
+                Person.builder().id(2).name("Bob").salary(14000).build(),
+                Person.builder().id(3).name("Carol").salary(16000).build(),
+                Person.builder().id(4).name("David").salary(18000).build()
+        );
+        persons.forEach(person -> {
+            hashOperations.put("person", person.getId().toString(), person);
+            zSetOperations.add("person_salary", person.getId().toString(), person.getSalary());
+        });
+        Set<ZSetOperations.TypedTuple<Object>> rangePersonSet = zSetOperations.rangeByScoreWithScores("person_salary", 10000, 15000);
+        rangePersonSet.forEach(person -> {
+            System.out.printf("Name: %s, Salary: %d", person.getValue(), person.getScore().intValue());
+        });
+    }
+}
+```
+
+
+
+
+
