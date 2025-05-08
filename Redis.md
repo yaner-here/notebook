@@ -4,93 +4,186 @@
 
 # §1 基础语法与概念
 
-## §1.1 CRUD
+## §1.1 数据结构
 
-增删改查：
+| 命令          | 类型                                                                                                                               | 语法                                            | 作用                                              |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------- |
+| `KEYS`      | 查                                                                                                                                | `KEYS <KEY_PATTERN>`                          | 按名查询键，允许使用`*`通配符                                |
+| `EXISTS`    | 查                                                                                                                                | `EXISTS <KEY>`                                | 键值对是否存在，返回`0`/`1`布尔值                            |
+| `RENAME`    | 改                                                                                                                                | `RENAME <OLD_KEY> <NEW_KEY>`                  | 重命名键值对                                          |
+| `DEL`       | 删                                                                                                                                | `DEL <KEY>+`                                  | 删除键值对，若不存在则忽略，返回删除的键值对数量                        |
+| `TYPE`      | 查                                                                                                                                | `TYPE <KEY>`                                  | 返回键值对的值类型，例如`none`/`string`/`set`/`zset`/`hash` |
+| `SCAN`      | `SCAN <CURSOR>`                                                                                                                  | 基于游标的查询，返回一个数组，其中`[0]`表示下一个游标，`[1]`表示得到的值     |                                                 |
+| `TTL`       | `TTL <KEY>`                                                                                                                      | 键值对的剩余生存时间，返回秒数，其中`-2`表示键不存在，`-1`表示没有设置剩余生存时间 |                                                 |
+| `EXPIRE`    | `EXPIRE <KEY> <SECONDS>`                                                                                                         | 设置键值对的剩余生存时间，返回`0`/`1`布尔值表示是否设置成功             |                                                 |
+| `SELECT`    | `SELECT <DATABASE>`                                                                                                              | 切换到数据库                                        |                                                 |
+| `MOVE`      | `MOVE <KEY> <DATABASE>`                                                                                                          | 将键值对从当前数据库移动到指定数据库                            |                                                 |
+| `FLUSHDB`   | `FLUSHDB`                                                                                                                        | 清除当前数据库的所有键值对                                 |                                                 |
+| `RANDOMKEY` | `RAMDOMKEY`                                                                                                                      | 从当前数据库随机返回一个键值对的键名。若数据库为空则返回`nil`             |                                                 |
+| `SORT`      | `SORT <KEY> [BY <PATTERN>] [LIMIT <OFFSET> <COUNT>] [GET <PATTERN>[GET <PATTERN>...]] [ASC\|DESC] [ALPHA] [STORE <DESTINATION>]` | 排序                                            |                                                 |
 
-| 命令                 | 类型  | 语法                                                                                         | 作用                                                                                                                                                                    |
-| ------------------ | --- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `KEYS`             | 查   | `KEYS <KEY_PATTERN>`                                                                       | 按名查询键，允许使用`*`通配符                                                                                                                                                      |
-| `EXISTS`           | 查   | `EXISTS <KEY>`                                                                             | 键值对是否存在，返回`0`/`1`布尔值                                                                                                                                                  |
-| `RENAME`           | 改   | `RENAME <OLD_KEY> <NEW_KEY>`                                                               | 重命名键值对                                                                                                                                                                |
-| `DEL`              | 删   | `DEL <KEY>+`                                                                               | 删除键值对，若不存在则忽略，返回删除的键值对数量                                                                                                                                              |
-| `TYPE`             | 查   | `TYPE <KEY>`                                                                               | 返回键值对的值类型，例如`none`/`string`/`set`/`zset`/`hash`                                                                                                                       |
-| `SET`              | 增   | `SET <KEY> <VALUE>`                                                                        | 添加键值对                                                                                                                                                                 |
-|                    |     | `SET <KEY> <VALUE> [EX <SECONDS>] [PX <MILLISECONDS>] [NX\|XX]`                            | `EX`指定过期的秒数，`PX`指定过期的毫秒数，`NX`只在键不存在时才操作，`XX`只在键存在时才操作。`EX`和`PX`同时存在时，后面的设置会覆盖前面的设置。                                                                                   |
-| `SETEX`            | 增   | `SETEX <KEY> <TIMEOUT> <VALUE>`                                                            | 添加键值对，并指定过期时间                                                                                                                                                         |
-| `SETNX`            | 增   | `SETNX <KEY> <VALUE>`                                                                      | 若键值对不存在，才设置键值对                                                                                                                                                        |
-| `MSET`             | 增   | `MSET [<KEY> <VALUE>]+`                                                                    | 整体作为一个原子操作，同时设置多个键值对                                                                                                                                                  |
-| `GET`              | 查   | `GET <KEY>`                                                                                | 输出键值对的值。若键不存在则输出`nil`                                                                                                                                                 |
-| `MGET`             | 查   | `MGET [<KEY>]+`                                                                            | 以列表形式，输出多个键值对的值                                                                                                                                                       |
-| `GETSET`           | 改/查 | `GETSET <KEY> <VALUE>`                                                                     | 更新键值对的值，并返回旧值                                                                                                                                                         |
-| `SETRANGE`         | 改   | `SETRANGE <KEY> <OFFSET> <VALUE>`                                                          | 将字符串从`<OFFSET>`位置开始用`<VALUE>`覆写                                                                                                                                       |
-| `GETRANGE`         | 查   | `GETRANGE <KEY> <START> <END>`                                                             | 截取子字符串，支持从最后一位开始计数的负数索引                                                                                                                                               |
-| `APPEND`           | 改   | `APPEND <KEY> <VALUE>`                                                                     | 在字符串/列表末尾追加元素，返回追加后的总长度。若键不存在则创建                                                                                                                                      |
-| `STRLEN`           | 查   | `STRLEN <KEY>`                                                                             | 返回字符串的长度。若键不存在则返回`0`                                                                                                                                                  |
-| `INCRBY`           | 改   | `INCRBY <KEY> <DELTA>`                                                                     | 给键值对的值加上增量`<DELTA>`                                                                                                                                                   |
-| `DECRBY`           | 改   | `DECRBY <KEY> <DELTA>`                                                                     | 给键值对的值减去增量`<DELTA>`                                                                                                                                                   |
-| `SETBIT`           | 改   | `SETBIT <KEY> <OFFSET> <VALUE>`                                                            | 将字符串视为`std::bitset`，进行Bit级别的修改，其中`<VALUE>`只能为`0`/`1`，若`OFFSET`超出了原有长度则自动扩充                                                                                            |
-| `GETBIT`           | 查   | `GETBIT <KEY> <OFFSET>`                                                                    | 将字符串视为`std::bitset`，进行Bit级别的查询                                                                                                                                        |
-| `LPUSH`/`RPUSH`    | 增   | `LPUSH/RPUSH <KEY> <VALUE>+`                                                               | 整体作为一个原子操作，在列表表头/表尾同时插入多个值                                                                                                                                            |
-| `LLEN`             | 查   | `LLEN <KEY>`                                                                               | 返回列表的长度。若键不存在则返回`0`，若值不是列表则饭后错误                                                                                                                                       |
-| `LLOP`/`RPOP`      | 删   | `LPOP/RPOP <KEY>`                                                                          | 删除并返回列表表头/表尾的一个元素。若键不存在则返回`nil`                                                                                                                                       |
-| `LRANGE`           | 查   | `LRANGE <KEY> <START> <STOP>`                                                              | 返回列表中位于闭区间`[<START>, <STOP>]`的元素，支持负数索引                                                                                                                               |
-| `LSET`             | 改   | `LSET <KEY> <INDEX> <VALUE>`                                                               | 将列表中索引为`<INDEX>`的值设置为`<VALUE>`，若键不存在或列表为空时返回错误                                                                                                                        |
-| `LTRIM`            | 改   | `LTRIM <KEY> <START> <STOP>`                                                               | 列表只保留位于闭区间`[<START>, <STOP>]`的元素，支持负数索引，若值不是列表则返回错误                                                                                                                   |
-| `LMOVE`            | 改   | `LMOVE <SOURCE_KEY> <DESTINATION_KEY> <LEFT\|RIGHT> <LEFT\|RIGHT>`                         | 整体作为一个原子操作，将列表`<SOURCE_KEY>`的表头/表尾第一个元素移动到列表`<DESTINATION_KEY>`的表头/表尾处                                                                                                |
-| `LINDEX`           | 查   | `LINDEX <KEY> <INDEX>`                                                                     | 返回列表的第`<INDEX>`个元素，从`0`开始数，支持负数索引。若值不是列表则返回错误                                                                                                                         |
-| `LREM`             | 删   | `LREM <KEY> <COUNT> <VALUE>`                                                               | 删除列表中值为`<VALUE>`的元素。`COUNT>0`/`COUNT<0`时表示从前往后/从后往前搜索前`<COUNT>`个匹配项，`COUNT=0`表示删除全部匹配项                                                                                |
-| `HSET`             | 增   | `HSET <KEY> <FIELD> <VALUE>`                                                               | 给哈希表`<KEY>`设置键值对`<FIELD>:<VALUE>`。若`<FIELD>`已存在/未存在则返回`0`/`1`，若`<KEY>`不存在则新建哈希表后设置                                                                                    |
-| `HGET`             | 查   | `HGET <KEY> <FIELD>`                                                                       | 返回哈希表中的键`<FIELD>`对应的值，若`<FIELD>`不存在则返回`nil`                                                                                                                           |
-| `HMSET`            | 增   | `HMSET <KEY> [<FIELD> <VALUE>]+`                                                           | 整体作为一个原子操作，同时在哈希表中设置多个键值对，执行成功返回`OK`，若`<KEY>`不是哈希表则返回错误                                                                                                               |
-| `HMGET`            | 查   | `HGET <KEY> <FIELD>+`                                                                      | 返回哈希表中的多个键对应的值列表                                                                                                                                                      |
-| `HGETALL`          | 查   | `HGETALL <KEY>`                                                                            | 返回哈希表中的所有键和值，以列表格式给出，具体顺序为`[<FIELD_i> <VALUE_i>]+`                                                                                                                    |
-| `HDEL`             | 删   | `HDEL <KEY> <FIELD>+`                                                                      | 删除哈希表中的一个或多个键值对                                                                                                                                                       |
-| `HLEN`             | 查   | `HLEN <KEY>`                                                                               | 返回哈希表中的键值对数量                                                                                                                                                          |
-| `HEXISTS`          | 查   | `HEXISTS <KEY> <FIELD>`                                                                    | 查询哈希表中是否存在某个键值对，返回`0`/`1`                                                                                                                                             |
-| `HKEYS`            | 查   | `HKEYS <KEY>`                                                                              | 返回哈希表中的所有`<FIELD>`，以列表形式给出                                                                                                                                            |
-| `HVALS`            | 查   | `HVALS <KEY>`                                                                              | 返回哈希表中的所有`<VALUE>`，以列表形式给出                                                                                                                                            |
-| `HSCAN`            | 查   |                                                                                            | TODO：？？？                                                                                                                                                              |
-| `HINCRBY`          | 改   | `HINCRBY <KEY> <FIELD> <INCREMENT>`                                                        | 将哈希表中的某个`int64`值添加`<INCREMENT>`的增量。若`<KEY>`不存在则新建哈希表，若`<FIELD>`不存在则设置初始值为`0`                                                                                          |
-| `SADD`             | 增   | `SADD <KEY> <MEMBER>+`                                                                     | 将若干个元素`<MEMBER>+`添加到集合中，返回集合原先不存在的元素的数量                                                                                                                               |
-| `SMEMBERS`         | 查   | `SMEMBERS`                                                                                 | 返回集合中的所有成员                                                                                                                                                            |
-| `SMOVE`            | 改   | `SMOVE <SOURCE> <DESTINATION> <MEMBER>`                                                    | 将集合`<SOURCE>`中的元素`<MEMBER>`移动到集合`<DESTINATION>`中。若`<MEMBER>`在`<SOURCE>`中不存在或`<SOURCE>`不存在则返回`0`；若`<SOURCE>`或`<DESTINATION>`非集合类型则返回错误；若`<MEMBER>`存在于`<SOURCE>`则返回`1`。 |
-| `SREM`             | 删   | `SREM <KEY> <MEMBER>+`                                                                     | 删除集合中的若干个元素，返回删除的元素数量                                                                                                                                                 |
-| `SPOP`             | 删   | `SPOP <KEY>`                                                                               | 随机删除集合中的一个元素，并返回该元素的值                                                                                                                                                 |
-| `SCARD`            | 查   | `SCARD <KEY>`                                                                              | 返回集合中的元素个数。若`<KEY>`不存在则返回`0`                                                                                                                                          |
-| `SISMEMBER`        | 查   | `SISMEMBER <KEY> <MEMBER>`                                                                 | 检测集合是否包含某个元素，返回布尔值`0`/`1`                                                                                                                                             |
-| `SINTER`           | 集   | `SINTER <KEY>+`                                                                            | 返回若干个集合的交集，若`<KEY>`不存在则视为空集                                                                                                                                           |
-| `SUNION`           | 集   | `SUNION <KEY>+`                                                                            | 返回若干个集合的并集，若`<KEY>`不存在则视为空集                                                                                                                                           |
-| `SDIFF`            | 集   | `SDIFF <KEY>+`                                                                             | 返回第一个集合减后面若干个集合的差集，若`<KEY>`不存在则视为空集                                                                                                                                   |
-| `ZADD`             | 增   | `ZADD <KEY> [<SCORE> <MEMBER>]+`                                                           | 将若干个元素`<MEMBER>+`添加到有序集合中，返回有序集合原先不存在的元素的数量                                                                                                                           |
-| `ZRANGE`           | 查   | `ZRANGE <KEY> <START> <STOP> [WITHSCORES]`                                                 | 返回有序集合中位于闭区间`[<START>, <STOP>]`中的所有元素，支持负数索引，索引越界时不报错。使用`WITHSCORE`选项时会同时间隔返回所有`MEMBER`的`<SCORE>`，放在其前面                                                               |
-| `ZREM`             | 删   | `ZREM <KEY> <MEMBER>+`                                                                     | 删除有序集合中的若干个元素，返回删除的元素数量                                                                                                                                               |
-| `ZCARD`            | 查   | `ZCARD <KEY>`                                                                              | 返回有序集合中的元素个数                                                                                                                                                          |
-| `ZCOUNT`           | 查   | `ZCOUNT <KEY> <MIN> <MAX>`                                                                 | 返回有序集合中`<SCORE>`位于闭区间`[<MIN>, <MAX>]`内的所有`<MEMBER>`的个数                                                                                                                |
-| `ZSCORE`           | 查   | `ZSCORE <KEY> <MEMBER>`                                                                    | 返回有序集合中`<MEMBER>`对应的`<SCORE>`值，若`<KEY>`不存在或`<MEMBER>`不存在则返回`nil`                                                                                                      |
-| `ZRANK`            | 查   | `ZRANK <KEY> <MEMBER>`                                                                     | 返回有序集合中`<MEMBER>`对于`<SCOER>`的升序排名，从`0`开始计数。若`<MEMBER>`不存在则返回`nil`                                                                                                     |
-| `ZINCRBY`          | 改   | `ZINCRBY <KEY> <INCREMENT> <MEMBER>`                                                       | 为有序集合中`<MEMBER>`对应的`<SCORE>`添加增量`<INCREMENT>`                                                                                                                         |
-| `ZREVRANK`         | 查   | `ZREVRANK <KEY> <MEMBER>`                                                                  | 返回有序集合中`<MEMBER>`对于`<SCOER>`的降序排名，从`0`开始计数。若`<MEMBER>`不存在则返回`nil`                                                                                                     |
-| `ZUNIONSTORE`      | 集   | `ZUNIONSTORE <DESTINATION> <NUMKEYS> <KEY>+ [WEIGHTS <WEIGHT>+] [AGGREGATE SUM\|MIN\|MAX]` | 给定若干个有序集合`<KEY>+`，统计其中所有同名`<MEMBER>`的`<SCORE>`经过指定聚合函数（缺省为`SUM`）得到的结果作为新`<SCORE>`，存储到新的有序集合`<DESTINATION>`中。`<NUMKEYS>`表示输入有序集合的个数。使用`<WEIGHTS>`指定各个有序集合的权重系数         |
-| `ZREMRANGEBYRANK`  | 删   | `ZREMRANGEBYRANK <KEY> <START> <STOP>`                                                     | 删除有序集合中排名位于闭区间`[<START>, <STOP>]`中的元素，排名从`0`计数，支持负数排名                                                                                                                 |
-| `ZREVRANGEBYSCORE` | 查   | `ZREVRANGEBYSCORE <KEY> <MIN> <MAX> [WITHSCORES] [LIMIT <OFFSET> <COUNT>]`                 | 返回有序集合中`<SCORE>`位于闭区间`[<MIN>, <MAX>]`的所有`<MEMBER>`，按`<SCORE>`降序排列，若`<SCORE>`相同则按`<MEMBER>`字典序逆序排列                                                                     |
-| `ZRANDMEMBER`      | 查   | `ZRANDMEMBER <KEY> [<COUNT> [<WITHSCORES>]]`                                               | 从有序集合中随机返回`min(abs(<COUNT>), ZCOUNT <KEY>`个元素，缺省值为`1`。若`<COUNT>`为负，则允许重复地挑选随机元素                                                                                       |
-| `PFADD`            | 增   | `PFADD <KEY> <VALUE>+`                                                                     | 向超级日志添加元素                                                                                                                                                             |
-| `PFCOUNT`          | 查   | `PFCOUNT <KEY>+`                                                                           | 查询超级日志中的元素数量近似值                                                                                                                                                       |
-| `PFMERGE`          | 并   | `PFMERGE <DESTKEY> <SRCKEY>+`                                                              | 取若干个超级日志的并集并保存                                                                                                                                                        |
+### §1.1.1 字符串
 
-键值对的元数据：
+| 命令         | 类型  | 语法                                                              | 作用                                                                                  |
+| ---------- | --- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `SET`      | 增   | `SET <KEY> <VALUE>`                                             | 添加键值对                                                                               |
+|            |     | `SET <KEY> <VALUE> [EX <SECONDS>] [PX <MILLISECONDS>] [NX\|XX]` | `EX`指定过期的秒数，`PX`指定过期的毫秒数，`NX`只在键不存在时才操作，`XX`只在键存在时才操作。`EX`和`PX`同时存在时，后面的设置会覆盖前面的设置。 |
+| `SETEX`    | 增   | `SETEX <KEY> <TIMEOUT> <VALUE>`                                 | 添加键值对，并指定过期时间                                                                       |
+| `SETNX`    | 增   | `SETNX <KEY> <VALUE>`                                           | 若键值对不存在，才设置键值对                                                                      |
+| `MSET`     | 增   | `MSET [<KEY> <VALUE>]+`                                         | 整体作为一个原子操作，同时设置多个键值对                                                                |
+| `GET`      | 查   | `GET <KEY>`                                                     | 输出键值对的值。若键不存在则输出`nil`                                                               |
+| `MGET`     | 查   | `MGET [<KEY>]+`                                                 | 以列表形式，输出多个键值对的值                                                                     |
+| `GETSET`   | 改/查 | `GETSET <KEY> <VALUE>`                                          | 更新键值对的值，并返回旧值                                                                       |
+| `SETRANGE` | 改   | `SETRANGE <KEY> <OFFSET> <VALUE>`                               | 将字符串从`<OFFSET>`位置开始用`<VALUE>`覆写                                                     |
+| `GETRANGE` | 查   | `GETRANGE <KEY> <START> <END>`                                  | 截取子字符串，支持从最后一位开始计数的负数索引                                                             |
+| `APPEND`   | 改   | `APPEND <KEY> <VALUE>`                                          | 在字符串/列表末尾追加元素，返回追加后的总长度。若键不存在则创建                                                    |
+| `STRLEN`   | 查   | `STRLEN <KEY>`                                                  | 返回字符串的长度。若键不存在则返回`0`                                                                |
+| `INCRBY`   | 改   | `INCRBY <KEY> <DELTA>`                                          | 给键值对的值加上增量`<DELTA>`                                                                 |
+| `DECRBY`   | 改   | `DECRBY <KEY> <DELTA>`                                          | 给键值对的值减去增量`<DELTA>`                                                                 |
+| `SETBIT`   | 改   | `SETBIT <KEY> <OFFSET> <VALUE>`                                 | 将字符串视为`std::bitset`，进行Bit级别的修改，其中`<VALUE>`只能为`0`/`1`，若`OFFSET`超出了原有长度则自动扩充          |
+| `GETBIT`   | 查   | `GETBIT <KEY> <OFFSET>`                                         | 将字符串视为`std::bitset`，进行Bit级别的查询                                                      |
 
-| 命令          | 语法                                                                                                                               | 作用                                            |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| `SCAN`      | `SCAN <CURSOR>`                                                                                                                  | 基于游标的查询，返回一个数组，其中`[0]`表示下一个游标，`[1]`表示得到的值     |
-| `TTL`       | `TTL <KEY>`                                                                                                                      | 键值对的剩余生存时间，返回秒数，其中`-2`表示键不存在，`-1`表示没有设置剩余生存时间 |
-| `EXPIRE`    | `EXPIRE <KEY> <SECONDS>`                                                                                                         | 设置键值对的剩余生存时间，返回`0`/`1`布尔值表示是否设置成功             |
-| `SELECT`    | `SELECT <DATABASE>`                                                                                                              | 切换到数据库                                        |
-| `MOVE`      | `MOVE <KEY> <DATABASE>`                                                                                                          | 将键值对从当前数据库移动到指定数据库                            |
-| `FLUSHDB`   | `FLUSHDB`                                                                                                                        | 清除当前数据库的所有键值对                                 |
-| `RANDOMKEY` | `RAMDOMKEY`                                                                                                                      | 从当前数据库随机返回一个键值对的键名。若数据库为空则返回`nil`             |
-| `SORT`      | `SORT <KEY> [BY <PATTERN>] [LIMIT <OFFSET> <COUNT>] [GET <PATTERN>[GET <PATTERN>...]] [ASC\|DESC] [ALPHA] [STORE <DESTINATION>]` | 排序                                            |
+### §1.1.2 列表
+
+| 命令              | 类型  | 语法                                                                 | 作用                                                                                     |
+| --------------- | --- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `LPUSH`/`RPUSH` | 增   | `LPUSH/RPUSH <KEY> <VALUE>+`                                       | 整体作为一个原子操作，在列表表头/表尾同时插入多个值                                                             |
+| `LLEN`          | 查   | `LLEN <KEY>`                                                       | 返回列表的长度。若键不存在则返回`0`，若值不是列表则饭后错误                                                        |
+| `LPOP`/`RPOP`   | 删   | `LPOP/RPOP <KEY>`                                                  | 删除并返回列表表头/表尾的一个元素。若键不存在则返回`nil`                                                        |
+| `BLPOP`/`BRPOP` | 删   | `BLPOP/BRPOP <KEY>+ <TIMEOUT>`                                     | `LPOP`/`RPOP`的阻塞版本，若列表不存在元素则最多阻塞`<TIMEOUT>`秒                                           |
+| `LRANGE`        | 查   | `LRANGE <KEY> <START> <STOP>`                                      | 返回列表中位于闭区间`[<START>, <STOP>]`的元素，支持负数索引                                                |
+| `LSET`          | 改   | `LSET <KEY> <INDEX> <VALUE>`                                       | 将列表中索引为`<INDEX>`的值设置为`<VALUE>`，若键不存在或列表为空时返回错误                                         |
+| `LTRIM`         | 改   | `LTRIM <KEY> <START> <STOP>`                                       | 列表只保留位于闭区间`[<START>, <STOP>]`的元素，支持负数索引，若值不是列表则返回错误                                    |
+| `LMOVE`         | 改   | `LMOVE <SOURCE_KEY> <DESTINATION_KEY> <LEFT\|RIGHT> <LEFT\|RIGHT>` | 整体作为一个原子操作，将列表`<SOURCE_KEY>`的表头/表尾第一个元素移动到列表`<DESTINATION_KEY>`的表头/表尾处                 |
+| `LINDEX`        | 查   | `LINDEX <KEY> <INDEX>`                                             | 返回列表的第`<INDEX>`个元素，从`0`开始数，支持负数索引。若值不是列表则返回错误                                          |
+| `LREM`          | 删   | `LREM <KEY> <COUNT> <VALUE>`                                       | 删除列表中值为`<VALUE>`的元素。`COUNT>0`/`COUNT<0`时表示从前往后/从后往前搜索前`<COUNT>`个匹配项，`COUNT=0`表示删除全部匹配项 |
+
+### §1.1.3 哈希表
+
+| 命令        | 类型  | 语法                                  | 作用                                                                                 |
+| --------- | --- | ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `HSET`    | 增   | `HSET <KEY> <FIELD> <VALUE>`        | 给哈希表`<KEY>`设置键值对`<FIELD>:<VALUE>`。若`<FIELD>`已存在/未存在则返回`0`/`1`，若`<KEY>`不存在则新建哈希表后设置 |
+| `HGET`    | 查   | `HGET <KEY> <FIELD>`                | 返回哈希表中的键`<FIELD>`对应的值，若`<FIELD>`不存在则返回`nil`                                        |
+| `HMSET`   | 增   | `HMSET <KEY> [<FIELD> <VALUE>]+`    | 整体作为一个原子操作，同时在哈希表中设置多个键值对，执行成功返回`OK`，若`<KEY>`不是哈希表则返回错误                            |
+| `HMGET`   | 查   | `HGET <KEY> <FIELD>+`               | 返回哈希表中的多个键对应的值列表                                                                   |
+| `HGETALL` | 查   | `HGETALL <KEY>`                     | 返回哈希表中的所有键和值，以列表格式给出，具体顺序为`[<FIELD_i> <VALUE_i>]+`                                 |
+| `HDEL`    | 删   | `HDEL <KEY> <FIELD>+`               | 删除哈希表中的一个或多个键值对                                                                    |
+| `HLEN`    | 查   | `HLEN <KEY>`                        | 返回哈希表中的键值对数量                                                                       |
+| `HEXISTS` | 查   | `HEXISTS <KEY> <FIELD>`             | 查询哈希表中是否存在某个键值对，返回`0`/`1`                                                          |
+| `HKEYS`   | 查   | `HKEYS <KEY>`                       | 返回哈希表中的所有`<FIELD>`，以列表形式给出                                                         |
+| `HVALS`   | 查   | `HVALS <KEY>`                       | 返回哈希表中的所有`<VALUE>`，以列表形式给出                                                         |
+| `HSCAN`   | 查   |                                     | TODO：？？？                                                                           |
+| `HINCRBY` | 改   | `HINCRBY <KEY> <FIELD> <INCREMENT>` | 将哈希表中的某个`int64`值添加`<INCREMENT>`的增量。若`<KEY>`不存在则新建哈希表，若`<FIELD>`不存在则设置初始值为`0`       |
+
+### §1.1.4 集合
+
+| 命令          | 类型  | 语法                                      | 作用                                                                                                                                                                    |
+| ----------- | --- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SADD`      | 增   | `SADD <KEY> <MEMBER>+`                  | 将若干个元素`<MEMBER>+`添加到集合中，返回集合原先不存在的元素的数量                                                                                                                               |
+| `SMEMBERS`  | 查   | `SMEMBERS`                              | 返回集合中的所有成员                                                                                                                                                            |
+| `SMOVE`     | 改   | `SMOVE <SOURCE> <DESTINATION> <MEMBER>` | 将集合`<SOURCE>`中的元素`<MEMBER>`移动到集合`<DESTINATION>`中。若`<MEMBER>`在`<SOURCE>`中不存在或`<SOURCE>`不存在则返回`0`；若`<SOURCE>`或`<DESTINATION>`非集合类型则返回错误；若`<MEMBER>`存在于`<SOURCE>`则返回`1`。 |
+| `SREM`      | 删   | `SREM <KEY> <MEMBER>+`                  | 删除集合中的若干个元素，返回删除的元素数量                                                                                                                                                 |
+| `SPOP`      | 删   | `SPOP <KEY>`                            | 随机删除集合中的一个元素，并返回该元素的值                                                                                                                                                 |
+| `SCARD`     | 查   | `SCARD <KEY>`                           | 返回集合中的元素个数。若`<KEY>`不存在则返回`0`                                                                                                                                          |
+| `SISMEMBER` | 查   | `SISMEMBER <KEY> <MEMBER>`              | 检测集合是否包含某个元素，返回布尔值`0`/`1`                                                                                                                                             |
+| `SINTER`    | 集   | `SINTER <KEY>+`                         | 返回若干个集合的交集，若`<KEY>`不存在则视为空集                                                                                                                                           |
+| `SUNION`    | 集   | `SUNION <KEY>+`                         | 返回若干个集合的并集，若`<KEY>`不存在则视为空集                                                                                                                                           |
+| `SDIFF`     | 集   | `SDIFF <KEY>+`                          | 返回第一个集合减后面若干个集合的差集，若`<KEY>`不存在则视为空集                                                                                                                                   |
+
+### §1.1.5 有序集合
+
+| 命令                 | 类型  | 语法                                                                                         | 作用                                                                                                                                                            |
+| ------------------ | --- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ZADD`             | 增   | `ZADD <KEY> [<SCORE> <MEMBER>]+`                                                           | 将若干个元素`<MEMBER>+`添加到有序集合中，返回有序集合原先不存在的元素的数量                                                                                                                   |
+| `ZRANGE`           | 查   | `ZRANGE <KEY> <START> <STOP> [WITHSCORES]`                                                 | 返回有序集合中位于闭区间`[<START>, <STOP>]`中的所有元素，支持负数索引，索引越界时不报错。使用`WITHSCORE`选项时会同时间隔返回所有`MEMBER`的`<SCORE>`，放在其前面                                                       |
+| `ZREM`             | 删   | `ZREM <KEY> <MEMBER>+`                                                                     | 删除有序集合中的若干个元素，返回删除的元素数量                                                                                                                                       |
+| `ZCARD`            | 查   | `ZCARD <KEY>`                                                                              | 返回有序集合中的元素个数                                                                                                                                                  |
+| `ZCOUNT`           | 查   | `ZCOUNT <KEY> <MIN> <MAX>`                                                                 | 返回有序集合中`<SCORE>`位于闭区间`[<MIN>, <MAX>]`内的所有`<MEMBER>`的个数                                                                                                        |
+| `ZSCORE`           | 查   | `ZSCORE <KEY> <MEMBER>`                                                                    | 返回有序集合中`<MEMBER>`对应的`<SCORE>`值，若`<KEY>`不存在或`<MEMBER>`不存在则返回`nil`                                                                                              |
+| `ZRANK`            | 查   | `ZRANK <KEY> <MEMBER>`                                                                     | 返回有序集合中`<MEMBER>`对于`<SCOER>`的升序排名，从`0`开始计数。若`<MEMBER>`不存在则返回`nil`                                                                                             |
+| `ZINCRBY`          | 改   | `ZINCRBY <KEY> <INCREMENT> <MEMBER>`                                                       | 为有序集合中`<MEMBER>`对应的`<SCORE>`添加增量`<INCREMENT>`                                                                                                                 |
+| `ZREVRANK`         | 查   | `ZREVRANK <KEY> <MEMBER>`                                                                  | 返回有序集合中`<MEMBER>`对于`<SCOER>`的降序排名，从`0`开始计数。若`<MEMBER>`不存在则返回`nil`                                                                                             |
+| `ZUNIONSTORE`      | 集   | `ZUNIONSTORE <DESTINATION> <NUMKEYS> <KEY>+ [WEIGHTS <WEIGHT>+] [AGGREGATE SUM\|MIN\|MAX]` | 给定若干个有序集合`<KEY>+`，统计其中所有同名`<MEMBER>`的`<SCORE>`经过指定聚合函数（缺省为`SUM`）得到的结果作为新`<SCORE>`，存储到新的有序集合`<DESTINATION>`中。`<NUMKEYS>`表示输入有序集合的个数。使用`<WEIGHTS>`指定各个有序集合的权重系数 |
+| `ZREMRANGEBYRANK`  | 删   | `ZREMRANGEBYRANK <KEY> <START> <STOP>`                                                     | 删除有序集合中排名位于闭区间`[<START>, <STOP>]`中的元素，排名从`0`计数，支持负数排名                                                                                                         |
+| `ZREVRANGEBYSCORE` | 查   | `ZREVRANGEBYSCORE <KEY> <MIN> <MAX> [WITHSCORES] [LIMIT <OFFSET> <COUNT>]`                 | 返回有序集合中`<SCORE>`位于闭区间`[<MIN>, <MAX>]`的所有`<MEMBER>`，按`<SCORE>`降序排列，若`<SCORE>`相同则按`<MEMBER>`字典序逆序排列                                                             |
+| `ZRANDMEMBER`      | 查   | `ZRANDMEMBER <KEY> [<COUNT> [<WITHSCORES>]]`                                               | 从有序集合中随机返回`min(abs(<COUNT>), ZCOUNT <KEY>`个元素，缺省值为`1`。若`<COUNT>`为负，则允许重复地挑选随机元素                                                                               |
+
+### §1.1.6 超级日志
+
+| 命令        | 类型  | 语法                            | 作用              |
+| --------- | --- | ----------------------------- | --------------- |
+| `PFADD`   | 增   | `PFADD <KEY> <VALUE>+`        | 向超级日志添加元素       |
+| `PFCOUNT` | 查   | `PFCOUNT <KEY>+`              | 查询超级日志中的元素数量近似值 |
+| `PFMERGE` | 并   | `PFMERGE <DESTKEY> <SRCKEY>+` | 取若干个超级日志的并集并保存  |
+
+### §1.1.7 流
+
+自Redis 5.0起，Redis提供了一个新的数据结构——Redis流（Redis Stream）。它是一个专为日志设计的、可持久化的、只能在链表末尾添加元素的数据结构。Redis流维护了一个链表，其中的每个节点都代表一条信息（Entry）。每条信息可以包含若干个键值对。
+
+| Redis CLI命令 | 语法                                                                                                   | 作用                                                                                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `XADD`      | `XADD <KEY> [NOMKSTREAM] [MAXLEN\|MINID [=\|~] <THRESHOLD> [LIMIT <LIMIT>]] <ID> [<FIELD> <VALUE>]+` | 向Redis流末尾追加一条信息。`[NOMKSTREAM]`表示若流不存在则创建，`MAXLEN`/`MINID`表示限制流长度上限/删除ID小于等于`<THRESHOLD>`的条目，`=`表示精确值，`~`表示更高效的粗略值，`<LIMIT>`表示上述两个限制最多操作的条目数量，`<ID>`为`*`时表示自动生成ID，无论自动还是手动，都必须维持`毫秒时间戳-自增值`的格式 |
+| `XREAD`     | `XREAD [COUNT <COUNT>] [BLOCK <MILLSECONDS>] STREAMS <KEY>+ <ID>+`                                   | 读取Redis流的消息。`<COUNT>`表示最大读取数量，`<MILLSECONDS>`表示阻塞的毫秒时长，`<KEY>+`指定若干流，`<ID>+`指定对应的流从哪个ID开始读取，`0`表示从第一条消息读，`$`表示从最新的消息读                                                                         |
+| `XLEN`      | `XLEN <KEY>`                                                                                         | 返回Redis流的长度                                                                                                                                                                                   |
+| `XRANGE`    | `XRANGE <KEY> <START> <END> [COUNT <COUNT>]`                                                         | 获取消息列表。`<START>`可为`-`表示最小值，`<END>`可为`+`表示最大值。若`[START, END]`的长度大于`<COUNT>`则以`<COUNT>`为准                                                                                                       |
+| `XACK`      | `XACK <KEY> <GROUP> <ID>`                                                                            | 消费者向Redis告知已经消费了`GROUP`中的标识符为`<ID>`的消息                                                                                                                                                        |
+
+```shel
+localhost:db0> XADD loginfo * username Bob loginTime 2025.05.04
+1746281356792-0
+
+localhost:db0> XLEN loginfo
+2
+
+localhost:db0> XRANGE loginfo - +
+1)1)"1746281348896-0"
+2)1)"username"
+2)"Alice"
+3)"loginTime"
+4)"2025.05.03"
+2)1)"1746281356792-0"
+2)1)"username"
+2)"Bob"
+3)"loginTime"
+4)"2025.05.04"
+```
+
+在负载均衡等场景中，我们不需要向所有客户端提供完整的Redis流，而是Redis流的一个划分形成的子集。为此Redis流提供了消费组概念，消息与消费者是多对一关系，每个消费者都要通过名称来表示，每个消费者组都维护一个指针，表示从未使用过的第一个ID。
+
+| Redis CLI命令        | 语法                                                                                                       | 作用                                                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `XGROUP CREATE`    | `XGROUP CREATE <KEY> <GROUP> <ID> [MKSTREAM]`                                                            | 为Redis流`<KEY>`创建名为`<GROUP>`的消费组，从`<ID>`处开始，表示消费者从第几条消息开始消费，设为`$`时表示只消费新追加消息。`MKSTREAM`表示如果`<KEY>`不存在则创建Redis流                                           |
+| `XREADGROUP GROUP` | `XREADGROUP GROUP <GROUP> <CONSUMER> [COUNT <COUNT>] [BLOCK <MILLSECONDS>] [NOACK] STREAMS <KEY>+ <ID>+` | 消费者`<CONSUMER>`从消费组`<GROUP>`中消费`<COUNT>`条消息，阻塞时间至多为`<MILLSECONDS>`毫秒。`<KEY>`表示要读取的消息字段，`<ID>`表示要读取的消息编号，设为`>`表示读取未被消费的信息。`NOACK`表示读取消息但不放入队列，也无须`XACK`。 |
+
+```shell
+localhost:db0> XGROUP CREATE my_stream my_group $ MKSTREAM
+OK
+
+localhost:db0> XADD my_stream * username Alice age 18
+1746342954851-0
+
+localhost:db0> XADD my_stream * username Bob age 19
+1746342968732-0
+
+localhost:db0> XREADGROUP GROUP my_group consumer_1 COUNT 2 STREAMS my_stream >
+1 ) "my_stream"
+2 )     1 )      1 ) "1746342954851-0"
+        2 )      1 ) "username"
+        2 ) "Alice"
+        3 ) "age"
+        4 ) "18"
+        2 )      1 ) "1746342968732-0"
+        2 )      1 ) "username"
+        2 ) "Bob"
+        3 ) "age"
+        4 ) "19"
+
+localhost:db0> XACK my_stream my_group 1746342954851-0 1746342968732-0
+2
+
+localhost:db0> XREADGROUP GROUP my_group consumer_1 COUNT 2 STREAMS my_stream >
+# 没有返回值
+```
 
 ## §1.2 消息机制
 
@@ -167,75 +260,7 @@ public class MyRedisSubscriber extends JedisPubSub {
 */
 ```
 
-## §1.3 Redis流
-
-自Redis 5.0起，Redis提供了一个新的数据结构——Redis流（Redis Stream）。它是一个专为日志设计的、可持久化的、只能在链表末尾添加元素的数据结构。Redis流维护了一个链表，其中的每个节点都代表一条信息（Entry）。每条信息可以包含若干个键值对。
-
-| Redis CLI命令 | 语法                                           | 作用                                                                                      |
-| ----------- | -------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `XADD`      | `XADD <KEY> <ID> [<FIELD> <VALUE>]+`         | 向Redis流末尾追加一条信息。`<ID>`为`*`时表示自动生成ID                                                     |
-| `XLEN`      | `XLEN <KEY>`                                 | 返回Redis流的长度                                                                             |
-| `XRANGE`    | `XRANGE <KEY> <START> <END> [COUNT <COUNT>]` | 获取消息列表。`<START>`可为`-`表示最小值，`<END>`可为`+`表示最大值。若`[START, END]`的长度大于`<COUNT>`则以`<COUNT>`为准 |
-| `XACK`      | `XACK <KEY> <GROUP> <ID>`                    | 消费者向Redis告知已经消费了`GROUP`中的标识符为`<ID>`的消息                                                  |
-
-```shel
-localhost:db0> XADD loginfo * username Bob loginTime 2025.05.04
-1746281356792-0
-
-localhost:db0> XLEN loginfo
-2
-
-localhost:db0> XRANGE loginfo - +
-1)1)"1746281348896-0"
-2)1)"username"
-2)"Alice"
-3)"loginTime"
-4)"2025.05.03"
-2)1)"1746281356792-0"
-2)1)"username"
-2)"Bob"
-3)"loginTime"
-4)"2025.05.04"
-```
-
-在负载均衡等场景中，我们不需要向所有客户端提供完整的Redis流，而是Redis流的一个划分形成的子集。为此Redis流提供了消费组概念，消息与消费者是多对一关系，每个消费者都要通过名称来表示，每个消费者组都维护一个指针，表示从未使用过的第一个ID。
-
-| Redis CLI命令        | 语法                                                                                                       | 作用                                                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `XGROUP CREATE`    | `XGROUP CREATE <KEY> <GROUP> <ID> [MKSTREAM]`                                                            | 为Redis流`<KEY>`创建名为`<GROUP>`的消费组，从`<ID>`处开始，表示消费者从第几条消息开始消费，设为`$`时表示只消费新追加消息。`MKSTREAM`表示如果`<KEY>`不存在则创建Redis流                                           |
-| `XREADGROUP GROUP` | `XREADGROUP GROUP <GROUP> <CONSUMER> [COUNT <COUNT>] [BLOCK <MILLSECONDS>] [NOACK] STREAMS <KEY>+ <ID>+` | 消费者`<CONSUMER>`从消费组`<GROUP>`中消费`<COUNT>`条消息，阻塞时间至多为`<MILLSECONDS>`毫秒。`<KEY>`表示要读取的消息字段，`<ID>`表示要读取的消息编号，设为`>`表示读取未被消费的信息。`NOACK`表示读取消息但不放入队列，也无须`XACK`。 |
-
-```shell
-localhost:db0> XGROUP CREATE my_stream my_group $ MKSTREAM
-OK
-
-localhost:db0> XADD my_stream * username Alice age 18
-1746342954851-0
-
-localhost:db0> XADD my_stream * username Bob age 19
-1746342968732-0
-
-localhost:db0> XREADGROUP GROUP my_group consumer_1 COUNT 2 STREAMS my_stream >
-1 ) "my_stream"
-2 )     1 )      1 ) "1746342954851-0"
-        2 )      1 ) "username"
-        2 ) "Alice"
-        3 ) "age"
-        4 ) "18"
-        2 )      1 ) "1746342968732-0"
-        2 )      1 ) "username"
-        2 ) "Bob"
-        3 ) "age"
-        4 ) "19"
-
-localhost:db0> XACK my_stream my_group 1746342954851-0 1746342968732-0
-2
-
-localhost:db0> XREADGROUP GROUP my_group consumer_1 COUNT 2 STREAMS my_stream >
-# 没有返回值
-```
-
-## §1.4 Redis事务
+## §1.3 Redis事务
 
 Redis事务是一组命令的集合，保证其中的所有命令都顺序执行，不存在两个事务同时执行的情况。
 
