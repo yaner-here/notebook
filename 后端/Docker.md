@@ -3899,7 +3899,7 @@ Docker Swarm是一项集成在Docker引擎中的功能。一个Swarm集群由若
 
 ## §6.4 Docker Stack
 
-Docker Stack可以视为Docker Compose的升级版，它完全集成在Docker中，并且可以管理应用中若干容器的生命周期。
+Docker Stack可以视为Docker Compose的升级版，它完全集成在Docker中，并且可以管理应用中若干容器的生命周期。需要注意：Docker Stack不支持构建镜像，这意味着所有镜像必须提前构建好。
 
 Dokcer Stack使用`docker-stack.yml`文件配置。它包含四个顶级关键字：
 
@@ -4016,3 +4016,23 @@ secrets:
 Docker Stack会优先创建网络，默认使用`overlay`驱动。在本例中，我们定义了三个网络：前端网络、后端网络和支付网络。这里我们强行指定了支付网络开启数据层加密。
 
 本例创建了四个密钥，均使用`external: true`表示在Docker Stack部署之前就必须存在。或者可以将其替换为`file: <FILEPATH>`，表示在部署时按需现场创建。
+
+本例创建了四个服务。端口映射默认采用Ingress模式，这意味着Swarm集群内的各个节点之间均可互通。另外一种是Host模式，只有通过`replicas`运行副本的容器才能访问。
+
+```yml
+# Ingress模式（缺省）
+ports:
+  - "80:80"
+
+# Ingress模式
+ports:
+  - target: 80
+    published: 80
+    mode: ingress
+
+# Host模式
+ports:
+  - target: 80
+    published: 80
+    mode: host
+```
