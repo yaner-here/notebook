@@ -143,6 +143,29 @@ graph LR
 - `runc`：OCI层的一种实现，只能用于创建容器
 - `containerd`：管理容器的生命周期（`start`/`stop`/`pause`/`rm`/...）
 - `shim`：将`daemon`与容器解耦，每次新建容器时就`fork`一个`runc`进程，创建成功后退出`runc`进程。
+
+Docker使用了以下Linux提供的技术栈：
+
+```mermaid
+graph LR
+	subgraph Seccomp
+		subgraph MAC
+			subgraph Capability
+				subgraph ControlGroup["Control Group"]
+					subgraph Namespace
+					end
+				end
+			end
+		end
+	end
+```
+
+- Namespace：Linux命名空间。
+- Control Group：资源限额。
+- Capability：拆分`root`权限为——允许改变文件所有权`CAP_CHOWN`、允许绑定端口到Socket`CAP_NET_BIND_SERVICE`、允许改变进程优先级`CAP_SETUID`、允许重启系统`CAP_SYS_BOOT`等。
+- MAC：Linux安全系统，例如SELinux、AppArmor
+- Seccomp：限制容器内的系统调用
+
 ## §1.4 镜像生成
 
 `docker build`指令需要提供`dockerfile`和构建环境的上下文(Build Context，一组可被`ADD`/`COPY`指令引用的目录或文件，可能为空)构成。例如`docker build -t test/cowsay_dockerfile .`的上下文就是`.`，代表当前目录下的所有文件和目录。
