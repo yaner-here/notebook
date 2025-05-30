@@ -1,6 +1,7 @@
 参考文献：
 
-- [《深入浅出Spring Boot 3.x》](https://www.epubit.com/bookDetails?id=UBda9eaf729796)
+- （坑）[《深入浅出Spring Boot 3.x》](https://www.epubit.com/bookDetails?id=UBda9eaf729796)
+- [《学透Spring：从入门到项目实战》](https://book.douban.com/subject/36247031/)
 
 # §1 Spring
 
@@ -5829,6 +5830,105 @@ public class MyRedisIndexApplicationTest {
                 .del("salary")
                 .refreshTtl(true);
         keyValueTemplate.update(update);
+    }
+}
+```
+
+# §4 SpringMVC
+
+MVC是一种软件架构模式。模型层（Model）封装业务逻辑，视图层（View）封装用户界面，控制器层（Controller）充当两者简单的交接层。SpringMVC针对`DispatcherServlet`做了如下封装：
+
+- 控制器：`Controller`。
+- 校验器：支持Hibernate校验器。
+- 解析器：例如视图解析器`ViewResolver`、异常解析器`HandlerExceptionResolver`、Multipart解析器`MultipartResolver`。
+- 处理器映射：`HandlerMapping`。例如Bean名解析器`BeanNameUrlHandlerMapping`、`@RequestMapping`注解解析器`RequestMappingHandlerMapping`。
+- 处理器适配器：`HandlerAdapter`。
+
+| SpringMVC常用注解     | 作用                                                 | 形参                                                                                                                                                                                                                                                                                                        |
+| ----------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@Controller`     | 定义控制器类                                             |                                                                                                                                                                                                                                                                                                           |
+| `@RestController` | 定义Rest服务的控制器类，相当于同时使用`@Controller`和`@ResponseBody` |                                                                                                                                                                                                                                                                                                           |
+| `@RequestMapping` | 为路由请求注册类或方法                                        | - `String name`：映射名称。若类和方法都有`@RequestMapping`，则使用`#`连接。<br>- `String[] path`：映射URL。<br>- `RequestMethod[] method`：映射HTTP方法。<br>- `String[] params`：映射请求参数匹配规则。<br>- `String[] headers`：映射请求头匹配规则。<br>- `String[] consumes`：映射媒体类型（即`Content-Type`）。<br>- `String[] produces`：映射允许返回的媒体类型。<br><br><br><br> |
+| `@GetMapping`     | 为路由GET请求注册类或方法                                     |                                                                                                                                                                                                                                                                                                           |
+| `@PostMapping`    | 为路由POST请求注册类或方法                                    |                                                                                                                                                                                                                                                                                                           |
+| `@PutMapping`     | 为路由PUT请求注册类或方法                                     |                                                                                                                                                                                                                                                                                                           |
+| `@DeleteMapping`  | 为路由DELETE请求注册类或方法                                  |                                                                                                                                                                                                                                                                                                           |
+| `@RequestBody`    | 将请求内容映射到对象上                                        |                                                                                                                                                                                                                                                                                                           |
+| `@ResponseBody`   | 将方法或类的返回值映射为应答内容                                   |                                                                                                                                                                                                                                                                                                           |
+| `@ResponseStatus` | 定义应答的HTTP响应码                                       |                                                                                                                                                                                                                                                                                                           |
+
+```java
+package top.yaner_here.javasite;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Controller
+@ResponseBody
+@RequestMapping("/")
+class IndexController {
+    @GetMapping("/") public List<String> get() {
+        return List.of("Hello", "World"); // 匹配localhost:8080/
+    }
+    @GetMapping(value = "/id/{id}", produces = MediaType.APPLICATION_XML_VALUE) public String get(@PathVariable("id") String id) {
+        return "<Info>Hello World</Info>"; // 匹配localhost:8080/id/123
+    }
+    @RequestMapping(params = "name", method = RequestMethod.GET) public String getName() {
+        return "Hello World"; // 匹配localhost:8080/?name=123
+    }
+}
+
+@SpringBootApplication
+public class MySpringMVCApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MySpringMVCApplication.class, args);
+    }
+}
+```
+
+Spring的测试套件提供了`org.springframework.test.web.servlet.MockMvc`，用于进行测试。
+
+```xml
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-test</artifactId>
+</dependency>
+```
+
+```java
+package top.yaner_here.javasite;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+public class MySpringMVCApplicationTest {
+    private MockMvc mockMvc;
+    @BeforeEach void setup(WebApplicationContext webApplicationContext) {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).alwaysExpect(status().isOk()).build();
+    }
+    @AfterEach void tearDown(WebApplicationContext webApplicationContext) {
+        this.mockMvc = null;
+    }
+    @Test void testRoot() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(handler().methodName("get"))
+                .andExpect(content().string("[\"Hello\",\"World\"]"))
+                .andExpect(content().contentType("application/json"));
     }
 }
 ```
