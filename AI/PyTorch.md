@@ -3448,7 +3448,7 @@ TypeError                                 Traceback (most recent call last)
 TypeError: randperm(): argument 'n' (position 1) must be int, not Tensor
 ```
 
-### §A.8.2 Softax(`softmax()`)
+### §A.8.2 Softmax(`softmax()`)
 
 `torch.nn.functional.softmax()`、`torch.softmax()`、`torch.Tensor(...).softmax()`用于沿某个维度计算张量的各分量Softmax值：
 

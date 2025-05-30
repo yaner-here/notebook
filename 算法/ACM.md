@@ -268,7 +268,6 @@ struct Stuff {
 	}
 }
 std::priority_queue(Stuff, std::vector<Stuff>, Stuff) queue;
-
 ```
 
 # §2 动态规划
@@ -6922,7 +6921,7 @@ int main() {
 
 ## §3.3 贪心
 
-“Attention is all you need.”
+贪心是一种特殊的动态规划。我们直到动态规划的前提是任务可以拆分成若干个子任务，而贪心的前提是满足**贪心选择性质**——各个子任务的最优解组合起来恰好是任务的最优解。贪心的时间复杂度是线性级别的。
 
 > [洛谷P8719](https://www.luogu.com.cn/problem/P8719)：给定字符集`[a-z]`及其字典序规定的全序关系（字符集规模为$S=26$），请输出逆序对个数恰好为`m`的、长度最短的（记为`n`）、如果有多个长度最短则字典序最小的字符串`s`。
 
@@ -7065,7 +7064,9 @@ int main() {
 }
 ```
 
-### §3.3.2 充要条件证明法
+### §3.3.2 证明方法
+
+#### §3.3.2.1 充要条件证明法
 
 > [洛谷P8775](https://www.luogu.com.cn/problem/P8775)：给定`n`个排成一行的格子及其序列`a[1->n]`，其中`a[0]`与`a[n+1]`均为无穷大。每次离开某个格子`i`，都会导致`a[i]--`。当`a[i]<=0`时，该格子不能再踏入。若某时刻在第`i`个格子上，则接下来可以往前进方向跳到`[i+1, i+k]`中的任意位置。现在从起点`a[0]`出发，到`a[n+1]`为止，再调换起点和终点，回到`a[0]`。如果能重复该路程共`x`次往返，则求`k`的最小值。
 
@@ -7093,7 +7094,7 @@ int main() {
 }
 ```
 
-### §3.3.3 反证法
+#### §3.3.2.2 反证法
 
 > [洛谷P2431](https://www.luogu.com.cn/problem/P2431)：给定闭区间`[l, r]`，求$\displaystyle\max_{i\in[l, r]}\text{popcount}(i)$。
 
@@ -7113,7 +7114,7 @@ int main(){
 }
 ```
 
-### §3.3.4 邻项交换法
+#### §3.3.2.3 邻项交换法
 
 邻项交换法使用以下方法确定任意两个选项的交换次序：令先`A`后`B`时可以达到更优，而先`B`后`A`时不能达到更优，这两条规则分别对应着两个约束条件，解不等式即可得到判定更优的依据。
 
@@ -7199,6 +7200,82 @@ int main() {
     std::cout << a_init << ' ' << b_init << '\n';
 }
 ```
+
+### §3.3.3 区间调度问题
+
+#### §3.3.3.1 最多区间调度问题
+
+> [洛谷P1803](https://www.luogu.com.cn/problem/P1803)：给定`n<=1e6`个开区间$s_i=(l_i, r_i)$，在保证各个开区间互不重叠的前提下，求最多可以选多少个开区间。
+
+令$W(s)$表示与$s$重叠的开区间构成的集合：
+
+1. 如果各个开区间只能放在闭区间上`[1, R]`，则`R`越大，可以选择的开区间个数越多，呈非严格单调递增趋势。该结论显然成立。
+2. 不妨考虑其最优方案的最靠左区间，即右端点最小的区间$s_{\text{min}}=\underset{s_i}{\text{argmin}}(r_i)$。我们希望这个区间尽可能短，即右端点尽可能小，使得剩余空间更多。
+3. 由于$s_{\text{min}}$的存在，$W(s_\text{min})$不可能参与最优方案。因此从`n`个集合中删除$\{s_{\text{min}}\}\cup W(s_\text{min})$问题，转换为区间数量更少的子问题。
+
+于是贪心思路呼之欲出：先按$r_i$对开区间升序排序，再按$l_i$对开区间降序排序（为了方便计算$W(s)$），重复上述操作即可。
+
+```c++
+const int N_MAX = 1e6;
+int n, ans, i_temp;
+struct Inteval { int i, l, r; } interval[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        interval[i].i = i;
+        std::cin >> interval[i].l >> interval[i].r;
+    }
+    std::sort(interval + 1, interval + n + 1, [](const Inteval &lhs, const Inteval &rhs) {
+        return (lhs.r != rhs.r) ? (lhs.r < rhs.r) : (lhs.l > rhs.l);
+    });
+
+    int i = 1;
+    while(i <= n) {
+        // 此时的i(即i_temp)一定属于最优解
+        i_temp = i; ++ans; ++i;
+        while(i <= n && interval[i].l < interval[i_temp].r) {
+            ++i; // 删除与i_temp重叠的区间
+        }
+    }
+    std::cout << ans;
+}
+```
+
+#### §3.3.3.2 最少区间覆盖问题
+
+> [洛谷P2434](https://www.luogu.com.cn/problem/P2434)：给定`n`个闭区间$s_i=[l_i, r_i]$，请用最少数量的闭区间描述$\displaystyle\bigcup_{i}s_i$的值，按升序输出。
+
+1. 选出$\displaystyle\bigcup_{i}s_i$中贡献最左元素的区间，即左端点最小的区间$s_{\text{min}}=\underset{s_i}{\text{argmin}}(l_i)$。我们希望这个区间尽可能长，即右端点尽可能大，使得占用空间尽可能多。
+2. 接着删除$s_\text{min}$即可，不断维护当前临时闭区间的左右端点。直到临时区间不得不断裂为止，此时输出原临时区间，并生成新的临时区间。重复以上步骤，直到遍历完所有`n`个闭区间为止。
+
+```c++
+const int N_MAX = 1e6;
+int n, start_temp, end_temp;
+struct Inteval { int i, l, r; } interval[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        interval[i].i = i;
+        std::cin >> interval[i].l >> interval[i].r;
+    }
+    std::sort(interval + 1, interval + n + 1, [](const Inteval &lhs, const Inteval &rhs) {
+        return (lhs.l != rhs.l) ? (lhs.l < rhs.l) : (lhs.r > rhs.r);
+    });
+
+    start_temp = interval[1].l, end_temp = interval[1].r;
+    for(int i = 2; i <= n; ++i) {
+        if(end_temp < interval[i].l) { // 生成新临时区间
+            std::cout << start_temp << ' ' << end_temp << '\n';
+            start_temp = interval[i].l; end_temp = interval[i].r;
+        } else { // 扩展原临时区间
+            // start_temp = std::min(start_temp, interval[i].l); // interval保证.l非严格单调递增
+            end_temp = std::max(end_temp, interval[i].r);
+        }
+    }
+    std::cout << start_temp << ' ' << end_temp << '\n';
+}
+```
+
 
 ## §3.4 差分
 
@@ -17266,6 +17343,354 @@ int main() {
 }
 ```
 
+# §10 思维与经典题型
+
+## §10.1 接雨水
+
+> [洛谷P1318](https://www.luogu.com.cn/problem/P1318)：接雨水。
+
+根据木桶原理，每个柱子的接水量由它两侧边界（即两侧柱子的最大值）的最小值决定，即$v[i] = \displaystyle\min\left( \max_{j\in[1,i]}h[j], \max_{j\in[i,n]}h[j] \right)$。把`n`个柱子的接水量加起来即可。
+
+```c++
+const int N_MAX = 1e4, H_MAX = 5e3;
+int n, h[N_MAX + 2], left_max[N_MAX + 2], right_max[N_MAX + 2], ans;
+int main() { 
+    std::cin >> n; 
+    for(int i = 1; i <= n; ++i) { std::cin >> h[i]; }
+    for(int i = 1; i <= n; ++i) { left_max[i] = std::max(left_max[i - 1], h[i]); }
+    for(int i = n; i >= 1; --i) { right_max[i] = std::max(right_max[i + 1], h[i]); }
+    for(int i = 1; i <= n; ++i) {
+        ans += std::min(left_max[i], right_max[i]) - h[i];
+    }
+    std::cout << ans;
+}
+```
+
+### §10.1.1 二维接雨水
+
+> [洛谷P5930](https://www.luogu.com.cn/problem/P5930)：二维接雨水。
+
+根据木桶原理，每个柱子的接水量由它边界（即围成边界的柱子）的最小值决定。然而二维的边界是一个闭合形状，无法简单的向上下左右四个方向探测最高柱子。例如下面的样例：
+
+```
+9 9 2 9
+9 1 1 9
+9 9 9 9
+```
+
+观察`h[2][2]`，它的上下左右的最高值虽然都是`9`，但是水显然会从边界`h[1][3]`流出。因此我们需要一种方式来维护这个边界。
+
+假设集合$H$为某个不规则（可以是非矩形）的地图的边界柱子高度集合，我们首先要考虑$\min(H)$的值，这提示我们可以使用优先队列来维护。从这个$h_{\text{min}}=\min(H)$出发，它一定是泄洪口，我们向四周的格子$h[x'][y']$做BFS，四周的柱子蓄水量一定为$\max(0, h_{\text{min}}-h[x'][y'])$，具体取决于泄洪口和四周的柱子谁更高。然后考虑缩小边界，更新$h[x'][y']$的高度为泄洪口和四周柱子的最高值，再作为边界添加到$H$中。处理完四周的柱子后，从$H$中删除$h_{\text{min}}$。使用`visited`数组判定是否计算了某个柱子的蓄水量。
+
+```c++
+const int N_MAX = 1e2, M_MAX = 1e2, H_MAX = 1e4;
+int n, m, h[N_MAX + 2][M_MAX + 2], ans;
+bool visited[N_MAX + 2][M_MAX + 2];
+int directions[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+struct Point { int x, y, h; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue([](const Point &child, const Point &root){
+    return child.h > root.h;
+});
+int main() { 
+    std::cin >> n >> m; 
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> h[i][j]; }}
+    for(int j = 1; j <= m; ++j) { queue.push({1, j, h[1][j]}); queue.push({n, j, h[n][j]}); }
+    for(int i = 2; i < n; ++i) { queue.push({i, 1, h[i][1]}); queue.push({i, m, h[i][m]}); }
+    while(!queue.empty()) {
+        Point p = queue.top(); queue.pop();
+        if(visited[p.x][p.y]) { continue; }
+        visited[p.x][p.y] = true;
+        for(int i = 0; i < 4; ++i) {
+            int x_temp = p.x + directions[i][0], y_temp = p.y + directions[i][1];
+            if(!is_in_closed_range(x_temp, y_temp, n, m)) { continue; }
+            if(visited[x_temp][y_temp]) { continue; }
+            ans += std::max(0, p.h - h[x_temp][y_temp]);
+            h[x_temp][y_temp] = std::max(p.h, h[x_temp][y_temp]);
+            queue.push({x_temp, y_temp, h[x_temp][y_temp]});
+        }
+    }
+    std::cout << ans;
+}
+```
+
+### §10.1.2 全排列接雨水
+
+> [洛谷P6345](https://www.luogu.com.cn/problem/P6345)：接雨水。给定`n`个高度分别为`h[i]`的柱子，有$A_n^n$种排列方式，将所有排列的接水量存入集合去重，升序输出该集合。
+
+我们需要证明一个及其重要的结论：给定`n`个柱子。从中随意取出`n-1`个柱子，它们的高度分别为`h[i:1->n-1]`，记其中高度最大/小的柱子编号为`i_max`/`i_min`（如果有多个最大/小值则任取一个柱子），在$A_{n-1}^{n-1}$种排列方式中随意选择一种。记`x[i:1->n-1]`和`v[1->n-1]`分别表示在该排列方式中，从左往右数第`i`个柱子的编号和节水量分别是什么。记表示在。接水量分别为`h[i:1->n-1]`和。要在其中插入第`n`个柱子时（记高度为`h'`），一定存在一个插入位置，使得插入后，原先的`n-1`个柱子的接水量保持不变，且第`n`个柱子的接水量可以是集合$\{0\}\cup\{h_i-h'|\forall i\in[1,n-1], h[i]>h' \wedge i\ne i_{\text{max}}\}$中的任意一个值。
+
+证明如下：
+
+1. 第`n`个柱子的接水量可以是`0`：
+	1. 如果$h'\ge h[i_\text{max}]$，就放在$h[i_\text{max}]$的任意一侧。
+	2. 如果$h'\le h[i_\text{min}]$，就放在原$n-1$个柱子序列的任意一端。
+	3. 如果$h[i_\text{min}]< h'< h[i_\text{max}]$，考察原$n-1$个柱子序列中不储水的柱子，它们的高度构成的取值范围一定为$[h[i_\text{min}], h[i_\text{max}]]$，记从左到右数第`i`个柱子的高度为$h_{\text{idx}}[i]$。并在$i$的维度上形成若干不相接的区间。必存在一个$i$维度上的区间，使得$h'$落在该高度的取值范围内，放到这个区间并保持高度非严格递增或递减即可。
+2. 第`n`个柱子的接水量可以是$h_i-h' (\forall i\in[1,n-1], h[i]>h' \wedge i\ne i_{\text{max}})$：只需把$h'$放在$h_i$和$h[i_\text{max}]$中的任意一个位置即可。
+
+给柱子按高度升序排序，得到`h[i:1->n]`数组。令`dp[i][j]`表示：只允许前`i`个柱子头上接水，后面的柱子即使接水也记为0，在$A_n^n$种排列方式中的接水量能否为`j`。我们只需分开考虑各个柱子即可（除了最高的柱子）。这里的`dp[i]`可以使用`std::bitset`而非`bool[]`，获取常数空间的优化。
+
+```c++
+const int N_MAX = 500, H_MAX = 50;
+int n, h[N_MAX + 1];
+std::bitset<N_MAX * H_MAX + 1> dp, dp_temp;
+int main() { 
+    std::cin >> n; 
+    for(int i = 1; i <= n; ++i) { std::cin >> h[i]; }
+    std::sort(h + 1, h + n + 1);
+    dp[0] = true;
+    for(int i = 1; i < n; ++i) { 
+        dp_temp.reset();
+        for(int j = i + 1; j <= n; ++j) {
+            dp_temp |= (dp << (h[j] - h[i]));
+        } 
+        dp |= dp_temp;
+    }
+    for(int i = 0; i <= N_MAX * H_MAX; ++i) {
+        if(dp[i] == true) { std::cout << i << ' '; }
+    }
+}
+```
+
+## §10.2 表达式计算
+
+### §10.2.1 计算后缀表达式
+
+后缀表达式的计算尤其简单：遇到操作数就压入栈，遇到操作符则`pop`出两个操作数，计算后再压入栈。
+
+> [洛谷P1449](https://www.luogu.com.cn/problem/P1449)：计算给定的后缀表达式。
+
+```c++
+int main() {
+    std::stack<int64_t> datas;
+    int64_t temp_num = 0, temp_num_1, temp_num_2;
+    while (char data = getchar()) {
+        switch (data) {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                temp_num = temp_num * 10 + data - '0';
+                break;
+            case '.':
+                datas.push(temp_num);
+                temp_num = 0;
+                break;
+            case '+':
+                temp_num_1 = datas.top(); datas.pop();
+                temp_num_2 = datas.top(), datas.pop();
+                datas.push(temp_num_2 + temp_num_1);
+                break;
+            case '-':
+                temp_num_1 = datas.top(); datas.pop();
+                temp_num_2 = datas.top(), datas.pop();
+                datas.push(temp_num_2 - temp_num_1);
+                break;
+            case '*':
+                temp_num_1 = datas.top(); datas.pop();
+                temp_num_2 = datas.top(), datas.pop();
+                datas.push(temp_num_2 * temp_num_1);
+                break;
+            case '/':
+                temp_num_1 = datas.top(); datas.pop();
+                temp_num_2 = datas.top(), datas.pop();
+                datas.push(temp_num_2 / temp_num_1);
+                break;
+            case '@':
+                std::cout << datas.top();
+                return 0;
+        }
+    }
+}
+```
+
+### §10.2.2 中缀表达式转后缀表达式
+
+1. 初始化两个栈：运算符栈`op_stack`和操作数栈`num_stack`。
+2. 从左到右扫描中缀表达式。
+	1. 遇到操作数`num_temp`时，将其压入`num_stack`。
+	2. 遇到运算符`*iter`时：
+	    1. 如果`op_stack`为空，或则栈顶运算符号为 `(` ，或`*iter`优先级大于`op_stack.top()`，则将其压入符号栈`op_stack`。
+	    2. 如果`*iter`优先级小于等于`op_stack.top()`优先级，则令`op_stack.top()`出栈并加入到`num_stack`中，重复该操作直到前提条件不满足为止，将`*iter`压入符号栈`op_stack`。
+	3. 遇到`(`时：直接入栈`op_stack`。
+	4. 遇到`)`时：一直令`op_stack.top()`出栈并加入到`num_stack`中，直到`op_stack.top() == '('`，并令`(`出栈。
+3. 一直令`op_stack.top()`出栈并加入到`num_stack`中，直到`op_stack`为空。
+4. 顺序输出`op_stack()`中的所有元素。
+
+在C++中，`num_stack`不能同时储存操作数`int64_t`和操作符`char`，所以我们直接输出到`STDOUT`了。
+
+```c++
+std::stack<char> op_stack; std::stack<int64_t> num_stack;
+std::map<char, int32_t> op_prior = {
+    {'+', 1}, {'-', 1}, {'*', 2}, {'/', 2}, 
+    {'(', 0}, {')', 0}
+};
+std::string buffer;
+int64_t num_temp;
+int main() {
+    std::getline(std::cin, buffer); if(!buffer.empty() && buffer.back() == '\r') { buffer.pop_back(); }
+    for(std::string::iterator iter = buffer.begin(); iter != buffer.end(); ++iter) {
+        if(*iter >= '0' && *iter <= '9') {
+            num_temp = *iter - '0';
+            while(++iter != buffer.end() && *iter >= '0' && *iter <= '9') {
+                num_temp = num_temp * 10 + (*iter - '0');
+            }
+            --iter;
+            std::cout << num_temp << '\n'; // 伪代码: num_stack.push(num_temp);
+        } else if(*iter == '+' || *iter == '-' || *iter == '*' || *iter == '/') {
+            while(!op_stack.empty() && op_prior[op_stack.top()] >= op_prior[*iter]) {
+                std::cout << op_stack.top() << '\n'; // 伪代码: num_stack.push(op_stack.top());
+                op_stack.pop();
+            }
+            op_stack.push(*iter);
+        } else if(*iter == '(') {
+            op_stack.push(*iter);
+        } else if(*iter == ')') {
+            while(!op_stack.empty() && op_stack.top() != '(') {
+                std::cout << op_stack.top() << '\n'; // 伪代码: num_stack.push(op_stack.top());
+                op_stack.pop();
+            }
+            assert(!op_stack.empty());
+            op_stack.pop();
+        }
+    }
+    while(!op_stack.empty()) {
+        std::cout << op_stack.top() << '\n'; // 伪代码: num_stack.push(op_stack.top());
+        op_stack.pop();
+    }
+}
+```
+
+### §10.2.3 计算中缀表达式
+
+在“中缀表达式转后缀表达式”中，运算符不入操作数栈，而是直接转化为“计算后缀表达式”的步骤。
+
+```c++
+std::stack<char> op_stack; std::stack<int64_t> num_stack;
+std::map<char, int32_t> op_prior = {
+    {'+', 1}, {'-', 1}, {'*', 2}, {'/', 2}, 
+    {'(', 0}, {')', 0}
+};
+std::string buffer;
+int64_t num_temp;
+inline void calc(std::stack<int64_t> &num_stack, const char &op) {
+    assert(num_stack.size() >= 2); // "Lack of operand!"
+    int64_t b = num_stack.top(); num_stack.pop();
+    int64_t a = num_stack.top(); num_stack.pop();
+    if(op == '+') {
+        num_stack.push(a + b); return;
+    } else if(op == '-') {
+        num_stack.push(a - b); return;
+    } else if(op == '*') {
+        num_stack.push(a * b); return;
+    } else if(op == '/') {
+        num_stack.push(a / b); return;
+    }
+    assert(false); // "Invalid operator!"
+}
+int main() {
+    std::getline(std::cin, buffer); if(!buffer.empty() && buffer.back() == '\r') { buffer.pop_back(); }
+    for(std::string::iterator iter = buffer.begin(); iter != buffer.end(); ++iter) {
+        if(*iter >= '0' && *iter <= '9') {
+            num_temp = *iter - '0';
+            while(++iter != buffer.end() && *iter >= '0' && *iter <= '9') {
+                num_temp = num_temp * 10 + (*iter - '0');
+            }
+            --iter;
+            num_stack.push(num_temp);
+        } else if(*iter == '+' || *iter == '-' || *iter == '*' || *iter == '/') {
+            while(!op_stack.empty() && op_prior[*iter] <= op_prior[op_stack.top()]) {
+                calc(num_stack, op_stack.top());
+                op_stack.pop();
+            }
+            op_stack.push(*iter);
+        } else if(*iter == '(') {
+            op_stack.push(*iter);
+        } else if(*iter == ')') {
+            while(!op_stack.empty() && op_stack.top() != '(') {
+                calc(num_stack, op_stack.top());
+                op_stack.pop();
+            }
+            assert(!op_stack.empty());
+            op_stack.pop();
+        }
+    }
+    while(!op_stack.empty()) {
+        calc(num_stack, op_stack.top());
+        op_stack.pop();
+    }
+    assert(num_stack.size() == 1); // "Excessive operand!"
+    std::cout << num_stack.top();
+}
+```
+
+> [洛谷P1981](https://www.luogu.com.cn/problem/P1981)：给定一个只包含`+`和`*`的中缀表达式，求值模`10000`的输出。
+
+在数字入栈`num_stack`、`calc()`函数中添加取模逻辑即可。
+
+```c++
+std::stack<char> op_stack; std::stack<int64_t> num_stack;
+std::map<char, int32_t> op_prior = {
+    {'+', 1}, {'-', 1}, {'*', 2}, {'/', 2}, 
+    {'(', 0}, {')', 0}
+};
+std::string buffer;
+int64_t num_temp;
+inline void calc(std::stack<int64_t> &num_stack, const char &op) {
+    assert(num_stack.size() >= 2); // "Lack of operand!"
+    int64_t b = num_stack.top(); num_stack.pop(); b %= 10000;
+    int64_t a = num_stack.top(); num_stack.pop(); a %= 10000;
+    if(op == '+') {
+        num_stack.push((a + b) % 10000); return;
+    } else if(op == '-') {
+        num_stack.push((a - b) % 10000); return;
+    } else if(op == '*') {
+        num_stack.push((a * b) % 10000); return;
+    } else if(op == '/') {
+        num_stack.push((a / b) % 10000); return;
+    }
+    assert(false); // "Invalid operator!"
+}
+int main() {
+    std::getline(std::cin, buffer); if(!buffer.empty() && buffer.back() == '\r') { buffer.pop_back(); }
+    for(std::string::iterator iter = buffer.begin(); iter != buffer.end(); ++iter) {
+        if(*iter >= '0' && *iter <= '9') {
+            num_temp = *iter - '0';
+            while(++iter != buffer.end() && *iter >= '0' && *iter <= '9') {
+                num_temp = num_temp * 10 + (*iter - '0');
+            }
+            --iter;
+            num_stack.push(num_temp % 10000);
+        } else if(*iter == '+' || *iter == '-' || *iter == '*' || *iter == '/') {
+            while(!op_stack.empty() && op_prior[*iter] <= op_prior[op_stack.top()]) {
+                calc(num_stack, op_stack.top());
+                op_stack.pop();
+            }
+            op_stack.push(*iter);
+        } else if(*iter == '(') {
+            op_stack.push(*iter);
+        } else if(*iter == ')') {
+            while(!op_stack.empty() && op_stack.top() != '(') {
+                calc(num_stack, op_stack.top());
+                op_stack.pop();
+            }
+            assert(!op_stack.empty());
+            op_stack.pop();
+        }
+    }
+    while(!op_stack.empty()) {
+        calc(num_stack, op_stack.top());
+        op_stack.pop();
+    }
+    assert(num_stack.size() == 1); // "Excessive operand!"
+    std::cout << num_stack.top();
+}
+```
 # §A 技巧与警钟长鸣
 
 ## §A.1 Segment Fault
