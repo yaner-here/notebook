@@ -7241,6 +7241,10 @@ int main() {
 }
 ```
 
+> [力扣452](https://leetcode.cn/problems/minimum-number-of-arrows-to-burst-balloons/description/)：给定`n`个闭区间$s_i=[l_i, r_i]$构成的集合$S$，显然必定存在集合$X$，使得$\forall s_i\in S, \exists x_j\in X$，使得$x_j\in s_i$。求$\min{\#(X)}$。
+
+
+
 #### §3.3.3.2 最少区间覆盖问题
 
 > [洛谷P2434](https://www.luogu.com.cn/problem/P2434)：给定`n`个闭区间$s_i=[l_i, r_i]$，请用最少数量的闭区间描述$\displaystyle\bigcup_{i}s_i$的值，按升序输出。
