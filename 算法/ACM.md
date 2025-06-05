@@ -7247,7 +7247,79 @@ int main() {
 
 #### §3.3.3.2 最少区间覆盖问题
 
-> [洛谷P2434](https://www.luogu.com.cn/problem/P2434)：给定`n`个闭区间$s_i=[l_i, r_i]$，请用最少数量的闭区间描述$\displaystyle\bigcup_{i}s_i$的值，按升序输出。
+> [力扣1024](https://leetcode.cn/problems/video-stitching/description/)：给定`n`个闭区间$s_i=[l_i, r_i]$，请选择尽可能少的闭区间，使得它们的并集覆盖指定的区间`[0, time]`。
+
+我们将`n`个闭区间**按左端点升序排序**。每次循环时，我们先选择当前的闭区间`interval[i]`，然后向下查找所有左端点小于等于当前`r_cur`的区间的右端点最大值`r_cur_tmp`（这一过程可以通过**其次按右端点降序排序**加速实现），然后将该最大值更新到`r_cur`中。直到`r_cur >= time`为止，表示已经覆盖完毕。或者遍历完`n`个区间后依然无法覆盖，此时`r_cur < time`，判定为无法覆盖。
+
+```c++
+class Solution {
+public:
+    int videoStitching(vector<vector<int>>& clips, int time) {
+        std::sort(clips.begin(), clips.end(), [](const std::vector<int> &lhs, const std::vector<int> &rhs){
+	        return lhs[0] < rhs[0] || (lhs[0] == rhs[0] && lhs[1] > rhs[1]);
+        });
+        int ans = 0, n = clips.size();
+        for(int i = 0, r_cur = 0, r_cur_tmp = 0; i < n && clips[i][0] <= r_cur; ) {
+	        ++ans;
+	        while(i < n && clips[i][0] <= r_cur) {
+		        r_cur_tmp = std::max(r_cur_tmp, clips[i][1]); ++i;
+	        }
+	        r_cur = r_cur_tmp;
+	        if(r_cur >= time) { return ans; }
+        }
+        return -1;
+    }
+};
+```
+
+> [洛谷P1514](https://www.luogu.com.cn/problem/P1514)：给定`m`个排成一行的格子，以及`m`个格子范围区间$s_i=[l_i\sim r_i]$，请选择尽可能少的闭区间，使得它们的并集覆盖所有格子。
+
+继承上题思路即可，目标覆盖格子范围区间为`[1, m]`，注意`r_cur = r_cur_tmp + 1`需要加`1`。或者注意到$[l_i\sim r_i]$号格子完全等价于$[l_i - 1, r_i]$闭区间，转化为上例问题。
+
+```c++
+const int N_MAX = 500, M_MAX = 500;
+int n, m, h[N_MAX + 1][M_MAX + 1], l[N_MAX + 1][M_MAX + 1], r[N_MAX + 1][M_MAX + 1], unreachable_count, ans;
+struct Interval { int l, r; } interval[M_MAX + 1];
+bool visited[N_MAX + 1][M_MAX + 1];
+const int direction[4][2] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+void dfs(int x, int y) {
+	if(x <= 0 || x > n || y <= 0 || y > m) return;
+	if(visited[x][y]) { return; } visited[x][y] = true;
+	for(int i = 0; i < 4; ++i) {
+		int nx = x + direction[i][0], ny = y + direction[i][1];
+		if(nx <= 0 || nx > n || ny <= 0 || ny > m) { continue; }
+		if(h[nx][ny] >= h[x][y]) { continue; }
+		dfs(nx, ny);
+		l[x][y] = std::min(l[x][y], l[nx][ny]);
+		r[x][y] = std::max(r[x][y], r[nx][ny]);
+	}
+}
+int main() {
+	std::cin >> n >> m;
+	for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> h[i][j]; l[i][j] = INT_MAX; r[i][j] = INT_MIN; } }
+	for(int j = 1; j <= m; ++j) { l[n][j] = r[n][j] = j; }
+	for(int j = 1; j <= m; ++j) { if(!visited[1][j]) { dfs(1, j); } }
+	for(int j = 1; j <= m; ++j) { if(!visited[n][j]) { ++unreachable_count; } }
+	if(unreachable_count > 0) {
+		std::cout << 0 << '\n' << unreachable_count;
+	} else if(unreachable_count == 0) {
+		for(int j = 1; j <= m; ++j) { interval[j].l = l[1][j]; interval[j].r = r[1][j]; }
+		std::sort(interval + 1, interval + m + 1, [](const Interval &lhs, const Interval &rhs) { return lhs.l < rhs.l; });
+		for(int i = 1, r_cur = 1, r_cur_tmp = r_cur; i <= m && interval[i].l <= r_cur; ) { // 找到所有左端点小于等于r_cur的线段，取其端点最大值是否大于等于r_cur
+			++ans;
+			while(i <= m && interval[i].l <= r_cur) {
+				r_cur_tmp = std::max(r_cur_tmp, interval[i].r);
+				++i;
+			}
+			r_cur = r_cur_tmp + 1;
+			if(r_cur > m) { break; } // 已经全部覆盖完毕
+		}
+		std::cout << 1 << '\n' << ans;
+	}
+}
+```
+
+> [洛谷P2434](https://www.luogu.com.cn/problem/P2434)：给定`n`个闭区间$s_i=[l_i, r_i]$，请选择尽可能少的闭区间，使它们的并集恰好等于$\displaystyle\bigcup_{i}s_i$。按升序输出。
 
 1. 选出$\displaystyle\bigcup_{i}s_i$中贡献最左元素的区间，即左端点最小的区间$s_{\text{min}}=\underset{s_i}{\text{argmin}}(l_i)$。我们希望这个区间尽可能长，即右端点尽可能大，使得占用空间尽可能多。
 2. 接着删除$s_\text{min}$即可，不断维护当前临时闭区间的左右端点。直到临时区间不得不断裂为止，此时输出原临时区间，并生成新的临时区间。重复以上步骤，直到遍历完所有`n`个闭区间为止。
@@ -7281,6 +7353,158 @@ int main() {
 ```
 
 #### §3.3.3.3 最大区间重合问题
+
+### §3.3.4 反悔贪心
+
+> [洛谷P4053](https://www.luogu.com.cn/problem/P4053)：给定`n`个任务，第`i`个任务耗时`t_cost[i]`，且必须在截止时间`t_due[i]`之前**结束**才算完成。现在的时间`t_cur`为`0`，求最多能完成多少任务。
+
+考虑贪心序。如果先完成第`j`个任务会导致无法完成第`i`个任务，反之则可以，则显然有不等式组：
+
+$$
+\begin{cases}
+	t + \text{t\_cost}[i] + \text{t\_cost}[j] \le \text{t\_due}[j] \\
+	t + \text{t\_cost}[j] + \text{t\_cost}[i] >   \text{t\_due}[i]
+\end{cases} \Rightarrow \begin{cases}
+	\text{t\_due}[i] < \text{t\_due}[j]
+\end{cases}
+$$
+
+于是我们需要先抢救快要过期的任务，排序即可。令`heap`维护已经完成的任务列表，且按照耗时`t_cost[]`排序成大根堆。初始时我们计划完成所有任务，将这些完成的任务加入到`heap`中，直到发现超时，这时我们从`heap`选出最耗时的任务，撤销即可，直到时间又够用为止。这样虽然完成任务的总数一样，但是时间更宽裕了，这也是一种贪心。最坏情况下，`heap`中最耗时的任务就是当前任务自己，所以只需选出一个最耗时的任务即可。
+
+```c++
+const int N_MAX = 1.5e5;
+int n; int64_t t_cur, ans;
+struct Building { int i; int64_t t_cost, t_due; } x[N_MAX + 1];
+std::priority_queue<Building, std::vector<Building>, std::function<bool(Building&, Building&)>> heap(
+	[](const Building &lhs, const Building &rhs){ return lhs.t_cost < rhs.t_cost; }
+);
+int main() {
+	std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+	std::cin >> n;
+	for(int i = 1; i <= n; ++i) { x[i].i = i; std::cin >> x[i].t_cost >> x[i].t_due; }
+	std::sort(x + 1, x + 1 + n, [](const Building &lhs, const Building &rhs){return lhs.t_due < rhs.t_due;});
+	for(int i = 1; i <= n; ++i) {
+		++ans; t_cur += x[i].t_cost; heap.push(x[i]); // 尝试完成这个任务
+		if(t_cur > x[i].t_due) { // 发现超时了
+			--ans; t_cur -= heap.top().t_cost; // 反悔，撤销之前最耗时的一个任务, heap.top().t_cost >= x[i].cost恒成立
+			heap.pop();
+		}
+	}
+	while(!heap.empty()) { std::cerr << heap.top().i << ' '; heap.pop(); } std::cerr << '\n'; // 输出选中的任务编号
+	std::cout << ans;
+}
+```
+
+> [洛谷P11328](https://www.luogu.com.cn/problem/P11328)：给定`n`个任务，第`i`个任务耗时`t_cost[i]`，且必须在截止时间`t_due[i]`之前**开始做**才算完成。现在的时间`t_cur`为`0`，求最多能完成多少任务。
+
+考虑贪心序。如果先完成第`j`个任务会导致无法完成第`i`个任务，反之则可以，则显然有不等式组：
+
+$$
+\begin{cases}
+	t + \text{t\_cost}[i] \le \text{t\_due}[j] \\
+	t + \text{t\_cost}[j] >   \text{t\_due}[i]
+\end{cases} \Rightarrow \begin{cases}
+	\text{t\_due}[i] + \text{t\_cost}[i] < \text{t\_due}[j] + \text{t\_cost}[j]
+\end{cases}
+$$
+
+于是按`t_cost[i]+t_due[i]`排序即可。再使用反悔贪心，撤销已经完成的、`t_cost[]`最大的任务即可。这里需要注意：**反悔任务时，必须检查反悔后是否能选择当前任务**。
+
+```c++
+const int N_MAX = 5e5;
+int n, ans; int64_t t_cur;
+struct Task { int64_t t_cost, t_due; } x[N_MAX + 1];
+std::priority_queue<Task, std::vector<Task>, std::function<bool(Task&, Task&)>> heap(
+	[](const Task &child, const Task &root){ return child.t_cost < root.t_cost; }
+);
+int main() {
+	std::cin >> n;
+	for(int i = 1; i <= n; ++i) { std::cin >> x[i].t_cost;  }
+	for(int i = 1; i <= n; ++i) { std::cin >> x[i].t_due;  }
+	std::sort(x + 1, x + 1 + n, [](const Task &lhs, const Task &rhs){
+		return lhs.t_due + lhs.t_cost < rhs.t_due + rhs.t_cost;
+	});
+	for(int i = 1; i <= n; ++i) {
+		if(t_cur <= x[i].t_due) { // 如果能选第i个任务，直接选
+			++ans; t_cur += x[i].t_cost; heap.push(x[i]);
+			continue;
+		}
+		if(!heap.empty() && heap.top().t_cost > x[i].t_cost && t_cur - heap.top().t_cost <= x[i].t_due) { // 如果不能选第i个任务，且能更换任务
+			--ans; t_cur -= heap.top().t_cost; heap.pop();
+			++ans; t_cur += x[i].t_cost; heap.push(x[i]);
+			continue;
+		}
+	}
+	std::cout << ans;
+}
+```
+
+> [洛谷P2949]()：给定`n`个任务，完成第`i`个的收益为`val[i]`，但是必须在截止时间`t_due[i]`之前才算完成。现在的时间`t_cur`为`0`，求收益最大值。
+
+先确定贪心序，按截止时间对任务进行升序排序，证明略。采用反悔贪心思路：每次都完成前`i`个任务，直到第`i`个任务超时，这时从小根堆中取出之前完成任务中收益最小的那个任务，反悔即可。
+
+```c++
+const int N_MAX = 1e5;
+int n; int64_t t_cur, ans;
+struct Building { int i; int64_t t_due, val; } x[N_MAX + 1];
+std::priority_queue<Building, std::vector<Building>, std::function<bool(Building&, Building&)>> heap(
+	[](const Building &lhs, const Building &rhs){ return lhs.val > rhs.val; }
+);
+int main() {
+	std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+	std::cin >> n;
+	for(int i = 1; i <= n; ++i) { x[i].i = i; std::cin >> x[i].t_due >> x[i].val; }
+	std::sort(x + 1, x + 1 + n, [](const Building &lhs, const Building &rhs){return lhs.t_due < rhs.t_due;});
+	for(int i = 1; i <= n; ++i) {
+		++t_cur; ans += x[i].val; heap.push(x[i]);
+		if(t_cur > x[i].t_due) {
+			--t_cur; ans -= heap.top().val;
+			heap.pop();
+		}
+	}
+	while(!heap.empty()) { std::cerr << heap.top().i << ' '; heap.pop(); } std::cerr << '\n';
+	std::cout << ans;
+}
+```
+
+### §3.3.A 杂项
+
+> [洛谷P6155](https://www.luogu.com.cn/problem/P6155)：给定`a[1->n]`，如果要给`a[i]`自增加一则需要消耗`b[i]`的代价，直到使得`a[i]`中的元素互不相同。在所有自增操作开始前，允许任意交换`b[]`中的元素。求代价最小值。
+
+需要注意到以下结论：
+
+- 由于`b[]`可以任意交换，我们肯定希望更改的`a[i]`对应的`b[i]`尽可能小。这是显然的，最符合直觉的贪心。
+- **修改的`a[]`元素个数尽可能少**。不妨考虑以下输入范例：`a[]={1,1,2}, b[]={1,2,3}`。我们既可以让后两个元素自增成`a'[]={1,2,3}`，也可以只让第一个元素自增成`a'[]={3,1,2}`。然而，自增的元素个数越多，`b[]`的小元素提供的“优惠劵”就用的越多，导致有些元素不得不使用更大的`b[]`。证毕。
+
+不妨给`a[]`增序排序。为了实现第二条结论，我们不难发现，如果有多个相邻的`a[]`相等，我们优先更改靠前的元素，并让它自增非常多次，变成一个较大的值。例如`a[]={1,1,1,1}`会变成`a'[]={4,3,2,1}`。令链表`a_inc[a_inc_point]`表示`a[]`中自增元素的自增次数，再降序排序。令`b[]`升序排序，答案显然为$\displaystyle\sum_{1\le i\le \text{a\_inc\_point}}{\text{a\_inc}[i]\cdot\text{b}[i]}$。例如我们期望上例的`a_inc[]={3,2,1}`，排序后是`{3,2,1}`。
+
+令栈`s`表示当前小于等于`x`的待处理`a[]`元素下标。
+
+```c++
+const int N_MAX = 1e6;
+uint64_t n, a[N_MAX + 1], b[N_MAX + 1], a_inc[N_MAX + 1], a_inc_ptr, ans;
+std::stack<int>s;
+int main() {
+	std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+	std::cin >> n;
+	for(int i = 1; i <= n; ++i) { std::cin >> a[i]; } std::sort(a + 1, a + n + 1);
+	for(int i = 1; i <= n; ++i) { std::cin >> b[i]; } std::sort(b + 1, b + n + 1);
+	for(int i = 1, x = a[i]; x <= a[n] || !s.empty(); ) { // 确保x至少遍历到a[]最大值
+		while(i <= n && a[i] == x) { // 如果存在a[i]元素与待分配数字x冲突，则记录a[]元素下标
+			s.push(i); ++i;
+		}
+		if(s.empty()) { x = a[i]; continue; } // 栈为空，说明不存在任何待处理的a[]元素，直接让x快进到a[i]
+		if(x != a[s.top()]) { // 需要把a[栈顶]更改为x，也就是把x分配给a[栈顶]
+			a_inc[++a_inc_ptr] = x - a[s.top()];
+		}
+		s.pop(); // a[栈顶]处理完毕
+		++x; // x已经分配完毕，下一步尝试分配x+1
+	}
+	std::sort(a_inc + 1, a_inc + a_inc_ptr + 1, std::greater<int>());
+	for(int i = 1; i <= a_inc_ptr; ++i) { ans += a_inc[i] * b[i]; }
+	std::cout << ans;
+}
+```
 
 ## §3.4 差分
 
@@ -10546,7 +10770,7 @@ int main() {
 }
 ```
 
-> [洛谷P3420](https://www.luogu.com.cn/problem/P3420)：给定一个由`n`个顶点、**`n`条有向边**的有向图。**每个顶点的入度和出度均为`1`**。求至少要选择多少顶点作为起点，才能保证任意顶点可达？
+> [洛谷P3420](https://www.luogu.com.cn/problem/P3420)：给定一个有`n`个顶点、**`n`条有向边**的有向图。**每个顶点的入度和出度均为`1`**。求至少要选择多少顶点作为起点，才能保证任意顶点可达？
 
 本题其实是[洛谷P2746](https://www.luogu.com.cn/problem/P2746)/[洛谷P2812](https://www.luogu.com.cn/problem/P2812)的弱化版，直接对强连通分量缩点，输出入度为`0`的强连通分量个数即可，时间复杂度为$O(n+m)=O(2n)$。但是本题给定了众多优良的性质，我们可以用并查集解决，时间复杂度为$O(n)$。
 
@@ -11118,6 +11342,12 @@ int main() {
     std::cout << result;
 }
 ```
+
+### §7.2.A 转化为并查集问题
+
+> [洛谷P2127](https://www.luogu.com.cn/problem/P2127)：给定元素不重复的序列`int a[1->n]`，每次可以交换序列中的任意两个数，交换的代价为这两个数之和。求排成升序所需的代价最小值。
+
+首先给`a[]`离散化到值域`[1, n]`中作为序号，问题转化为`1~n`号元素在`1~n`空间内的排序问题。令$f(i)=a[i]$，$f^{(l_i)}(i)=i$一定能形成环，其中环的长度为$l_i$。于是想到并查集，将同在一个环内的元素放到一个集合中。
 
 ## §7.3 队列/单调队列
 
