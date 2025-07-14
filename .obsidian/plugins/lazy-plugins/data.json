@@ -19,6 +19,12 @@
       },
       "fix-callout": {
         "startupType": "instant"
+      },
+      "better-export-pdf": {
+        "startupType": "instant"
+      },
+      "obsidian-plugin-toc": {
+        "startupType": "instant"
       }
     }
   }
