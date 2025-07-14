@@ -1,5 +1,3 @@
-# ACM
-
 # §1 STL
 
 ## §1.1 `<iomainip>`
@@ -7201,6 +7199,22 @@ int main() {
 }
 ```
 
+> [洛谷P1080](https://www.luogu.com.cn/problem/P1080)：给定`n+1`个排成一行的格子，每个格子携带两个正整数权重`a[i:0->n]`和`b[i:0->n]`，定义第`i`个格子的价值为$f(i)=\displaystyle\sum_{i=1}^{n}\left(\frac{\prod_{j=0}^{i-1}a_j}{b_i}\right)$。现在允许任意重新排列后`n`个格子的次序，求$\displaystyle\min_{i\in[1,n]}f(i)$。
+
+假设当前次序交换第`i`个和第`i+1`个格子后，恰好能取到最小值。注意到此时只有$f(i)$和$f(i+1)$的值发生了变化，因此目标函数在交换前等于$\displaystyle\max\left(\frac{\prod_{j=0}^{i-1}a_j}{b_i},\frac{\prod_{j=0}^{i}a_j}{b_{i+1}}\right)$，在交换后等于$\displaystyle\max\left(\frac{\prod_{j=0}^{i-1}a_j}{b_{i+1}},\frac{\prod_{j=0}^{i-1}a_j\cdot a_{i+1}}{b_{i}}\right)$，我们的不等式约束要求后者更小。注意到显然有$\displaystyle\frac{\prod_{j=0}^{i-1}a_j}{b_i}\le \frac{\prod_{j=0}^{i-1}a_j\cdot a_{i+1}}{b_{i}}$和$\displaystyle\frac{\prod_{j=0}^{i}a_j}{b_{i+1}}\ge\frac{\prod_{j=0}^{i-1}a_j}{b_{i+1}}$。如果要使得前者更大，后者更小，我们肯定不希望目标函数在交换前取$\displaystyle\frac{\prod_{j=0}^{i-1}a_j}{b_i}$，否则按照前文的显然结论，必不可能满足不等式约束。因此我们希望目标函数在交换前等于$\displaystyle\frac{\prod_{j=0}^{i}a_j}{b_{i+1}}$，这就引入了第二个不等式约束。
+
+$$
+\begin{cases}
+	第一个不等式约束:交换取得最优解 \ \displaystyle\frac{\prod_{j=0}^{i}a_j}{b_{i+1}} \ge \frac{\prod_{j=0}^{i-1}a_j\cdot a_{i+1}}{b_{i}} \\
+	第二个不等式约束:交换前目标函数值 \ \displaystyle\frac{\prod_{j=0}^{i}a_j}{b_{i+1}} \ge \frac{\prod_{j=0}^{i-1}a_j}{b_i}
+\end{cases}
+$$
+
+均解得$a_ib_i\ge a_{i+1}b_{i+1}$。反过来就是序列满足$a_ib_i\le a_{i+1}b_{i+1}$时取得最优解。
+
+
+
+
 ### §3.3.3 区间调度问题
 
 #### §3.3.3.1 最多区间调度问题
@@ -8891,7 +8905,7 @@ int main() {
 考虑`dp[i][j]`对应的策略中的最后一步操作，可以分为三种情况：
 
 - 最后一步操作是`a`添加字符。如果没有这最后一步操作，则`a`的长度为`i-1`，`b`的长度为`j`。因此`dp[i-1][j] + 1`可以转移到`dp[i][j]`。
-- 最后一步操作是`a`删除字符。**注意到这种操作等价于`b`删除字符**。如果没有这最后一步操作，则`a`的长度为`i`，`b`的长度为`j-1`。因此`dp[i][j-1] + 1`可以转移到`dp[i][j]`。
+- 最后一步操作是`a`删除字符。**注意到这种操作等价于`b`添加字符**。如果没有这最后一步操作，则`a`的长度为`i`，`b`的长度为`j-1`。因此`dp[i][j-1] + 1`可以转移到`dp[i][j]`。
 - 最后一步操作是`a`编辑字符。**注意到这种操作等价于对`a`先删除再添加，但是只需支付一个回合的代价**。**如果`a[i]==b[i]`，则无需多支付任何代价**。因此`dp[i-1][j-1] + (a[i]!=b[i])`可以转移到`dp[i][j]`。
 
 综上所述，状态转移方程为：
@@ -17633,6 +17647,47 @@ int main() {
     std::cout << ans;
 }
 ```
+
+## §8.5 数列递推
+
+> [洛谷P2609](https://www.luogu.com.cn/problem/P2609)：给定数列$\{a_n\}$的递推式$\begin{cases}a_0=0 \\ a_1=1 \\ a_{2i}=a_{i} \\ a_{2i+1}=a_{i+1}+a_{i}\end{cases}$，求$a_n$的值（`n<=1e100`）。
+
+注意到对于$f(i,u,v)=u\cdot a_{i+1}+v\cdot a_{i}$，我们有恒等式成立：
+
+$$
+	f(i,u,v) = \begin{cases}
+		u \cdot (a_{\frac{i}{2}+1} + a_{\frac{i}{2}}) + v \cdot (a_{\frac{i}{2}}) & ,i\%2=0 \\
+		u \cdot (a_{\frac{i}{2}+1}) + v \cdot (a_{\frac{i}{2}+1} + a_{\frac{i}{2}}) & ,i\%2=1 \\
+	\end{cases} = \begin{cases}
+		f(\frac{i}{2},u,u+v) & ,i\%2=0 \\
+		f(\frac{i}{2},u+v,v) & ,i\%2=1
+	\end{cases}
+$$
+
+递推即可，注意要用高精度。
+
+```c++
+int t;
+std::string n_temp;
+Num n, p, q;
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> n_temp; n = n_temp.c_str(); p = 0; q = 1; 
+        while(n >= 1) {
+            if (n % 2 == 1) {
+                p = p + q;
+            } else if (n % 2 == 0) {
+                q = p + q;
+            }
+            n /= 2;
+        }
+        // n==0, p*a1 + q*a0 = p
+        std::cout << p << '\n';
+    }
+}
+```
+
 # §9 模拟
 
 "与成功只差最后一步，卡在这里了"。
