@@ -2,5 +2,7 @@
   "lazy-plugins",
   "surfing",
   "d2-obsidian",
-  "fix-callout"
+  "fix-callout",
+  "better-export-pdf",
+  "obsidian-plugin-toc"
 ]
