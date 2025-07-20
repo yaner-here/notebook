@@ -2561,6 +2561,219 @@ public class JucMain {
 
 交换器（`java.util.concurrent.Exchanger`）以两个线程为一组，同时放行并交换信息。
 
+交换器提供了单槽模式和多槽模式，以下是创建的变量：
+
+```java
+public class Exchanger<V> {
+
+    /* CPU数量/2，近似作为多槽模式的数量，详见构造函数的逻辑 */
+    private final int ncpu;
+    /* 多槽模式的最大数组索引，低8位表示索引，高24位表示版本号 */
+    private volatile int bound;
+    /* 多槽模式的支持的最大数组索引 */
+    private static final int MMASK = 0xff;
+    /* 版本号，负责叠加到bound上 */
+    private static final int SEQ = MMASK + 1;
+    /* 自旋等待最大次数 */
+    private static final int SPINS = 1 << 10;
+
+    /* 内部类，封装交换保存的信息 */
+    static final class Node {
+        long seed; /* 随机种子 */
+        int index;
+        Object item; /* 当前线程携带的信息 */
+        volatile Object match; /* 另一个线程携带的信息 */
+        volatile Thread parked; /* 阻塞线程 */
+        Node() {
+            index = -1;
+            seed = Thread.currentThread().threadId();
+        }
+    }
+    /* 单槽模式，定义了Node */
+    static final class Slot { Exchanger.Node entry; }
+    /* 多槽模式，定义了Node[] */
+    private final Exchanger.Slot[] arena;
+
+    /* 创建VarHandle供CAS使用 */
+    private static final VarHandle BOUND; /* 控制Node.match（多槽模式的支持的最大数组索引） */
+    private static final VarHandle MATCH; /* 控制Node.match（另一个线程携带的信息） */
+    private static final VarHandle ENTRY; /* 控制Slot.entry */
+    private static final VarHandle AA; /* 控制Exchanger.Slot[]（多槽模式的数组） */
+    static {
+        MethodHandles.Lookup l = MethodHandles.lookup();
+        BOUND = MhUtil.findVarHandle(l, "bound", int.class);
+        MATCH = MhUtil.findVarHandle(l, Exchanger.Node.class, "match", Object.class);
+        ENTRY = MhUtil.findVarHandle(l, Exchanger.Slot.class, "entry", Exchanger.Node.class);
+        AA = MethodHandles.arrayElementVarHandle(Exchanger.Slot[].class);
+    }
+
+    /* 用于保存本地线程变量 */
+    static final class Participant extends ThreadLocal<Exchanger.Node> {
+        public Exchanger.Node initialValue() { return new Exchanger.Node(); }
+    }
+    private static final Exchanger.Participant participant = new Exchanger.Participant();
+
+    /* 构造函数 */
+    public Exchanger() {
+        int h = (ncpu = Runtime.getRuntime().availableProcessors()) >>> 1;
+        int size = (h == 0) ? 1 : (h > MMASK) ? MMASK + 1 : h;
+        (arena = new Exchanger.Slot[size])[0] = new Exchanger.Slot();
+    }
+}
+```
+
+现在来看`exchange()`方法的实现：
+
+```java
+public class Exchanger<V> {
+	/* exchange()的底层方法 */
+    private final V xchg(V x, long deadline) throws InterruptedException, TimeoutException {
+        /* 获取Exchanger实例的信息 */
+        Exchanger.Slot[] cur_arena = arena;
+        int cur_arena_len = cur_arena.length;
+        Exchanger.Participant cur_participant = participant;
+        /* 为了区分对方尚未调用exchange()和exchange(null)两种情况，我们使用一个非null的哨兵对象做区分 */
+        Object item = (x == null) ? cur_participant : x;
+
+        /* 获取当前线程ThreadLocal共用的Node */
+        Exchanger.Node cur_node = cur_participant.get();
+
+        int cur_index = cur_node.index;
+        int misses = 0; /* CAS失败次数，用于控制arena的扩容 */
+        Object offered = null; /* 当前线程是否将自己的Node放入了槽位 */
+        Object cur_slot_entry_item = null; /* 从另一个线程接受的交换数据 */
+        outer: while (true) {
+            int cur_bound; /* 当前读取bound值 */
+            int cur_bound_max; /* 当前arena的最大可用索引 */
+            Exchanger.Slot cur_slot; Exchanger.Node cur_slot_entry;
+
+            /* 如果最大索引cur_bound_max位0，则说明是单槽模式，所有线程都使用arena[0] */
+            if ((cur_bound_max = (cur_bound = bound) & MMASK) == 0) { cur_index = 0; }
+
+            if ( /* 如果槽位失效，就随机混淆生成新索引 */
+                cur_index < 0 || /* 上一轮发生冲突，索引重置为-1 */
+                cur_index > cur_bound_max || /* arena收缩，数组越界 */
+                cur_index >= cur_arena_len || /* cur_index超出了理论大小，防御性代码 */
+                (cur_slot = cur_arena[cur_index]) == null /* 槽位仍未null，未初始化 */
+            ) {
+                long r = cur_node.seed;
+                r ^= r << 13; r ^= r >>> 7; r ^= r << 17;
+                cur_index = cur_node.index = (int)((cur_node.seed = r) % (cur_bound_max + 1));
+            } else if ((cur_slot_entry = cur_slot.entry) != null) { /* 如果槽位合法且已有线程，说明当前线程可以与其交换 */
+                if (ENTRY.compareAndSet(cur_slot, cur_slot_entry, null)) { /* 把s.entry从q置为null */
+                    /* 完成线程见的信息交换 */
+                    cur_slot_entry_item = cur_slot_entry.item;
+                    cur_slot_entry.match = item;
+                    /* 如果槽位内的线程自己阻塞了自己，则需要唤醒 */
+                    Thread cur_parked_thread;
+                    if (cur_index == 0 && (cur_parked_thread = cur_slot_entry.parked) != null) {
+                        LockSupport.unpark(cur_parked_thread);
+                    }
+                    break;
+                } else { /* 把s.entry从q置为null失败，CAS冲突 */
+                    int cur_new_bound;
+                    cur_index = -1; /* 这一轮发生冲突，索引重置为-1 */
+                    if (cur_bound != bound) { /* 如果bound被其他线程更新，则重置misses计数器 */
+                        misses = 0;
+                    } else if (misses <= 2) { /* 如果bound不变，且CAS冲突次数较少，则可以继续尝试 */
+                        ++misses;
+                    } else if ((cur_new_bound = (cur_bound + 1) & MMASK) < cur_arena_len) { /*如果bound不变，且CAS冲突次数较少,则需要扩种arena*/
+                        misses = 0;
+                        if (
+                            /* 增加最大可用索引+=1，并更新版本号，防止ABA问题 */    
+                            BOUND.compareAndSet(this, cur_bound, cur_bound + 1 + SEQ) &&
+                            /* 新的槽位从未被初始化过，因此有责任要初始化赋值 */
+                            cur_arena[cur_index = cur_node.index = cur_new_bound] == null
+                        ) { 
+                            AA.compareAndSet(cur_arena, cur_new_bound, null, new Exchanger.Slot()); 
+                        }
+                    }
+                }
+            } else { /* 如果此时槽位的entry是null，说明自己是先到的，需要把自己放进槽位并等待 */
+                /* 首次尝试提供交换值给交换器 */
+                if (offered == null) { offered = cur_node.item = item; }
+                
+                /* 把当前线程的Node赋给空槽位 */
+                if (ENTRY.compareAndSet(cur_slot, null, cur_node)) {
+                    boolean tryCancel; /* 当前线程是否被中断 */
+                    Thread t = Thread.currentThread();
+                    if (
+                        !(tryCancel = t.isInterrupted()) && /* 当前线程未被中断 */
+                        ncpu > 1 && /* 单核CPU咨询没有意义 */
+                        (cur_index != 0 || (!ForkJoinWorkerThread.hasKnownQueuedWork())) /* 多槽模式或非繁忙虚拟线程的单槽模式 */
+                    ) {
+                        for (int j = SPINS; j > 0; --j) { /* 尝试自旋，至多SPINS=1024次 */
+                            if ((cur_slot_entry_item = cur_node.match) != null) {
+                                MATCH.set(cur_node, null);
+                                break outer;     // spin wait
+                            }
+                            Thread.onSpinWait();
+                        }
+                    }
+                    for (long ns = 1L;;) { /* 超过自选次数上限，只能阻塞或取消 */
+                        /* 再给一次自旋机会 */
+                        if ((cur_slot_entry_item = cur_node.match) != null) {
+                            MATCH.set(cur_node, null);
+                            break outer;
+                        }
+                        
+                        if ( /* 阻塞 */
+                            cur_index == 0 && /* 单槽模式才能阻塞 */ 
+                            !tryCancel && /* 当前线程未被中断 */
+                            (deadline == 0L || ((ns = deadline - System.nanoTime()) > 0L)) /* 未设置超时或仍未超时 */
+                        ) {
+                            cur_node.parked = t;
+                            if (cur_node.match == null) {
+                                if (deadline == 0L)
+                                    LockSupport.park(this);
+                                else
+                                    LockSupport.parkNanos(this, ns);
+                                tryCancel = t.isInterrupted();
+                            }
+                            cur_node.parked = null;
+                        }
+                        else if (ENTRY.compareAndSet(cur_slot, cur_node, null)) { /* 取消 */
+                            offered = cur_node.item = null;
+                            if (Thread.interrupted())
+                                throw new InterruptedException();
+                            if (deadline != 0L && ns <= 0L)
+                                throw new TimeoutException();
+                            cur_index = -1;
+                            if (bound != cur_bound)
+                                misses = 0;
+                            else if (misses >= 0)
+                                --misses;
+                            else if ((cur_bound & MMASK) != 0) { /* 如果misses<0，说明竞争压力变小，可以收缩arena*/
+                                misses = 0;
+                                BOUND.compareAndSet(this, cur_bound, cur_bound - 1 + SEQ);
+                            }
+                            continue outer;
+                        }
+                    }
+                }
+            }
+        }
+        if (offered != null) { /* 无论交换是否成功，交换已经结束，需要清理交换值 */
+            cur_node.item = null;
+        }
+        /* 使用哨兵对象，判断交换值是否本身就是null */
+        @SuppressWarnings("unchecked") V ret = (cur_slot_entry_item == participant) ? null : (V)cur_slot_entry_item;
+        return ret;
+    }
+	/* API: 交换信息，重定向到xchg() */
+    public V exchange(V x) throws InterruptedException {
+        try { return xchg(x, 0L); } catch (TimeoutException cannotHappen) { return null; }
+    }
+    /* API: 交换信息，并启用超时机制，重定向到xchg() */
+    public V exchange(V x, long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+        long d = unit.toNanos(timeout) + System.nanoTime();
+        return xchg(x, (d == 0L) ? 1L : d);
+    }
+}
+```
+
+以下是使用交换器的一个示例。每两个线程同时由交换器放行，并交换信息。
+
 ```java
 import java.util.concurrent.Exchanger;
 
@@ -2585,3 +2798,177 @@ public class JucMain {
 	[Thread-1] Received an exchanged message: Hello, I'm Thread-2!
 */
 ```
+
+# §5 原子类
+
+我们已经知道，`volatile`只能保证可见性，不能保证原子性；`synchronized`通过阻塞的方式实现了原子性，是一种**悲观锁**；CAS与`volatile`组合使用可以通过自旋实现无锁的高吞吐量原子性，是一种**乐观锁**。`java.util.concurrent.atomic`包提供了一种CAS与`volatile`组合使用的实现。
+
+基准测试证明，原子类的执行效率的确高于`synchronized`锁：
+
+```java
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class JucMain {
+    static Integer count_synchronized = 0;
+    public static void main(String[] args) throws InterruptedException {
+        long startTimeMillis = System.currentTimeMillis();
+        for (int i = 1; i <= 10; i++) {
+            Thread thread = new Thread(() -> {
+                for (int j = 1; j <= 1000000; j++) {
+                    synchronized (JucMain.class) {
+                        ++count_synchronized;
+                    }
+                }
+            });
+            thread.start();
+        }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            long endTimeMillis = System.currentTimeMillis();
+            System.out.printf("count = %d with time cost = %dms\n", count_synchronized, endTimeMillis - startTimeMillis);
+        }));
+    }
+}
+
+public class JucMain {  
+    static AtomicInteger count_atomic = new AtomicInteger(0);  
+    public static void main(String[] args) throws InterruptedException {  
+        long startTimeMillis = System.currentTimeMillis();  
+        for (int i = 1; i <= 10; i++) {  
+            Thread thread = new Thread(() -> {  
+                for (int j = 1; j <= 1000000; j++) {  
+                    count_atomic.getAndAdd(1);  
+                }  
+            });  
+            thread.start();  
+        }  
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {  
+            long endTimeMillis = System.currentTimeMillis();  
+            System.out.printf("count = %d with time cost = %dms\n", count_atomic.get(), endTimeMillis - startTimeMillis);  
+        }));  
+    }  
+}
+
+/*
+	Synchronized: count = 10000000 with time cost = 277ms
+	AtomicInteger: count = 10000000 with time cost = 182ms
+*/
+```
+
+## §5.1 原子数
+
+`java.util.concurrent.atomic`提供了一系列继承自`java.lang.Number`的子类，它们将对应的数据类型包装成对应的原子类。例如`AtomicBoolean`、`AtomicInteger`、`AtomicLong`、`AtomicDouble`。
+
+以下是`AtomicInteger`的JDK实现代码：
+
+```java
+public class AtomicInteger extends Number implements java.io.Serializable {
+
+	/* Unsafe实例 */
+    private static final Unsafe U = Unsafe.getUnsafe();
+
+	/* value的Getter/Setter/OFFSET */
+    private volatile int value;
+    private static final long VALUE = U.objectFieldOffset(AtomicInteger.class, "value");
+    public final int get() { return value; }
+    public final void set(int newValue) { value = newValue; }
+
+    public AtomicInteger() { }
+    public AtomicInteger(int initialValue) { value = initialValue; }
+    
+    public final void lazySet(int newValue) {
+        U.putIntRelease(this, VALUE, newValue);
+    }
+
+    public final int getAndSet(int newValue) { return U.getAndSetInt(this, VALUE, newValue); }
+    public final boolean compareAndSet(int expectedValue, int newValue) { return U.compareAndSetInt(this, VALUE, expectedValue, newValue); }
+    public final int getAndIncrement() { return U.getAndAddInt(this, VALUE, 1); }
+    public final int getAndDecrement() { return U.getAndAddInt(this, VALUE, -1); }
+    public final int incrementAndGet() { return U.getAndAddInt(this, VALUE, 1) + 1; }
+    public final int decrementAndGet() { return U.getAndAddInt(this, VALUE, -1) - 1; }
+    public final int getAndAdd(int delta) { return U.getAndAddInt(this, VALUE, delta); }
+    public final int addAndGet(int delta) { return U.getAndAddInt(this, VALUE, delta) + delta; }
+
+    /* Java 8新增的函数式原子更新方法，可以传入一个java.util.function.IntUnaryOperato型函数 */
+    public final int getAndUpdate(IntUnaryOperator updateFunction) {
+        int prev = get(), next = 0;
+        for (boolean haveNext = false;;) {
+            if (!haveNext)
+                next = updateFunction.applyAsInt(prev);
+            if (weakCompareAndSetVolatile(prev, next))
+                return prev;
+            haveNext = (prev == (prev = get()));
+        }
+    }
+    public final int updateAndGet(IntUnaryOperator updateFunction) {
+        int prev = get(), next = 0;
+        for (boolean haveNext = false;;) {
+            if (!haveNext)
+                next = updateFunction.applyAsInt(prev);
+            if (weakCompareAndSetVolatile(prev, next))
+                return next;
+            haveNext = (prev == (prev = get()));
+        }
+    }
+    public final int getAndAccumulate(int x, IntBinaryOperator accumulatorFunction) {
+        int prev = get(), next = 0;
+        for (boolean haveNext = false;;) {
+            if (!haveNext)
+                next = accumulatorFunction.applyAsInt(prev, x);
+            if (weakCompareAndSetVolatile(prev, next))
+                return prev;
+            haveNext = (prev == (prev = get()));
+        }
+    }
+    public final int accumulateAndGet(int x, IntBinaryOperator accumulatorFunction) {
+        int prev = get(), next = 0;
+        for (boolean haveNext = false;;) {
+            if (!haveNext)
+                next = accumulatorFunction.applyAsInt(prev, x);
+            if (weakCompareAndSetVolatile(prev, next))
+                return next;
+            haveNext = (prev == (prev = get()));
+        }
+    }
+
+    public String toString() { return Integer.toString(get()); }
+
+    public int intValue() { return get(); }
+    public long longValue() { return (long)get(); }
+    public float floatValue() { return (float)get(); }
+    public double doubleValue() { return (double)get(); }
+}
+```
+
+## §5.2 原子引用
+
+除了`java.lang.Number`以外，我们也可以使用`AtomicReference<T>`包装所有数据类型成原子类。这使得我们不能再像往常那样调用`T object`的实例方法，而是只能不断地创建新的`T object_new`来覆盖写入，这个过程需要我们手动调用原子引用提供的CAS方法，并手写自旋。
+
+```java
+import java.math.BigDecimal;
+import java.util.concurrent.atomic.AtomicReference;
+
+public class JucMain {
+    static AtomicReference<BigDecimal> atomic_count = new AtomicReference<>(new BigDecimal(0));
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 10; ++i) {
+            Thread thread = new Thread(() -> {
+                for (int j = 1; j <= 1000000; ++j) {
+                    BigDecimal current_count = new BigDecimal(j);
+                    BigDecimal next_count = new BigDecimal(j);
+                    do {
+                        current_count = atomic_count.get();
+                        next_count = current_count.add(new BigDecimal(1));
+                    } while (!atomic_count.compareAndSet(current_count, next_count));
+                }
+            });
+            thread.start();
+        }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.printf("count = %d", atomic_count.get().intValue());
+        }));
+    }
+}
+/* count = 10000000 */
+```
+
+### 
