@@ -2971,4 +2971,33 @@ public class JucMain {
 /* count = 10000000 */
 ```
 
-### 
+## §5.3 原子数组
+
+Java提供了针对整型、长整型和原子引用的院子数组类`AtomicIntegerArray`、`AtomicLongArray`、`AtomicReferenceArray`。
+
+```java
+import java.util.concurrent.atomic.AtomicIntegerArray;
+
+public class JucMain {
+    static AtomicIntegerArray atomicIntegerArray = new AtomicIntegerArray(2);
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 10; ++i) {
+            Thread thread = new Thread(() -> {
+                for (int j = 1; j <= 1000000; ++j) {
+                    atomicIntegerArray.getAndAdd(0, 1);
+                    atomicIntegerArray.getAndAdd(1, 1);
+                }
+            });
+            thread.start();
+        }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.printf("atomicIntegerArray = {%d, %d}", atomicIntegerArray.get(0), atomicIntegerArray.get(1));
+        }));
+    }
+}
+/*
+	atomicIntegerArray = {10000000, 10000000}
+*/
+```
+
+## §5.4 原子变量更新器
