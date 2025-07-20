@@ -933,7 +933,182 @@ class MCSLock {
 }
 ```
 
-## §2.3 重入锁
+## §2.4 `LockSupport`
+
+`java.util.concurrent.locks.LockSupport`提供了线程阻塞与唤醒原语。
+
+| 作用     | `LockSupport`方法名          | 备注                            |
+| ------ | ------------------------- | ----------------------------- |
+| 阻塞线程   | `park()`                  |                               |
+| 阻塞线程   | `parkNanos(long)`         | 指定了超时时间`long`                 |
+| 阻塞线程   | `parkUntil(long)`         | 制定了过期时间`long`                 |
+| 阻塞线程   | `park(Object)`            | 指定了阻塞对象`Object`               |
+| 阻塞线程   | `parkNanos(Object, long)` | 指定了阻塞对象`Object`，指定了超时时间`long` |
+| 阻塞线程   | `parkUntil(Object, long)` | 指定了阻塞对象`Object`，制定了过期时间`long` |
+| 恢复线程   | `unpark(Thread)`          |                               |
+| 获取阻塞对象 | `getBlocker(Thread)`      |                               |
+
+`LockSupport`使用了许可机制。许可是一种有状态的布尔型信号变量，`0`表示无许可，`1`表示有许可。正因为其有状态，所以先执行`unpark()`就不会导致`park()`阻塞。
+
+外界调用`Thread.interrupt()`方法时，如果线程此时被`LockSupport.park()`阻塞，则会立即解除阻塞并继续向下执行：
+
+```java
+public class JucMain {
+    public static void main(String[] args) {
+        Thread thread = new Thread(() -> {
+            LockSupport.park();
+            System.out.printf("[%s] recover from LockSupport.lock()", Thread.currentThread().getName());
+        });
+        thread.start();
+        thread.interrupt();
+    }
+}
+/*
+	[Thread-0] recover from LockSupport.lock()
+*/
+```
+
+对于指定阻塞对象的阻塞线程，我们可以使用`LockSupport.getBlocker(Thread)`的方法获取。在下面的例子中，我们让线程1阻塞，用线程2获取线程1的`Blocker`。
+
+```java
+public class JucMain {
+    public static void main(String[] args) throws InterruptedException {
+        Object lock = new Object();
+        Thread thread1 = new Thread(() -> {
+            System.out.printf("[%s] use blocker %s\n", Thread.currentThread().getName(), lock);
+            LockSupport.park(lock);
+        });
+        Thread thread2 = new Thread(() -> {
+            Object blocker = LockSupport.getBlocker(thread1);
+            System.out.printf("[%s] thread1 blocker is %s\n", Thread.currentThread().getName(), blocker);
+        });
+        thread1.setDaemon(true);
+
+        thread1.start();
+        Thread.sleep(100);
+        thread2.start();
+    }
+}
+/*
+	[Thread-0] use blocker java.lang.Object@31cf8b4e
+	[Thread-1] thread1 blocker is java.lang.Object@31cf8b4e
+*/
+```
+
+接下来我们分析`LockSupport`的源码实现。
+
+- `LockSupport`类的构造方法故意设置为`private`，因此无法实例化，开发者只能使用它提供的静态方法。
+- `LockSupport`包含一个静态`Unsafe`实例`U`。
+	- 在旧版JDK中，由于无法`new`一个`Unsafe`实例，所以只能在`static`静态代码块中，使用`Unsafe.class.getDeclaredField("theUnsafe")`获取`Unsafe.theUnsafe`字段实例`field`，然后使其可以被访问`field.setAccessible(true)`，再通过反射`(Unsafe) field.get(Unsafe.class)`获取`Unsafe`实例。**这种方法虽然麻烦，但是适用于全版本JDK的所有情况**。
+	- 在新版JDK中，`Unsafe`直接提供了静态方法`getUnsafe()`，可以直接返回`Unsafe`内的私有静态变量`theUnsafe`。**但是这种方案只能用于被信任的类，否则会抛出`SecurityException`异常**。
+- `LockSupport`包含一个静态`long`变量`PARKBLOCKER`，表示`Thread.parkLocker`变量相对于`Thread`基址的偏移量。
+- `LockSupport.park*()`系列方法用于阻塞线程。首先设置线程的`parkBlocker`，然后调用`Unsafe.park()`进行阻塞，恢复运行后清空线程的`parkBlocker`。
+
+```java
+public class LockSupport {
+	/* 私有构造方法，因此无法实例化 */
+    private LockSupport() {}
+
+	/* Unsafe实例 */
+    private static final Unsafe U = Unsafe.getUnsafe();
+
+	/* 用于虚拟线程 */
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
+
+	/* Thread.parkBlocker的偏移量/Getter/Setter */
+    private static final long PARKBLOCKER = U.objectFieldOffset(Thread.class, "parkBlocker");
+    private static void setBlocker(Thread t, Object arg) {
+        U.putReferenceOpaque(t, PARKBLOCKER, arg);
+    }
+    public static void setCurrentBlocker(Object blocker) {
+        U.putReferenceOpaque(Thread.currentThread(), PARKBLOCKER, blocker);
+    }
+    public static Object getBlocker(Thread t) {
+        if (t == null)
+            throw new NullPointerException();
+        return U.getReferenceOpaque(t, PARKBLOCKER);
+    }
+
+	/* 阻塞线程的方法 */
+	/* 设置Thread.parkBlocker，调用Unsafe.park()，阻塞结束后清空Thread.parkBlocker */
+    public static void park(Object blocker) {
+        Thread t = Thread.currentThread();
+        setBlocker(t, blocker);
+        try {
+            if (t.isVirtual()) {
+                JLA.parkVirtualThread();
+            } else {
+                U.park(false, 0L);
+            }
+        } finally {
+            setBlocker(t, null);
+        }
+    }
+    public static void parkNanos(Object blocker, long nanos) {
+        if (nanos > 0) {
+            Thread t = Thread.currentThread();
+            setBlocker(t, blocker);
+            try {
+                if (t.isVirtual()) {
+                    JLA.parkVirtualThread(nanos);
+                } else {
+                    U.park(false, nanos);
+                }
+            } finally {
+                setBlocker(t, null);
+            }
+        }
+    }
+    public static void parkUntil(Object blocker, long deadline) {
+        Thread t = Thread.currentThread();
+        setBlocker(t, blocker);
+        try {
+            parkUntil(deadline);
+        } finally {
+            setBlocker(t, null);
+        }
+    }
+    public static void park() {
+        if (Thread.currentThread().isVirtual()) {
+            JLA.parkVirtualThread();
+        } else {
+            U.park(false, 0L);
+        }
+    }
+    public static void parkNanos(long nanos) {
+        if (nanos > 0) {
+            if (Thread.currentThread().isVirtual()) {
+                JLA.parkVirtualThread(nanos);
+            } else {
+                U.park(false, nanos);
+            }
+        }
+    }
+    public static void parkUntil(long deadline) {
+        if (Thread.currentThread().isVirtual()) {
+            long millis = deadline - System.currentTimeMillis();
+            JLA.parkVirtualThread(TimeUnit.MILLISECONDS.toNanos(millis));
+        } else {
+            U.park(true, deadline);
+        }
+    }
+
+	/* 恢复线程的方法 */
+    public static void unpark(Thread thread) {
+        if (thread != null) {
+            if (thread.isVirtual()) {
+                JLA.unparkVirtualThread(thread);
+            } else {
+                U.unpark(thread);
+            }
+        }
+    }
+	// ...
+}
+
+```
+
+## §2.5 重入锁
 
 Java提供了`java.util.concurrent.locks.ReentrantLock`重入锁。其构造函数接受一个`boolean`值，表示是否创建一个公平锁。在下面的例子中，我们使用GUI来可视化非公平锁和公平锁的线程调度策略。
 
@@ -1003,6 +1178,17 @@ flowchart LR
 
 在JDK 9及之后，Java使用`java.lang.invoke.VarHandle`类作为替代，将`obj`基址及其偏移量`valueOffset`封装成一个可操作的`VarHandle`实例。具体来说，我们直接调用`java.lang.invoke.MethodHandles`提供的`MethodHandles.lookup().findVarHandle(类对象, 字段名, 字段数据类型类对象)`获取`VarHandle`实例，再调用其自带泛型的实例方法`varHandle.compareAndSet(obj, ...)`即可。
 
+这里我们以[OpenJDK 24的HotSpot源码](https://github.com/openjdk/jdk/blob/ceb51d44449977ecc142f6af03f93162b98adaf6/src/hotspot/share/prims/unsafe.cpp#L737)为例，它会调用X86指令集的`cmpxchg`或ARM的`cmpxchgl`汇编指令。
+
+```cpp
+/* src/hotspot/share/prims/unsafe.cpp */
+UNSAFE_ENTRY_SCOPED(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
+	oop p = JNIHandles::resolve(obj); /* JVM层的Java对象 */
+	volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset); /* 根据偏移量获得long基址 */
+	return Atomic::cmpxchg(addr, e, x); /* 调用CAS原子操作 */
+} UNSAFE_END
+```
+
 CAS存在以下问题：
 
 - CAS的原子操作只能针对一个变量，不能保证多个变量的原子操作。
@@ -1019,8 +1205,6 @@ AQS是一个抽象类，为后续的实现类定义了五个成分：
 
 - 同步状态：实现锁机制。
 - 等待队列：存放等待锁的线程节点
-- 独占模式：实现独占锁。
-- 共享模式：实现共享锁。
 - 条件队列：实现条件队列模式。
 
 ### §3.1.1 等待队列
@@ -1195,44 +1379,69 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 
 ### §3.1.3 条件队列
 
+AQS的条件队列提供了阻塞与唤醒的机制，其中`ConditionObject`是条件队列的实现类。条件队列由若干条件节点`ConditionNode`组成。每个条件节点具有一个`nextWaiter`指针用于构成链表，而条件队列具有`firstWaiter`和`lastWaiter`用于指向条件队列的头结点和尾节点。
+
 ```java
 public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
+	// ...
+    static final class ConditionNode extends Node implements ForkJoinPool.ManagedBlocker {
+        ConditionNode nextWaiter;
+	    // ...
+    }
 	public class ConditionObject implements Condition, java.io.Serializable {
         // ...
         private transient ConditionNode firstWaiter;
         private transient ConditionNode lastWaiter;
 		
-        static final long OOME_COND_WAIT_DELAY = 10L * 1000L * 1000L; // 10 ms
-		
         public ConditionObject() { }
-		
-        private void doSignal(ConditionNode first, boolean all) {
-            while (first != null) {
-                ConditionNode next = first.nextWaiter;
-				
-                if ((firstWaiter = next) == null)
-                    lastWaiter = null;
-                else
-                    first.nextWaiter = null; // GC assistance
+    }
+}
+```
 
-                if ((first.getAndUnsetStatus(COND) & COND) != 0) {
-                    enqueue(first);
-                    if (!all)
+`ConditionObject`实现了`Condition`接口，它包含两个核心方法：`await()`和`signal()`。`await()`用于让当前线程释放锁，并进入等待状态，加入到条件队列，直到被`signal()`唤醒/被中断/超时。`signal()`用于从条件队列中取出等待时间最长的节点，将其移动到同步队列中，与同步队列中的其它节点一起抢占锁。
+
+```java
+public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
+	public class ConditionObject implements Condition, java.io.Serializable {
+        public final boolean await(long time, TimeUnit unit) throws InterruptedException {
+            long nanosTimeout = unit.toNanos(time);
+            if (Thread.interrupted())
+                throw new InterruptedException();
+                
+            ConditionNode node = newConditionNode(); /* 创建条件节点(同时防止OOM) */
+            if (node == null) /* 处理OOM */
+                return false;
+            
+            /* 加入到条件队列并释放锁 */
+            int savedState = enableWait(node);
+            
+            long nanos = (nanosTimeout < 0L) ? 0L : nanosTimeout;
+            long deadline = System.nanoTime() + nanos;
+            boolean cancelled = false, interrupted = false;
+            
+            while (!canReacquire(node)) { /* 当前节点是否被signal()移动到同步队列中 */
+	            /* 如果未被signal()调用 */
+                if (
+	                (interrupted |= Thread.interrupted()) ||
+                    (nanos = deadline - System.nanoTime()) <= 0L
+                ) { /* 如果中断或超时早于signal，则跳出循环抛出异常 */
+                    if (cancelled = (node.getAndUnsetStatus(COND) & COND) != 0)
+	                    
                         break;
-                }
-
-                first = next;
+                } else
+	                /* 如果signal早于中断或超时，就挂起自己等待唤醒 */
+                    LockSupport.parkNanos(this, nanos);
             }
+            node.clearStatus();
+            reacquire(node, savedState);
+            if (cancelled) { /* 如果仍在条件队列中 */
+                unlinkCancelledWaiters(node); /* 就挂起线程 */
+                if (interrupted)
+                    throw new InterruptedException();
+            } else if (interrupted)
+                Thread.currentThread().interrupt();
+            return !cancelled;
         }
-
-        /**
-         * Moves the longest-waiting thread, if one exists, from the
-         * wait queue for this condition to the wait queue for the
-         * owning lock.
-         *
-         * @throws IllegalMonitorStateException if {@link #isHeldExclusively}
-         *         returns {@code false}
-         */
         public final void signal() {
             ConditionNode first = firstWaiter;
             if (!isHeldExclusively())
@@ -1240,370 +1449,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
             else if (first != null)
                 doSignal(first, false);
         }
-
-        /**
-         * Moves all threads from the wait queue for this condition to
-         * the wait queue for the owning lock.
-         *
-         * @throws IllegalMonitorStateException if {@link #isHeldExclusively}
-         *         returns {@code false}
-         */
-        public final void signalAll() {
-            ConditionNode first = firstWaiter;
-            if (!isHeldExclusively())
-                throw new IllegalMonitorStateException();
-            else if (first != null)
-                doSignal(first, true);
-        }
-
-        // Waiting methods
-
-        /**
-         * Adds node to condition list and releases lock.
-         *
-         * @param node the node
-         * @return savedState to reacquire after wait
-         */
-        private int enableWait(ConditionNode node) {
-            if (isHeldExclusively()) {
-                node.waiter = Thread.currentThread();
-                node.setStatusRelaxed(COND | WAITING);
-                ConditionNode last = lastWaiter;
-                if (last == null)
-                    firstWaiter = node;
-                else
-                    last.nextWaiter = node;
-                lastWaiter = node;
-                int savedState = getState();
-                if (release(savedState))
-                    return savedState;
-            }
-            node.status = CANCELLED; // lock not held or inconsistent
-            throw new IllegalMonitorStateException();
-        }
-
-        /**
-         * Returns true if a node that was initially placed on a condition
-         * queue is now ready to reacquire on sync queue.
-         * @param node the node
-         * @return true if is reacquiring
-         */
-        private boolean canReacquire(ConditionNode node) {
-            // check links, not status to avoid enqueue race
-            Node p; // traverse unless known to be bidirectionally linked
-            return node != null && (p = node.prev) != null &&
-                (p.next == node || isEnqueued(node));
-        }
-
-        /**
-         * Unlinks the given node and other non-waiting nodes from
-         * condition queue unless already unlinked.
-         */
-        private void unlinkCancelledWaiters(ConditionNode node) {
-            if (node == null || node.nextWaiter != null || node == lastWaiter) {
-                ConditionNode w = firstWaiter, trail = null;
-                while (w != null) {
-                    ConditionNode next = w.nextWaiter;
-                    if ((w.status & COND) == 0) {
-                        w.nextWaiter = null;
-                        if (trail == null)
-                            firstWaiter = next;
-                        else
-                            trail.nextWaiter = next;
-                        if (next == null)
-                            lastWaiter = trail;
-                    } else
-                        trail = w;
-                    w = next;
-                }
-            }
-        }
-
-        /**
-         * Constructs objects needed for condition wait. On OOME,
-         * releases lock, sleeps, reacquires, and returns null.
-         */
-        private ConditionNode newConditionNode() {
-            int savedState;
-            if (tryInitializeHead() != null) {
-                try {
-                    return new ConditionNode();
-                } catch (OutOfMemoryError oome) {
-                }
-            }
-            // fall through if encountered OutOfMemoryError
-            if (!isHeldExclusively() || !release(savedState = getState()))
-                throw new IllegalMonitorStateException();
-            U.park(false, OOME_COND_WAIT_DELAY);
-            acquireOnOOME(false, savedState);
-            return null;
-        }
-
-        /**
-         * Implements uninterruptible condition wait.
-         * <ol>
-         * <li>Save lock state returned by {@link #getState}.
-         * <li>Invoke {@link #release} with saved state as argument,
-         *     throwing IllegalMonitorStateException if it fails.
-         * <li>Block until signalled.
-         * <li>Reacquire by invoking specialized version of
-         *     {@link #acquire} with saved state as argument.
-         * </ol>
-         */
-        public final void awaitUninterruptibly() {
-            ConditionNode node = newConditionNode();
-            if (node == null)
-                return;
-            int savedState = enableWait(node);
-            LockSupport.setCurrentBlocker(this); // for back-compatibility
-            boolean interrupted = false, rejected = false;
-            while (!canReacquire(node)) {
-                if (Thread.interrupted())
-                    interrupted = true;
-                else if ((node.status & COND) != 0) {
-                    try {
-                        if (rejected)
-                            node.block();
-                        else
-                            ForkJoinPool.managedBlock(node);
-                    } catch (RejectedExecutionException ex) {
-                        rejected = true;
-                    } catch (InterruptedException ie) {
-                        interrupted = true;
-                    }
-                } else
-                    Thread.onSpinWait();    // awoke while enqueuing
-            }
-            LockSupport.setCurrentBlocker(null);
-            node.clearStatus();
-            reacquire(node, savedState);
-            if (interrupted)
-                Thread.currentThread().interrupt();
-        }
-
-        /**
-         * Implements interruptible condition wait.
-         * <ol>
-         * <li>If current thread is interrupted, throw InterruptedException.
-         * <li>Save lock state returned by {@link #getState}.
-         * <li>Invoke {@link #release} with saved state as argument,
-         *     throwing IllegalMonitorStateException if it fails.
-         * <li>Block until signalled or interrupted.
-         * <li>Reacquire by invoking specialized version of
-         *     {@link #acquire} with saved state as argument.
-         * <li>If interrupted while blocked in step 4, throw InterruptedException.
-         * </ol>
-         */
-        public final void await() throws InterruptedException {
-            if (Thread.interrupted())
-                throw new InterruptedException();
-            ConditionNode node = newConditionNode();
-            if (node == null)
-                return;
-            int savedState = enableWait(node);
-            LockSupport.setCurrentBlocker(this); // for back-compatibility
-            boolean interrupted = false, cancelled = false, rejected = false;
-            while (!canReacquire(node)) {
-                if (interrupted |= Thread.interrupted()) {
-                    if (cancelled = (node.getAndUnsetStatus(COND) & COND) != 0)
-                        break;              // else interrupted after signal
-                } else if ((node.status & COND) != 0) {
-                    try {
-                        if (rejected)
-                            node.block();
-                        else
-                            ForkJoinPool.managedBlock(node);
-                    } catch (RejectedExecutionException ex) {
-                        rejected = true;
-                    } catch (InterruptedException ie) {
-                        interrupted = true;
-                    }
-                } else
-                    Thread.onSpinWait();    // awoke while enqueuing
-            }
-            LockSupport.setCurrentBlocker(null);
-            node.clearStatus();
-            reacquire(node, savedState);
-            if (interrupted) {
-                if (cancelled) {
-                    unlinkCancelledWaiters(node);
-                    throw new InterruptedException();
-                }
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        /**
-         * Implements timed condition wait.
-         * <ol>
-         * <li>If current thread is interrupted, throw InterruptedException.
-         * <li>Save lock state returned by {@link #getState}.
-         * <li>Invoke {@link #release} with saved state as argument,
-         *     throwing IllegalMonitorStateException if it fails.
-         * <li>Block until signalled, interrupted, or timed out.
-         * <li>Reacquire by invoking specialized version of
-         *     {@link #acquire} with saved state as argument.
-         * <li>If interrupted while blocked in step 4, throw InterruptedException.
-         * </ol>
-         */
-        public final long awaitNanos(long nanosTimeout)
-                throws InterruptedException {
-            if (Thread.interrupted())
-                throw new InterruptedException();
-            ConditionNode node = newConditionNode();
-            if (node == null)
-                return nanosTimeout - OOME_COND_WAIT_DELAY;
-            int savedState = enableWait(node);
-            long nanos = (nanosTimeout < 0L) ? 0L : nanosTimeout;
-            long deadline = System.nanoTime() + nanos;
-            boolean cancelled = false, interrupted = false;
-            while (!canReacquire(node)) {
-                if ((interrupted |= Thread.interrupted()) ||
-                    (nanos = deadline - System.nanoTime()) <= 0L) {
-                    if (cancelled = (node.getAndUnsetStatus(COND) & COND) != 0)
-                        break;
-                } else
-                    LockSupport.parkNanos(this, nanos);
-            }
-            node.clearStatus();
-            reacquire(node, savedState);
-            if (cancelled) {
-                unlinkCancelledWaiters(node);
-                if (interrupted)
-                    throw new InterruptedException();
-            } else if (interrupted)
-                Thread.currentThread().interrupt();
-            long remaining = deadline - System.nanoTime(); // avoid overflow
-            return (remaining <= nanosTimeout) ? remaining : Long.MIN_VALUE;
-        }
-
-        /**
-         * Implements absolute timed condition wait.
-         * <ol>
-         * <li>If current thread is interrupted, throw InterruptedException.
-         * <li>Save lock state returned by {@link #getState}.
-         * <li>Invoke {@link #release} with saved state as argument,
-         *     throwing IllegalMonitorStateException if it fails.
-         * <li>Block until signalled, interrupted, or timed out.
-         * <li>Reacquire by invoking specialized version of
-         *     {@link #acquire} with saved state as argument.
-         * <li>If interrupted while blocked in step 4, throw InterruptedException.
-         * <li>If timed out while blocked in step 4, return false, else true.
-         * </ol>
-         */
-        public final boolean awaitUntil(Date deadline)
-                throws InterruptedException {
-            long abstime = deadline.getTime();
-            if (Thread.interrupted())
-                throw new InterruptedException();
-            ConditionNode node = newConditionNode();
-            if (node == null)
-                return false;
-            int savedState = enableWait(node);
-            boolean cancelled = false, interrupted = false;
-            while (!canReacquire(node)) {
-                if ((interrupted |= Thread.interrupted()) ||
-                    System.currentTimeMillis() >= abstime) {
-                    if (cancelled = (node.getAndUnsetStatus(COND) & COND) != 0)
-                        break;
-                } else
-                    LockSupport.parkUntil(this, abstime);
-            }
-            node.clearStatus();
-            reacquire(node, savedState);
-            if (cancelled) {
-                unlinkCancelledWaiters(node);
-                if (interrupted)
-                    throw new InterruptedException();
-            } else if (interrupted)
-                Thread.currentThread().interrupt();
-            return !cancelled;
-        }
-
-        /**
-         * Implements timed condition wait.
-         * <ol>
-         * <li>If current thread is interrupted, throw InterruptedException.
-         * <li>Save lock state returned by {@link #getState}.
-         * <li>Invoke {@link #release} with saved state as argument,
-         *     throwing IllegalMonitorStateException if it fails.
-         * <li>Block until signalled, interrupted, or timed out.
-         * <li>Reacquire by invoking specialized version of
-         *     {@link #acquire} with saved state as argument.
-         * <li>If interrupted while blocked in step 4, throw InterruptedException.
-         * <li>If timed out while blocked in step 4, return false, else true.
-         * </ol>
-         */
-        public final boolean await(long time, TimeUnit unit)
-                throws InterruptedException {
-            long nanosTimeout = unit.toNanos(time);
-            if (Thread.interrupted())
-                throw new InterruptedException();
-            ConditionNode node = newConditionNode();
-            if (node == null)
-                return false;
-            int savedState = enableWait(node);
-            long nanos = (nanosTimeout < 0L) ? 0L : nanosTimeout;
-            long deadline = System.nanoTime() + nanos;
-            boolean cancelled = false, interrupted = false;
-            while (!canReacquire(node)) {
-                if ((interrupted |= Thread.interrupted()) ||
-                    (nanos = deadline - System.nanoTime()) <= 0L) {
-                    if (cancelled = (node.getAndUnsetStatus(COND) & COND) != 0)
-                        break;
-                } else
-                    LockSupport.parkNanos(this, nanos);
-            }
-            node.clearStatus();
-            reacquire(node, savedState);
-            if (cancelled) {
-                unlinkCancelledWaiters(node);
-                if (interrupted)
-                    throw new InterruptedException();
-            } else if (interrupted)
-                Thread.currentThread().interrupt();
-            return !cancelled;
-        }
-
-        final boolean isOwnedBy(AbstractQueuedSynchronizer sync) {
-            return sync == AbstractQueuedSynchronizer.this;
-        }
-
-        protected final boolean hasWaiters() {
-            if (!isHeldExclusively())
-                throw new IllegalMonitorStateException();
-            for (ConditionNode w = firstWaiter; w != null; w = w.nextWaiter) {
-                if ((w.status & COND) != 0)
-                    return true;
-            }
-            return false;
-        }
-
-        protected final int getWaitQueueLength() {
-            if (!isHeldExclusively())
-                throw new IllegalMonitorStateException();
-            int n = 0;
-            for (ConditionNode w = firstWaiter; w != null; w = w.nextWaiter) {
-                if ((w.status & COND) != 0)
-                    ++n;
-            }
-            return n;
-        }
-
-        protected final Collection<Thread> getWaitingThreads() {
-            if (!isHeldExclusively())
-                throw new IllegalMonitorStateException();
-            ArrayList<Thread> list = new ArrayList<>();
-            for (ConditionNode w = firstWaiter; w != null; w = w.nextWaiter) {
-                if ((w.status & COND) != 0) {
-                    Thread t = w.waiter;
-                    if (t != null)
-                        list.add(t);
-                }
-            }
-            return list;
-        }
-    }
+	}
 }
 ```
 
@@ -1689,16 +1535,20 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 }
 ```
 
-### §3.1.C `()`
-
-```java
-
-```
-
-
 ## §3.2 独占锁与共享锁
 
-AQS本身只是一个抽象类，它的实现类才能称之为锁。无论是独占锁还是共享锁，AQS都保留了对应的接口。独占锁只有一个资源，由若干线程竞争抢占；共享锁可以指定资源的数量，由若干线程抢占。
+AQS本身只是一个抽象类，它的实现类才能称之为锁。无论是独占锁还是共享锁，AQS都保留了对应的接口。
+
+独占锁只有一个资源，由若干线程竞争抢占，在此情况下状态变量`state`表示资源是否被占用（`0`或`1`）；共享锁可以指定资源的数量，由若干线程抢占，在此情况下状态变量`state`表示剩余可占用的资源数量。
+
+```java
+public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
+	// ...
+	static final class ExclusiveNode extends Node { } /* 独占锁节点 */
+    static final class SharedNode extends Node { } /* 共享锁节点 */
+    // ...
+}
+```
 
 ### §3.2.1 `acquire()`
 
@@ -1833,7 +1683,32 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 }
 ```
 
-### §3.1.B `cancelAcquire()`
+我们发现，AQS均没有实现`tryAcquire()`和`tryAcquireShared()`的具体逻辑，而是直接抛出一个表示未支持操作的异常。这是因为AQS采用了职责分离的思想——AQS负责控制流，其实现类负责业务逻辑。以下是一种可行的独占锁和共享锁的实现：
+
+```java
+public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
+	@Override
+	public boolean tryAcquire(int acquire) {
+		if (compareAndSetState(0, 1)) {
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	public int tryAcquireShared(int interval) {
+		while (true) {
+			int current = getState();
+			int newCount = current - 1;
+			if (newCount < 0 || compareAndSetState(current, newCount)) {
+				return newCount;
+			}
+		}
+	}
+}
+```
+
+### §3.2.2 `cancelAcquire()`
 
 `AbstractQueuedSynchronizer.cancelAcquire()`用于取消获取锁，调用时需要传入待取消节点。
 
@@ -1865,9 +1740,9 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 }
 ```
 
-### §3.1.C `release()`
+### §3.2.3 `release()`/`releaseShared()`
 
-`AbstractQueuedSynchronizer.release()`用于释放锁。释放后允许下一个节点执行。
+`AbstractQueuedSynchronizer`提供的`release()`用于释放独占锁，`releaseShared()`用于释放共享锁。释放后允许下一个节点执行。
 
 ```java
 public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
@@ -1882,5 +1757,831 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
         }
         return false;
     }
+    
+    protected boolean tryReleaseShared(int arg) {
+        throw new UnsupportedOperationException();
+    }
+    public final boolean releaseShared(int arg) {
+        if (tryReleaseShared(arg)) {
+            signalNext(head);
+            return true;
+        }
+        return false;
+    }
 }
+```
+
+### §3.2.4 `acquireInterruptibly()`/`acquireSharedInterruptibly()`
+
+我们知道，`synchronized`的机制是一直尝试获取锁，只要开始等待锁就会一直等待，即使我们对当前线程`thread`调用`.interrupt()`尝试中断也无济于事。为了解决这个问题，AQS提供了`acquireInterruptibly()`/`acquireSharedInterruptibly()`用于支持AQS独占锁/共享锁的中断——如果线程在等待锁的过程中被中断，则该线程会被立即唤醒，停止等待锁，并抛出`InterruptedException`异常，并清除中断状态。
+
+```java
+public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
+	// ...
+	public final void acquireInterruptibly(int arg) throws InterruptedException {
+        if (
+	        Thread.interrupted() || (
+	            !tryAcquire(arg) && 
+	            /* 这里传入的interruptable = true */
+	            acquire(null, arg, false, true, false, 0L) < 0 
+	        )
+        ) {
+	        throw new InterruptedException();
+        }
+    }
+    public final void acquireSharedInterruptibly(int arg)
+        throws InterruptedException {
+        if (
+	        Thread.interrupted() || (
+		        tryAcquireShared(arg) < 0 &&  
+		        /* 这里传入的interruptable = true, share = true */
+		        acquire(null, arg, true, true, false, 0L) < 0
+		    )
+        ) {
+	        throw new InterruptedException();
+        }
+    }
+    // ...
+}
+```
+
+### §3.2.5 `tryAcquireNanos()`/`tryAcquireSharedNanos()`
+
+`tryAcquireNanos()`/`tryAcquireSharedNanos()`用于实现AQS独占锁的超时机制。
+
+```java
+public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
+	// ...
+    public final boolean tryAcquireNanos(int arg, long nanosTimeout) throws InterruptedException {
+        if (!Thread.interrupted()) { /* 若线程早已被中断，则应该尽快退出 */
+            if (tryAcquire(arg)) /* 非公平锁优化，插队避免入队操作 */
+                return true;
+            if (nanosTimeout <= 0L) /* 已经超时，取消抢占锁 */
+                return false;
+            int stat = acquire(null, arg, false, true, true, System.nanoTime() + nanosTimeout);
+            if (stat > 0) /* 抢占锁成功 */
+                return true;
+            if (stat == 0) /* 已经超时，取消抢占锁 */
+                return false;
+            /* stat < 0的情况会被if(!Thread.interrupted())捕获 */
+        }
+        throw new InterruptedException();
+    }
+    public final boolean tryAcquireSharedNanos(int arg, long nanosTimeout) throws InterruptedException {
+        if (!Thread.interrupted()) {
+            if (tryAcquireShared(arg) >= 0)
+                return true;
+            if (nanosTimeout <= 0L)
+                return false;
+            int stat = acquire(null, arg, true, true, true, System.nanoTime() + nanosTimeout);
+            if (stat > 0)
+                return true;
+            if (stat == 0)
+                return false;
+        }
+        throw new InterruptedException();
+    }
+    // ...
+}
+```
+
+# §4 同步器
+
+同步器的核心是管理一个共享状态，通过控制状态来实现不同类型的锁。AQS抽象类已经提供了`getState()`、`setState()`、`compareAndSetState()`三个方法用于管理共享状态，开发者通常继承AQS实现自己的逻辑。
+
+## §4.1 闭锁
+
+闭锁（`java.util.concurrent.CountDownLatch`）用于让若干线程同时满足所有条件后，才同时开始继续执行。它维护一个共享状态`state`，每次调用`countDown()`都会**非阻塞地**`--state`。当`state>0`时阻塞所有调用`await()`的线程，当`state==0`时恢复所有线程。
+
+以下是闭锁的JDK实现代码。我们定义了一个AQS的继承内部类`Sync`，用于把AQS的状态变量`state`封装为闭锁业务相关的共享变量`count`：
+
+```java
+public class CountDownLatch {
+    /* 定义AQS的实现类Sync，负责管理状态变量state */
+    private static final class Sync extends AbstractQueuedSynchronizer {
+        Sync(int count) { setState(count); }
+        int getCount() { return getState(); }
+        protected int tryAcquireShared(int acquires) { return (getState() == 0) ? 1 : -1; }
+        protected boolean tryReleaseShared(int releases) {
+            while (true) {
+                int cur_count = getState(), next_c = cur_count - releases;
+                if (cur_count == 0) { return false; }
+                if (compareAndSetState(cur_count, next_c)) { return next_c == 0; }
+            }
+        }
+    }
+    private final Sync sync;
+
+    public CountDownLatch(int count) {
+        if (count < 0) { throw new IllegalArgumentException("count < 0"); }
+        this.sync = new Sync(count);
+    }
+
+    /* API: await()，阻塞线程 */
+    public void await() throws InterruptedException { sync.acquireSharedInterruptibly(1); }
+    public boolean await(long timeout, TimeUnit unit) throws InterruptedException { return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout)); }
+
+    /* API: countDown()，自减计数器，减到0时恢复所有阻塞的线程 */
+    public void countDown() { sync.releaseShared(1); }
+
+    /* API: getCount()，获取计数器的值 */
+    public long getCount() { return sync.getCount(); }
+
+    public String toString() { return super.toString() + "[Count = " + sync.getCount() + "]"; }
+}
+```
+
+下面是使用闭锁的一个示例：
+
+```java
+import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+
+public class JucMain {
+    static CountDownLatch latch = new CountDownLatch(3);
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 3; ++i) {
+            Thread thread = new Thread(() -> {
+                try { Thread.sleep(new Random().nextLong(200)); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.printf("[%s] latch countdown from %d to %d\n", Thread.currentThread().getName(), latch.getCount(), latch.getCount() - 1);
+                latch.countDown();
+                System.out.printf("[%s] waiting for latch...\n", Thread.currentThread().getName());
+                try { latch.await(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.printf("[%s] finished.\n", Thread.currentThread().getName());
+            });
+            thread.start();
+        }
+        System.out.printf("[%s] waiting for latch...\n", Thread.currentThread().getName());
+        latch.await();
+        System.out.printf("[%s] finished.\n", Thread.currentThread().getName());
+    }
+}
+/*
+	[main] waiting for latch...
+	[Thread-0] latch countdown from 3 to 2
+	[Thread-0] waiting for latch...
+	[Thread-1] latch countdown from 2 to 1
+	[Thread-1] waiting for latch...
+	[Thread-2] latch countdown from 1 to 0
+	[Thread-2] waiting for latch...
+	[Thread-0] finished.
+	[Thread-2] finished.
+	[Thread-1] finished.
+	[main] finished.
+*/
+```
+
+## §4.2 信号量
+
+信号量（`java.util.concurrent.Semaphore`）用于维护当前可用的资源数量`permits`。当且仅当`permis>0`时才允许新线程获取资源。
+
+`Semaphore`本身就是一个共享锁，可以通过配置指定为公平锁或非公平锁。具体来说，`Semaphore`定义了一个内部抽象类`Sync`，及其两个内部实现类`NonfairSync`（非公平锁）和`FairSync`（公平锁），在`Semaphore`的构造函数传入一个`boolean fair`决定实例化哪个实现类，并赋值给静态变量`Sync sync`以实现多态。`NonfairSync`和`FairSync`的唯一区别体现在`tryAcquireShared()`的实现上，`FairSync.tryAcquireShared()`先使用`hasQueuedPredecessors()`询问队列中是否存在早于自己的线程，如果是的话就取消本次获取所得尝试，进入下一次自旋。
+
+```java
+class Semaphore implements java.io.Serializable {
+    abstract static class Sync extends AbstractQueuedSynchronizer {
+        /* 构造方法、Getter、Setter */
+        Sync(int permits) { setState(permits); }
+        final int getPermits() { return getState(); }
+        /* 获取锁并维护信号量(非公平锁) */
+        final int nonfairTryAcquireShared(int acquires) {
+            while (true) {
+                int available_permits = getState();
+                int remaining_permits = available_permits - acquires;
+                if (remaining_permits < 0 || compareAndSetState(available_permits, remaining_permits)) { return remaining_permits; }
+            }
+        }
+        /* 增加信号量的值 */
+        protected final boolean tryReleaseShared(int releases) {
+            while (true) {
+                int current_permits = getPermits();
+                int next_permits = current_permits + releases;
+                if (next_permits < current_permits) { throw new Error("permit count exceeds INT32_MAX, resulting in overflow"); }
+                if (compareAndSetState(current_permits, next_permits)) { return true; }
+            }
+        }
+        /* 减少信号量的值 */
+        final void reducePermits(int reductions) {
+            while (true) {
+                int current_permits = getState();
+                int next_permits = current_permits - reductions;
+                if (next_permits > current_permits) { throw new Error("permit count is less than INT32_MIN, resulting underflow"); }
+                if (compareAndSetState(current_permits, next_permits)) { return; }
+            }
+        }
+        /* 重置信号量的值为0 */
+        final int drainPermits() {
+            while (true) {
+                int current_permits = getState();
+                if (current_permits == 0 || compareAndSetState(current_permits, 0)) { return current_permits; }
+            }
+        }
+
+    }
+    static final class NonfairSync extends Sync {
+        /* 构造函数 */
+        NonfairSync(int permits) { super(permits); }
+        /* 获取锁并维护信号量(非公平锁) */
+        /* 将NonfairSync.tryAcquireShared()重定向到Sync.nonfairTryAcquireShared() */
+        protected int tryAcquireShared(int acquires) { return nonfairTryAcquireShared(acquires); }
+    }
+    static final class FairSync extends Sync {
+        /* 构造函数 */
+        FairSync(int permits) { super(permits); }
+        /* 获取锁并维护信号量(公平锁) */
+        /* NonfairSync.tryAcquireShared()覆盖了Sync.tryAcquireShared()的逻辑 */
+        protected int tryAcquireShared(int acquires) {
+            while (true) {
+                if (hasQueuedPredecessors()) { return -1; } /* 比Sync.tryAcquireShared()多出来这一行，询问队列中是否存在早于自己的线程 */
+                int available_permits = getState();
+                int remaining_permits = available_permits - acquires;
+                if (remaining_permits < 0 || compareAndSetState(available_permits, remaining_permits)) { return remaining_permits; }
+            }
+        }
+    }
+    private final Sync sync;
+    /* Sync构造方法 */
+    public Semaphore(int permits) { sync = new NonfairSync(permits); }
+    public Semaphore(int permits, boolean fair) { sync = fair ? new FairSync(permits) : new NonfairSync(permits); }
+    
+    /* API: 判断Semaphore的类型(公平锁/非公平锁) */
+    public boolean isFair() { return sync instanceof FairSync; }
+}
+```
+
+`Semaphore`提供了`acquire()`和`release()`方法用于占用和释放锁：
+
+```java
+class Semaphore implements java.io.Serializable {
+	/* >>> 获取锁 <<< */
+    /* API: 获取一个锁，可以因中断而被打断 */
+    public void acquire() throws InterruptedException { sync.acquireSharedInterruptibly(1); }
+    /* API: 获取permits个锁，可以因中断而被打断 */
+    public void acquire(int permits) throws InterruptedException {
+        if (permits < 0) { throw new IllegalArgumentException(); }
+        sync.acquireSharedInterruptibly(permits);
+    }
+    /* API: 获取一个锁，不可被打断 */
+    public void acquireUninterruptibly { sync.acquireShared(1); }
+    /* API: 获取permits个锁，不可被打断 */
+    public void acquireUninterruptibly(int permits) {
+        if (permits < 0) { throw new IllegalArgumentException(); }
+        sync.acquireShared(permits);
+    }
+
+	/* >>> 释放锁 <<< */
+	/* API: 释放一个锁 */
+    public void release() { sync.releaseShared(1); }
+	/* API: 释放permits个锁 */
+    public void release(int permits) {
+        if (permits < 0) throw new IllegalArgumentException();
+        sync.releaseShared(permits);
+    }
+
+	/* >>> 以下tryAcquire()方法由AbstractQueuedSynchronizer.acquire()调用 <<< */
+    public boolean tryAcquire() { return sync.nonfairTryAcquireShared(1) >= 0; }
+    public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException { return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout)); }
+    public boolean tryAcquire(int permits) {
+        if (permits < 0) throw new IllegalArgumentException();
+        return sync.nonfairTryAcquireShared(permits) >= 0;
+    }
+    public boolean tryAcquire(int permits, long timeout, TimeUnit unit) throws InterruptedException {
+        if (permits < 0) throw new IllegalArgumentException();
+        return sync.tryAcquireSharedNanos(permits, unit.toNanos(timeout));
+    }
+}
+```
+
+最后，`Semaphore`对`Sync`的方法做了封装，也对其父类`AbstractQueuedSynchronizer`的方法进行了封装，均暴露成API：
+
+```java
+public class JucMain {
+	/* API: 等待队列是否非空，重定向到AbstractQueuedSynchronizer.hasQueuedThreads() */
+    public final boolean hasQueuedThreads() { return sync.hasQueuedThreads(); }
+    
+    /* API: 等待队列长度，重定向到AbstractQueuedSynchronizer.getQueueLength() */
+    public final int getQueueLength() {
+        return sync.getQueueLength();
+    }
+    
+    /* API: 等待队列中的所有节点，重定向到AbstractQueuedSynchronizer.getQueueThreads() */
+    protected Collection<Thread> getQueuedThreads() { return sync.getQueuedThreads(); }
+    public String toString() {
+        return super.toString() + "[Permits = " + sync.getPermits() + "]";
+    }
+
+	/* API: 获取当前剩余资源数，重定向到Sync.gerPermits() */
+    public int availablePermits() { return sync.getPermits(); }
+
+	/* API: 重置所有可用资源为0，重定向到Sync.drainPermits() */
+    public int drainPermits() { return sync.drainPermits(); }
+
+	/* API: 扣减reduciton个可用资源，重定向到Sync.reducePermits() */
+    protected void reducePermits(int reduction) {
+        if (reduction < 0) throw new IllegalArgumentException();
+        sync.reducePermits(reduction);
+    }
+}
+```
+
+以下是使用`Semaphore`的一个示例：三个线程抢占两个资源，每个线程先通过`semaphore.acquire()`抢占锁，再通过`semaphore.release()`释放锁。
+
+```java
+public class JucMain {
+    static Semaphore semaphore = new Semaphore(2);
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 3; ++i) {
+            Thread thread = new Thread(() -> {
+                System.out.printf("[%s] waiting for semaphore...\n", Thread.currentThread().getName());
+                try { semaphore.acquire(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.printf("[%s] get semaphore.\n", Thread.currentThread().getName());
+                try { Thread.sleep(100); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.printf("[%s] release semaphore.\n", Thread.currentThread().getName());
+                semaphore.release();
+            });
+            thread.start();
+        }
+    }
+}
+/*
+	[Thread-0] waiting for semaphore...
+	[Thread-2] waiting for semaphore...
+	[Thread-2] get semaphore.
+	[Thread-1] waiting for semaphore...
+	[Thread-0] get semaphore.
+	[Thread-2] release semaphore.
+	[Thread-0] release semaphore.
+	[Thread-1] get semaphore.
+	[Thread-1] release semaphore.
+*/
+```
+
+## §4.3 循环屏障
+
+循环屏障（`java.util.concurrent.CyclicBarrier`）用于让若干线程同时满足所有条件后，才同时开始继续执行。与闭锁（`CountDownLatch`）不同的是，循环屏障达到条件放行所有线程后，又恢复到原始状态，因此可以重复使用；循环屏障的`await()`等价于闭锁地`countDown()`与`await()`，也就是说循环屏障的`await()`是一个**阻塞方法**。同样都是让共享状态变量自减，然而一个线程可以多次调用`CountDownLatch.countDown()`，但是只能调用一次`CyclicBarrier.await()`。
+
+`ReetrantLock`用于保护`Generation`节点和`count`共享变量防止被多个线程同时访问。
+
+```java
+class CyclicBarrier {
+    private static class Generation { boolean broken = false; }
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition trip = lock.newCondition();
+    private final int parties; /* 倒计数器最大值 */
+    private final Runnable barrierCommand; /* 触发点任务 */
+    private Generation generation = new Generation();
+    private int count; /* count由ReentrantLock保证一致性，无需volatile */
+
+    public CyclicBarrier(int parties, Runnable barrierAction) {
+        if (parties <= 0) throw new IllegalArgumentException();
+        this.parties = parties;
+        this.count = parties;
+        this.barrierCommand = barrierAction;
+    }
+    public CyclicBarrier(int parties) {
+        this(parties, null);
+    }
+
+    /* API: 返回循环屏障最大值parties */
+    public int getParties() { return parties; }
+
+    /* API: 循环屏障是否被异常情况破坏 */
+    public boolean isBroken() {
+        final ReentrantLock lock = this.lock; lock.lock();
+        try { return generation.broken; } finally { lock.unlock(); }
+    }
+
+    /* 本次循环屏障成功，count==0，触发循环屏障的重置操作，准备开始下一次循环 */
+    private void nextGeneration() {
+        trip.signalAll(); /* 释放屏障的所有线程 */
+        count = parties; /* 重置循环屏障共享状态变量 */
+        generation = new Generation(); /* 重置Generation节点 */
+    }
+
+    /* 本次循环屏障失败(中断/超时/屏障动作异常)，触发循环屏障的清理操作 */
+    private void breakBarrier() {
+        generation.broken = true;
+        count = parties;
+        trip.signalAll();
+    }
+
+    /* API: 彻底重置循环屏障到初始状态 */
+    public void reset() {
+        final ReentrantLock lock = this.lock; lock.lock();
+        try { breakBarrier(); nextGeneration(); } finally { lock.unlock(); }
+    }
+
+    /* API: 还需要多少次await()就能放行本次循环屏障 */
+    public int getNumberWaiting() {
+        final ReentrantLock lock = this.lock; lock.lock();
+        try { return parties - count; } finally { lock.unlock(); }
+    }
+
+    /* await()共用的底层实现方法(有/无超时机制) */
+    private int dowait(boolean timed, long nanos) throws InterruptedException, BrokenBarrierException, TimeoutException {
+        final ReentrantLock lock = this.lock; lock.lock();
+        try {
+            final Generation cur_generation = generation;
+            if (cur_generation.broken) { throw new BrokenBarrierException(); }
+            if (Thread.interrupted()) { throw new InterruptedException(); }
+            int index = --count;
+            if (index == 0) { /* 如果倒计数器降为0，则执行触发任务 */
+                Runnable command = barrierCommand;
+                if (command != null) {
+                    try {
+                        command.run();
+                    } catch (Throwable ex) {
+                        breakBarrier();
+                        throw ex;
+                    }
+                }
+                nextGeneration(); /* 重置循环屏障到初始状态 */
+                return 0;
+            }
+            while (true) { /* 陷入则色 */
+                try {
+                    if (!timed) {
+                        trip.await();
+                    } else if (nanos > 0L) {
+                        nanos = trip.awaitNanos(nanos);
+                    }
+                } catch (InterruptedException ie) {
+                    if (cur_generation == generation && !cur_generation.broken) {
+                        breakBarrier();
+                        throw ie;
+                    } else {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /* API: 无超时机制，重定向到dowait() */
+    public int await() throws InterruptedException, BrokenBarrierException {
+        try { return dowait(false, 0L); } catch (TimeoutException toe) { throw new Error(toe); }
+    }
+    /* API: 有超时机制，重定向到dowait() */
+    public int await(long timeout, TimeUnit unit) throws InterruptedException, BrokenBarrierException, TimeoutException {
+        return dowait(true, unit.toNanos(timeout));
+    }
+}
+```
+
+以下是使用循环屏障的一个示例。这里的`CyclicBarrier`设置为两个线程打包成一组。
+
+```java
+import java.util.concurrent.CyclicBarrier;
+
+public class JucMain {
+    static CyclicBarrier barrier = new CyclicBarrier(2, () -> {
+        System.out.printf("[%s] barrier released.\n", Thread.currentThread().getName());
+    });
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 4; i++) {
+            Thread thread = new Thread(() -> {
+                System.out.printf("[%s] waiting for barrier...\n", Thread.currentThread().getName());
+                try { barrier.await(); Thread.sleep(500); } catch (Exception e) { throw new RuntimeException(e); }
+                System.out.printf("[%s] finished.\n", Thread.currentThread().getName());
+            });
+            thread.start();
+        }
+    }
+}
+/*
+	[Thread-0] waiting for barrier...
+	[Thread-3] waiting for barrier...
+	[Thread-2] waiting for barrier...
+	[Thread-1] waiting for barrier...
+	[Thread-2] barrier released.
+	[Thread-1] barrier released.
+	[Thread-1] finished.
+	[Thread-2] finished.
+	[Thread-3] finished.
+	[Thread-0] finished.
+*/
+```
+
+## §4.4 相位器
+
+相位器（`java.util.concurrent.Phaser`）可以视为多个串行的闭锁。只有当所有已注册的线程都到达了某个阶段，相位器才会同时放行所有线程，直到都触及到下一个阶段。
+
+相位器使用共享状态变量`volatile long state`，手动划分各个bit表示不同变量。
+
+- `state`的0~15位（`state & 0x000000000000ffff`）：未到达参与者的数量
+- `state`的16~31位（`state & 0x00000000ffff0000`）：总参与者的数量
+- `state`的32~62位（`state & 0x7fffffff00000000`）：当前阶段数
+- `state`的63位（`state & 0x8000000000000000`）：相位器终止位
+
+```java
+public class Phaser {
+    private volatile long state;
+
+    /* 参与者数量最大值 */
+    private static final int  MAX_PARTIES     = 0xffff;
+    /* 阶段数最大值 */
+    private static final int  MAX_PHASE       = Integer.MAX_VALUE;
+
+	/* 总参与者数量的bit偏移量 */
+    private static final int  PARTIES_SHIFT   = 16;
+    /* 当前阶段数的bit偏移量 */
+    private static final int  PHASE_SHIFT     = 32;
+
+	/* 未到达参与者数量的mask */
+    private static final int  UNARRIVED_MASK  = 0xffff;
+	/* 总参与者数量的mask */
+    private static final long PARTIES_MASK    = 0xffff0000L;
+    /* 未到达参与者数量与总参与者数量的mask，用于更新state */
+    private static final long COUNTS_MASK     = 0xffffffffL;
+    /* 相位器终止位的mask */
+    private static final long TERMINATION_BIT = 1L << 63;
+
+	/* 一次参与者到达事件对state的影响，用于更新state */
+	private static final int  ONE_ARRIVAL     = 1;
+	/* 一个参与者对state的影响，用于更新state */
+	private static final int  ONE_PARTY       = 1 << PARTIES_SHIFT;
+	/* 一个参与者注销对state的影响，用于更新state */
+	private static final int  ONE_DEREGISTER  = ONE_ARRIVAL|ONE_PARTY;
+
+	/* state的预定义常量，表示非法状态 */
+	private static final int  EMPTY           = 1;
+
+	/* 构造方法 */
+    public Phaser() { this(null, 0); }
+    public Phaser(int parties) { this(null, parties); }
+    public Phaser(Phaser parent) { this(parent, 0); }
+    public Phaser(Phaser parent, int parties) {
+        if (parties >>> PARTIES_SHIFT != 0) /* 如果总参与者数量超过最大值，就报错 */
+            throw new IllegalArgumentException("Illegal number of parties");
+        int phase = 0;
+        this.parent = parent;
+        if (parent != null) {
+            final Phaser root = parent.root;
+            this.root = root;
+            this.evenQ = root.evenQ;
+            this.oddQ = root.oddQ;
+            if (parties != 0)
+                phase = parent.doRegister(1);
+        } else {
+            this.root = this;
+            this.evenQ = new AtomicReference<QNode>();
+            this.oddQ = new AtomicReference<QNode>();
+        }
+        /* 更新state状态值 */
+        this.state = (parties == 0) ? (long)EMPTY :
+            ((long)phase << PHASE_SHIFT) |
+            ((long)parties << PARTIES_SHIFT) |
+            ((long)parties);
+    }
+
+	/* 未到达参与者的数量 */
+    private static int unarrivedOf(long s) { return ((int)s == EMPTY) ? 0 : ((int)s & UNARRIVED_MASK); }
+	/* 总参与者的数量 */
+    private static int partiesOf(long s) { return (int)s >>> PARTIES_SHIFT; }
+	/* 当前阶段数的bit偏移量 */
+    private static int phaseOf(long s) { return (int)(s >>> PHASE_SHIFT); }
+    /* 已到达参与者的数量 */
+    private static int arrivedOf(long s) { return ((int)s == EMPTY) ? 0 : ((int)s >>> PARTIES_SHIFT) - ((int)s & UNARRIVED_MASK); }
+}
+```
+
+有了以上的比特位，我们就可以创建相应的修改逻辑：
+
+```java
+public class Phaser {
+
+	/* >>> 注册参与者 <<< */
+	/* 注册registrations个参与者 */
+    private int doRegister(int registrations) {
+        long adjust = ((long)registrations << PARTIES_SHIFT) | registrations;
+        final Phaser parent = this.parent;
+        int phase;
+        while (true) {
+            long s = (parent == null) ? state : reconcileState();
+            
+            /* 获取总参与者/未到达参与者的数量 */
+            int counts = (int)s;
+            int parties = counts >>> PARTIES_SHIFT;
+            int unarrived = counts & UNARRIVED_MASK;
+            
+            /* 防止注册的参与者溢出 */
+            if (registrations > MAX_PARTIES - parties)
+                throw new IllegalStateException(badRegister(s));
+            
+            /* 获取当前阶段数 */
+            phase = (int)(s >>> PHASE_SHIFT);
+            if (phase < 0)
+                break;
+            
+            
+            if (counts != EMPTY) { /* 如果相位器不为空 */
+                if (parent == null || reconcileState() == s) {
+                    if (unarrived == 0) /* 若未达到参与者数量为0，就等待下一个阶段 */
+                        root.internalAwaitAdvance(phase, null);
+                    else if (STATE.compareAndSet(this, s, s + adjust)) /* 若存在未到达参与者 */
+		                /* 修改state，将参与者和未到达参与者都+=1 */
+                        break;
+                }
+            } else if (parent == null) { /* 如果相位器为空，且parent不存在 */
+                long next = ((long)phase << PHASE_SHIFT) | adjust;
+                if (STATE.compareAndSet(this, s, next)) /* 设置参与者数量为1 */
+                    break;
+            } else { /* 如果相位器为空，且parent存在 */
+                synchronized (this) {               // 1st sub registration
+                    if (state == s) {               // recheck under lock
+                        phase = parent.doRegister(1);
+                        if (phase < 0)
+                            break;
+                        while (!STATE.weakCompareAndSet(
+		                    this, 
+		                    s, 
+		                    ((long)phase << PHASE_SHIFT) | adjust
+		                )) {
+                            s = state;
+                            phase = (int)(root.state >>> PHASE_SHIFT);
+                            // assert (int)s == EMPTY;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        return phase;
+    }
+    /* API: 注册一个参与者，重定向到doRegister() */
+	public int register() { return doRegister(1); }
+
+	/* >>> 参与者到达 <<< */
+	/* API: 参与者到达并阻塞等待 */
+    public int arriveAndAwaitAdvance() {
+        final Phaser root = this.root;
+        while (true) {
+	        /* 获取状态变量state */
+            long s = (root == this) ? state : reconcileState();
+            
+            /* 获取当前阶段数phase */
+            int phase = (int)(s >>> PHASE_SHIFT);
+            if (phase < 0)
+                return phase;
+            
+            /* 获取总参与者+未到达参与者数量 */
+            int counts = (int)s;
+            int unarrived = (counts == EMPTY) ? 0 : (counts & UNARRIVED_MASK);
+            if (unarrived <= 0)
+                throw new IllegalStateException(badArrive(s));
+            
+            if (STATE.compareAndSet(this, s, s -= ONE_ARRIVAL)) {
+	            /* 如果未达到参与者数量>1，则一起阻塞等待 */
+                if (unarrived > 1) 
+                    return root.internalAwaitAdvance(phase, null);
+                
+                if (root != this)
+                    return parent.arriveAndAwaitAdvance();
+                
+                /* 获取总参与者数量 */
+                long n = s & PARTIES_MASK;
+                
+                /* 如果本阶段恰好结束，则下一回合未到达参与者数量应该为总参与者数量 */
+                int nextUnarrived = (int)n >>> PARTIES_SHIFT;
+                
+                /* 执行onAdvance()，判断是否要终止相位器 */
+                if (onAdvance(phase, nextUnarrived))
+                    n |= TERMINATION_BIT; /* 设置终止位 */
+                else if (nextUnarrived == 0)
+                    n |= EMPTY;
+                else
+                    n |= nextUnarrived; /* 设置未到达状态 */
+                
+                /* 更新当前阶段数+=1 */
+                int nextPhase = (phase + 1) & MAX_PHASE;
+                n |= (long)nextPhase << PHASE_SHIFT;
+                
+                /* 更新状态变量state */
+                if (!STATE.compareAndSet(this, s, n))
+                    return (int)(state >>> PHASE_SHIFT);
+                
+                releaseWaiters(phase);
+                return nextPhase;
+            }
+        }
+    }
+	/* 参与者到达并注销自己 */
+    private int doArrive(int adjust) {
+        final Phaser root = this.root;
+        while (true) {
+            /* 获取状态信息并验证是否合法 */
+            long s = (root == this) ? state : reconcileState();
+            int phase = (int)(s >>> PHASE_SHIFT);
+            if (phase < 0)
+                return phase;
+            int counts = (int)s;
+            int unarrived = (counts == EMPTY) ? 0 : (counts & UNARRIVED_MASK);
+            if (unarrived <= 0)
+                throw new IllegalStateException(badArrive(s));
+            
+            /* 与doRegister()相似，只不过是s-=adjust */
+            if (STATE.compareAndSet(this, s, s-=adjust)) {
+                if (unarrived == 1) {
+                    long n = s & PARTIES_MASK;  // base of next state
+                    int nextUnarrived = (int)n >>> PARTIES_SHIFT;
+                    if (root == this) {
+                        if (onAdvance(phase, nextUnarrived))
+                            n |= TERMINATION_BIT;
+                        else if (nextUnarrived == 0)
+                            n |= EMPTY;
+                        else
+                            n |= nextUnarrived;
+                        int nextPhase = (phase + 1) & MAX_PHASE;
+                        n |= (long)nextPhase << PHASE_SHIFT;
+                        STATE.compareAndSet(this, s, n);
+                        releaseWaiters(phase);
+                    }
+                    else if (nextUnarrived == 0) { // propagate deregistration
+                        phase = parent.doArrive(ONE_DEREGISTER);
+                        STATE.compareAndSet(this, s, s | EMPTY);
+                    }
+                    else
+                        phase = parent.doArrive(ONE_ARRIVAL);
+                }
+                return phase;
+            }
+        }
+    }
+    public int arriveAndDeregister() {
+        return doArrive(ONE_DEREGISTER);
+    }
+}
+```
+
+
+以下是使用相位器的一个示例。只有两个线程同时到达某个阶段，才可以同时放行，直到下一个阶段。
+
+```java
+import java.util.concurrent.Phaser;
+
+public class JucMain {
+    static Phaser phaser = new Phaser();
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 2; i++) {
+            Thread thread = new Thread(() -> {
+                phaser.register();
+                System.out.printf("[%s] Executing in state 1...\n", Thread.currentThread().getName());
+                phaser.arriveAndAwaitAdvance();
+                System.out.printf("[%s] Executing in state 2...\n", Thread.currentThread().getName());
+                phaser.arriveAndAwaitAdvance();
+                System.out.printf("[%s] Executing in state 3...\n", Thread.currentThread().getName());
+                phaser.arriveAndAwaitAdvance();
+                System.out.printf("[%s] finished.\n", Thread.currentThread().getName());
+                phaser.arriveAndDeregister();
+            });
+            thread.start();
+        }
+        while (!phaser.isTerminated()) {
+            Thread.yield();
+        }
+        System.out.printf("[%s] pharser is terminated.\n", Thread.currentThread().getName());
+    }
+}
+/*
+	[Thread-0] Executing in state 1...
+	[Thread-1] Executing in state 1...
+	[Thread-1] Executing in state 2...
+	[Thread-0] Executing in state 2...
+	[Thread-0] Executing in state 3...
+	[Thread-1] Executing in state 3...
+	[Thread-1] finished.
+	[Thread-0] finished.
+	[main] pharser is terminated.
+*/
+```
+
+## §4.5 交换器
+
+交换器（`java.util.concurrent.Exchanger`）以两个线程为一组，同时放行并交换信息。
+
+```java
+import java.util.concurrent.Exchanger;
+
+public class JucMain {
+    static Exchanger<String> exchanger = new Exchanger<>();
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 4; i++) {
+            Thread thread = new Thread(() -> {
+                String bio = String.format("Hello, I'm %s!", Thread.currentThread().getName());
+                String bio_exchanged = null;
+                try { bio_exchanged = exchanger.exchange(bio); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.printf("[%s] Received an exchanged message: %s\n", Thread.currentThread().getName(), bio_exchanged);
+            });
+            thread.start();
+        }
+    }
+}
+/*
+	[Thread-3] Received an exchanged message: Hello, I'm Thread-0!
+	[Thread-2] Received an exchanged message: Hello, I'm Thread-1!
+	[Thread-0] Received an exchanged message: Hello, I'm Thread-3!
+	[Thread-1] Received an exchanged message: Hello, I'm Thread-2!
+*/
 ```
