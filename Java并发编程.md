@@ -1108,9 +1108,45 @@ public class LockSupport {
 
 ```
 
-## §2.5 重入锁
+## §2.5 可重入锁
 
-Java提供了`java.util.concurrent.locks.ReentrantLock`重入锁。其构造函数接受一个`boolean`值，表示是否创建一个公平锁。在下面的例子中，我们使用GUI来可视化非公平锁和公平锁的线程调度策略。
+Java提供了`java.util.concurrent.locks.ReentrantLock`可重入锁，这是一种**独占锁**。当前线程一旦获取可重入锁，之后再调用加锁函数就不会被阻塞，并且让`state++`。同理，调用解锁函数会让`state--`，直到减为`0`才释放锁。
+
+`ReentrantLock`支持公平模式/非公平模式，其构造函数接受一个`boolean`值，表示是否创建一个公平锁。它的实现依赖于`Sync ReetrantLock.sync`初始化为`Sync::FairSync`与`Sync::NonfairSync`的哪一种。
+
+```java
+public class ReentrantLock implements Lock, java.io.Serializable {
+    static final class FairSync extends Sync {
+        /* 尝试获取公平锁。允许持有锁的线程重入，使得state自增 */
+        final boolean initialTryLock() {
+            Thread current = Thread.currentThread();
+            int current_count = getState();
+            if (current_count == 0) {
+                if (!hasQueuedThreads() && compareAndSetState(0, 1)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            } else if (getExclusiveOwnerThread() == current) {
+                if (++current_count < 0) { throw new Error("Maximum lock count exceeded"); } /* 处理溢出 */
+                setState(current_count);
+                return true;
+            }
+            return false;
+        }
+        /* 尝试获取公平锁，不处理重入的情况，而是直接覆盖state的值为acquires */
+        protected final boolean tryAcquire(int acquires) {
+            if (getState() == 0 && !hasQueuedPredecessors() &&
+                compareAndSetState(0, acquires)) {
+                setExclusiveOwnerThread(Thread.currentThread());
+                return true;
+            }
+            return false;
+        }
+    }
+}
+```
+
+在下面的例子中，我们使用GUI来可视化非公平锁和公平锁的线程调度策略：
 
 ```java
 public class JucMain {
@@ -1147,6 +1183,417 @@ public class JucMain {
         frame.setVisible(true);
     }
 }
+```
+
+在下面的例子中，我们演示了可重入锁的可重入性：
+
+```java
+public class JucMain {
+    static ReentrantLock lock = new ReentrantLock();
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 2; ++i) {
+            Thread thread = new Thread(() -> {
+                System.out.printf("[%s] thread start. count = %d\n", Thread.currentThread().getName(), lock.getHoldCount());
+                lock.lock();
+                System.out.printf("[%s] get lock. count = %d\n", Thread.currentThread().getName(), lock.getHoldCount());
+                lock.lock();
+                System.out.printf("[%s] get lock. count = %d\n", Thread.currentThread().getName(), lock.getHoldCount());
+                lock.unlock();
+                System.out.printf("[%s] release lock. count = %d\n", Thread.currentThread().getName(), lock.getHoldCount());
+                lock.unlock();
+                System.out.printf("[%s] release lock. count = %d\n", Thread.currentThread().getName(), lock.getHoldCount());
+            });
+            thread.start();
+        }
+    }
+}
+/*
+	[Thread-0] thread start. count = 0
+	[Thread-1] thread start. count = 0
+	[Thread-0] get lock. count = 1
+	[Thread-0] get lock. count = 2
+	[Thread-0] release lock. count = 1
+	[Thread-0] release lock. count = 0
+	[Thread-1] get lock. count = 1
+	[Thread-1] get lock. count = 2
+	[Thread-1] release lock. count = 1
+	[Thread-1] release lock. count = 0
+*/
+```
+
+在下面的例子中，我们使用了`ReentrantLock`提供的条件队列：
+
+```java
+public class JucMain {
+    static CountDownLatch countDownLatch = new CountDownLatch(2);
+    static ReentrantLock lock = new ReentrantLock();
+    static Condition condition = lock.newCondition();
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 2; ++i) {
+            Thread thread = new Thread(() -> {
+                System.out.printf("[%s] thread start.\n", Thread.currentThread().getName());
+                lock.lock();
+                System.out.printf("[%s] get lock, stuck in await().\n", Thread.currentThread().getName());
+                countDownLatch.countDown();
+                /* 这一步会释放锁，之后等待被conditionn.signal()/signalAll()唤醒，继续竞争锁 */
+                try { condition.await(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.printf("[%s] recover from await(), release lock.\n", Thread.currentThread().getName());
+                lock.unlock();
+            });
+            thread.start();
+        }
+
+        countDownLatch.await(); // 让子线程均通过condition.await()陷入阻塞后，由主线程的condition.signalAll()全部唤醒
+        lock.lock();
+        System.out.printf("[%s] call signalAll().\n", Thread.currentThread().getName());
+        condition.signalAll();
+        lock.unlock();
+    }
+}
+/*
+	[Thread-0] thread start.
+	[Thread-1] thread start.
+	[Thread-0] get lock, stuck in await().
+	[Thread-1] get lock, stuck in await().
+	[main] call signalAll().
+	[Thread-0] recover from await(), release lock.
+	[Thread-1] recover from await(), release lock.
+*/
+```
+
+## §2.5 读写锁
+
+Java提供了`java.util.concurrent.locks.ReadWriteLock`接口表示读写锁，它允许多个线程进行读操作，但是最多只有一个线程进行写操作。对应的，它的实现需要两种锁——读锁和写锁。
+
+```java
+public interface ReadWriteLock {
+    Lock readLock();
+    Lock writeLock();
+}
+```
+
+Java提供了它的一种基于可重入锁的实现`ReentrantReadWriteLock`。需要注意的是，它实现的读锁和写锁都共用了`ReentrantReadWriteLock::Sync`提供的共享变量，将一个`int`整型变量拆成高16位和低16位，其中高位用于读锁，低位用于写锁。
+
+```java
+public class ReentrantReadWriteLock implements ReadWriteLock, java.io.Serializable {
+
+	/* 读锁/写锁/AQS实例 */
+	private final ReentrantReadWriteLock.ReadLock readerLock;  
+	private final ReentrantReadWriteLock.WriteLock writerLock;
+	final Sync sync;
+
+	/* 构造函数 */
+    public ReentrantReadWriteLock() { this(false); }
+    public ReentrantReadWriteLock(boolean fair) {
+        sync = fair ? new FairSync() : new NonfairSync();
+        readerLock = new ReadLock(this);
+        writerLock = new WriteLock(this);
+    }
+
+	/* 读锁/写锁Getter */
+    public ReentrantReadWriteLock.WriteLock writeLock() { return writerLock; }
+    public ReentrantReadWriteLock.ReadLock  readLock()  { return readerLock; }
+
+	/* 读锁内部类定义 */
+    public static class ReadLock implements Lock, java.io.Serializable {
+	    /* AQS实例 */
+        private final Sync sync;
+		/* 构造函数 */
+        protected ReadLock(ReentrantReadWriteLock lock) { sync = lock.sync; }
+
+        public void lock() { sync.acquireShared(1); }
+        public void lockInterruptibly() throws InterruptedException { sync.acquireSharedInterruptibly(1); }
+        public boolean tryLock() { return sync.tryReadLock(); }
+        public boolean tryLock(long timeout, TimeUnit unit) throws InterruptedException { return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout)); }
+        public void unlock() { sync.releaseShared(1); }
+        /* ReentrantReadWriteLock.ReadLock不支持创建条件节点 */
+        public Condition newCondition() { throw new UnsupportedOperationException(); }
+        public String toString() { return super.toString() + "[Read locks = " + sync.getReadLockCount() + "]"; }
+    }
+
+	/* 写锁内部类定义 */
+    public static class WriteLock implements Lock, java.io.Serializable {
+	    /* AQS实例 */
+        private final Sync sync;
+		/* 构造函数 */
+        protected WriteLock(ReentrantReadWriteLock lock) { sync = lock.sync; }
+
+        public void lock() { sync.acquire(1); }
+        public void lockInterruptibly() throws InterruptedException { sync.acquireInterruptibly(1); }
+        public boolean tryLock() { return sync.tryWriteLock(); }
+        public boolean tryLock(long timeout, TimeUnit unit) throws InterruptedException { return sync.tryAcquireNanos(1, unit.toNanos(timeout)); }
+        public void unlock() { sync.release(1); }
+		/* ReentrantReadWriteLock.WriteLock支持创建条件节点 */
+        public Condition newCondition() { return sync.newCondition(); }
+        public String toString() {
+            Thread o = sync.getOwner();
+            return super.toString() + ((o == null) ? "[Unlocked]" : "[Locked by thread " + o.getName() + "]");
+        }
+    }
+
+	/* AQS内部抽象类，用于实现公平AQS/非公平AQS */
+    abstract static class Sync extends AbstractQueuedSynchronizer {
+	    /* 读锁/写锁共享状态偏移量 */
+        static final int SHARED_SHIFT   = 16; /* 读锁状态偏移量 */
+        static final int SHARED_UNIT    = (1 << SHARED_SHIFT); /* 读锁状态的单位1 */
+        static final int MAX_COUNT      = (1 << SHARED_SHIFT) - 1; /* 写锁变量最大值 */
+        static final int EXCLUSIVE_MASK = (1 << SHARED_SHIFT) - 1; /* 写锁变量掩码 */
+
+        /* 获取读锁的状态变量值（高16位） */
+        static int sharedCount(int c)    { return c >>> SHARED_SHIFT; }
+        
+        /* 获取读锁的状态变量值（低16位） */
+        static int exclusiveCount(int c) { return c & EXCLUSIVE_MASK; }
+
+		/* 尝试释放独占锁(也就是写锁)，返回写锁是否空闲 */
+        @ReservedStackAccess protected final boolean tryRelease(int releases) {
+            /* 只有获取写锁的线程才能释放写锁 */
+            if (!isHeldExclusively()) { throw new IllegalMonitorStateException(); }
+            
+            /* 更新写锁数量，降为0时重置写锁占用线程为null */
+            int nextc = getState() - releases;
+            boolean free = exclusiveCount(nextc) == 0;
+            if (free) { setExclusiveOwnerThread(null); }
+            setState(nextc);
+            return free;
+        }
+
+		/* 尝试获取独占锁(也就是写锁)，返回是否成功获取写锁 */
+        @ReservedStackAccess protected final boolean tryAcquire(int acquires) {
+            Thread current = Thread.currentThread();
+            int c = getState();
+            int w = exclusiveCount(c);
+            
+            if (c != 0) {
+                /* 若读锁计数>0，或写锁计数>0且其它线程已持有写锁，则获取读锁失败 */
+                if (w == 0 || current != getExclusiveOwnerThread()) { return false; }
+	            
+	            /* 若写锁计数>0且当前线程已持有写锁，但是数据溢出，则获取读锁失败 */
+                if (w + exclusiveCount(acquires) > MAX_COUNT) { throw new Error("Maximum lock count exceeded"); }
+                
+                /* 写锁早已被当前线程获取，只需更新写锁数量 */
+                setState(c + acquires);
+                return true;
+            }
+            
+            /* 如果c==0(读锁和写锁数量==0)，尝试一次抢占写锁并设置抢占线程 */
+            if (writerShouldBlock() || !compareAndSetState(c, c + acquires)) { return false; }
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+
+		/* 尝试获取共享锁(也就是读锁)，返回是否成功获取读锁 */
+        @ReservedStackAccess protected final int tryAcquireShared(int unused) {
+			/* 首先尝试缓存优化 */
+            Thread current = Thread.currentThread();
+            int c = getState();
+            /* 如果写锁已被占用，且占用的线程不是自己，则获取读锁失败 */
+            if (exclusiveCount(c) != 0 && getExclusiveOwnerThread() != current) { return -1; }
+            
+            /* 获取读锁计数 */
+            int r = sharedCount(c);
+            
+            /* 是否满足获取读锁的前置条件 */
+            if (
+	            !readerShouldBlock() && /* 公平/非公平的调度策略，是否应该阻塞 */
+                r < MAX_COUNT && /* 读锁计数不能超过最大值 */
+                compareAndSetState(c, c + SHARED_UNIT) /* 尝试增加读锁数量 */
+            ) {
+                if (r == 0) { /* 如果是第一个获取读锁的线程 */
+                    firstReader = current; /* 缓存当前线程为firstReader */
+                    firstReaderHoldCount = 1; /* 增加第一个获取读锁的线程的读锁计数 */
+                } else if (firstReader == current) { /* 如果当前线程已经获取了读锁 */
+                    firstReaderHoldCount++; /* 增加第一个获取读锁的线程的读锁计数 */
+                } else { /* 其它线程也有读锁，需要使用ThreadLocal记录重入 */
+                    HoldCounter rh = cachedHoldCounter;
+                    if (
+	                    /* 如果缓存未命中 */
+	                    rh == null ||
+                        rh.tid != LockSupport.getThreadId(current)
+                    ) {
+	                    /* 从ThreadLocal获取值，这一步耗时较长 */
+                        cachedHoldCounter = rh = readHolds.get();
+                    } else if (rh.count == 0) { /* 如果缓存已命中但计数为0，需要重新放回ThreadLocal */
+                        readHolds.set(rh);
+                    }
+                    rh.count++; /* 增加读锁重入计数 */
+                }
+                return 1;
+            }
+            
+            /* 缓存优化失败，开始正式的原始获取流程 */
+            return fullTryAcquireShared(current);
+        }
+        final int fullTryAcquireShared(Thread current) {
+            HoldCounter rh = null;
+            while (true) {
+                int c = getState();
+                if (exclusiveCount(c) != 0) { /* 如果存在写锁 */
+                    if (getExclusiveOwnerThread() != current) { /* 并且写锁占有者不是当前线程 */
+	                    return -1; /* 则获取读锁失败 */
+                    } else { /* 并且写锁的占有者就是当前线程 */
+	                    ; /* 则只需进行锁降级即可，仍然可以获得读锁 */
+                    }
+                } else if (readerShouldBlock()) { /* 公平/非公平的调度策略，是否应该阻塞 */
+                    if (firstReader == current) {
+                        ; /* 如果当前线程是第一个持有读锁的线程，则直接判定为重入 */
+                    } else { /* firstReader缓存失效 */
+                        if (rh == null) {
+	                        /* 从缓存中读取 */
+                            rh = cachedHoldCounter;
+                            if (
+	                            rh == null ||
+                                rh.tid != LockSupport.getThreadId(current)
+                            ) { /* ThreadLocal缓存也失效 */
+	                            /* 需要调用ThreadLocal.get() */
+                                rh = readHolds.get();
+                                
+                                /* 如果计数==0，则该线程不占用读锁，应从缓存移除 */
+                                if (rh.count == 0) { readHolds.remove(); }
+                            }
+                        }
+                        /* 如果计数==0，且策略要求阻塞，则必须失败并进入等待队列 */
+                        if (rh.count == 0) { return -1; }
+                    }
+                }
+                
+                /* 读锁计数不应该超过上限 */
+                if (sharedCount(c) == MAX_COUNT) { throw new Error("Maximum lock count exceeded"); }
+                
+                /* 尝试CAS更新state竞争读锁 */
+                if (compareAndSetState(c, c + SHARED_UNIT)) {
+                    if (sharedCount(c) == 0) { /* 当前线程是第一个获取读锁的线程 */
+                        firstReader = current; /* 放入firstReader缓存中 */
+                        firstReaderHoldCount = 1;
+                    } else if (firstReader == current) { /* 当前线程早已第一个获取读锁 */
+                        firstReaderHoldCount++;
+                    } else { /* 需要通过ThreadLocal更新重入计数 */
+	                    /* 从缓存中读取 */
+                        if (rh == null) { rh = cachedHoldCounter; }
+                        
+                        if ( /* 如果缓存未命中 */
+	                        rh == null ||
+                            rh.tid != LockSupport.getThreadId(current)
+                        ) {
+                            rh = readHolds.get(); /* 则从ThreadLocal获取 */
+                        } else if (rh.count == 0) {
+	                        /* 当前线程之前未获取读锁，本次需要写入缓存 */
+	                        readHolds.set(rh);
+                        }
+                        rh.count++;
+                        cachedHoldCounter = rh;
+                    }
+                    return 1;
+                }
+            }
+        }
+
+		/* 尝试释放共享锁(也就是读锁)，返回读锁是否空闲了 */
+        @ReservedStackAccess protected final boolean tryReleaseShared(int unused) {
+	        /* 首先尝试缓存优化 */
+            Thread current = Thread.currentThread();
+            if (firstReader == current) { /* 如果当前线程就是第一个获取读锁的线程 */
+                if (firstReaderHoldCount == 1)
+                    firstReader = null; /* 当前线程释放读锁后，就没人占用读锁了 */
+                else
+                    firstReaderHoldCount--; /* 维护当前线程的读锁重入数-=1 */
+            } else { /* 有多个线程占用读锁，需要用ThreadLocal维护重入数 */
+	            /* 读取ThreadLocal缓存，避免ThreadLocal的低效.get()操作 */
+                HoldCounter rh = cachedHoldCounter;
+                if (
+	                rh == null ||
+                    rh.tid != LockSupport.getThreadId(current)
+                ) {
+	                /* 如果缓存未命中，则只能用ThreadLocal.get()了 */
+                    rh = readHolds.get();
+                }
+                int count = rh.count;
+                if (count <= 1) {
+	                /* 如果当前线程只持有一个读锁，则释放后线程不占用读锁 */
+                    readHolds.remove(); /* 维护ThreadLocal缓存 */
+                    if (count <= 0) { throw unmatchedUnlockException(); }
+                }
+                --rh.count;
+            }
+            while (true) { /* 不断尝试CAS扣减读锁计数 */
+                int c = getState();
+                int nextc = c - SHARED_UNIT;
+                if (compareAndSetState(c, nextc)) { return nextc == 0; }
+            }
+        }
+        // ...
+    }
+
+	/* AQS内部抽象类，用于实现非公平AQS */
+    static final class NonfairSync extends Sync {
+	    /* 是否将写线程放入到排队队列中，此处Writer永不闯入(barge) */
+        final boolean writerShouldBlock() { return false; }
+        
+        /* 是否将读线程放入到排队队列中 */
+        final boolean readerShouldBlock() { 
+	        /* 头结点的下一个节点是否请求获取写锁 */
+	        return apparentlyFirstQueuedIsExclusive(); 
+	    }
+    }
+
+	/* AQS内部抽象类，用于实现公平AQS */
+    static final class FairSync extends Sync {
+	    /* 是否将写线程放入到排队队列中 */
+        final boolean writerShouldBlock() { 
+	        /* 排队队列前面是否有仍在等待的线程 */
+	        return hasQueuedPredecessors(); 
+	    }
+	    
+	    /* 是否将读线程放入到排队队列中 */
+        final boolean readerShouldBlock() { 
+	        /* 排队队列前面是否有仍在等待的线程 */
+	        return hasQueuedPredecessors(); 
+	    }
+    }
+    // ......
+}
+```
+
+以下是使用读写锁的一个例子：针对线程不安全的`HashMap<>`，我们使用读写锁保证读写正常：
+
+```java
+import java.util.concurrent.locks.*;
+
+public class JucMain {
+    static ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    static Lock readLock = readWriteLock.readLock();
+    static Lock writeLock = readWriteLock.writeLock();
+    static Map<Integer, Integer> data = new HashMap<>();
+    public static void main(String[] args) throws InterruptedException {
+        Thread thread_write = new Thread(() -> {
+            for (int j = 1; j <= 100; ++j) {
+                writeLock.lock();
+                data.put(j, j * j);
+                writeLock.unlock();
+            }
+        });
+        thread_write.start();
+        Thread thread_read = new Thread(() -> {
+            for(int i = 1; i <= 100; ++i) {
+                while (true) {
+                    readLock.lock();
+                    if (!data.containsKey(i)) {
+                        readLock.unlock();
+                        continue;
+                    }
+                    assert data.get(i) == i * i;
+                    readLock.unlock();
+                    break;
+                }
+            }
+            System.out.print("Test successfully.");
+        });
+        thread_read.start();
+    }
+}
+/*
+	Test successfully.
+*/
 ```
 
 ## §2.A CAS
@@ -1379,7 +1826,9 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 
 ### §3.1.3 条件队列
 
-AQS的条件队列提供了阻塞与唤醒的机制，其中`ConditionObject`是条件队列的实现类。条件队列由若干条件节点`ConditionNode`组成。每个条件节点具有一个`nextWaiter`指针用于构成链表，而条件队列具有`firstWaiter`和`lastWaiter`用于指向条件队列的头结点和尾节点。
+条件队列是一种线程等待调度机制，它将释放锁并等待唤醒的线程放入条件队列中，直到被唤醒后放入等待队列中继续竞争锁。在JDK 1.5之前，只有`wait()/notify()`实现了条件队列。
+
+在JDK 1.5之后，`Lock`接口也提供了条件机制来表示条件队列，由AQS负责实现。其中`Condition`是件队列的实现类，`ConditionObject`是AQS用于管理条件队列的内部类。条件队列由若干条件节点`ConditionNode`组成。每个条件节点具有一个`nextWaiter`指针用于构成链表，而条件队列具有`firstWaiter`和`lastWaiter`用于指向条件队列的头结点和尾节点。
 
 ```java
 public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements Serializable {
@@ -3001,3 +3450,1289 @@ public class JucMain {
 ```
 
 ## §5.4 原子变量更新器
+
+原子变量更新器使用了反射机制，允许开发者传入类对象和字段名称字符串，构造一个原子变量更新器实例，调用时传入对应的实例，就能针对字段实现原子更新。**要求字段必须是`public`的，必须是`volatile`的，不能是`static`的（因为`Unsafe`不支持`static`变量）**。Java提供的原子变量更新器有`AtomicIntegerFieldUpdater`、`AtomicLongFieldUpdater`、`AtomicReferenceFieldUpdater`
+
+下面的代码使用原子变量更新器，对`MyCounter.count`实现了原子更新：
+
+```java
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+public class JucMain {
+    static class MyCounter { public volatile int count; }
+    static final AtomicIntegerFieldUpdater<MyCounter> countFieldUpdater = AtomicIntegerFieldUpdater.newUpdater(MyCounter.class, "count");
+    public static void main(String[] args) throws InterruptedException {
+        MyCounter counter = new MyCounter();
+        for (int i = 1; i <= 10; ++i) {
+            Thread thread = new Thread(() -> {
+                for (int j = 1; j <= 1000000; ++j) {
+                    countFieldUpdater.getAndIncrement(counter);
+                }
+            });
+            thread.start();
+        }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.printf("MyCounter.count = %d", counter.count);
+        }));
+    }
+}
+/*
+	MyCounter.count = 10000000
+*/
+```
+
+# §6 阻塞队列
+
+生产者-消费者模式经常使用阻塞队列这一数据结构。Java提供了`java.util.concurrent.BlockingQueue`接口，及其实现类`ArrayBlockingQueue`、`LinkedBlockingQueue`、`PriorityBlockingQueue`（阻塞优先队列）、`DelayQueue`（延迟队列）。
+
+```java
+public interface BlockingQueue<E> extends Queue<E> {
+	/* 元素阻塞式入队，入队失败时抛出异常 */
+    boolean add(E e);
+
+	/* 元素非阻塞式入队，入队失败时返回false */
+    boolean offer(E e);
+
+	/* 元素阻塞式入队，入队失败后一直阻塞，直到有可用空间 */
+    void put(E e) throws InterruptedException;
+
+	/* 元素阻塞式入队，超时后判定入队失败 */
+    boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException;
+
+	/* 元素阻塞式出队，队列为空时一直阻塞 */
+    E take() throws InterruptedException;
+
+	/* 元素阻塞式出队，超时后判定出队失败并返回null */
+    E poll(long timeout, TimeUnit unit) throws InterruptedException;
+
+	/* 队列的剩余容量 */
+    int remainingCapacity();
+
+	/* 检索元素并删除 */
+    boolean remove(Object o);
+
+	/* 检索元素 */
+    boolean contains(Object o);
+
+	/* 清空队列，并将元素转移到集合中 */
+    int drainTo(Collection<? super E> c);
+
+	/* 清空队列，并将元素转移到集合中，指定转移元素的最大数量 */
+    int drainTo(Collection<? super E> c, int maxElements);
+}
+
+```
+
+```java
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
+public class JucMain {
+    static BlockingQueue<String> blockingQueue = new ArrayBlockingQueue<>(10);
+    public static void main(String[] args) throws InterruptedException {
+        Thread thread1 = new Thread(() -> {
+            for (int i = 1; i <= 3; ++i) {
+                try {
+                    String message = "string" + i;
+                    blockingQueue.put(message);
+                    System.out.printf("[%s] send message to BlockingQueue: %s\n", Thread.currentThread().getName(), message);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        Thread thread2 = new Thread(() -> {
+            for (int i = 1; i <= 3; ++i) {
+                try {
+                    String message = blockingQueue.take();
+                    System.out.printf("[%s] fetch message from BlockingQueue: %s\n", Thread.currentThread().getName(), message);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        thread1.start();
+        thread2.start();
+    }
+}
+/*
+	[Thread-0] send message to BlockingQueue: string1
+	[Thread-1] fetch message from BlockingQueue: string1
+	[Thread-0] send message to BlockingQueue: string2
+	[Thread-1] fetch message from BlockingQueue: string2
+	[Thread-1] fetch message from BlockingQueue: string3
+	[Thread-0] send message to BlockingQueue: string3
+*/
+```
+
+我们以`ArrayBlockingQueue`为例，它使用数组作为队列底层存储方式。JDK在实现上，首先定义了队列相关的`Object[]`数组、队列的队尾队头下标、阻塞相关的锁和条件节点，以及构造函数：
+
+```java
+public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, java.io.Serializable {
+
+    /* 阻塞队列底层使用Object[]存储 */
+    final Object[] items;
+
+    /* 阻塞队列中的元素数量，由ReentrantLock保证可见性 */
+    int count;
+    
+    /* 阻塞队列的队头下标 */
+    int takeIndex;
+
+    /* 阻塞队列的队尾下标 */
+    int putIndex;
+
+    /* 锁实例 */
+    final ReentrantLock lock;
+
+    /* 消费者在notEmpty上等待 */
+    private final Condition notEmpty;
+
+    /* 生产者在notFull上等待 */
+    private final Condition notFull;
+
+    /* API: 构造函数，默认创建非公平队列 */
+    public ArrayBlockingQueue(int capacity) {
+        this(capacity, false);
+    }
+    /* API: 构造函数，通过ReentrantLock创建公平/非公平队列 */
+    public ArrayBlockingQueue(int capacity, boolean fair) {
+        if (capacity <= 0) { throw new IllegalArgumentException(); }
+        this.items = new Object[capacity];
+        lock = new ReentrantLock(fair);
+        notEmpty = lock.newCondition();
+        notFull = lock.newCondition();
+    }
+    /* API: 构造函数，通过ReentrantLock创建公平/非公平队列，通过集合浅拷贝元素 */
+    public ArrayBlockingQueue(int capacity, boolean fair, Collection<? extends E> c) {
+        this(capacity, fair);
+        final ReentrantLock lock = this.lock; lock.lock();
+        try {
+            final Object[] items = this.items;
+            int new_count = 0; /* 集合中的元素个数 */
+            try {
+                for (E e : c) { items[new_count++] = Objects.requireNonNull(e); }
+            } catch (ArrayIndexOutOfBoundsException ex) {
+                throw new IllegalArgumentException();
+            }
+            count = new_count;
+            putIndex = (new_count == capacity) ? 0 : new_count;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /* API: 获取阻塞队已用容量 */
+    public int size() {
+        final ReentrantLock lock = this.lock; lock.lock();
+        try { return count; } finally { lock.unlock(); }
+    }
+
+    /* API: 获取阻塞队列剩余容量 */
+    public int remainingCapacity() {
+        final ReentrantLock lock = this.lock; lock.lock();
+        try { return items.length - count; } finally { lock.unlock(); }
+    }
+
+    /* API: 获取阻塞队列中下标为i的元素 */
+    @SuppressWarnings("unchecked")
+    final E itemAt(int i) { return (E) items[i]; }
+    @SuppressWarnings("unchecked")
+    static <E> E itemAt(Object[] items, int i) { return (E) items[i]; }
+}
+```
+
+以下是队列入队尾和出队头的逻辑：
+
+```java
+public class ArrayBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, java.io.Serializable {
+
+    /* 元素入队 */
+    private void enqueue(E e) {
+        final Object[] items = this.items;
+        items[putIndex] = e;
+        if (++putIndex == items.length) putIndex = 0; /* 下标取模 */
+        count++;
+        notEmpty.signal(); /* 唤醒消费者 */
+    }
+
+    /* 元素出队 */
+    private E dequeue() {
+        final Object[] items = this.items;
+        @SuppressWarnings("unchecked") E e = (E) items[takeIndex];
+        items[takeIndex] = null;
+        if (++takeIndex == items.length) takeIndex = 0; /* 下标取模 */
+        count--;
+        if (itrs != null) { itrs.elementDequeued(); }
+        notFull.signal(); /* 唤醒生产者 */
+        return e;
+    }
+
+    /* API: 元素阻塞式入队，若无空余空间则一直阻塞 */
+    public void put(E e) throws InterruptedException {
+        Objects.requireNonNull(e);
+        final ReentrantLock lock = this.lock; lock.lockInterruptibly();
+        try {
+            /* 等待阻塞队列的空余空间 */
+            while (count == items.length) { notFull.await(); }
+            /* 元素入队 */
+            enqueue(e);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /* API: 元素阻塞式出队，若无元素则一直阻塞 */
+    public E take() throws InterruptedException {
+        final ReentrantLock lock = this.lock; lock.lockInterruptibly();
+        try {
+            /* 等待阻塞队列存在元素 */
+            while (count == 0) { notEmpty.await(); }
+            /* 元素出队 */
+            return dequeue();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /* API: 元素非阻塞式入队，若无空余空间则返回false */
+    public boolean offer(E e) {
+        Objects.requireNonNull(e);
+        final ReentrantLock lock = this.lock; lock.lock();
+        try {
+            if (count == items.length)
+                return false;
+            else {
+                enqueue(e);
+                return true;
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /* API: 元素非阻塞式入队，支持设置超时机制 */
+    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
+        Objects.requireNonNull(e);
+        long nanos = unit.toNanos(timeout);
+        final ReentrantLock lock = this.lock; lock.lockInterruptibly();
+        try {
+            while (count == items.length) {
+                if (nanos <= 0L) { return false; }
+                nanos = notFull.awaitNanos(nanos);
+            }
+            enqueue(e);
+            return true;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /* API: 元素非阻塞式出队，若队列为空则返回false */
+    public E poll() {
+        final ReentrantLock lock = this.lock; lock.lock();
+        try {
+            return (count == 0) ? null : dequeue();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
+    /* API: 元素非阻塞式出队，支持设置超时机制 */
+    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+        long nanos = unit.toNanos(timeout);
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            while (count == 0) {
+                if (nanos <= 0L)
+                    return null;
+                nanos = notEmpty.awaitNanos(nanos);
+            }
+            return dequeue();
+        } finally {
+            lock.unlock();
+        }
+    }
+}
+```
+
+# §7 执行器
+
+## §7.1 `Executor`
+
+通常，开发者定义了一个`Thread`/实现了一个`Runnable`接口（也就是定义任务）之后，还要考虑何时启动/中断/终止（也就是执行机制）。任务执行器（`java.util.concurrent.Executor`）是一个接口，用于提供任务与执行机制间的解耦。
+
+```java
+public interface Executor {
+    void execute(Runnable command);
+}
+```
+
+**JDK并不提供`Executor`的直接实现类，而是经常扩展为`ExecutorService`接口后才提供实现类**。
+
+### §7.1.1 同步执行器
+
+同步执行器是最简单的任务执行器，直接调用`Runnable.run()`方法，把任务交给当前线程执行。
+
+```java
+class CustomizedDirectExecutor implements Executor {
+	public void execute(Runnable r) {
+		r.run();
+	}
+}
+```
+
+### §7.1.2 一对一执行器
+
+一对一执行器直接调用`Runnable.run()`方法，把任务交给新创建的子线程执行。
+
+```java
+class CustomizedPerTaskExecutor implements Executor {
+	public void execute(Runnable r) {
+		new Thread(r).start();
+	}
+}
+```
+
+### §7.1.3 线程池执行器
+
+线程池执行器直接调用`Runnable.run()`方法，把任务交给预创建的线程池执行。
+
+```java
+class CustomizedThreadPoolExecutor implements Executor {
+	List<Runnable> taskQueue = new LinkedList<Runnable>();
+	THread[] workers = new Thread[10];
+
+	public CustomizedThreadPoolExecutor() {
+		for (int i = 0; i < workers.length; ++i) {
+			workers[i] = new Thread(() -> {
+				while (true) { /* 每个线程轮询执行任务 */
+					Runnable task = null;
+					/* 从任务队列中取出一个Runnable实例 */
+					synchronized (taskQueue) {
+						if (!taskQueue.isEmpty()) {
+							task = taskQueue.remove(0);
+						}
+					}
+					if (task != null) { task.run(); }
+				}
+			});
+			workers[i].start;
+		}
+	}
+}
+```
+
+### §7.1.3 串行执行器
+
+串行执行器直接调用`Runnable.run()`方法，把若干任务排成队列，按顺序执行。
+
+```java
+class CustomizedSerialExecutor implements Executor {
+	final Queue<Runnable> tasks = new ArrayDeque<Runnable>();
+	final Executor executor = new ThreadPerTaskExecutor();
+	Runnable active;
+
+	public synchronized void execute(final Runnable r) {
+		tasks.offer(new Runnable {
+			public void run() {
+				try { r.run(); } finally {
+					if ((active = tasks.poll()))
+				}
+			}
+		})
+	}
+}
+```
+
+## §7.2 `ExecutorService`
+
+`java.util.concurrent.ExecutorService`接口继承自`Executor`，在`Executor`提供的`.run()`基础上，提供了管理任务生命周期的方法。
+
+```java
+public interface ExecutorService extends Executor, AutoCloseable {
+
+	/* 关闭执行器服务 */
+    void shutdown();
+    
+    List<Runnable> shutdownNow();
+
+	/* 执行器服务是否被关闭，关闭后可能仍有worker线程运行，可能仍有任务等待执行 */
+    boolean isShutdown();
+
+	/* 执行器服务是否被终止，终止后所有worker均停止，且未完成任务列表为空 */
+    boolean isTerminated();
+
+	/* 阻塞Executor直到其中止 */
+    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+
+	/* 向ExecutorService提交一个返回T的任务 */
+    <T> Future<T> submit(Callable<T> task);
+    <T> Future<T> submit(Runnable task, T result);
+    Future<?> submit(Runnable task);
+
+	/* 提交一批任务，阻塞当前线程，等全部执行完毕后返回全部结果(可选超时机制) */
+    <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException;
+    <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException;
+
+	/* 提交一批任务，阻塞当前线程，返回第一个完成的任务的返回值(可选超时机制) */
+    <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException;
+    <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
+
+    @Override
+    default void close() {
+        boolean terminated = isTerminated();
+        if (!terminated) {
+            shutdown();
+            boolean interrupted = false;
+            while (!terminated) {
+                try {
+                    terminated = awaitTermination(1L, TimeUnit.DAYS);
+                } catch (InterruptedException e) {
+                    if (!interrupted) {
+                        shutdownNow();
+                        interrupted = true;
+                    }
+                }
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}
+```
+
+以下示例是一个`ExecutorService`示例实现类，实现了一个简单的线程池执行器服务：
+
+```java
+class CustomizedExecutorService {
+    volatile boolean isShutdown = false;
+    volatile boolean isTerminated = false;
+    List<Runnable> taskQueue = new LinkedList<>(); /* 未运行任务列表 */
+    AtomicInteger count = new AtomicInteger(5); /* 当前仍在运行的任务 */
+    Thread[] workers = new Thread[count.get()]; /* 线程池的线程列表 */
+    ReentrantLock lock = new ReentrantLock();
+    Condition termination = lock.newCondition();
+
+    public CustomizedExecutorService() {
+        for (int i = 1; i <= workers.length; ++i) {
+            workers[i] = new Thread(() -> {
+                while (true) {
+                    Runnable task = null;
+                    synchronized (taskQueue) {
+                        if (taskQueue.isEmpty()) {
+                            task = taskQueue.removeFirst();
+                        }
+                    }
+                    if (task != null) { task.run(); }
+                    if (taskQueue.isEmpty() && isShutdown) { /* 如果队列为空，且执行器服务已关闭，则 */
+                        if (count.decrementAndGet() == 0) {
+                            lock.lock();
+                            isTerminated = true;
+                            termination.signalAll(); /* 唤醒被awaitTermination()阻塞的线程 */
+                            lock.unlock();
+                        }
+                        break;
+                    }
+                }
+            });
+            workers[i].start();
+        }
+    }
+
+    public void shutdown() { isShutdown = true; }
+
+    public boolean isShutdown() { return isShutdown; }
+
+    public boolean isTerminated() { return isTerminated; }
+
+    public void execute(Runnable r) { synchronized (taskQueue) { if (!isShutdown) { taskQueue.add(r); } } }
+
+    public void awaitTermination() throws InterruptedException {
+        lock.lock(); termination.await(); lock.unlock();
+    }
+
+    public <T> Future<T> submit(Callable<T> task) {
+        RunnableFuture<T> ftask = new FutureTask<T>(task);
+        execute(ftask); return ftask;
+    }
+}
+```
+
+### §7.2.1 线程池
+
+Java官方提供了`ThreadPoolExecutor`类。在下面的例子中，线程池只有一个线程，所以三个任务均由该线程执行。
+
+```java
+public class JucMain {
+    static ExecutorService pool = new ThreadPoolExecutor(
+            1,
+            1,
+            1000,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<Runnable>(3),
+            Executors.defaultThreadFactory(),
+            new ThreadPoolExecutor.AbortPolicy()
+    );
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 3; ++i) {
+            final int finalI = i;
+            pool.execute(new Runnable() {
+                @Override public void run() {
+                    System.out.printf("[%s] task %d finished.\n", Thread.currentThread().getName(), finalI);
+                }
+            });
+        }
+    }
+}
+/*
+	[pool-1-thread-1] task 1 finished.
+	[pool-1-thread-1] task 2 finished.
+	[pool-1-thread-1] task 3 finished.
+*/
+```
+
+下面我们深入研究`ThreadPoolExecutor`的实现。
+
+```mermaid
+flowchart LR
+	RUNNING --"shutdown()"--> SHUTDOWN
+	RUNNING --"shutdownNow()"--> STOP
+	SHUTDOWN --"shutdownNow()"--> STOP
+	SHUTDOWN --"任务队列和工作线程池为空"--> TIDYING
+	STOP --"工作线程池为空"--> TIDYING
+	TIDYING --"terminated()"--> TERMINATED
+```
+
+```java
+public class ThreadPoolExecutor extends AbstractExecutorService {
+
+	/* 状态相关变量，工作线程数和状态共用int状态 */
+    private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+    private static final int COUNT_BITS = Integer.SIZE - 3;
+    private static final int COUNT_MASK = (1 << COUNT_BITS) - 1;
+    /* 能正常接收新任务和正常处理队列中的任务 */
+    private static final int RUNNING    = -1 << COUNT_BITS;
+    /* 不接收新任务但正常处理队列中的任务 */
+    private static final int SHUTDOWN   =  0 << COUNT_BITS;
+    /* 不接收新任务且不处理队列中的任务，同时中断正在执行的任务 */
+    private static final int STOP       =  1 << COUNT_BITS;
+    /* 所有任务都已被终止，没有工作线程，将要执行钩子方法terminated() */
+    private static final int TIDYING    =  2 << COUNT_BITS;
+    /* 钩子方法 terminated()执行完毕 */
+    private static final int TERMINATED =  3 << COUNT_BITS;
+    private static int runStateOf(int c)     { return c & ~COUNT_MASK; }
+    private static int workerCountOf(int c)  { return c & COUNT_MASK; }
+    private static int ctlOf(int rs, int wc) { return rs | wc; }
+
+    /* 未运行的任务队列 */
+    private final BlockingQueue<Runnable> workQueue;
+
+    /* 负责控制ThreadPoolExecutor内部状态的多线程更改 */
+    private final ReentrantLock mainLock = new ReentrantLock();
+
+    /* 线程池的线程集合 */
+    private final HashSet<Worker> workers = new HashSet<>();
+
+    /* 条件节点，负责唤醒被awaitTermination()阻塞的线程 */
+    private final Condition termination = mainLock.newCondition();
+    
+    /* 线程池拒绝新任务加入时使用的拒绝策略 */
+    private volatile RejectedExecutionHandler handler;
+    private static final RejectedExecutionHandler defaultHandler = new AbortPolicy();
+
+    /* 线程池创建线程实例使用的工厂 */
+    private volatile ThreadFactory threadFactory;
+    
+    /* 空闲线程等待任务的最大等待时间 */
+    private volatile long keepAliveTime;
+
+    /* 线程池核心线程数 */
+    private volatile int corePoolSize;
+
+    /* 线程池最大线程数 */
+    private volatile int maximumPoolSize;
+
+    private volatile boolean allowCoreThreadTimeOut;
+
+    private final SharedThreadContainer container;
+
+    private int largestPoolSize;
+
+    private long completedTaskCount;
+
+    /* API: 构造函数 */
+    public ThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue) {
+        this(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, Executors.defaultThreadFactory(), defaultHandler);
+    }
+    /* API: 构造函数，额外指定了ThreadFactory */
+    public ThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory) {
+        this(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, defaultHandler);
+    }
+    /* API: 构造函数，额外指定了RejectedExecutionHandler */
+    public ThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, RejectedExecutionHandler handler) {
+        this(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, Executors.defaultThreadFactory(), handler);
+    }
+    /* API: 构造函数，额外指定了ThreadFactory和RejectedExecutionHandler */
+    public ThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory, RejectedExecutionHandler handler) {
+        if (corePoolSize < 0 ||
+            maximumPoolSize <= 0 ||
+            maximumPoolSize < corePoolSize ||
+            keepAliveTime < 0)
+            throw new IllegalArgumentException();
+        if (workQueue == null || threadFactory == null || handler == null)
+            throw new NullPointerException();
+        this.corePoolSize = corePoolSize;
+        this.maximumPoolSize = maximumPoolSize;
+        this.workQueue = workQueue;
+        this.keepAliveTime = unit.toNanos(keepAliveTime);
+        this.threadFactory = threadFactory;
+        this.handler = handler;
+
+        String name = Objects.toIdentityString(this);
+        this.container = SharedThreadContainer.create(name);
+    }
+
+    /* 对Thread的进一步封装，支持锁机制 */
+    private final class Worker extends AbstractQueuedSynchronizer implements Runnable {
+        /* AQS持有的状态变量state，为0时表示解锁状态，为1时表示锁占用状态 */
+
+        final Thread thread; /* 当前线程 */
+        Runnable firstTask;
+        volatile long completedTasks; /* 当前线程完成的任务数 */
+
+        Worker(Runnable firstTask) {
+            setState(-1); /* 防止刚创建但未指定firstTask的线程被中断 */
+            this.firstTask = firstTask;
+            this.thread = getThreadFactory().newThread(this);
+        }
+
+        public void run() { runWorker(this); }
+
+        /* 基于AQS实现的state状态更新函数 */
+        protected boolean isHeldExclusively() { return getState() != 0; }
+        protected boolean tryAcquire(int unused) {
+            if (compareAndSetState(0, 1)) { setExclusiveOwnerThread(Thread.currentThread()); return true; }
+            return false;
+        }
+        protected boolean tryRelease(int unused) { setExclusiveOwnerThread(null); setState(0); return true; }
+
+        /* 基于状态更新函数实现的独占锁lock()/unlock()相关方法 */
+        public void lock()        { acquire(1); }
+        public boolean tryLock()  { return tryAcquire(1); }
+        public void unlock()      { release(1); }
+        public boolean isLocked() { return isHeldExclusively(); }
+
+        /* 如果线程在运行则停止 */
+        void interruptIfStarted() {
+            Thread t = thread;
+            if (getState() >= 0 && t != null && !t.isInterrupted()) { t.interrupt(); }
+        }
+    }
+
+    final void tryTerminate() {
+        while (true) {
+            int c = ctl.get();
+            if (isRunning(c) || /* 不能有正在运行的线程 */
+                runStateAtLeast(c, TIDYING) || /* 所有线程都在TIDYING或TERMINATED状态 */
+                (runStateLessThan(c, STOP) && ! workQueue.isEmpty()) /* 线程池已经SHUTDOWN，但是仍有任务未执行 */
+            )
+                return; /* 则不能终止线程池 */
+
+            if (workerCountOf(c) != 0) {
+                interruptIdleWorkers(ONLY_ONE); /* 中断线程发现线程池要关闭，于是会尝试退出，又会调用tryTerminate()，形成链式反应 */
+                return;
+            }
+
+            final ReentrantLock mainLock = this.mainLock; mainLock.lock();
+            try {
+                if (ctl.compareAndSet(c, ctlOf(TIDYING, 0))) { /* 设置状态为TIDYING */
+                    try {
+                        terminated();
+                    } finally {
+                        ctl.set(ctlOf(TERMINATED, 0)); /* 设置状态为TERMINATED */
+                        termination.signalAll();
+                        container.close();
+                    }
+                    return;
+                }
+            } finally {
+                mainLock.unlock();
+            }
+        }
+    }
+
+    /* 中断空闲线程 */
+    private void interruptIdleWorkers(boolean onlyOne) {
+        final ReentrantLock mainLock = this.mainLock; mainLock.lock();
+        try {
+            for (Worker w : workers) {
+                Thread t = w.thread;
+                if (!t.isInterrupted() && w.tryLock()) { /* 线程为被中断过，且线程空闲 */
+                    try {
+                        t.interrupt();
+                    } finally {
+                        w.unlock();
+                    }
+                }
+                if (onlyOne)
+                    break;
+            }
+        } finally {
+            mainLock.unlock();
+        }
+    }
+    private void interruptIdleWorkers() { interruptIdleWorkers(false); }
+
+    private void processWorkerExit(Worker w, boolean completedAbruptly) {
+        /* 线程因中断而退出，还没来得及自减线程数 */
+        if (completedAbruptly) { decrementWorkerCount(); }
+
+        /* 更新线程池状态 */
+        final ReentrantLock mainLock = this.mainLock; mainLock.lock();
+        try {
+            completedTaskCount += w.completedTasks;
+            workers.remove(w);
+        } finally {
+            mainLock.unlock();
+        }
+
+        tryTerminate(); /* 检查是否符合线程池终止条件 */
+
+        int c = ctl.get();
+        if (runStateLessThan(c, STOP)) { /* 线程池状态为RUNNING或SHUTDOWN，有可能需要补充新线程 */
+            if (!completedAbruptly) {
+                int min = allowCoreThreadTimeOut ? 0 : corePoolSize;
+                if (min == 0 && ! workQueue.isEmpty())
+                    min = 1; /* 任务队列非空，线程池需要至少有一个线程来处理 */
+                if (workerCountOf(c) >= min) /* 线程池的线程数量充足，无需补充 */
+                    return;
+            }
+            addWorker(null, false); /* 补充一个新线程 */
+        }
+    }
+
+    private Runnable getTask() {
+        boolean timedOut = false; // Did the last poll() time out?
+        while (true) { /* 开始自旋 */
+            int c = ctl.get();
+
+            if ( /* 判定线程池状态 */
+                runStateAtLeast(c, SHUTDOWN) && /* 线程是否调用了shutdown() */
+                (runStateAtLeast(c, STOP) || workQueue.isEmpty()) /* 线程是否调用了shutdownNow()且任务队列为空 */
+            ) {
+                decrementWorkerCount(); /* 删除当前线程 */
+                return null;
+            }
+
+            int wc = workerCountOf(c);
+
+            boolean timed = allowCoreThreadTimeOut || wc > corePoolSize; /* 工作线程是否可能被淘汰 */
+            if ( /* 判定是否需要删除线程 */
+                (wc > maximumPoolSize || (timed && timedOut)) && /* 线程数超过上限，或线程超时 */
+                (wc > 1 || workQueue.isEmpty()) /* 线程池不止一个线程，或任务队列位空 */
+            ) {
+                if (compareAndDecrementWorkerCount(c)) { return null; } /* 尝试CAS操作删除工作线程 */
+                continue; /* CAS操作失败，重试一次 */
+            }
+
+            try { /* 开始获取任务 */
+                Runnable r = timed ? /* 是否有超时机制 */
+                    workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) : /* 获取任务(有超时机制) */
+                    workQueue.take(); /* 获取任务(一直阻塞到有任务为止) */
+                if (r != null) { return r; } /* 返回任务 */
+                timedOut = true; /* workQueue.poll()返回了null，说明超时 */
+            } catch (InterruptedException retry) {
+                timedOut = false; /* 因中断而退出，不算作超时 */
+            }
+        }
+    }
+
+	/* API: 向线程池添加任务 */
+    public void execute(Runnable command) {
+        if (command == null) { throw new NullPointerException(); }
+
+        int c = ctl.get();
+        if (workerCountOf(c) < corePoolSize) { /* 如果线程数<小于核心线程数，则补充一个核心线程 */
+            if (addWorker(command, true))
+                return;
+            c = ctl.get();
+        }
+        if (isRunning(c) && workQueue.offer(command)) { /* 线程池在运行，且任务成功非阻塞式入队 */
+            int recheck = ctl.get();
+            if (!isRunning(recheck) && remove(command))
+                reject(command);
+            else if (workerCountOf(recheck) == 0)
+                addWorker(null, false);
+        }
+        else if (!addWorker(command, false)) /* 尝试使用非核心线程执行任务 */
+            reject(command);
+    }
+
+
+    /* API: 关闭线程池，中断所有空闲线程 */
+    public void shutdown() {
+        final ReentrantLock mainLock = this.mainLock; mainLock.lock();
+        try {
+            advanceRunState(SHUTDOWN);
+            interruptIdleWorkers();
+            onShutdown(); // hook for ScheduledThreadPoolExecutor
+        } finally {
+            mainLock.unlock();
+        }
+        tryTerminate();
+    }
+}
+```
+
+# §8 并发数据结构
+
+## §8.1 `ThreadLocal`
+
+`java.lang.ThreadLocal<T>`允许每个线程只能读写自己线程对应的变量。它本质上是一个并发安全的`ConcurrentHashMap<Thread, T>`。
+
+```java
+public class JucMain {
+    static ThreadLocal<String> threadLocal = new ThreadLocal<>();
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 1; i <= 3; ++i) {
+            Thread thread = new Thread(() -> {
+                threadLocal.set(String.format("%s", Thread.currentThread().getName()));
+                System.out.printf("[%s] read variable from ThreadLocal: %s\n", Thread.currentThread().getName(), threadLocal.get());
+            });
+            thread.start();
+        }
+    }
+}
+/*
+	[Thread-0] read variable from ThreadLocal: Thread-0
+	[Thread-1] read variable from ThreadLocal: Thread-1
+	[Thread-2] read variable from ThreadLocal: Thread-2
+*/
+```
+
+然而在JDK实现中，为了保证性能，JDK的实现方案是：每个线程维护自己的`Map`。但是使用的并不是JDK的`Map`类，而是自己实现了一个存储键值对的数据结构。具体来说，一个`Thread`实例具有`ThreadLocalMap threadLocals`字段。`ThreadLocalMap<Thread, T>`存储着多个。每个`ThreadLocalMap`包含若干个`Entry`，每个`Entry`包含`ThreadLocal`及其变量值`value`。
+
+```java
+public class ThreadLocal<T> {
+
+    /* 生成线程的哈希值 */
+    private static final int HASH_INCREMENT = 0x61c88647;
+    private static final AtomicInteger nextHashCode = new AtomicInteger();
+    private static int nextHashCode() { return nextHashCode.getAndAdd(HASH_INCREMENT); }
+    private final int threadLocalHashCode = nextHashCode();
+
+    /* 用Supplier.get()作为ThreadLocalMap查询的缺省值 */
+    static final class SuppliedThreadLocal<T> extends ThreadLocal<T> {
+        private final Supplier<? extends T> supplier;
+        SuppliedThreadLocal(Supplier<? extends T> supplier) {
+            this.supplier = Objects.requireNonNull(supplier);
+        }
+        @Override protected T initialValue() { return supplier.get(); }
+    }
+
+    /* 构造函数 */
+    public ThreadLocal() {}
+    static ThreadLocalMap createInheritedMap(ThreadLocalMap parentMap) { return new ThreadLocalMap(parentMap); }
+    public static <S> ThreadLocal<S> withInitial(Supplier<? extends S> supplier) { return new SuppliedThreadLocal<>(supplier); }
+
+    /* ThreadLocalMap返回的缺省值 */
+    protected T initialValue() { return null; }
+    private T setInitialValue(Thread t) {
+        T value = initialValue();
+        ThreadLocalMap map = getMap(t);
+        if (map != null) { map.set(this, value); } else { createMap(t, value); }
+        if (this instanceof TerminatingThreadLocal<?> ttl) { TerminatingThreadLocal.register(ttl); }
+        if (TRACE_VTHREAD_LOCALS && t == Thread.currentThread() && t.isVirtual()) { printStackTrace(); }
+        return value;
+    }
+
+    /* 获取Thread实例的threadLocals字段 */
+    ThreadLocalMap getMap(Thread t) { return t.threadLocals; }
+
+    /* API: 获取当前线程ThreadLocal的值 */
+    public T get() { return get(Thread.currentThread()); }
+    private T get(Thread t) {
+        ThreadLocalMap map = getMap(t);
+        if (map != null) {
+            ThreadLocalMap.Entry e = map.getEntry(this);
+            if (e != null) {
+                @SuppressWarnings("unchecked") T result = (T) e.value;
+                return result; /* 返回ThreadLocalMap的值 */
+            }
+        }
+        return setInitialValue(t); /* 返回ThreadLocalMap的默认值 */
+    }
+
+    /* 虚拟线程 */
+    private static final boolean TRACE_VTHREAD_LOCALS = traceVirtualThreadLocals();
+    boolean isCarrierThreadLocalPresent() {
+        assert this instanceof CarrierThreadLocal<T>;
+        return isPresent(Thread.currentCarrierThread());
+    }
+    T getCarrierThreadLocal() {
+        assert this instanceof CarrierThreadLocal<T>;
+        return get(Thread.currentCarrierThread());
+    }
+    void setCarrierThreadLocal(T value) {
+        assert this instanceof CarrierThreadLocal<T>;
+        set(Thread.currentCarrierThread(), value);
+    }
+    void removeCarrierThreadLocal() {
+        assert this instanceof CarrierThreadLocal<T>;
+        remove(Thread.currentCarrierThread());
+    }
+
+
+    /* ThreadLocalMap是否存储了当前线程的值 */
+    private boolean isPresent(Thread t) {
+        ThreadLocalMap map = getMap(t);
+        if (map != null) { return map.getEntry(this) != null; } else { return false; }
+    }
+
+    /* 设置给定线程t的ThreadLocal值 */
+    private void set(Thread t, T value) {
+        ThreadLocalMap map = getMap(t);
+        if (map != null) { map.set(this, value); } else { createMap(t, value); }
+    }
+    /* API: 设置当前线程的ThreadLocal值 */
+    public void set(T value) {
+        set(Thread.currentThread(), value);
+        if (TRACE_VTHREAD_LOCALS && Thread.currentThread().isVirtual()) {
+            printStackTrace();
+        }
+    }
+
+	/* API: 清除当前线程的ThreadLocal值 */
+	public void remove() { remove(Thread.currentThread()); }
+    private void remove(Thread t) {
+        ThreadLocalMap m = getMap(t);
+        if (m != null) {
+            m.remove(this);
+        }
+    }
+
+    /* 为Thread的.threadLocals新创建一个ThreadLocalMap实例 */
+    void createMap(Thread t, T firstValue) { t.threadLocals = new ThreadLocalMap(this, firstValue); }
+
+    /* 自定义继承逻辑 */
+    T childValue(T parentValue) { throw new UnsupportedOperationException(); }
+
+    /* ThreadLocal底层Map数据结构实现 */
+    static class ThreadLocalMap {
+        /* 构造函数 */
+        static class Entry extends WeakReference<ThreadLocal<?>> {
+            Object value;
+            Entry(ThreadLocal<?> k, Object v) { super(k); value = v; }
+        }
+
+        /* 初始容量(必须是2的幂) */
+        private static final int INITIAL_CAPACITY = 16;
+
+        /* ThreadLocalMap存储使用的数组长度(必须是2的幂) */
+        private Entry[] table;
+
+        /* ThreadLocalMap中的Entry数量 */
+        private int size = 0;
+        /* 获取ThreadLocalMap中的Entry数量 */
+        int size() { return size; }
+
+        /* 下一次扩容的元素数量触发阈值 */
+        private int threshold;
+
+        /* 设置负载系数(load factor)为当前容量的2/3 */
+        private void setThreshold(int len) { threshold = len * 2 / 3; }
+
+        /* i = (i + 1) % len */
+        private static int nextIndex(int i, int len) { return ((i + 1 < len) ? i + 1 : 0); }
+
+        /* i = (i - 1) % len */
+        private static int prevIndex(int i, int len) { return ((i - 1 >= 0) ? i - 1 : len - 1); }
+
+        /* 构造函数 */
+        private ThreadLocalMap() {}
+        ThreadLocalMap(ThreadLocal<?> firstKey, Object firstValue) {
+            table = new Entry[INITIAL_CAPACITY];
+            int i = firstKey.threadLocalHashCode & (INITIAL_CAPACITY - 1); /* ThreadLocal哈希 -> ThreadLocalMap的键哈希 */
+            table[i] = new Entry(firstKey, firstValue);
+            size = 1;
+            setThreshold(INITIAL_CAPACITY);
+        }
+        private ThreadLocalMap(ThreadLocalMap parentMap) {
+            Entry[] parentTable = parentMap.table;
+            int len = parentTable.length;
+            setThreshold(len);
+            table = new Entry[len];
+
+            for (Entry e : parentTable) {
+                if (e != null) {
+                    @SuppressWarnings("unchecked") ThreadLocal<Object> key = (ThreadLocal<Object>) e.get();
+                    if (key != null) {
+                        Object value = key.childValue(e.value);
+                        Entry c = new Entry(key, value);
+                        int h = key.threadLocalHashCode & (len - 1);
+                        while (table[h] != null)
+                            h = nextIndex(h, len);
+                        table[h] = c;
+                        size++;
+                    }
+                }
+            }
+        }
+
+        /* 查找ThreadLocalMap的值 */
+        private Entry getEntry(ThreadLocal<?> key) {
+            int i = key.threadLocalHashCode & (table.length - 1);
+            Entry e = table[i];
+            if (e != null && e.refersTo(key))
+                return e;
+            else
+                return getEntryAfterMiss(key, i, e);
+        }
+        /* 查找ThreadLocalMap的值(实现线性探测法，清除陈旧数据) */
+        private Entry getEntryAfterMiss(ThreadLocal<?> key, int i, Entry e) {
+            Entry[] tab = table;
+            int len = tab.length;
+
+            while (e != null) {
+                if (e.refersTo(key))
+                    return e;
+                if (e.refersTo(null))
+                    expungeStaleEntry(i);
+                else
+                    i = nextIndex(i, len);
+                e = tab[i];
+            }
+            return null;
+        }
+
+        /* 添加<key,value>到ThreadLocalMap */
+        private void set(ThreadLocal<?> key, Object value) {
+            Entry[] tab = table;
+            int len = tab.length;
+            int i = key.threadLocalHashCode & (len - 1); /* ThreadLocal哈希 -> ThreadLocalMap的键哈希 */
+
+            /* 哈希表的线性探测法 */
+            for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {
+                if (e.refersTo(key)) { /* 存在弱引用条目Entry，指向的就是key，则直接覆盖即可 */
+                    e.value = value;
+                    return;
+                }
+                if (e.refersTo(null)) { /* 遇到了陈旧的Entry，则需要替换后占用 */
+                    replaceStaleEntry(key, value, i);
+                    return;
+                }
+            }
+
+            /* 此时e=tab[i]为null，说明找到了空槽位 */
+            /* 创建空槽位 */
+            tab[i] = new Entry(key, value);
+            /* ThreadLocalMap元素数量自增 */
+            int sz = ++size;
+            /* 如果轻量级清理没有溢出任何条目，并且到达了扩容阈值 */
+            if (!cleanSomeSlots(i, sz) && sz >= threshold) { 
+                /* 遍历哈希表，清理掉陈旧条目并重新计算大小。如果仍然超过阈值的3/4就resize */
+                rehash();
+            }
+        }
+
+        /* 删除ThreadLocalMap的<key> */
+        private void remove(ThreadLocal<?> key) {
+            Entry[] tab = table;
+            int len = tab.length;
+            int i = key.threadLocalHashCode & (len-1);
+            for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {
+                if (e.refersTo(key)) {
+                    e.clear();
+                    expungeStaleEntry(i);
+                    return;
+                }
+            }
+        }
+
+        /* 将陈旧条目替换为正常条目<key,value> */
+        private void replaceStaleEntry(ThreadLocal<?> key, Object value, int staleSlot) {
+            Entry[] tab = table;
+            int len = tab.length;
+            Entry e;
+            int slotToExpunge = staleSlot;
+            for (int i = prevIndex(staleSlot, len); (e = tab[i]) != null; i = prevIndex(i, len)) {
+                if (e.refersTo(null)) {
+                    slotToExpunge = i;
+                }
+            }
+            for (int i = nextIndex(staleSlot, len); (e = tab[i]) != null; i = nextIndex(i, len)) {
+                if (e.refersTo(key)) {
+                    e.value = value;
+                    tab[i] = tab[staleSlot];
+                    tab[staleSlot] = e;
+                    if (slotToExpunge == staleSlot) { slotToExpunge = i; }
+                    cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
+                    return;
+                }
+                if (e.refersTo(null) && slotToExpunge == staleSlot) { slotToExpunge = i; }
+            }
+
+            tab[staleSlot].value = null;
+            tab[staleSlot] = new Entry(key, value);
+
+            if (slotToExpunge != staleSlot) { cleanSomeSlots(expungeStaleEntry(slotToExpunge), len); }
+        }
+
+        /* 删除陈旧条目 */
+        private int expungeStaleEntry(int staleSlot) {
+            Entry[] tab = table;
+            int len = tab.length;
+
+            tab[staleSlot].value = null;
+            tab[staleSlot] = null;
+            size--;
+
+            /* 线性探测法，对后续元素重新计算哈希，直到遇到null */
+            Entry e;
+            int i;
+            for (i = nextIndex(staleSlot, len); (e = tab[i]) != null; i = nextIndex(i, len)) {
+                ThreadLocal<?> k = e.get();
+                if (k == null) { /* 如果又遇到了陈旧条目，则直接删除 */
+                    e.value = null;
+                    tab[i] = null;
+                    size--;
+                } else { /* 如果又遇到了正常条目，则有可能需要移动位置，因此要重新计算哈希 */
+                    int h = k.threadLocalHashCode & (len - 1);
+                    if (h != i) { /* 位置不一样，需要移动 */
+                        tab[i] = null;
+                        while (tab[h] != null) { h = nextIndex(h, len); }
+                        tab[h] = e;
+                    }
+                }
+            }
+            return i;
+        }
+
+        /* 启发式轻量级清理。不执行完整rehash的情况下清理一些陈旧条目 */
+        private boolean cleanSomeSlots(int i, int n) {
+            boolean removed = false;
+            Entry[] tab = table;
+            int len = tab.length;
+            do {
+                i = nextIndex(i, len);
+                Entry e = tab[i];
+                if (e != null && e.refersTo(null)) {
+                    n = len;
+                    removed = true;
+                    i = expungeStaleEntry(i);
+                }
+            } while ( (n >>>= 1) != 0);
+            return removed;
+        }
+
+        /* 彻底清理陈旧条目，并按需扩容 */
+        private void rehash() {
+            expungeStaleEntries();
+
+            // Use lower threshold for doubling to avoid hysteresis
+            if (size >= threshold - threshold / 4)
+                resize();
+        }
+
+        /* ThreadLocalMap扩容 */
+        private void resize() {
+            Entry[] oldTab = table;
+            int oldLen = oldTab.length;
+            int newLen = oldLen * 2; /* 扩容两倍 */
+            Entry[] newTab = new Entry[newLen];
+            int count = 0;
+            for (Entry e : oldTab) {
+                if (e != null) {
+                    ThreadLocal<?> k = e.get();
+                    if (k == null) {
+                        e.value = null; /* 有利于垃圾回收 */
+                    } else {
+                        int h = k.threadLocalHashCode & (newLen - 1); /* 计算扩容之后的哈希 */
+                        while (newTab[h] != null) { h = nextIndex(h, newLen); }
+                        newTab[h] = e;
+                        count++;
+                    }
+                }
+            }
+            setThreshold(newLen); size = count; table = newTab;
+        }
+
+        /* 清理所有陈旧条目 */
+        private void expungeStaleEntries() {
+            Entry[] tab = table;
+            int len = tab.length;
+            for (int j = 0; j < len; j++) {
+                Entry e = tab[j];
+                if (e != null && e.refersTo(null))
+                    expungeStaleEntry(j);
+            }
+        }
+    }
+
+
+    private static boolean traceVirtualThreadLocals() {
+        String propValue = System.getProperty("jdk.traceVirtualThreadLocals");
+        return (propValue != null) && 
+            (propValue.isEmpty() || Boolean.parseBoolean(propValue));
+    }
+
+    private void printStackTrace() {
+        Thread t = Thread.currentThread();
+        ThreadLocalMap map = getMap(t);
+        if (map.getEntry(DUMPING_STACK) == null) {
+            map.set(DUMPING_STACK, true);
+            try {
+                var stack = StackWalker.getInstance().walk(s ->
+                        s.skip(1)  // skip caller
+                         .collect(Collectors.toList()));
+                System.out.println(t);
+                for (StackWalker.StackFrame frame : stack) {
+                    System.out.format("    %s%n", frame.toStackTraceElement());
+                }
+            } finally {
+                map.remove(DUMPING_STACK);
+            }
+        }
+    }
+
+    private static final ThreadLocal<Boolean> DUMPING_STACK = new ThreadLocal<>();
+}
+```
+
+## §8.2 `CopyOnWriteArrayList`
+
+我们知道，一堆线程同时读写同一变量的效率很低。`CopyOnWriteArrayList`引入了写时复制模式，将读线程和写线程分离到两个数组副本。因此适用于读多写少的情景，具有弱一致性。
+
+```java
+import java.util.Iterator;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.LockSupport;
+
+public class JucMain {
+    static CopyOnWriteArrayList<Integer> array = new CopyOnWriteArrayList<>(java.util.Arrays.asList(1, 2, 3));
+    public static void main(String[] args) throws InterruptedException {
+        Thread thread_read = new Thread(() -> {
+            Iterator<Integer> iter_1 = array.iterator();
+            LockSupport.park();
+            Iterator<Integer> iter_2 = array.iterator();
+            
+            while (iter_1.hasNext()) { System.out.printf("%d ", iter_1.next()); } System.out.print("\n");
+            while (iter_2.hasNext()) { System.out.printf("%d ", iter_2.next()); } System.out.print("\n");
+        });
+        Thread thread_write = new Thread(() -> {
+            for (int i = 4; i <= 10; ++i) { array.add(i); }
+            LockSupport.unpark(thread_read);
+        });
+        thread_read.start();
+        thread_write.start();
+    }
+}
+/*
+	1 2 3 
+	1 2 3 4 5 6 7 8 9 10 
+*/
+```
