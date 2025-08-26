@@ -3095,7 +3095,7 @@ int main() {
 
 给定两个序列`a`、`b`，若序列`c`既是`a`的子序列，又是`b`的子序列，则称`c`为`a`和`b`的公共子序列。最长公共子序列（LCS, Longest Common Subsequence）的长度。
 
-令`dp[i][j]`表示`a`的前`i`个元素构成的连续子序列、与`b`的前`j`个元素构成的连续子序列，两者之间的公共子序列最大长度。根据`a[i]`是否等于`b[j]`，可以分为两种情况分类讨论：
+令`dp[i][j]`表示`a`的前`i`个元素（即`a[1->i]`）构成的连续子序列、与`b`的前`j`个元素（即`b[1->j]`）构成的连续子序列，两者之间的公共子序列最大长度。根据`a[i]`是否等于`b[j]`，可以分为两种情况分类讨论：
 
 - 当`a[i]==b[j]`时，显然使得最长公共子序列长度加一，即`dp[i][j] = dp[i-1][j-1] + 1`。
 - 当`a[i]!=b[j]`时，显然`a[i]`和`b[j]`这两个元素的出现并不能同时结合在一起，使得LCS长度加一。它们可能分别与其它元素起作用。即`dp[i][j] = std::max(dp[i][j-1], dp[i-1][j])`。
@@ -3105,7 +3105,7 @@ int main() {
 $$
 \text{dp}[i][j] = \begin{cases}
 	\text{dp}[i-1][j-1] + 1 & , a[i]=b[j] \\
-	\max(\text{dp}[i][j-1] + \text{dp}[i-1][j]) & , a[i] \neq b[j]
+	\max(\text{dp}[i][j-1], \text{dp}[i-1][j]) & , a[i] \neq b[j]
 \end{cases}
 $$
 
@@ -3134,7 +3134,7 @@ int main() {
 
 除此以外，还存在一种炫技的写法，将上述两种情况合并为一种。我们知道`dp[i][j]`在`i`和`j`上都是单调递增的，所以必定有`dp[i][j-1] >= dp[i-1][j-1]`和`dp[i-1][j] >= dp[i-1][j-1]`恒成立。所以合并后的状态转移方程为：`dp[i][j] = std::max({dp[i-1][j], dp[i][j-1], dp[i-1][j-1] + (a[i]==b[j])})`。**这种方法引入了额外的常数级`std::max()`调用开销，不建议使用。**
 
-> [洛谷P1439](https://www.luogu.com.cn/problem/P1439)：已知序列`a`、`b`是同一字符集（字符各异，类型均为`int`）的两种全排列，字符集、`a`和`b`的长度均为`n<=1e5`，求两者的最长公共子序列长度。
+> [洛谷P1439](https://www.luogu.com.cn/problem/P1439)：给定一个包含`n<=1e5`种字符、字符数据类型为`int`的字符集。字符串`a`、`b`是这`n`种字符的两种排列，求两者的最长公共子序列长度。
 
 如果仍然使用动态规划，那么$O(n^2)$的时间复杂度无法通过`1e5`的数据范围。**注意到在本题所给的两个序列中，每个字符都在这两个序列中出现过，且均只出现一次**。于是使用离散化与贪心思想优化后，转化成最长上升子序列问题，本题的最佳时间复杂度为$O(n\log n)$。
 
@@ -3278,9 +3278,50 @@ int main() {
 }
 ```
 
+> [洛谷P4303](https://www.luogu.com.cn/problem/P4303)：给定一个包含`m<=2e4`种字符、字符数据类型为`int`、字符取值范围为`[1, m]`的字符集。现给定长度均为`n=5×m`的字符串`a`和`b`，保证任意字符都恰好出现`T=5`次。求两者的最长公共子序列长度。
+
+如果仍然使用动态规划，那么$O(n^2)$的时间复杂度无法通过`2e4`的数据范围。**注意到在本题所给的两个序列中，每个字符都在这两个序列中出现过，且均只出现`5`次**。于是转化成最长上升子序列问题，本题的最佳时间复杂度为$O(Tn\log n)$。
+
+具体来说，我们不再让`dp[i][j]`表示`a[1->i]`与`b[1->j]`子串构成的最长公共子序列长度，而是表示`a[1->i]`与`b[1->n]`且**公共子序列以`b[j]`结尾**的最长公共子序列长度。于是我们有状态转移方程：
+
+$$
+	\mathrm{dp}[i][j] = \begin{cases}
+		\mathrm{dp}[i-1][j] &, a[i]\neq b[j] \\
+		\displaystyle\max_{\forall k\in [0, j)}\left(\mathrm{dp}[i-1][k]\right) + 1 &, a[i] = b[j]
+	\end{cases}
+$$
+
+注意到这个式子可以用滚动数组压缩成一行。考虑DP转移过程，外层`dp[i:1->n][]`产生的$O(n)$是必须的，然而上面的状态转移方程只有在`a[i]==b[j]`时才会**递增地**改变值。于是我们用滚动数组压缩成一行后，只需要考虑给定`i`，有哪些`j`满足`a[i]==b[j]`，然后只对这些`j`使用状态转移方程即可。由题意知，对于任意`i`，一定存在`T=5`个满足条件的`j`，于是内层`dp[][j:{T=5}]`只需要$O(T)$。现在只需要维护$\displaystyle\max_{\forall k \in [1, j)}\left(\mathrm{dp}'[i-1][k]\right)$即可，线段树或树状数组均可以，单次更新和查询的时间复杂度为$O(\log n)$，这里我们使用树状数组。于是总的时间复杂度为$O(Tn\log n)$。
+
+```c++
+const int N_MAX = 2e5 * 5;
+int n, a[N_MAX + 1], b[N_MAX + 1], dp[N_MAX + 1];
+std::map<int, std::vector<int>> b_map; // 元素(a[],b[]的值域相同)->{b下标}集合
+int bit_max_dp[N_MAX + 1];
+inline int lowbit(const int &x) { return x & -x; }
+inline void bit_max_update(int bit[], int x, const int &v) { for(; x <= n; x += lowbit(x)){ bit[x] = std::max(bit[x], v); } }
+inline int bit_max_query(int const bit[], int x) { int ans = 0; for(; x > 0; x -= lowbit(x)) { ans = std::max(ans, bit[x]); } return ans; }
+int main() { 
+    std::cin >> n; n *= 5;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { std::cin >> b[i]; }
+    for(int i = 1; i <= n; ++i) { b_map[b[i]].push_back(i); }
+    for(int i = 1; i <= n; ++i) { 
+        for(int iter = b_map[a[i]].size() - 1, j; iter >= 0; --iter) {
+            j = b_map[a[i]][iter];
+            dp[j] = bit_max_query(bit_max_dp, j - 1) + 1;
+            bit_max_update(bit_max_dp, j, dp[j]);
+        }
+    }
+ 
+    std::cout << bit_max_query(bit_max_dp, n);
+    // std::cout << *std::max_element(dp + 1, dp + 1 + n);
+}
+```
+
 ## §2.3 棋盘DP
 
-### §2.3.1 棋盘贪吃蛇DP
+### §2.3.1 棋盘路径DP
 
 > [洛谷P1004](https://www.luogu.com.cn/problem/P1004)：给定一个$n\times n$的二维棋盘，每个格子都有`bonus[i][j]`个食物。每次从左上角出发，到右下角结束，总共允许走两次，同一格的食物不能重复领取，求能够最多食物数量。
 
@@ -3463,7 +3504,6 @@ $$
 
 本题的一个陷阱是：是否需要给`p`开辟`K_MAX`个空间？这里需要我们敏锐地注意到：**就算`k`再多，路径经过的格子数固定0为`n`，所以只给`p`开辟`N_MAX`个空间即可**。
 
-
 ```c++
 const int N_MAX = 100, K_MAX = 100;
 long long int n, k, v[N_MAX + 1], dp[2][N_MAX + 1][K_MAX + 1];
@@ -3499,9 +3539,49 @@ int main() {
 }
 ```
 
-### §2.3.2 棋盘区域极值DP
+> [洛谷P7074](https://www.luogu.com.cn/problem/P7074)：给定一个`a[n<=1e3][m<=1e3]`（值可能为负）的棋盘，要求从左上角`a[1][1]`走到右下角`a[n][m]`，每次只能向右、上、下走一格，且路径不能重复。求路径上的元素之和最大值。
 
-棋盘区域极值DP通常求的是符合某种条件的区域的最大值。
+由于路径不能重复，于是当我们向右进入新的一列时，下一步一旦向上就只能永远向上，一旦向下就只能永远向下，直到下一次向右移动。于是令`dp[i][j][0/1]`表示从`a[1][1]`运动到`a[i][j]`、最近一步是向上/向下时形成的众多路径中的最佳路径。特殊地，如果上一步是向右，则`dp[i][j-1][k]`可以转移到`dp[i][j][0/1]`这两个状态。
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j][0] = a[i][j] + \max \begin{cases}
+		\max(\mathrm{dp}[i][j-1][0], \mathrm{dp}[i][j-1][1]) &, 上一步为\rightarrow且j>1 \\
+		\mathrm{dp}[i+1][j][0] &, 上一步为\uparrow且i<n
+	\end{cases} \\
+	\mathrm{dp}[i][j][1] = a[i][j] + \max \begin{cases}
+		\max(\mathrm{dp}[i][j-1][0], \mathrm{dp}[i][j-1][1]) &, 上一步为\rightarrow且j>1 \\
+		\mathrm{dp}[i-1][j][1] &, 上一步为\downarrow且i>1
+	\end{cases}
+\end{align}
+$$
+
+然后考虑初始状态。令`dp[2->n][0][0/1]=-∞`，表示第`0`列的元素`a[*][0]`不存在，第`0`列`dp[*][0][*]`无法转移至第`1`列`dp[*][1][*]`。同理，令`dp[0][1->m][0/1]=-∞`和`dp[n+1][1->m][0/1]=-∞`，表示第`0`行与第`n+1`行不参与状态转移。这里之所以让`dp[1][0][0/1]=0`，是为了让状态转移方程保持简洁，能够自然地在`for(i, j)`的二重循环的`i==1, j==1`情景下，假设`a[1][1]`的前一步是从`a[1][0]`向右移动得到的。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e3;
+int n, m, a[N_MAX + 1][M_MAX + 1]; int64_t dp[N_MAX + 2][M_MAX + 1][2];
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> a[i][j]; } }
+
+    for(int i = 2; i <= n; ++i) { dp[i][0][0] = dp[i][0][1] = -1e9; }
+    for(int j = 1; j <= m; ++j) { dp[0][j][0] = dp[0][j][1] = -1e9; }
+    for(int j = 1; j <= m; ++j) { dp[n + 1][j][0] = dp[n + 1][j][1] = -1e9; }
+    dp[1][1][0] = dp[1][1][1] = a[1][1];
+    for(int j = 1; j <= m; ++j) { 
+        for(int i = n; i >= 1; --i) {
+            dp[i][j][0] = a[i][j] + std::max({dp[i][j - 1][0], dp[i][j - 1][1], dp[i + 1][j][0]});
+        } 
+        for(int i = 1; i <= n; ++i) {
+            dp[i][j][1] = a[i][j] + std::max({dp[i][j - 1][0], dp[i][j - 1][1], dp[i - 1][j][1]});
+        }
+    }
+    std::cout << std::max(dp[n][m][0], dp[n][m][1]);
+}
+```
+
+### §2.3.2 棋盘区域DP
 
 > [洛谷P1387](https://www.luogu.com.cn/problem/P1387)：给定一个`n`行`m`列的0/1棋盘，棋盘上的数字为`map[i][j]`。试找出其中不包含`0`的最大正方形，并输出正方形的最大边长。
 
@@ -3645,7 +3725,43 @@ int main() {
         }    
     }
 }
+```
 
+> [洛谷P2331](https://www.luogu.com.cn/problem/P2331)：给定一个`a[n<=100][m<=2]`（值可能为负数）的矩阵，从中选出`k<=10`个不重叠的子矩阵（**允许为空**），求这个`k`个子矩阵内元素之和的最大值。
+
+一种错误的想法是令`dp[i][j][k]`为`a[1->i][1->j]`区域恰好选出`k`个子矩阵的元素之和最大值，然而这样做根本无法进行状态转移。本题的关键在于`m<=2`，于是令`dp[i][j][k]`表示给定`a[1->i][1]`与`a[1->j][2]`取并集形成的区域，取`k`个子矩阵的所求值。于是根据`a[i][1]`与`a[j][2]`是否参与到`k`个子矩阵中某个相同子矩阵的形成，且在这个子矩阵的底部，则有以下状态转移情况：
+
+1. `a[i][1]`或`a[j][2]`未参与：那么无论有没有`a[i][1]`或`a[j][2]`都一样，即$\mathrm{dp}[i][j][k] = \max(\mathrm{dp}[i-1][j][k], \mathrm{dp}[i][j-1][k])$。
+2. `a[i][1]`参与且`a[j][2]`未参与：即$\mathrm{dp}[i][j][k] = \displaystyle\max_{0\le x<i}(\mathrm{dp}[x][j][k-1]+\sum_{y=x+1}^{i}a[y][1])$。
+3. `a[i][1]`未参与且`a[j][2]`参与：即$\mathrm{dp}[i][j][k] = \displaystyle\max_{0\le x<j}(\mathrm{dp}[i][x][k-1]+\sum_{y=x+1}^{j}a[y][2])$。
+4. `a[i][1]`与`a[j][2]`未参与：这要求`i==j`必须成立，即$\mathrm{dp}[i][j][k] = \displaystyle\max_{0\le x<j}(\mathrm{dp}[x][x][k-1]+\sum_{y=x+1}^{j}(a[y][1]+a[y][2]))$。
+
+其中$\displaystyle\sum{a[i][1/2]}$可以使用前缀和计算。于是总的时间复杂度为$O(kn^3)$。注意到`dp[*][*][k]`至少为`0`，对应选择`k`个空子矩阵的情况，于是`dp[*][*][*]`全部初始化为`0`。
+
+```c++
+const int N_MAX = 100, M_MAX = 2, K_MAX = 10;
+int n, m, p, a[N_MAX + 1][M_MAX + 1], a_prefixsum[N_MAX + 1][M_MAX + 1], dp[N_MAX + 1][N_MAX + 1][K_MAX + 1];
+int main() {
+    std::cin >> n >> m >> p;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) { 
+            std::cin >> a[i][j];
+            a_prefixsum[i][j] = a_prefixsum[i - 1][j] + a[i][j];
+        }
+    }
+
+    for(int i = 0; i <= n; ++i) {
+        for(int j = 0; j <= n; ++j) {
+            for(int k = 1; k <= p; ++k) {
+                dp[i][j][k] = std::max({dp[i][j][k], i > 0 ? dp[i - 1][j][k] : INT32_MIN, j > 0 ? dp[i][j - 1][k] : INT32_MIN});
+                for(int x = 0; x <= i - 1; ++x) { dp[i][j][k] = std::max(dp[i][j][k], dp[x][j][k - 1] + a_prefixsum[i][1] - a_prefixsum[x][1]); }
+                for(int x = 0; x <= j - 1; ++x) { dp[i][j][k] = std::max(dp[i][j][k], dp[i][x][k - 1] + a_prefixsum[j][2] - a_prefixsum[x][2]); }
+                if(i == j) { for(int x = 0; x <= i - 1; ++x) { dp[i][j][k] = std::max(dp[i][j][k], dp[x][x][k - 1] + a_prefixsum[i][1] - a_prefixsum[x][1] + a_prefixsum[i][2] - a_prefixsum[x][2]); } }
+            }
+        }
+    }
+    std::cout << dp[n][n][p];
+}
 ```
 
 ## §2.4 数位DP
@@ -5646,6 +5762,18 @@ int main() {
 }
 ```
 
+> [洛谷P6858](https://www.luogu.com.cn/problem/P6858)：给定状态转移方程$\mathrm{dp}[i][j]=\displaystyle\frac{i}{i+j}\mathrm{dp}[i-1+j][1]+\frac{j}{i+j}\mathrm{dp}[i][j-1]+1$，其中$\mathrm{dp}[0][j]=j$。求解`dp[i<=1e14][j<=1e6]`的值，分数模`998244353`后输出。
+
+本题显然是后效性DP。不妨记$f_j(i)=\mathrm{dp}[i][j]$，尝试带入特殊值：
+
+- `j==0`时，$\mathrm{dp}[i][0]=\mathrm{dp}[i-1][0]+1$。解该等差数列得到$f_0(i)=\mathrm{dp}[i][0]=i$。
+- `j==1`时，$\mathrm{dp}[i][1]=\displaystyle\frac{i}{i+1}\mathrm{dp}[i][1]+\frac{1}{i+1}\mathrm{dp}[i][0]+1$。移项整理得到$\mathrm{dp}[i][1]=\mathrm{dp}[n-1][1]+n+2$。移项后使用累加法，解得该数列通项公式为$f_1(n)=\mathrm{dp}[i][1]=\displaystyle\frac{n^2+5n+2}{2}$。
+- `j==j`时，$\mathrm{dp}[i][j]=\displaystyle\frac{i}{i+j}\mathrm{dp}[i-1+j][1]+\frac{j}{i+j}\mathrm{dp}[i][j-1]+1$。也就是$f_j(i)=\displaystyle\frac{i}{i+j}f_1(i-1+j)+\frac{j}{i+j}f_{j-1}(i)$。**注意到$f_j(i)$和$f_{j-1}(i)$构成了递推数列关系**，再求出初始值$f_0(i)=\mathrm{dp}[i][0]=i$即可完成递推。
+
+```c++
+
+```
+
 ## §2.12 树形DP
 
 > [洛谷P1122](https://www.luogu.com.cn/problem/P1122)/[洛谷P8625](https://www.luogu.com.cn/problem/P8625)：给定一颗由`n`个节点构成的无向无根树，每个节点都有价值`v[i]`。现取其一个**非空**（洛谷P1122）或**可空**（洛谷P8625）的连通分量，求这部分的节点价值之和最大值。
@@ -5798,6 +5926,137 @@ int main() {
 > [洛谷P2700](https://www.luogu.com.cn/problem/P2700)：给定一个带边权的无向图。现在给定了`k`个顶点，要求删除一些边，使得这`k`个顶点互不连通。每条边的删除代价为`cost[i]`，求总代价最小值。
 
 #TODO：？？？？？？虚树DP？感觉应该放在图论里介绍
+
+## §2.13 概率DP
+
+## §2.14 换根DP
+
+> [洛谷P3478](https://www.luogu.com.cn/problem/P3478)：给定含有`n<=1e6`个节点的无向树。定义节点`i`的深度$\mathrm{depth}_{u}(i)$为节点`i`到根节点`u`的简单路径上边的数量。请问以哪个节点`u`为根节点，可以让所有结点的深度之和能取得最大值？请输出`u`的编号，如果有多个`u`能使得所求函数值达到最大值，则输出最小的`u`。形式化地，求$\displaystyle\min_{u}\underset{u}{\mathrm{argmax}}\sum_{\forall i\in[1,n]}\mathrm{depth}_{u}(i)$。
+
+令`dp[i]`表示以`i`为根节点时，所有节点的深度之和。令`subtree_count[i]`表示此时结点`i`的子树内的节点数量。容易通过一次DFS求出`dp[1]`的情景，然后在第二次DFS使用换根DP。具体来说：给定一条边`(u, v)`，当根节点从`u`变为`v`时，在根节点`u`的视角下考虑子树，可以把所有节点分为两部分：
+
+1. 在`v`的子树内的节点：这些节点的数量为`subtree_count[v]`，深度都减少了`1`。因此这些节点为所有节点深度之和贡献了`-subtree_count[v]`的变化量。
+2. 不在`v`的子树内的节点：这些节点的数量为`n - subtree_count[v]`，深度都增加了`1`。因此这些节点为所有节点深度之和贡献了`n - subtree_count[v]`的变化量。
+
+于是对于根节点`u`及其任意子节点`v`，有状态转移方程：
+
+$$
+\mathrm{dp}[v] = \mathrm{dp}[u] + n - 2 \times \mathrm{subtree\_count}[v]
+$$
+
+```c++
+const int N_MAX = 1e6, M_MAX = (N_MAX - 1) * 2;
+int n, m, u_temp, v_temp, edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count;
+int64_t subtree_count[N_MAX + 1], dp[N_MAX + 1];
+int ans_n; int64_t ans_dp = INT64_MIN;
+inline void add_edge(int root, int child) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+}
+
+void dfs_1(const int &father, const int &u, int depth) {
+    subtree_count[u] = 1;
+    for(int j = edge_first[u], v; j != 0; j = edge_next[j]) {
+        v = edge_to[j]; if(father == v) { continue; }
+        dfs_1(u, v, depth + 1);
+        subtree_count[u] += subtree_count[v]; dp[1] += depth + 1;
+    }
+}
+void dfs_2(const int &father, const int &u) {
+    for(int j = edge_first[u], v; j != 0; j = edge_next[j]) {
+        v = edge_to[j]; if(father == v) { continue; }
+        dp[v] = dp[u] + n - 2 * subtree_count[v];
+        dfs_2(u, v);
+    }
+}
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n;
+    m = n - 1;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        add_edge(u_temp, v_temp);
+        add_edge(v_temp, u_temp);
+    }
+
+    dfs_1(0, 1, 0); // 节点u的深度depth为0
+    dfs_2(0, 1);
+
+    for(int i = 1; i <= n; ++i) {
+        if(dp[i] > ans_dp) { 
+            ans_n = i;
+            ans_dp = dp[i];
+        }
+    }
+    std::cout << ans_n;
+    return 0;
+}
+```
+
+> [洛谷P2986](https://www.luogu.com.cn/problem/P2986)：题目背景与[洛谷P3478](https://www.luogu.com.cn/problem/P3478)一致，并在此基础上增加了点权`vertex_weight[1->n]`和边权`edge_weight[1->2*(m-1)]`。形式化地，令$P(i, j)$表示从节点`i`到节点`j`的简单路径的集合，求$\displaystyle\underset{u}{\mathrm{min}}\sum_{\forall i\in[1,n]}\left(\mathrm{vertex\_weight}[i]\cdot\sum_{\forall j\in P(u, i)}\mathrm{edge\_weight}[j]\right)$。
+
+照猫画虎即可。
+
+```c++
+const int N_MAX = 1e5, M_MAX = (N_MAX - 1) * 2;
+int n, m, u_temp, v_temp, edge_weight_temp;
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1], edge_count;
+int64_t vertex_subtree_count[N_MAX + 1], vertex_weight[N_MAX + 1], vertex_path_weight[N_MAX + 1];
+int64_t dp[N_MAX + 1];
+int ans_n; int64_t ans_dp = INT64_MAX;
+inline void add_edge(int root, int child, int edge_weight_temp) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+    edge_weight[edge_count] = edge_weight_temp;
+}
+
+void dfs_1(const int &father, const int &u, int vertex_path_weight_temp) {
+    vertex_subtree_count[u] = vertex_weight[u];
+    vertex_path_weight[u] = vertex_path_weight_temp;
+    for(int j = edge_first[u], v; j != 0; j = edge_next[j]) {
+        v = edge_to[j]; if(father == v) { continue; }
+        dfs_1(u, v, vertex_path_weight_temp + edge_weight[j]);
+        vertex_subtree_count[u] += vertex_subtree_count[v];
+    }
+}
+void dfs_2(const int &father, const int &u) {
+    for(int j = edge_first[u], v; j != 0; j = edge_next[j]) {
+        v = edge_to[j]; if(father == v) { continue; }
+        dp[v] = dp[u] + (vertex_subtree_count[1] - 2 * vertex_subtree_count[v]) * edge_weight[j];
+        dfs_2(u, v);
+    }
+}
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n; m = n - 1;
+    for(int i = 1; i <= n; ++i) { std::cin >> vertex_weight[i]; }
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> edge_weight_temp;
+        add_edge(u_temp, v_temp, edge_weight_temp);
+        add_edge(v_temp, u_temp, edge_weight_temp);
+    }
+
+    dfs_1(0, 1, 0);
+
+    for(int i = 1; i <= n; ++i) { dp[1] += vertex_weight[i] * vertex_path_weight[i]; }
+    dfs_2(0, 1);
+
+    for(int i = 1; i <= n; ++i) {
+        if(dp[i] < ans_dp) { 
+            ans_n = i;
+            ans_dp = dp[i];
+        }
+    }
+    std::cout << ans_dp;
+    return 0;
+}
+```
 
 ## §2.A DP优化
 
@@ -6385,7 +6644,9 @@ int main() {
 }
 ```
 
-## §2.B 杂项收集
+## §2.B 疑难DP构造收集
+
+神仙才能设计出来的DP状态。
 
 > [洛谷P9173](https://www.luogu.com.cn/problem/solution/P9173)：给定两个长度分别为`len_a`、`len_b`的空白数列`a`、`b`，现要求在每个元素的位置上填入一个正整数，使得两个数列均严格单调递增。每个正整数只能使用一次，并且每个元素位置对填入数字的奇偶性作出了要求（通过`a[]`、`b[]`给出，`1`奇`0`偶）。在所有填入方案中，求使用的最大正整数的最小值。
 
@@ -7699,7 +7960,7 @@ for(int i = 1; i <= n; ++i) {
 }
 ```
 
-### §3.4.1.3 三维差分
+#### §3.4.1.3 三维差分
 
 考虑关于三维数组`a[1->n][1->m][1->o]`的差分数组`a_delta[1->n][1->m][1->o]`。对定义式$a[i][j][k] = \displaystyle\sum_{p\in[1,i]}\sum_{q\in[1,j]}\sum_{r\in[1,k]}\text{a\_delta}[p][q][r]$两侧同时做差分可得：
 
@@ -7741,6 +8002,54 @@ for(int i = 1; i <= n; ++i) {
 				+ a[i-1][j-1][k-1];
 		}
 	}
+}
+```
+
+### §3.4.2 高阶差分
+
+> [洛谷P4231](https://www.luogu.com.cn/problem/P4231)：维护一个初始均为`0`的`int64_t a[1->n<=1e7]`的序列，进行`m<=3e5`次区间加等差数列操作（`l, r, s, e`分别表示起始位置、终止位置、首项值、末项值，保证公差`d`为整数）后，输出`a[1->n]`的异或和与最大值。
+
+令`a[]`的一阶差分为`b[i] = b[i - 1] + a[i]`，二阶差分为`c[i] = c[i - 1] + b[i]`。记区间加等差操作之前与之后的数组分别为`a[], b[], c[]`和`a'[], b'[], c'[]`，两者之差记为`Δa[i] = a'[i] - a[i]`、`Δb[i] = b'[i] - b[i]`、`Δc[i] = c'[i] - c[i]`。于是`Δb[i] = Δa[i] - Δa[i-1]`、`Δc[i] = Δb[i] - Δb[i-1]`。如下表所示：
+
+$$
+\begin{array}{|c|c|c|c|c|c|c|}
+	\hline
+	 & \cdots & l & l+1 & l + 2 & \cdots & r-1 & r & r + 1 & r + 2 & \cdots \\
+	\hline
+	a[] & \cdots & a[l] & a[l+1] & a[l+2] & \cdots & a[r-1] & a[r] & a[r+1] & a[r+2] & \cdots \\
+	\hline
+	a’[] & \cdots & a[l] + s & a[l+1] + s + d & a[l+2] +s + 2d & \cdots & a[r-1] + s + (r-l-1)d & a[r] + s + (r-l)d & a[r+1] & a[r+2] & \cdots \\
+	\hline
+	\Delta a[] & \cdots & s & s + d & s+2d & \cdots & s+(r-l-1)d & s + (r-l)d & 0 & 0 & \cdots \\
+	\hline
+	\Delta b[] & \cdots & s & d & d & \cdots & d & d & -s-(r-l)d & 0 & \cdots \\
+	\hline
+	\Delta c[] & \cdots & s & d-s & 0 & \cdots & 0 & 0 & -s-(r-l+1)d & s+(r-l)d & \cdots \\
+	\hline
+\end{array}
+$$
+
+可见，每次区间加等差数列操作，只会影响`c[]`中的`c[l], c[l+1], c[r+1], c[r+2]`这四个位置的数。由于`c[r+1]`和`c[r+2]`的存在，因此要给`c[]`多开两个空间。
+
+```c++
+const int N_MAX = 1e7, M_MAX = 3e5;
+int n, m, l_temp, r_temp; int64_t s_temp, e_temp, d_temp;
+int64_t a[N_MAX + 1], b[N_MAX + 1], c[N_MAX + 1 + 2], ans_xor, ans_max;
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> m;
+    while(m--) {
+        std::cin >> l_temp >> r_temp >> s_temp >> e_temp; d_temp = (e_temp - s_temp) / (r_temp - l_temp);
+        c[l_temp] += s_temp;
+        c[l_temp + 1] += d_temp - s_temp;
+        c[r_temp + 1] += -e_temp - d_temp;
+        c[r_temp + 2] += e_temp;
+    }
+    
+    for(int i = 1; i <= n; ++i) { b[i] = b[i - 1] + c[i]; a[i] = a[i - 1] + b[i]; }
+    ans_xor = std::accumulate(a + 1, a + n + 1, 0ll, [](const int64_t &a, const int64_t &b) { return a ^ b; });
+    ans_max = *std::max_element(a + 1, a + n + 1);
+    std::cout << ans_xor << ' ' << ans_max;
 }
 ```
 
@@ -9361,7 +9670,7 @@ int main() {
 ```c++
 const int N_MAX = 1e5, M_MAX = 1e5;
 int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count;
-inline void add_edge(int root, int child) {
+inline void add_edge(const int &root, const int &child) {
     ++edge_count;
     edge_next[edge_count] = edge_first[root];
     edge_first[root] = edge_count;
@@ -17080,14 +17389,14 @@ int main() {
 
 哈希的本质是对状态的非连续离散化编号。
 
-> [洛谷P2843](https://www.luogu.com.cn/problem/P2843)：给定`n`个物品排成的序列`a[1->n]`，每个物品`a[i]`包含`k`种属性`a[i][1->k]`。请找到序列`a[]`中的一段连续闭区间`a[l->r]`，使得这`r-l+1`个物品的各个属性值相加均相同。形式化地，求解$\forall l, r\in[1, n], r-l+1=\text{len}, \text{ Solve: } \displaystyle\underset{\text{len}}{\text{argmax}}\left(\forall j\in[1, k], \sum_{\forall i\in[l,r]}{a[i][j]}均相同\right)$。
+> [洛谷P2843](https://www.luogu.com.cn/problem/P2843)/[洛谷P1360](https://www.luogu.com.cn/problem/P1360)：给定`n`个物品排成的序列`a[1->n<=1e5]`，每个物品`a[i]`包含`k`种属性值`a[i][1->k<=30]`。请找到序列`a[]`中的一段连续闭区间`a[l->r]`，使得这`r-l+1`个物品的各个属性值相加均相同。形式化地，求解$\forall l, r\in[1, n], r-l+1=\text{len}, \text{ Solve: } \displaystyle\underset{\text{len}}{\text{argmax}}\left(\forall j\in[1, k], \sum_{\forall i\in[l,r]}{a[i][j]}均相同\right)$。
 
 定义前缀和数组$\text{a\_prefixsum}[i][j] = \displaystyle\sum_{i'\in[1,i]}a[i'][j]$，表示`a[1->i]`中的所有物品第`j`个属性的属性值之和。如果真的存在符合要求的连续闭区间，那么`a_prefixsum[i]`的各项前缀和必然获得了相等的增量，**也就是说`a_prefixsum[i]`中的`k`项前缀和之差构成的`k-1`项差分值均相同**。对这个`k-1`维的差分值求其哈希值，用`std::map<hash, i>`记录其第一次出现的时候，记为`l+1`。当使用了第`r`个物品后再次出现相同的哈希值，则可以判定`[l + 1, r]`即为所求的闭区间。使用`ans`维护该闭区间的最大长度`r - (l + 1) + 1 == r - l`即可。
 
 特殊地，当什么物品也不使用时（`i==0`），哈希值为`0`，也要将这种情况添加到`std::map`中。
 
 ```c++
-const int N_MAX = 1e5, M_MAX = 30;
+const int N_MAX = 1e5, K_MAX = 30;
 int n, k, a[N_MAX + 1], k_sum[M_MAX + 1]; std::map<int64_t, int> delta_hash_map;
 
 int main() {
@@ -17417,14 +17726,50 @@ int main() {
 
 ## §8.3 数论
 
-### §8.3.1 模意义的运算
+### §8.3.1 模
 
 - 模`p`加法分配率：$(a+b)\% p=(a\% p + b\% p)\% p$
 - 模`p`减法分配率：$(a-b)\% p=(a\% p - b\% p)\% p$
 - **模`p`乘法分配率**：$(a\cdot b)\%\ p = (a \% p \cdot b \% p) \% p$
 - 模`p`加法结合律：$(a+b)\% p=((a\% p + b)\% p)$
 - **模`p`乘法结合律**：$(a\cdot b)\%\ p = ((a\% p)\cdot b)\% p$
-- **正数模**：$(a \% p + p) \% p$
+
+#### §8.3.1.2 负数取模
+
+正整数或负整数`a`模`p`：$(a \% p + p) \% p$。
+
+#### §8.3.1.3 分数取模
+
+给定质数$p$与正整数$a$，且$p\nmid a$，则在费马小定理$a^{p-1}\equiv 1 \pmod p$两侧同时除以$a$，可得$a^{p-2}\equiv a^{-1} \pmod p$。
+
+于是给定互质的两个正整数$a, b$，且$p, b$互质，则其分数$\displaystyle\frac{a}{b}$对$p$取模的结果为：
+
+$$
+\begin{align}
+	\left(\frac{a}{b}\right) \% p &= (ab^{-1}) \% p \\
+		&= (a \% p \times b^{-1} \% p) \% p \\
+		&= (a \% p \times b^{p-2} \% p) \% p
+\end{align}
+$$
+
+```c++
+// 带取模的快速幂, a^b % p
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+
+// 分数取模, a/b % p
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) {
+    return ((a % p) * fast_pow(b, p - 2, p)) % p;
+}
+```
 
 ### §8.3.2 向上/向下取整
 
@@ -17462,59 +17807,83 @@ inline long long int fast_power(long long int base, long long int power, long lo
 矩阵快速幂的思想与之类似，只不过乘法作用的变量变为了自己封装的矩阵结构体。
 
 ```c++
-const int N_MAX = 100, M_MAX = 100, MOD = 1e9 + 7;
-int n, m; long long int k;
-
-struct Matrix {
-    int n, m;
-    long long int data[N_MAX + 1][M_MAX + 1];
-    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
-        assert(lhs.m == rhs.n);
-        Matrix ans;
-        std::fill(*ans.data, *ans.data + (N_MAX + 1) * (M_MAX + 1), 0);
-        ans.n = lhs.n, ans.m = rhs.m;
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= rhs.m; ++j) {
-                for(int k = 1; k <= lhs.m; ++k) {
-                    ans.data[i][j] = ans.data[i][j] + lhs.data[i][k] * rhs.data[k][j];
-                    ans.data[i][j] = (ans.data[i][j] % MOD + MOD) % MOD;
-                }
-            }
-        }
-        return ans;
-    }
-    Matrix operator*=(const Matrix &rhs) { return *this = *this * rhs; }
-} a;
-inline Matrix fast_matrix_power(Matrix base, long long int power) {
-    assert(base.n == base.m);
-    Matrix ans;
-    std::fill(*ans.data, *ans.data + (N_MAX + 1) * (M_MAX + 1), 0);
-    for(int i = 1; i <= base.n; ++i) { ans.data[i][i] = 1; }
-    ans.n = ans.m = base.n;
-    while(power > 0) {
-        if(power & 1) { ans *= base; }
-        base *= base;
-        power /= 2;
-    }
-    return ans;
-}
-
-int main() {
-    std::cin >> n >> k; m = n;
-    a.n = n, a.m = m;
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            std::cin >> a.data[i][j];
-        }
-    }
-    a = fast_matrix_power(a, k);
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            std::cout << a.data[i][j] << ' ';
-        }
-        std::cout << '\n';
-    }
-}
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 2, M_MAX = 2;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+	Matrix() { n = N_MAX; m = M_MAX; }
+	Matrix(int n, int m) { assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1); this->n = n; this->m = m; }
+	static Matrix eye(int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n);
+		for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }}
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = (ans * base) % mod; }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+};
 ```
 
 > [洛谷P1962](https://www.luogu.com.cn/problem/P1962)：给定斐波那契数列的通项公式$f(n)=f(n-1)+f(n-2)$与初值条件$f(1)=f(2)=1$，求$f(n)$的值，模`MOD`输出。
@@ -17688,6 +18057,97 @@ int main() {
 }
 ```
 
+## §8.6 组合与期望
+
+> [洛谷P3802]：给定`n=7`种正整数`1, 2, ..., n`，其中数字`i`有`0<=a[i]<=1e9`个。将这`m=∑a[i]`个数字排成一个序列`b[]`。求`b[]`中有期望有多少个连续的、长度为`n`、恰好包含`[1, n]`内所有正整数的区间？答案四舍五入保留三位小数。
+
+容易发现，长度为`m`的序列一共有`m-n+1`个长度为`n`的连续区间。每个区间确定具体值后，其它下标的值也可以随意选择。
+
+$$
+E = \begin{cases}
+	\underset{区间总数}{\underbrace{(m-n+1)}} \cdot \underset{单个区间恰好包含所需正整数的概率}{\underbrace{(n!) \cdot \left(\frac{a_1}{m}\cdot\frac{a_2}{m-1}\cdot\cdots\cdot\frac{a_n}{m-n+1}\right)}} &, m\ge7 且 \forall i, a[i]\ne0 \\
+	0 &, 其它情况
+\end{cases}
+$$
+
+```c++
+const int N_MAX = 7;
+int n; int64_t a[N_MAX + 1], m; double ans = 1;
+inline double factorial(int n) { return n == 1 ? 1 : n * factorial(n - 1); }
+int main() {
+    n = 7;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; m += a[i]; }
+    if(std::any_of(a + 1, a + n + 1, [](const int &x) { return x == 0; }) || m < 7) { std::cout << "0.000"; return 0; }
+
+    ans *= (m - n + 1);
+    ans *= factorial(n);
+    for(int i = 1; i <= n; ++i) { ans = ans * a[i] / (m - i + 1); }
+
+    std::cout << std::fixed << std::setprecision(3) << ans;
+}
+```
+
+> [洛谷P5104]：给定`0<w<1e9+7`元的群红包，每个人只能均匀地抢到`[0, 剩余金额]`内的任意值。求第`n<=1e18`个抽奖的人抢到的平均金额。输出分数对`1e9+7`取模。
+
+显然第`1`个人的抢钱金额$X_1$概率分布函数为$f_1(x)=\displaystyle\frac{1}{w}, x\in[0, w]$。于是第`1`个人抢到的金额期望为$\displaystyle\int_{0}^{w}xf_{1}(x)dx=\displaystyle\int_{0}^{w}\frac{x}{w}dx=\frac{x^2}{2w}\big{|}_{0}^{w}=\frac{w}{2}$。剩余步骤同理，容易猜出答案为$\displaystyle\frac{w}{2^n}$。对分数取模即可。
+
+```c++
+const int64_t W_MAX = 1e9 + 7, N_MAX = 1e18;
+int64_t w, n, mod;
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int main() {
+    std::cin >> w >> n >> n; mod = 1e9 + 7;
+    std::cout << frac_mod(w, fast_pow(2, n, mod), mod);
+}
+```
+
+### §8.6.1 顺序统计量
+
+> [洛谷P4562](https://www.luogu.com.cn/problem/P4562)：给定区间`1<=[l, r]<=1e7`内的`n=r-l+1`个正整数，及其交换群$S_n$构成的全排列。给定一个排列$p\in S_n$，按顺序依次读取值。当读到第$i$个值$p_i$时，会将$p_i$的倍数（包括它自己）均标记为已访问。显然存在某个瞬间，当按照前文步骤处理完第$f(p)$个元素时，`[l, r]`中的所有数字恰好均已被访问。求$\displaystyle\sum_{\forall p\in S_n}f(p)$，答案模`1e9+7`输出。
+
+**需要敏锐地注意到**：我们将`[l, r]`中的元素分为两类——关键数和非关键数。如果不存在$x\in[l, r]$和正整数$k$，使得$y=kx$，则$y$就是关键数。关键数意味着它不会被`>=2`的倍数机制触发。关键数的数量$k$可以通过埃拉托斯特尼筛法以$O(n\log_2\log_2 n)$的时间复杂度求出。令这`k`个关键数在序列$p$中的下标位置随机变量分别为$X_1, X_2, \cdots, X_k$，其顺序统计量分别为$X_{(1)}, X_{(1)}, \cdots, X_{(k)}$。**于是，$f(p)$就是$X_{(n)}$。关键数全部被处理完毕的时刻，就是`[l, r]`内所有数字均访问完毕的时刻**。
+
+问题转化为如何求$X_{(n)}$。**令$Y_{(n)}$表示序列末尾的连续非关键数长度，则注意到$E(X_{(n)})=E(n-Y_{(n)})=n-E(Y_{(n)})$**。问题转化为如何求$Y_{(n)}$：使用隔板法，将$k$个关键数视为$k$个隔板，产生$k+1$个间隔，$n-k$个非关键数等可能地选中其中一个间隔填入。于是$E(Y_{(n)})=\displaystyle\frac{n-k}{k+1}$，$E(X_{(n)})=n-\displaystyle\frac{n-k}{k+1}=\frac{k}{k+1}(n+1)$，$\displaystyle\sum_{\forall p\in S_n}f(p)=\mathrm{count}(S_n)\cdot E(X_{(n)})=A_n^n \cdot \frac{k}{k+1}(n+1)=\frac{k}{k+1}(n+1)!$。
+
+```c++
+const int L_MAX = 1e7, R_MAX = 1e7;
+int l, r, n, k; int64_t ans = 1, mod;
+std::bitset<R_MAX + 1> visited;
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int main() {
+    std::cin >> l >> r; mod = 1e9 + 7;
+    n = r - l + 1;
+    for(int i = l; i <= r; ++i) {
+        if(visited[i] == true) { continue; }
+        visited[i] = true; ++k;
+        for(int j = 2 * i; j <= r; j += i) { visited[j] = true; }
+    }
+
+    ans = frac_mod(k, k + 1, mod);
+    for(int i = 2; i <= n + 1; ++i) { ans = (ans * i) % mod; } // (1e9+7)*(1e7)不会溢出INT64_MAX
+    std::cout << ans;
+}
+```
 # §9 模拟
 
 "与成功只差最后一步，卡在这里了"。
