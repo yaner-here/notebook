@@ -3321,7 +3321,7 @@ int main() {
 
 ## §2.3 棋盘DP
 
-### §2.3.1 棋盘贪吃蛇DP
+### §2.3.1 棋盘路径DP
 
 > [洛谷P1004](https://www.luogu.com.cn/problem/P1004)：给定一个$n\times n$的二维棋盘，每个格子都有`bonus[i][j]`个食物。每次从左上角出发，到右下角结束，总共允许走两次，同一格的食物不能重复领取，求能够最多食物数量。
 
@@ -3504,7 +3504,6 @@ $$
 
 本题的一个陷阱是：是否需要给`p`开辟`K_MAX`个空间？这里需要我们敏锐地注意到：**就算`k`再多，路径经过的格子数固定0为`n`，所以只给`p`开辟`N_MAX`个空间即可**。
 
-
 ```c++
 const int N_MAX = 100, K_MAX = 100;
 long long int n, k, v[N_MAX + 1], dp[2][N_MAX + 1][K_MAX + 1];
@@ -3540,9 +3539,49 @@ int main() {
 }
 ```
 
-### §2.3.2 棋盘区域极值DP
+> [洛谷P7074](https://www.luogu.com.cn/problem/P7074)：给定一个`a[n<=1e3][m<=1e3]`（值可能为负）的棋盘，要求从左上角`a[1][1]`走到右下角`a[n][m]`，每次只能向右、上、下走一格，且路径不能重复。求路径上的元素之和最大值。
 
-棋盘区域极值DP通常求的是符合某种条件的区域的最大值。
+由于路径不能重复，于是当我们向右进入新的一列时，下一步一旦向上就只能永远向上，一旦向下就只能永远向下，直到下一次向右移动。于是令`dp[i][j][0/1]`表示从`a[1][1]`运动到`a[i][j]`、最近一步是向上/向下时形成的众多路径中的最佳路径。特殊地，如果上一步是向右，则`dp[i][j-1][k]`可以转移到`dp[i][j][0/1]`这两个状态。
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j][0] = a[i][j] + \max \begin{cases}
+		\max(\mathrm{dp}[i][j-1][0], \mathrm{dp}[i][j-1][1]) &, 上一步为\rightarrow且j>1 \\
+		\mathrm{dp}[i+1][j][0] &, 上一步为\uparrow且i<n
+	\end{cases} \\
+	\mathrm{dp}[i][j][1] = a[i][j] + \max \begin{cases}
+		\max(\mathrm{dp}[i][j-1][0], \mathrm{dp}[i][j-1][1]) &, 上一步为\rightarrow且j>1 \\
+		\mathrm{dp}[i-1][j][1] &, 上一步为\downarrow且i>1
+	\end{cases}
+\end{align}
+$$
+
+然后考虑初始状态。令`dp[2->n][0][0/1]=-∞`，表示第`0`列的元素`a[*][0]`不存在，第`0`列`dp[*][0][*]`无法转移至第`1`列`dp[*][1][*]`。同理，令`dp[0][1->m][0/1]=-∞`和`dp[n+1][1->m][0/1]=-∞`，表示第`0`行与第`n+1`行不参与状态转移。这里之所以让`dp[1][0][0/1]=0`，是为了让状态转移方程保持简洁，能够自然地在`for(i, j)`的二重循环的`i==1, j==1`情景下，假设`a[1][1]`的前一步是从`a[1][0]`向右移动得到的。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e3;
+int n, m, a[N_MAX + 1][M_MAX + 1]; int64_t dp[N_MAX + 2][M_MAX + 1][2];
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> a[i][j]; } }
+
+    for(int i = 2; i <= n; ++i) { dp[i][0][0] = dp[i][0][1] = -1e9; }
+    for(int j = 1; j <= m; ++j) { dp[0][j][0] = dp[0][j][1] = -1e9; }
+    for(int j = 1; j <= m; ++j) { dp[n + 1][j][0] = dp[n + 1][j][1] = -1e9; }
+    dp[1][1][0] = dp[1][1][1] = a[1][1];
+    for(int j = 1; j <= m; ++j) { 
+        for(int i = n; i >= 1; --i) {
+            dp[i][j][0] = a[i][j] + std::max({dp[i][j - 1][0], dp[i][j - 1][1], dp[i + 1][j][0]});
+        } 
+        for(int i = 1; i <= n; ++i) {
+            dp[i][j][1] = a[i][j] + std::max({dp[i][j - 1][0], dp[i][j - 1][1], dp[i - 1][j][1]});
+        }
+    }
+    std::cout << std::max(dp[n][m][0], dp[n][m][1]);
+}
+```
+
+### §2.3.2 棋盘区域DP
 
 > [洛谷P1387](https://www.luogu.com.cn/problem/P1387)：给定一个`n`行`m`列的0/1棋盘，棋盘上的数字为`map[i][j]`。试找出其中不包含`0`的最大正方形，并输出正方形的最大边长。
 
@@ -3686,7 +3725,43 @@ int main() {
         }    
     }
 }
+```
 
+> [洛谷P2331](https://www.luogu.com.cn/problem/P2331)：给定一个`a[n<=100][m<=2]`（值可能为负数）的矩阵，从中选出`k<=10`个不重叠的子矩阵（**允许为空**），求这个`k`个子矩阵内元素之和的最大值。
+
+一种错误的想法是令`dp[i][j][k]`为`a[1->i][1->j]`区域恰好选出`k`个子矩阵的元素之和最大值，然而这样做根本无法进行状态转移。本题的关键在于`m<=2`，于是令`dp[i][j][k]`表示给定`a[1->i][1]`与`a[1->j][2]`取并集形成的区域，取`k`个子矩阵的所求值。于是根据`a[i][1]`与`a[j][2]`是否参与到`k`个子矩阵中某个相同子矩阵的形成，且在这个子矩阵的底部，则有以下状态转移情况：
+
+1. `a[i][1]`或`a[j][2]`未参与：那么无论有没有`a[i][1]`或`a[j][2]`都一样，即$\mathrm{dp}[i][j][k] = \max(\mathrm{dp}[i-1][j][k], \mathrm{dp}[i][j-1][k])$。
+2. `a[i][1]`参与且`a[j][2]`未参与：即$\mathrm{dp}[i][j][k] = \displaystyle\max_{0\le x<i}(\mathrm{dp}[x][j][k-1]+\sum_{y=x+1}^{i}a[y][1])$。
+3. `a[i][1]`未参与且`a[j][2]`参与：即$\mathrm{dp}[i][j][k] = \displaystyle\max_{0\le x<j}(\mathrm{dp}[i][x][k-1]+\sum_{y=x+1}^{j}a[y][2])$。
+4. `a[i][1]`与`a[j][2]`未参与：这要求`i==j`必须成立，即$\mathrm{dp}[i][j][k] = \displaystyle\max_{0\le x<j}(\mathrm{dp}[x][x][k-1]+\sum_{y=x+1}^{j}(a[y][1]+a[y][2]))$。
+
+其中$\displaystyle\sum{a[i][1/2]}$可以使用前缀和计算。于是总的时间复杂度为$O(kn^3)$。注意到`dp[*][*][k]`至少为`0`，对应选择`k`个空子矩阵的情况，于是`dp[*][*][*]`全部初始化为`0`。
+
+```c++
+const int N_MAX = 100, M_MAX = 2, K_MAX = 10;
+int n, m, p, a[N_MAX + 1][M_MAX + 1], a_prefixsum[N_MAX + 1][M_MAX + 1], dp[N_MAX + 1][N_MAX + 1][K_MAX + 1];
+int main() {
+    std::cin >> n >> m >> p;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) { 
+            std::cin >> a[i][j];
+            a_prefixsum[i][j] = a_prefixsum[i - 1][j] + a[i][j];
+        }
+    }
+
+    for(int i = 0; i <= n; ++i) {
+        for(int j = 0; j <= n; ++j) {
+            for(int k = 1; k <= p; ++k) {
+                dp[i][j][k] = std::max({dp[i][j][k], i > 0 ? dp[i - 1][j][k] : INT32_MIN, j > 0 ? dp[i][j - 1][k] : INT32_MIN});
+                for(int x = 0; x <= i - 1; ++x) { dp[i][j][k] = std::max(dp[i][j][k], dp[x][j][k - 1] + a_prefixsum[i][1] - a_prefixsum[x][1]); }
+                for(int x = 0; x <= j - 1; ++x) { dp[i][j][k] = std::max(dp[i][j][k], dp[i][x][k - 1] + a_prefixsum[j][2] - a_prefixsum[x][2]); }
+                if(i == j) { for(int x = 0; x <= i - 1; ++x) { dp[i][j][k] = std::max(dp[i][j][k], dp[x][x][k - 1] + a_prefixsum[i][1] - a_prefixsum[x][1] + a_prefixsum[i][2] - a_prefixsum[x][2]); } }
+            }
+        }
+    }
+    std::cout << dp[n][n][p];
+}
 ```
 
 ## §2.4 数位DP
@@ -6569,7 +6644,9 @@ int main() {
 }
 ```
 
-## §2.B 杂项收集
+## §2.B 疑难DP构造收集
+
+神仙才能设计出来的DP状态。
 
 > [洛谷P9173](https://www.luogu.com.cn/problem/solution/P9173)：给定两个长度分别为`len_a`、`len_b`的空白数列`a`、`b`，现要求在每个元素的位置上填入一个正整数，使得两个数列均严格单调递增。每个正整数只能使用一次，并且每个元素位置对填入数字的奇偶性作出了要求（通过`a[]`、`b[]`给出，`1`奇`0`偶）。在所有填入方案中，求使用的最大正整数的最小值。
 
@@ -17312,14 +17389,14 @@ int main() {
 
 哈希的本质是对状态的非连续离散化编号。
 
-> [洛谷P2843](https://www.luogu.com.cn/problem/P2843)：给定`n`个物品排成的序列`a[1->n]`，每个物品`a[i]`包含`k`种属性`a[i][1->k]`。请找到序列`a[]`中的一段连续闭区间`a[l->r]`，使得这`r-l+1`个物品的各个属性值相加均相同。形式化地，求解$\forall l, r\in[1, n], r-l+1=\text{len}, \text{ Solve: } \displaystyle\underset{\text{len}}{\text{argmax}}\left(\forall j\in[1, k], \sum_{\forall i\in[l,r]}{a[i][j]}均相同\right)$。
+> [洛谷P2843](https://www.luogu.com.cn/problem/P2843)/[洛谷P1360](https://www.luogu.com.cn/problem/P1360)：给定`n`个物品排成的序列`a[1->n<=1e5]`，每个物品`a[i]`包含`k`种属性值`a[i][1->k<=30]`。请找到序列`a[]`中的一段连续闭区间`a[l->r]`，使得这`r-l+1`个物品的各个属性值相加均相同。形式化地，求解$\forall l, r\in[1, n], r-l+1=\text{len}, \text{ Solve: } \displaystyle\underset{\text{len}}{\text{argmax}}\left(\forall j\in[1, k], \sum_{\forall i\in[l,r]}{a[i][j]}均相同\right)$。
 
 定义前缀和数组$\text{a\_prefixsum}[i][j] = \displaystyle\sum_{i'\in[1,i]}a[i'][j]$，表示`a[1->i]`中的所有物品第`j`个属性的属性值之和。如果真的存在符合要求的连续闭区间，那么`a_prefixsum[i]`的各项前缀和必然获得了相等的增量，**也就是说`a_prefixsum[i]`中的`k`项前缀和之差构成的`k-1`项差分值均相同**。对这个`k-1`维的差分值求其哈希值，用`std::map<hash, i>`记录其第一次出现的时候，记为`l+1`。当使用了第`r`个物品后再次出现相同的哈希值，则可以判定`[l + 1, r]`即为所求的闭区间。使用`ans`维护该闭区间的最大长度`r - (l + 1) + 1 == r - l`即可。
 
 特殊地，当什么物品也不使用时（`i==0`），哈希值为`0`，也要将这种情况添加到`std::map`中。
 
 ```c++
-const int N_MAX = 1e5, M_MAX = 30;
+const int N_MAX = 1e5, K_MAX = 30;
 int n, k, a[N_MAX + 1], k_sum[M_MAX + 1]; std::map<int64_t, int> delta_hash_map;
 
 int main() {
