@@ -5929,6 +5929,301 @@ int main() {
 
 ## §2.13 概率DP
 
+> [洛谷P8229](https://www.luogu.com.cn/problem/P8229)：初始时筐里有`1`枚硬币，每个回合有概率`p<=1e9`让筐里的硬币数量变成`k<=1e9`倍，有`1-p`的概率收获筐里的所有硬币，并重置硬币数量为`1`。给定`n<=1e18`回合操作，求期望收获的硬币总数。给定`T<=1e5`次这样的查询，答案模`998244353`输出。
+
+令`r[i]`表示第`i`回合后的筐内硬币数量期望值，`s[i]`表示第`i`回合后收获的硬币总数，于是显然有递推关系，矩阵快速幂即可。
+
+$$
+\begin{align}
+	& \begin{cases}
+		r_i = (p) \cdot kr_{i-1} + (1-p) \cdot 1 \\
+		s_i = s_{i-1} + (1-p) \cdot r_{i-1}
+	\end{cases}, \begin{cases}
+		r_0 = 1 \\
+		s_0 = 0
+	\end{cases} \\
+	\Rightarrow & \left[\begin{matrix}r_i\\s_i\end{matrix}\right] = \left[ \begin{matrix}
+		kp & 0 \\ 1-p & 1
+	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\end{matrix}\right] + \left[\begin{matrix}1-p \\ 0\end{matrix}\right] \\
+	\Rightarrow & \left[\begin{matrix}r_i\\s_i\\1\end{matrix}\right] = \left[ \begin{matrix}
+		kp & 0 & 1-p \\
+		1-p & 1 & 0 \\
+		0 & 0 & 1
+	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\\1\end{matrix}\right] = \mathbf{A}^{i} \left[\begin{matrix}r_{0}\\s_{0}\\1\end{matrix}\right] = \mathbf{A}^{i}\left[\begin{matrix}1\\0\\1\end{matrix}\right]
+\end{align}
+
+$$
+
+注意：**`1-p`可能是负值，因此需要预先对负数取模，才能使用取模意义下的快速幂！**
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+
+template<typename T> class Matrix {
+  public:
+    const static int N_MAX = 3, M_MAX = 3;
+    int n, m;
+    T data[N_MAX + 1][M_MAX + 1];
+    Matrix() {
+        n = N_MAX;
+        m = M_MAX;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    Matrix(int n, int m) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n;
+        this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    static Matrix eye(int n) {
+        assert(n <= N_MAX && n <= M_MAX && n >= 1);
+        Matrix ans(n, n);
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }
+        }
+        for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+        return ans;
+    }
+    T (&operator[](int i)) [M_MAX + 1] { return data[i]; } const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+    friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.n == rhs.n && lhs.m == rhs.m);
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }
+        }
+        return ans;
+    }
+    Matrix &operator+=(const Matrix &rhs) {
+        assert(this->n == rhs.n && this->m == rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }
+        }
+        return *this;
+    }
+    friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.n == rhs.n && lhs.m == rhs.m);
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }
+        }
+        return ans;
+    }
+    Matrix &operator-=(const Matrix &rhs) {
+        assert(this->n == rhs.n && this->m == rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }
+        }
+        return *this;
+    }
+    Matrix multiply(const Matrix &rhs, const T &mod) {
+        assert(this->m == rhs.n);
+        Matrix ans(this->n, rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                ans[i][j] = 0;
+                for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }
+            }
+        }
+        return ans;
+    }
+    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.m == rhs.n);
+        Matrix ans(lhs.n, rhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                ans[i][j] = 0;
+                for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }
+            }
+        }
+        return ans;
+    }
+    Matrix &operator*=(const Matrix &rhs) {
+        *this = (*this) * rhs;
+        return *this;
+    }
+    friend Matrix operator%(const Matrix &lhs, const T &mod) {
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }
+        }
+        return ans;
+    }
+    Matrix &operator%=(const T &mod) {
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }
+        }
+        return *this;
+    }
+    inline Matrix fast_pow(int64_t power) {
+        assert(this->n == this->m);
+        Matrix base(*this), ans = Matrix::eye(this->n);
+        while(power > 0) {
+            if(power % 2) { ans *= base; }
+            base *= base;
+            power /= 2;
+        }
+        return ans;
+    }
+    inline Matrix fast_pow(int64_t power, const T &mod) {
+        assert(this->n == this->m);
+        Matrix base(*this), ans = Matrix::eye(this->n);
+        base %= mod;
+        while(power > 0) {
+            if(power % 2) { ans = (ans * base) % mod; }
+            base = base.multiply(base, mod);
+            power /= 2;
+        }
+        return ans;
+    }
+};
+
+const int64_t N_MAX = 1e18, T_MAX = 1e5, MOD = 998244353;
+int t; int64_t n, k, p;
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> n >> k >> p;
+        
+        Matrix<int64_t> A(3, 3);
+        A[1][1] = mod(k * p, MOD); A[1][2] = 0; A[1][3] = mod(1 - p, MOD);
+        A[2][1] = mod(1 - p, MOD); A[2][2] = 1; A[2][3] = 0;
+        A[3][1] = 0; A[3][2] = 0; A[3][3] = 1;
+
+        Matrix<int64_t> ans(3, 1);
+        ans[1][1] = 1; ans[2][1] = 0; ans[3][1] = 1;
+
+        ans = A.fast_pow(n, MOD).multiply(ans, MOD);
+        
+        std::cout << ans[2][1] << '\n';
+    }
+}
+```
+
+> [洛谷P6858](https://www.luogu.com.cn/problem/P6858)：初始时A箱中有`n<=1e14`个球，B箱中有`m<=1e6`个球。每回合随机从全体球中等可能的选中一个球，若在A箱，则把B箱所有球放入A箱，将选中球放入B箱；若在B箱，则删除这个球。如果要最终删除所有球，求回合数的期望值，分数模`998244353`输出。
+
+令$f(n, m)$表示所求期望值，由题意易得$f(n, m) = \displaystyle\frac{n}{n+m}f(n+m-1, 1) + \frac{m}{n+m}f(n, m-1) + 1$，显然$\begin{cases}f(0,0)=0\\f(0,1)=1\end{cases}$注意到这个递推式中只有`m`在减小，这就是我们的突破口。
+
+给`m`赋特殊值：
+
+$$
+\begin{align}
+	m=0时, f(n, 0) & = f(n-1, 1) + 1 \\
+	m=1时, f(n, 1) & = \frac{n}{n+1}f(n, 1) + \frac{1}{n+1}f(n, 0) + 1 \\
+		& = \frac{n}{n+1}f(n, 1) + \frac{1}{n+1}(f(n-1, 1) + 1) + 1 \\
+	整理得到f(n,1) & = f(n-1, 1) + n + 2 \\
+	两侧同时求和得到f(n,1) & = \sum_{n=1}^{n}(n+2) + f(0, 1) = \sum_{n=1}^{n}(n+2) + f(0, 1) = \frac{n(n+5)}{2} + 1 \\
+	带回m=0情况得f(n,0) & = \frac{(n-1)(n+4)}{2} + 2
+\end{align}
+$$
+
+综上所述：
+
+$$
+f(n, m) = \begin{cases}
+	\displaystyle\frac{(n-1)(n+4)}{2} + 2 & , m = 0 \\
+	\displaystyle\frac{n(n+5)}{2} + 1 & , m = 1 \\
+	\displaystyle\frac{n}{n+m}f(n+m-1, 1) + \frac{m}{n+m}f(n, m-1) + 1 & , m \ge 2
+\end{cases}
+$$
+
+于是只需对`m`遍历即可。**注意`n<=1e14`，所以在$n^2$时就会溢出，要及时取模**！下面是一个常数较大的递归算法：
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+
+const int64_t N_MAX = 1e14, M_MAX = 1e6, MOD = 998244353;
+int64_t n, m;
+int64_t f(int64_t n, int64_t m) {
+    if(m == 0) { return (f(n - 1, 1) + 1) % MOD; }
+    if(m == 1) { return ((n % MOD) * ((n + 5) % MOD) / 2 + 1) % MOD; }
+    return ((frac_mod(n, n + m, MOD) * f(n + m - 1, 1)) % MOD + (frac_mod(m, n + m, MOD) * f(n, m - 1)) % MOD + (1)) % MOD;
+}
+int main() {
+    std::cin >> n >> m;
+    std::cout << f(n, m);
+}
+```
+
+递归的时间常数较大。我们也可以先算出`f(n, 0)`的值，再使用递推式按顺序求出`f(n, 0->m)`的值。本题略。
+
+### §2.13.1 图上概率DP
+
+> [洛谷P4316]：给定一个由`n<=1e5`个点和`m<=2e5`条边构成的有向无环边权图。求从起点`1`到终点`n`的所有路径的边权之和的期望值，四舍五入保留两位小数输出。
+
+令`dp_p[i]`表示路径包含第`i`个节点的概率，`dp_e[i]`为从起点`1`到终点`n`的所有路径的边权之和按概率加权的期望值，所以`E[n] = dp_e[n]/dp_p[n]`就是我们所求的结果，又因为`dp_p[n]=1`，所以只需输出`dp_e[n]`。于是我们有：
+
+$$
+\begin{cases}
+	\mathrm{dp}_{p}[v] = 
+		\displaystyle\frac{\displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \mathrm{dp}_{p}[u] \right)}{\mathrm{outdeg}[u]} 
+		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \frac{\mathrm{dp}_{p}[u]}{\mathrm{outdeg}[u]} \right) \\
+	\mathrm{dp}_e[v] 
+		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( 
+			\frac{\mathrm{dp}_e[u] + \mathrm{dp}_p[u] \cdot \mathrm{weight}[e]}{\mathrm{outdeg}[u]}
+		\right) 
+\end{cases}
+$$
+
+这里的`dp_e[v]`运用到了条件概率的思想，先从起点`1`到`u`，然后再考虑转移的可能。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 2 * N_MAX;
+int n, m; int u_temp, v_temp; double w_temp;
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count; double edge_weight[M_MAX + 1];
+int vertex_indeg[N_MAX + 1], vertex_outdeg[N_MAX + 1];
+int root, child; std::queue<int> queue;
+double dp_p[N_MAX + 1], dp_e[N_MAX + 1];
+inline void add_edge(const int &root, const int &child, const double &edge_weight_temp) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+    edge_weight[edge_count] = edge_weight_temp;
+    ++vertex_outdeg[root]; ++vertex_indeg[child];
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        add_edge(u_temp, v_temp, w_temp);
+    }
+    queue.emplace(1); dp_p[1] = 1;
+    while(queue.empty() == false) {
+        root = queue.front(); queue.pop();
+        for(int j = edge_first[root]; j != 0; j = edge_next[j]) {
+            child = edge_to[j];
+            dp_p[child] += dp_p[root] / vertex_outdeg[root];
+            dp_e[child] += (dp_e[root] + dp_p[root] * edge_weight[j]) / vertex_outdeg[root];
+            --vertex_indeg[child]; if(vertex_indeg[child] == 0) { queue.emplace(child); }
+        }
+    }
+    std::cout << std::fixed << std::setprecision(2) << dp_e[n];
+}
+```
+
 ## §2.14 换根DP
 
 > [洛谷P3478](https://www.luogu.com.cn/problem/P3478)：给定含有`n<=1e6`个节点的无向树。定义节点`i`的深度$\mathrm{depth}_{u}(i)$为节点`i`到根节点`u`的简单路径上边的数量。请问以哪个节点`u`为根节点，可以让所有结点的深度之和能取得最大值？请输出`u`的编号，如果有多个`u`能使得所求函数值达到最大值，则输出最小的`u`。形式化地，求$\displaystyle\min_{u}\underset{u}{\mathrm{argmax}}\sum_{\forall i\in[1,n]}\mathrm{depth}_{u}(i)$。
@@ -6057,6 +6352,21 @@ int main() {
     return 0;
 }
 ```
+
+## §2.15 刷表DP与填表DP
+
+DP的转移方式可以分为两种，一种是填表法（`dp[i] = f(dp[i - 1])`），另一种是刷表法`dp[i + g(i)] += h(dp[i])`。具体应用哪种，取决于`f()`和`g()`/`h()`两者哪个更容易确定。
+
+> [洛谷P2182](https://www.luogu.com.cn/problem/solution/P2182)：给定`n<=100`个硬币，其中有`diff`个反面朝上，`n - diff`个正面朝上。每次操作选择其中`p`枚硬币翻转，则经过`m<=100`次操作后所有硬币恰好均正面朝上的方案数量是多少？答案模`1e9+7`输出。
+
+令`dp[i][j]`表示经过`i`次操作后恰好有`j`枚硬币朝上的方案总数，显然初始化条件`dp[0][n - diff] = 1`，其余为`0`。使用刷表法容易得出DP递推式：
+
+$$
+\mathrm{dp}[i][j] = \sum_{k=\max(0, j - p)}^{n, j + p} \left( \mathrm{dp}[i][k] \cdot C_{k}^{\frac{p+j-k}{2}} C_{n-k}^{\frac{p-j+k}{2}} \right)
+$$
+
+然而，并不是所有范围内的`k`都能让`dp[i][k]`转移到`dp[i][j]`。比如`n=10, j=10, p=5`时，`k`的范围是`[5, 10]`，而`dp[][6]`无法转移到`dp[][10]`，这是因为此时$C_{k}^{\frac{p+j-k}{2}}$会得到小数，并且`6/10`枚正面硬币翻转`5`个硬币后只能得到的正面硬币结果有`1/10`、`3/10`、`5/10`、`7/10`、`9/10`等等，不可能得到`10/10`。
+
 
 ## §2.A DP优化
 
@@ -9471,6 +9781,41 @@ int main() {
         }
     }
     std::cout << dp[len_a][len_b];
+}
+```
+
+## §4.5 括号匹配
+
+> [洛谷P1944](https://www.luogu.com.cn/problem/P1944)/[力扣32](https://leetcode.cn/problems/longest-valid-parentheses/description/)：给定仅包含`()`/`()[]`的字符串`s[1->n<=1e6]`，求最长有效括号子串的子串本身/子串长度。
+
+令`dp[i]`表示以`s[i]`为结尾的最长有效括号子串的长度。如果当前字符`s[i]`为`(`或`[`，显然不可能构成有效括号子串，即`dp[i] = 0`；如果当前字符`s[i]`为`)`或`]`，则我们可以复用前一个字符`s[i-1]`为末尾构成的有效括号子串进行拼接，对应的长度为`dp[i-1]`，然后检测`s[i-dp[i-1]-1]`是否能与`s[i]`构成合法括号对，对应的长度为`2`，最后检测`s[i-dp[i-1]-1]`的前一个字符`s[i-dp[i-1]-2]`为末尾构成的有效括号子串进行拼接，对应的长度为`dp[i-dp[i-1]-2]`，三者相加即可。
+
+例如下例：
+
+```
+s[1->8]: ( ) [ ( ( ) ) ]，考虑dp[8]
+第一部分: dp[7]对应的`(())`
+第二部分: s[8]与s[3]
+第三部分: dp[2]对应的`()`
+```
+
+```c++
+const int N_MAX = 1e6;
+char s[N_MAX + 1 + 1]; int n, dp[N_MAX + 1], ans_index, ans;
+int main() {
+    std::cin >> (s + 1); n = std::strlen(s + 1);
+    for(int i = 1; i <= n; ++i) {
+        if(s[i] == '(' || s[i] == '[') {
+            dp[i] = 0;
+        } else if(s[i] == ')' && s[i - dp[i - 1] - 1] == '(') {
+            dp[i] = dp[i - 1] + 2 + dp[i - dp[i - 1] - 2];
+        } else if(s[i] == ']' && s[i - dp[i - 1] - 1] == '[') {
+            dp[i] = dp[i - 1] + 2 + dp[i - dp[i - 1] - 2];
+        }
+    }
+    ans_index = std::max_element(dp + 1, dp + 1 + n) - dp;
+    ans = dp[ans_index];
+    for(int i = ans_index - ans + 1; i <= ans_index; ++i) { std::cout << s[i]; }
 }
 ```
 
@@ -17875,7 +18220,7 @@ int64_t frac_mod(int64_t a, int64_t b, int64_t p) {
 
 ```c++
 int64_t ans = 0;
-for(int i = n; i >= 1; --i) {
+for(int i = 1; i <= n; ++i) {
 	ans = (ans * 10 + a[i] - '0') % p;
 }
 std::cout << ans;
@@ -17922,8 +18267,15 @@ public:
 	const static int N_MAX = 2, M_MAX = 2;
 	int n, m;
 	T data[N_MAX + 1][M_MAX + 1];
-	Matrix() { n = N_MAX; m = M_MAX; }
-	Matrix(int n, int m) { assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1); this->n = n; this->m = m; }
+    Matrix() {
+        n = N_MAX; m = M_MAX;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    Matrix(int n, int m) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
 	static Matrix eye(int n) {
 		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n);
 		for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }}
@@ -17976,7 +18328,7 @@ public:
 		return *this;
 	}
 	inline Matrix fast_pow(int64_t power) {
-		assert(this->n == this->m); Matrix base(*this), ans = Matrix::eye(this->n);
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
 		while(power > 0) {
 			if(power % 2) { ans *= base; }
 			base *= base;
@@ -17985,7 +18337,7 @@ public:
 		return ans;
 	}
 	inline Matrix fast_pow(int64_t power, const T &mod) {
-		assert(this->n == this->m); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
 			if(power % 2) { ans = (ans * base) % mod; }
 			base = base.multiply(base, mod);
