@@ -10549,6 +10549,104 @@ int main() {
 }
 ```
 
+> [洛谷P3627](https://www.luogu.com.cn/problem/P3627)：给定一个含有`n<=5e5`个点、`m<=5e5`条边的正点权有向图。初始时从第`start`个点出发，允许重复地经过各个点，最终到达`end[1->end_count]`中的任意一个终点，求路径上各点权之和的最大值。
+
+缩点成DAG，注意到给定一条边`u->v`，我们有`dp[v] = std::max(dp[v], dp[u] + w[v])`，于是从`scc_map[u]`作为起点开始DP即可。注意**使用队列维护DP转移顺序时，只有当`dp[v]`被刷新到新的最大值时，才能把`v`加入到DP队列，从而避免不必要的转移，浪费时间和空间以至于TLE和MLE**。
+
+```c++
+const int N_MAX = 5e5, M_MAX = 5e5;
+int n, m, u_temp, v_temp;
+int value[N_MAX + 1], start, end[N_MAX + 1], end_count;
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1];
+inline void edge_add(const int &u, const int &v) {
+	++edge_count;
+	edge_next[edge_count] = edge_first[u];
+	edge_first[u] = edge_count;
+	edge_to[edge_count] = v;
+}
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size;
+bool tarjan_in_stack[N_MAX + 1];
+int scc_map[N_MAX + 1], scc_count, scc_value[N_MAX + 1];
+void tarjan_dfs(int u) {
+	tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+	tarjan_stack[++tarjan_stack_size] = u;
+	tarjan_in_stack[u] = true;
+	for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+		int v = edge_to[i];
+		if(tarjan_dfn[v] == 0) {
+			tarjan_dfs(v);
+			tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+		} else if(tarjan_in_stack[v]) {
+			tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+		}
+	}
+	if(tarjan_dfn[u] == tarjan_low[u]) {
+		int v; ++scc_count;
+		do {
+			v = tarjan_stack[tarjan_stack_size--];
+			tarjan_in_stack[v] = false;
+			scc_map[v] = scc_count;
+			scc_value[scc_count] += value[v];
+		} while(u != v);
+	}
+}
+
+int scc_edge_count, scc_edge_first[N_MAX + 1], scc_edge_next[M_MAX + 1], scc_edge_to[M_MAX + 1];
+inline void scc_edge_add(int u, int v) {
+	++scc_edge_count;
+	scc_edge_next[scc_edge_count] = scc_edge_first[u];
+	scc_edge_first[u] = scc_edge_count;
+	scc_edge_to[scc_edge_count] = v;
+}
+
+int64_t dp[N_MAX + 1], ans;
+std::queue<int> queue; 
+
+int main() {
+	std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+	std::cin >> n >> m;
+	for(int i = 1; i <= m; ++i) { std::cin >> u_temp >> v_temp; edge_add(u_temp, v_temp); }
+	for(int i = 1; i <= n; ++i) { std::cin >> value[i]; }
+	std::cin >> start >> end_count;
+	for(int i = 1; i <= end_count; ++i) { std::cin >> end[i]; }
+	
+	for(int u = 1; u <= n; ++u) {
+		if(tarjan_dfn[u] == 0) { tarjan_dfs(u); } 
+	}
+	for(int u = 1; u <= n; ++u) {
+		for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+			int v = edge_to[i];
+			if(scc_map[u] != scc_map[v]) {
+				scc_edge_add(scc_map[u], scc_map[v]);
+			}
+		}
+	}
+	
+	start = scc_map[start];
+	for(int i = 1; i <= end_count; ++i) { end[i] = scc_map[end[i]]; }
+	
+	dp[start] = scc_value[start];
+	queue.push(start);
+	while(queue.empty() == false) {
+		int u = queue.front(); queue.pop();
+		for(int i = scc_edge_first[u]; i != 0; i = scc_edge_next[i]) {
+			int v = scc_edge_to[i];
+			if(dp[v] >= dp[u] + scc_value[v]) { continue; }
+			dp[v] = std::max(dp[v], dp[u] + scc_value[v]);
+			queue.emplace(v); // 只有当dp[v]被刷新时才入队,否则会MLE
+		}
+	}
+	for(int i = 1; i <= end_count; ++i) {
+		ans = std::max(ans, dp[end[i]]);
+	}
+	std::cout << ans;
+	
+	return 0;
+}
+```
+
 ## §6.3 最小生成树
 
 最小生成树（MST, Minimum Spanning Tree）是无向图中的概念，指的是边权之和最小的生成树。
@@ -17769,6 +17867,18 @@ inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
 int64_t frac_mod(int64_t a, int64_t b, int64_t p) {
     return ((a % p) * fast_pow(b, p - 2, p)) % p;
 }
+```
+
+#### §8.3.1.4 大数取模
+
+给定一个十进制整数`a`的字符串形式`char a[1->n]`，求$a\%p$。
+
+```c++
+int64_t ans = 0;
+for(int i = n; i >= 1; --i) {
+	ans = (ans * 10 + a[i] - '0') % p;
+}
+std::cout << ans;
 ```
 
 ### §8.3.2 向上/向下取整
