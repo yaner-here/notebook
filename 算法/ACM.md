@@ -9461,7 +9461,7 @@ int main() {
 const long long int STRING_LENGTH_MAX = 5e5;
 char str[STRING_LENGTH_MAX * 2 + 3];
 int r[STRING_LENGTH_MAX * 2 + 3];
-int main() {
+	int main() {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
     std::cout.tie(nullptr);
@@ -17863,7 +17863,30 @@ int main() {
 }
 ```
 
-## §7.10 Multiset
+## §7.10 Set/Multiset
+
+> [洛谷P1956]：给定正整数序列`a[1->n]`、模数`p`与阈值`k`，令子序列模意义下的总和集合$B=\left\{\displaystyle\left(\sum_{i\in[l, r]} a[i]\right) \% p | 1\le l\le r\le n  \right\}$，求$\displaystyle\min_{b\in B \land b \ge k} b$。
+
+令`s[i]`为`a[1->i]`的前缀和。当闭区间`[l, r]`的右端点`r`确定时，我们本质上在求一个最大的`s[l-1]`，同时满足`s[l-1] <= s[r]-k`。使用有序Set保存`s[1->r-1]`信息，使用`std::prev(upper_bound())`即可得到要找的`s[l-1]`。由于是模意义下的运算，所以要时刻提防负数取模。**同时为了防止`a[1->r]`的数字都很小，导致未取模的`s[r]`无法大于等于`k`，我们要对`r`的遍历范围做出限制**。
+
+```c++
+const int N_MAX = 1e5;
+int64_t n, a[N_MAX + 1], s[N_MAX + 1], s_unmod, k, p, ans = INT64_MAX, j_start;
+int64_t inline mod(const int64_t &x, const int64_t p) { return (x % p + p) % p; }
+std::set<int64_t> set;
+int main() {
+	std::cin >> n >> k >> p;
+	for(int i = 1; i <= n; ++i) { std::cin >> a[i]; s_unmod += a[i]; s[i] = (s[i - 1] + a[i]) % p; if(s_unmod < k) { j_start = i + 1; } }
+	
+	for(int j = 1; j <= n; ++j) {
+		set.insert(s[j - 1]);
+		if(j < j_start) { continue; }
+		std::set<int64_t>::iterator iter = set.upper_bound(mod(s[j] - k, p));
+		ans = std::min(ans, mod(s[j] - *(std::prev(iter, 1)), p));
+	}
+	std::cout << ans;
+}
+```
 
 Multiset允许存储多个`value`相同的元素。
 
