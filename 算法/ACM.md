@@ -6111,64 +6111,6 @@ int main() {
 }
 ```
 
-> [洛谷P6858](https://www.luogu.com.cn/problem/P6858)：初始时A箱中有`n<=1e14`个球，B箱中有`m<=1e6`个球。每回合随机从全体球中等可能的选中一个球，若在A箱，则把B箱所有球放入A箱，将选中球放入B箱；若在B箱，则删除这个球。如果要最终删除所有球，求回合数的期望值，分数模`998244353`输出。
-
-令$f(n, m)$表示所求期望值，由题意易得$f(n, m) = \displaystyle\frac{n}{n+m}f(n+m-1, 1) + \frac{m}{n+m}f(n, m-1) + 1$，显然$\begin{cases}f(0,0)=0\\f(0,1)=1\end{cases}$注意到这个递推式中只有`m`在减小，这就是我们的突破口。
-
-给`m`赋特殊值：
-
-$$
-\begin{align}
-	m=0时, f(n, 0) & = f(n-1, 1) + 1 \\
-	m=1时, f(n, 1) & = \frac{n}{n+1}f(n, 1) + \frac{1}{n+1}f(n, 0) + 1 \\
-		& = \frac{n}{n+1}f(n, 1) + \frac{1}{n+1}(f(n-1, 1) + 1) + 1 \\
-	整理得到f(n,1) & = f(n-1, 1) + n + 2 \\
-	两侧同时求和得到f(n,1) & = \sum_{n=1}^{n}(n+2) + f(0, 1) = \sum_{n=1}^{n}(n+2) + f(0, 1) = \frac{n(n+5)}{2} + 1 \\
-	带回m=0情况得f(n,0) & = \frac{(n-1)(n+4)}{2} + 2
-\end{align}
-$$
-
-综上所述：
-
-$$
-f(n, m) = \begin{cases}
-	\displaystyle\frac{(n-1)(n+4)}{2} + 2 & , m = 0 \\
-	\displaystyle\frac{n(n+5)}{2} + 1 & , m = 1 \\
-	\displaystyle\frac{n}{n+m}f(n+m-1, 1) + \frac{m}{n+m}f(n, m-1) + 1 & , m \ge 2
-\end{cases}
-$$
-
-于是只需对`m`遍历即可。**注意`n<=1e14`，所以在$n^2$时就会溢出，要及时取模**！下面是一个常数较大的递归算法：
-
-```c++
-inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
-    int64_t result = 1;
-    a %= p;
-    while(b > 0) {
-        if(b % 2) { result = (result * a) % p; }
-        a = (a * a) % p;
-        b /= 2;
-    }
-    return result;
-}
-int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
-constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
-
-const int64_t N_MAX = 1e14, M_MAX = 1e6, MOD = 998244353;
-int64_t n, m;
-int64_t f(int64_t n, int64_t m) {
-    if(m == 0) { return (f(n - 1, 1) + 1) % MOD; }
-    if(m == 1) { return ((n % MOD) * ((n + 5) % MOD) / 2 + 1) % MOD; }
-    return ((frac_mod(n, n + m, MOD) * f(n + m - 1, 1)) % MOD + (frac_mod(m, n + m, MOD) * f(n, m - 1)) % MOD + (1)) % MOD;
-}
-int main() {
-    std::cin >> n >> m;
-    std::cout << f(n, m);
-}
-```
-
-递归的时间常数较大。我们也可以先算出`f(n, 0)`的值，再使用递推式按顺序求出`f(n, 0->m)`的值。本题略。
-
 ### §2.13.1 图上概率DP
 
 > [洛谷P4316]：给定一个由`n<=1e5`个点和`m<=2e5`条边构成的有向无环边权图。求从起点`1`到终点`n`的所有路径的边权之和的期望值，四舍五入保留两位小数输出。
@@ -11376,6 +11318,504 @@ int main() {
     }
     std::cout << "TAK\n";
     for(int i = 1; i <= n; ++i) { std::cout << vertex_ans_father[i] << '\n'; }
+}
+```
+
+## §6.5 最短路/最长路
+
+### §6.5.1 Dijkstra算法
+
+Dijkstra算法用于求解单源最短路，也可以转化成单源最长路问题。形式化地，给定一个有向图$\mathcal{G}=(\mathcal{V}, \mathcal{E})$，时间复杂度为$O(m\log n)$，算法如下：
+
+1. 初始化：令尚未确定最短路的点集$\mathcal{V}_T=\mathcal{V}$，已经确定最短路的点集$\mathcal{V}_S=\varnothing$，从起点到点`i`的最短路长度`dp[i:1->n]`均为正无穷，`dp[起点]=0`除外。
+2. 将$\mathcal{V}_T$中的`dp[]`最小值点`u`取出，放到$\mathcal{V}_S$，并更新`u`构成的所有`e: u -> v`：`dp[v] = std::min(dp[v], dp[u])`。这个最小值可以用堆维护
+3. 重复第2步，直到$\mathcal{V}_T$为空。
+
+> [洛谷P4779](https://www.luogu.com.cn/problem/P4779)：给定一个含有`n<=1e5`个点、`m<=2e5`条边的有向边权图，求从起点`start`到其它点的最短路径长度。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 2e5;
+int n, m, u_temp, v_temp, start; int64_t w_temp;
+int64_t dp[N_MAX + 1]; bool vis[N_MAX + 1];
+using Point = std::pair<int, int64_t>;
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue([](const Point &child, const Point &root){ return root.second < child.second; });
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+	++edge_count;
+	edge_next[edge_count] = edge_first[u];
+	edge_first[u] = edge_count;
+	edge_to[edge_count] = v;
+	edge_weight[edge_count] = w;
+}
+
+int main() {
+	std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+	std::cin >> n >> m >> start;
+	for(int i = 1; i <= m; ++i) { std::cin >> u_temp >> v_temp >> w_temp; edge_add(u_temp, v_temp, w_temp); }
+
+	std::fill(dp + 1, dp + 1 + n, 1e18); dp[start] = 0;
+	queue.push({start, dp[start]});
+	while(queue.empty() == false) {
+		Point point = queue.top(); queue.pop(); int u = point.first;
+		if(vis[u] == true) { continue; } vis[u] = true;
+		for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+			int v = edge_to[i];
+			dp[v] = std::min(dp[v], dp[u] + edge_weight[i]);
+			if(vis[v] == false) { queue.emplace(v, dp[v]); }
+		}
+	}
+	
+	for(int i = 1; i <= n; ++i) { std::cout << dp[i] << ' '; }
+	return 0;
+}
+```
+
+> [洛谷P1807](https://www.luogu.com.cn/problem/P1807)：给定一个含有`n<=1.5e3`个点、`m<=5e4`条边的有向无环边权图，边权可正可负，求从起点`1`到终点`n`的最长路径长度，若不存在这样的路径则输出`-1`。
+
+本题有两种解法——第一种是拓扑排序+DP，第二种是Dijkstra算法。令`dp[i]`表示从起点`1`到终点`i`的最长距离，初始值为负无穷大。
+
+第一种解法是拓扑排序+DP。由于从起点`1`开始不一定能到其它所有点，因此不能到达的那些点构成的边不能参与`dp[]`的更新，**这意味着我们在`dp[]`更新时要排除不能到达点的影响**。例如给定图`2->1->3, 4->3`，显然从`1`出发不能到达`2`和`4`，这提醒我们递归地删除不能到达点构成的边造成的入度。初始时，对于一切入度为`0`且不为起点`1`的点，需要递归地删除不能到达点构成的边造成的入度。随后正常拓扑排序+DP即可。
+
+```c++
+const int N_MAX = 1.5e3, M_MAX = 5e4;
+int n, m, u_temp, v_temp; int64_t w_temp;
+
+int vertex_indeg[N_MAX + 1];
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+    ++vertex_indeg[v];
+}
+
+int64_t dp[N_MAX + 1];
+std::queue<int> queue;
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        edge_add(u_temp, v_temp, w_temp);
+    }
+
+    for(int i = 1; i <= n; ++i) { if(vertex_indeg[i] == 0 && i != 1) { queue.push(i); } }
+    while(queue.empty() == false) {
+        int u = queue.front(); queue.pop();
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(--vertex_indeg[v] == 0 && v != 1) { queue.push(v); }
+        }
+    }
+
+    std::fill(dp + 1, dp + 1 + n, -1e18); dp[1] = 0;
+    queue.push(1);
+    while(queue.empty() == false) {
+        int u = queue.front(); queue.pop();
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            dp[v] = std::max(dp[v], dp[u] + edge_weight[i]);
+            if(--vertex_indeg[v] == 0) { queue.push(v); }
+        }
+    }
+
+    std::cout << (dp[n] == -1e18 ? -1 : dp[n]);
+}
+```
+
+第二种是Dijkstra算法，它原本是求最短路的。为了求最长路，我们在建图的时候给边权取相反数，使用Dijkstra算法输出`dp[n]`的相反数即可。
+
+```c++
+int64_t dp[N_MAX + 1];
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue([](const Point &child, const Point &root){ return child.w < root.w; });
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        edge_add(u_temp, v_temp, -w_temp);
+    }
+
+    std::fill(dp + 1, dp + 1 + n, 1e18); dp[1] = 0;
+    queue.push({1, 0});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(dp[v] > dp[u] + edge_weight[i]) {
+                dp[v] = dp[u] + edge_weight[i];
+                queue.push({v, dp[v]});
+            }
+        }
+    }
+
+    std::cout << (dp[n] == 1e18 ? -1 : -dp[n]);
+}
+```
+
+
+> [洛谷P1144](https://www.luogu.com.cn/problem/P1144)：给定一个含有`n<=1e6`个点、`m<=2e6`条边的无向图，求从起点`1`到其它点的最短路径长度对应的路径有多少条。
+
+简单的DP。`dp_d[i]`表示起点`1`到点`i`的最短路径长度，`dp_ans[i]`表示最短路径长度对应的路径有多少条。如果`u->v`刷新了`dp_d[i]`，则重置`dp_ans[v] = dp_ans[u]`；如果`u->v`恰好等于`dp_d[v]`，则`dp_ans[v] += dp_ans[u]`。注意给`dp_ans[]`取模即可。
+
+```c++
+const int N_MAX = 1e6, M_MAX = 2e6 * 2, MOD = 100003;
+int n, m, u_temp, v_temp, start;
+int dp_d[N_MAX + 1], dp_ans[N_MAX + 1];
+bool vis[N_MAX + 1];
+using Point = std::pair<int, int64_t>;
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return root.second < child.second; });
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = 1;
+}
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> u_temp >> v_temp; edge_add(u_temp, v_temp); edge_add(v_temp, u_temp); }
+
+    std::fill(dp_d + 1, dp_d + 1 + n, 1e18); dp_d[1] = 0; dp_ans[1] = 1;
+    queue.push({1, dp_d[1]});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.first;
+        if(vis[u] == true) { continue; } vis[u] = true;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(dp_d[v] > dp_d[u] + edge_weight[i]) { 
+                dp_d[v] = dp_d[u] + edge_weight[i]; dp_ans[v] = dp_ans[u]; 
+            } else if(dp_d[v] == dp_d[u] + edge_weight[i]) {
+                dp_ans[v] = (dp_ans[v] + dp_ans[u]) % MOD;
+            }
+            if(vis[v] == false) { queue.emplace(v, dp_d[v]); }
+        }
+    }
+
+    for(int i = 1; i <= n; ++i) { std::cout << dp_ans[i] << '\n'; }
+    return 0;
+}
+```
+
+> [洛谷P1462](https://www.luogu.com.cn/problem/P1462)：给定一个由`n<=1e4`个点、`m<=5e4`条边构成的无向点权边权图。令起点为`1`，终点为`n`，在路径中的所有边权之和小于等于`k`的前提下，求路径上各点的点权最大值的最小值。
+
+核心思路：Dijkstra算法与二分。二分的`mid`表示图中点权超过`mid`的点都不能用，判定条件为在这种情况下由Dijkstra算法得到的路径边权之和最小值是否小于等于`k`。
+
+```c++
+const int N_MAX = 1e4, M_MAX = 5e4 * 2;
+int n, m, u_temp, v_temp; int64_t w_temp, dp[M_MAX + 1], edge_weight_sum_max; bool vis[N_MAX + 1];
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+int64_t vertex_weight[N_MAX + 1];
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return root.w < child.w; });
+void dijkstra(int64_t vertex_weight_max) {
+    std::fill(vis + 1, vis + 1 + n, false);
+    std::fill(dp + 1, dp + 1 + n, 1e18); dp[1] = 0;
+    queue.push({1, 0});
+    if(vertex_weight[1] > vertex_weight_max) { return; } // 起点的点权不能超过上限
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        if(vis[u] == true) { continue; } vis[u] = true;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(vertex_weight[v] > vertex_weight_max) { continue; } // v的点权不能超过上限，如果超过则不能参与dp更新
+            dp[v] = std::min(dp[v], dp[u] + edge_weight[i]);
+            if(vis[v] == false) { queue.push({v, dp[v]}); }
+        }
+    }
+}
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+
+    std::cin >> n >> m >> edge_weight_sum_max;
+    for(int i = 1; i <= n; ++i) { std::cin >> vertex_weight[i]; }
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        edge_add(u_temp, v_temp, w_temp);
+        edge_add(v_temp, u_temp, w_temp);
+    }
+
+    int64_t left = 0, right = *std::max_element(vertex_weight + 1, vertex_weight + 1 + n), right_border = right + 1, left_ptr = left - 1, right_ptr = right + 1;
+    while(left <= right) {
+        int mid = (left + right) / 2;
+        dijkstra(mid);
+        if(dp[n] > edge_weight_sum_max) {
+            left_ptr = mid;
+            left = mid + 1;
+        } else {
+            right_ptr = mid;
+            right = mid - 1;
+        }
+    }
+    if(right_ptr == right_border) {
+        std::cout << "AFK";
+    } else {
+        std::cout << right_ptr;
+    }
+}
+```
+
+#### §6.5.1.1 分层图
+
+> [洛谷P4568](https://www.luogu.com.cn/problem/P4568)：给定一个由`n<=1e4`个点、`m<=5e4`条边的无向正边权**重边**图。现允许至多选中`l<=10`条边，将它们的边权重置为`0`。求起点`start`到终点`end`的最短路径长度。
+
+分层图板子题。令`dp[u + i*n]`表示从点`start`出发，选中了`i`条边重置边权为`0`，到达终点`u`的最短路径长度。由`i∈[0, l]`可以划分成`l+1`层图，每一层的点数量均为`n`，边关系如下所示：
+
+1. 层内双向边。`(u + i*n) -> (v + i*n)`与`(v + i*n) -> (u + i*n)`，边权为`w`。
+2. 层间单向边。`(u + (i-1)*n) -> (v + i*n)`与`(v + (i-1)*n) -> (u + i*n)`，边权为`0`。
+
+注意：我们不一定需要使用完全部的`l`次边权重置机会，就能找到最短路径。这时最短路径为`i∈[1, l], dp[end + i*n]`的最小值。另一种解决方案是额外建立`(end + (i-1)*n) -> (end + i*n)`的单向边，然后直接输出`dp[end + l*n]`，这种方法需要额外提供`l`条边的存储空间。
+
+```c++
+constexpr int N_INIT_MAX = 1e4, M_INIT_MAX = 5e4, L_MAX = 10;
+constexpr int N_MAX = N_INIT_MAX * (L_MAX + 1), M_MAX = (M_INIT_MAX * (L_MAX + 1) + M_INIT_MAX * L_MAX) * 2;
+int n, m, l, start, end, u_temp, v_temp; int64_t w_temp, dp[M_MAX + 1], ans; bool vis[N_MAX + 1];
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return root.w < child.w; });
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+
+    std::cin >> n >> m >> l >> start >> end; ++start; ++end;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp; ++u_temp; ++v_temp;
+        for(int j = 0; j <= l; ++j) { edge_add(u_temp + j * n, v_temp + j * n, w_temp); edge_add(v_temp + j * n, u_temp + j * n, w_temp); }
+        for(int j = 1; j <= l; ++j) { edge_add(u_temp + (j - 1) * n, v_temp + j * n, 0); edge_add(v_temp + (j - 1) * n, u_temp + j * n, 0); }
+    }
+
+    std::fill(dp + 1, dp + 1 + N_MAX, 1e18); dp[start] = 0;
+    queue.push({start, 0});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        if(vis[u] == true) { continue; } vis[u] = true;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            dp[v] = std::min(dp[v], dp[u] + edge_weight[i]);
+            if(vis[v] == false) { queue.push({v, dp[v]}); }
+        }
+    }
+
+    ans = 1e18;
+    for(int i = 0; i <= l; ++i) { ans = std::min(ans, dp[end + i * n]); }
+    std::cout << ans;
+}
+```
+
+> [洛谷P1073](https://www.luogu.com.cn/problem/P1073)：给定一个由`n<=1e5`个点、`2m<=1e6`条边构成的有向点权图。从起点`1`出发到终点`n`。`vertex_weight[i]`（即$w[i]$）表示商品在点`i`个价格，允许各进行一次买卖赚取差价，求差价最大值。形式化地，令$P$表示从起点`1`到终点`n`的路径集合，求$\displaystyle\max_{\forall i<j, i,j\in p, \forall p\in P}(w[j]-w[i])$。
+
+我们为分层图定义三个状态：`dp[0][]`表示尚未购买，`dp[1][]`表示已经购买，`dp[2][]`表示已经售出。于是分层图之间的边关系为：
+
+- 层内边：收入没有任何变动，因此`(u + i*n) -> (v + i*n)`的边权为`0`。
+- 层外边：收入有变动，`dp[0][u] -> dp[1][u]`点权为`-w[i]`，表示在此处购买。`dp[1][u] -> dp[2][u]`点权为`w[i]`，表示在此处售出。
+
+本题要求这个分层图的最长路。使用Dijkstra算法求最长路即可。
+
+```c++
+constexpr int N_INIT_MAX = 1e5, M_INIT_MAX = 5e5, L_MAX = 3, N_MAX = N_INIT_MAX * L_MAX, M_MAX = (M_INIT_MAX * L_MAX + N_INIT_MAX * (L_MAX - 1)) * 2;
+int n, m, u_temp, v_temp, w_temp, l = 3, vertex_weight[N_MAX + 1], dp[N_MAX + 1];
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> vertex_weight[i]; }
+    for(int i = 1; i <= m; ++i) { 
+        std::cin >> u_temp >> v_temp >> w_temp;
+        if(w_temp == 1) { for(int i = 0; i < l; ++i) { edge_add(u_temp + i * n, v_temp + i * n, 0); } }
+        if(w_temp == 2) { for(int i = 0; i < l; ++i) { edge_add(u_temp + i * n, v_temp + i * n, 0); edge_add(v_temp + i * n, u_temp + i * n, 0); } }
+    }
+    for(int i = 1; i <= n; ++i) {
+        edge_add(i, i + n, +vertex_weight[i]);
+        edge_add(i + n, i + 2 * n, -vertex_weight[i]);
+    }
+
+    std::fill(dp + 1, dp + 1 + N_MAX, 1e9); dp[1] = 0;
+    queue.push({1, 0});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(dp[v] > dp[u] + edge_weight[i]) {
+                dp[v] = dp[u] + edge_weight[i];
+                queue.push({v, dp[v]});
+            }
+        }
+    }
+
+    std::cout << std::max(0, -dp[n + (l - 1) * n]);
+}
+```
+
+### §6.5.2 Floyd算法
+
+> [洛谷B3611](https://www.luogu.com.cn/problem/B3611)：给定一个由`n<=100`个点构成的有向图$\mathcal{G}$的布尔有向边邻接矩阵$\mathbf{A}$，求$\mathcal{G}$的传递闭包（即可达性矩阵）。特殊地：不认为一个节点天生对自己可达。
+
+令`dp[k][][]`表示允许使用`1->k`范围内的点作为中转站进行额外跳转形成的可达性矩阵，显然$\mathrm{dp}[0] = \mathbf{A}$。其状态转移方程为：$\mathrm{dp}[k][i][j] = \mathrm{dp}[k-1][i][j]\cup(\mathrm{dp}[k-1][i][k] \cap \mathrm{dp}[k-1][k][j])$，表示能否通过新加入的点`k`实现`i->j`的连通。然后考虑状态压缩，当我们砍掉`dp[][][]`的第一维时，需要保证`dp[k-1][i][k] == dp[k][i][k]`与`dp[k-1][k][j] == dp[k][k][j]`，带入状态转移方程发现`dp[k-1][k][k] == true`恒成立，于是两个保证条件成立，因此可以放心地砍去第一维。
+
+```c++
+const int N_MAX = 100;
+int n; bool dp[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cin >> dp[i][j]; } }
+    for(int k = 1; k <= n; ++k) {
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) {
+                dp[i][j] |= dp[i][k] && dp[k][j];
+            }
+        }
+    }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cout << (dp[i][j] ? '1' : '0') << ' '; } std::cout << '\n'; }
+}
+```
+
+更进一步地，我们可以将`bool A[][]`视为`std::bitset<N_MAX+1> dp[]`。如果`dp[i][k] == true`，则`k`能到达任何位置，`i`也能到达，即`dp[i] |= dp[k]`。这样可以节省常数。
+
+```c++
+const int N_MAX = 100;
+int n; bool a_temp; std::bitset<N_MAX + 1> dp[N_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cin >> a_temp; dp[i][j] = a_temp; } }
+    for(int k = 1; k <= n; ++k) {
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) {
+                if(dp[i][k] == true) { dp[i] |= dp[k]; }
+            }
+        }
+    }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cout << (dp[i][j] ? '1' : '0') << ' '; } std::cout << '\n'; }
+}
+```
+
+> [洛谷P1119]()：给定一个包含`n<=200`个点和`m<=n(n+1)/2`条边的无向正边权图。现在每个点都有限时`t[1->n]`，只有当前时刻`t'>=t[i]`时第`i`个点才能走。给定`q<=50000`个查询`(u, v, t)`，表示第`t`时刻`u, v`两点之间的最短路径长度，若不存在路径则输出`-1`。
+
+本题的棘手点在于点的时间可见性，我们将其拆分成两个条件：`u, v`两点此时刻均可见、`u, v`两点此时刻存在一条路径。
+
+- 讨论后者：注意到这些点是随时间一个个出现的，因此可以视为Floyd算法的外层`for(k:1->n)`循环，问题转化为离线查询。
+- **讨论前者：注意到`dp[][]`初始时就已经储存了边，但是边的两侧端点此时不一定可见，因此需要加上这个判定条件**。
+
+```c++
+const int N_MAX = 200, M_MAX = N_MAX * (N_MAX + 1) / 2, Q_MAX = 50000;
+int n, m, q, t, k, k_ordered_cur = 1, k_ordered_next = 1, u_temp, v_temp; int64_t w_temp;
+struct Location { int i, t; } x[N_MAX + 1];
+struct Query { int i, t, x, y; int64_t ans; } query[Q_MAX + 1];
+int64_t dp[N_MAX + 1][N_MAX + 1];
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> m;
+    
+    for(int i = 1; i <= n; ++i) { x[i].i = i; std::cin >> x[i].t; } 
+    std::sort(x + 1, x + 1 + n, [](const Location &lhs, const Location &rhs){ return lhs.t < rhs.t; });
+    
+    std::fill(&(dp[0][0]), &(dp[N_MAX][N_MAX]) + 1, 1e18);
+    for(int i = 1; i <= n; ++i) { dp[i][i] = 0; }
+    for(int i = 1; i <= m; ++i) { std::cin >> u_temp >> v_temp >> w_temp; dp[u_temp + 1][v_temp + 1] = dp[v_temp + 1][u_temp + 1] = std::min(dp[u_temp + 1][v_temp + 1], w_temp); }
+
+    std::cin >> q;
+    for(int i = 1; i <= q; ++i) { query[i].i = i; std::cin >> query[i].x >> query[i].y >> query[i].t; ++query[i].x; ++query[i].y; }
+    std::sort(query + 1, query + 1 + q, [](const Query &lhs, const Query &rhs){ return lhs.t < rhs.t; });
+
+    for(int q_cur = 1; q_cur <= q; ++q_cur) {
+        while(k_ordered_next <= n && x[k_ordered_next].t <= query[q_cur].t) { ++k_ordered_next; } // 通过query[q_ind].t找出对应的k，即argmax_{k} x[k].t <= query[q_ind].t
+        for(; k_ordered_cur < k_ordered_next; ++k_ordered_cur) { // 处理[k_cur, k_next)内的地点
+            k = x[k_ordered_cur].i;
+            for(int i = 1; i <= n; ++i) {
+                for(int j = 1; j <= n; ++j) {
+                    dp[j][i] = dp[i][j] = std::min(dp[i][j], dp[i][k] + dp[k][j]);
+                }
+            }
+        }
+        query[q_cur].ans = dp[query[q_cur].x][query[q_cur].y];
+    }
+
+    std::sort(x + 1, x + 1 + n, [](const Location &lhs, const Location &rhs) { return lhs.i < rhs.i; });
+    std::sort(query + 1, query + 1 + q, [](const Query &lhs, const Query &rhs) { return lhs.i < rhs.i; });
+    for(int i = 1; i <= q; ++i) { std::cout << (x[query[i].x].t > query[i].t || x[query[i].y].t > query[i].t || query[i].ans == 1e18 ? -1 : query[i].ans) << '\n'; }
+    return 0;
+}
+```
+
+> [洛谷P6464](https://www.luogu.com.cn/problem/P6464)：给定一个由`n<=1e2`个点、`m<=n*(n-1)/2`条边构成的无向正边权图。现在允许再添加一条边权为`0`的边`(x -> y)`，令`dp_new[i][j]`表示再添加一条边权为`0`的边后，点`i`到点`j`的最短路径长度。求$\displaystyle\frac{1}{2}\min_{x, y\in\mathcal{V}}\sum_{(i, j)\in\mathcal{V}^2}\mathrm{dp\_new}[i][j]$。
+
+我们对原始图跑一遍完整的Floyd算法。随后暴力枚举新加的边的两侧点`(x,y)`，令`dp[x][y] = dp[y][x] = 0`，再运行一轮Floyd算法，令`dp[i][j] = std::min({dp[i][j], dp[i][x] + dp[y][j], dp[i][y] + dp[x][j]})`来使用这条新加的边。为了保证`dp[][]`下一次还能用，所以我们将上述操作均改为`dp_new[][]`，每轮Floyd之前，都从原始`dp[][]`获得拷贝副本。
+
+```c++
+const int N_MAX = 100, M_MAX = N_MAX * (N_MAX - 1);
+int n, m, u_temp, v_temp, w_temp, dp[N_MAX + 1][N_MAX + 1], dp_new[N_MAX + 1][N_MAX + 1], ans = INT32_MAX, ans_temp;
+
+int main() {
+    std::cin >> n >> m;
+    std::fill(&(dp[0][0]), &(dp[N_MAX][N_MAX]) + 1, 1e9);
+    for(int i = 1; i <= n; ++i) { dp[i][i] = 0; }
+    for(int i = 1; i <= m ; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        dp[u_temp][v_temp] = dp[v_temp][u_temp] = std::min(dp[u_temp][v_temp], w_temp);
+    }
+
+    for(int k = 1; k <= n; ++k) {
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) {
+                dp[i][j] = std::min(dp[i][j], dp[i][k] + dp[k][j]);
+            }
+        }
+    }
+    for(int x = 1; x <= n; ++x) {
+        for(int y = 1; y < x; ++y) {
+            std::copy(&(dp[0][0]), &(dp[N_MAX][N_MAX]) + 1, &(dp_new[0][0]));
+            dp_new[x][y] = dp_new[y][x] = 0;
+            for(int i = 1; i <= n; ++i) {
+                for(int j = 1; j <= n; ++j) { 
+                    dp_new[i][j] = std::min({dp_new[i][j], dp_new[i][x] + dp_new[y][j], dp_new[i][y] + dp_new[x][j]}); 
+                }
+            }
+            ans_temp = 0; for(int i = 1; i <= n; ++i) { for(int j = 1; j < i; ++j) { ans_temp += dp_new[i][j]; } }
+            ans = std::min(ans, ans_temp);
+        }
+    }
+    std::cout << ans;
 }
 ```
 
@@ -18541,6 +18981,64 @@ int main() {
     }
 }
 ```
+
+> [洛谷P6858](https://www.luogu.com.cn/problem/P6858)：初始时A箱中有`n<=1e14`个球，B箱中有`m<=1e6`个球。每回合随机从全体球中等可能的选中一个球，若在A箱，则把B箱所有球放入A箱，将选中球放入B箱；若在B箱，则删除这个球。如果要最终删除所有球，求回合数的期望值，分数模`998244353`输出。
+
+令$f(n, m)$表示所求期望值，由题意易得$f(n, m) = \displaystyle\frac{n}{n+m}f(n+m-1, 1) + \frac{m}{n+m}f(n, m-1) + 1$，显然$\begin{cases}f(0,0)=0\\f(0,1)=1\end{cases}$注意到这个递推式中只有`m`在减小，这就是我们的突破口。
+
+给`m`赋特殊值：
+
+$$
+\begin{align}
+	m=0时, f(n, 0) & = f(n-1, 1) + 1 \\
+	m=1时, f(n, 1) & = \frac{n}{n+1}f(n, 1) + \frac{1}{n+1}f(n, 0) + 1 \\
+		& = \frac{n}{n+1}f(n, 1) + \frac{1}{n+1}(f(n-1, 1) + 1) + 1 \\
+	整理得到f(n,1) & = f(n-1, 1) + n + 2 \\
+	两侧同时求和得到f(n,1) & = \sum_{n=1}^{n}(n+2) + f(0, 1) = \sum_{n=1}^{n}(n+2) + f(0, 1) = \frac{n(n+5)}{2} + 1 \\
+	带回m=0情况得f(n,0) & = \frac{(n-1)(n+4)}{2} + 2
+\end{align}
+$$
+
+综上所述：
+
+$$
+f(n, m) = \begin{cases}
+	\displaystyle\frac{(n-1)(n+4)}{2} + 2 & , m = 0 \\
+	\displaystyle\frac{n(n+5)}{2} + 1 & , m = 1 \\
+	\displaystyle\frac{n}{n+m}f(n+m-1, 1) + \frac{m}{n+m}f(n, m-1) + 1 & , m \ge 2
+\end{cases}
+$$
+
+于是只需对`m`遍历即可。**注意`n<=1e14`，所以在$n^2$时就会溢出，要及时取模**！下面是一个常数较大的递归算法：
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+
+const int64_t N_MAX = 1e14, M_MAX = 1e6, MOD = 998244353;
+int64_t n, m;
+int64_t f(int64_t n, int64_t m) {
+    if(m == 0) { return (f(n - 1, 1) + 1) % MOD; }
+    if(m == 1) { return ((n % MOD) * ((n + 5) % MOD) / 2 + 1) % MOD; }
+    return ((frac_mod(n, n + m, MOD) * f(n + m - 1, 1)) % MOD + (frac_mod(m, n + m, MOD) * f(n, m - 1)) % MOD + (1)) % MOD;
+}
+int main() {
+    std::cin >> n >> m;
+    std::cout << f(n, m);
+}
+```
+
+递归的时间常数较大。我们也可以先算出`f(n, 0)`的值，再使用递推式按顺序求出`f(n, 0->m)`的值。本题略。
 
 ## §8.6 组合与期望
 
