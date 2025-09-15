@@ -11574,6 +11574,310 @@ int main() {
 }
 ```
 
+> [洛谷P1875](https://www.luogu.com.cn/problem/P1875)：给定`n<=1e3`种物品及其售价`dp_cost[]`。现在给定`m<=1e5`条合成关系，每条合成关系表示一个第`u1`种物品加一个第`u2`种物品可以合成一个第`v`种物品。现在要得到第`1`种物品，求得到第`1`种物品的最低成本，以及对应的合成方式数量。
+
+令第`dp_cost[i]`表示得到第`i`种物品的最低成本、`dp_cnt[i]`表示得到第`i`种物品的最低成本对应的合成方式数量、`dp_vis[i]`表示`dp_cost[i]`是否更新完毕。很容易写出DP状态转移方程：对于一个合成关系`(u1+u2 -> v)`，存在`dp_cost[v] = std::min(dp_cost[v], dp_cost[u1] + dp_cost[u2])`。然而，这要求`dp_vis[u1] == dp_vis[u2] == true`，如何保证这个要求呢？
+
+我们的对策是：使用一个小根堆优先队列`queue`，初始时存储所有的`{i, dp_cost[i]}`。我们先取出其中的两个值，它们一定是最便宜的获取方式，因为其它的合成方式都需要用到更贵的物品。在代码实现上，我们将合成关系`(u1+u2 -> v)`拆分成两条有向边`(u1 -> v): u2`、`(u2 -> v): u1`。如果`point.w > dp_cost[u1]`，则说明存在比`point = {u1, w}`对应的方案更便宜的方案`dp_cost[u1]`。
+
+为了统计`dp_cost[]`，我们不认为自己与自己合成自己存在两条有向边，而是只计入一条有向边。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e5 * 2; const int64_t INF = 1e18;
+int n, m, u1, u2, v; int64_t dp_cost[N_MAX + 1], dp_cnt[N_MAX + 1]; bool dp_vis[N_MAX + 1];
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue([](const Point &child, const Point &root){ return child.w > root.w; });
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_craft[M_MAX + 1];
+inline void edge_add(const int &u1, const int &u2, const int &v) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u1];
+    edge_first[u1] = edge_count;
+    edge_to[edge_count] = u2;
+    edge_craft[edge_count] = v;
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> dp_cost[i]; }
+    while(std::cin >> u1 >> u2 >> v) { ++u1; ++u2; ++v; edge_add(u1, u2, v); if(u1 != u2) { edge_add(u2, u1, v); } }
+
+    for(int i = 1; i <= n; ++i) { queue.push({i, dp_cost[i]}); dp_cnt[i] = 1; }
+    while(!queue.empty()) {
+        Point point = queue.top(); queue.pop();
+        u1 = point.u;
+        if(point.w > dp_cost[u1]) { continue; } // 之所以不在==的时候也continue，是因为要统计dp_cnt[]
+        dp_vis[u1] = true;
+        for(int i = edge_first[u1]; i != 0; i = edge_next[i]) {
+            u2 = edge_to[i]; v = edge_craft[i];
+            if(dp_vis[u2] == false) { continue; }
+            if(dp_cost[v] > dp_cost[u1] + dp_cost[u2]) { 
+                dp_cost[v] = dp_cost[u1] + dp_cost[u2];
+                dp_cnt[v] = dp_cnt[u1] * dp_cnt[u2];
+                queue.push({v, dp_cost[v]});
+            } else if(dp_cost[v] == dp_cost[u1] + dp_cost[u2]) {
+                dp_cnt[v] += dp_cnt[u1] * dp_cnt[u2];
+            }
+        }
+    }
+    std::cout << dp_cost[1] << ' ' << dp_cnt[1];
+}
+```
+
+#### §6.5.1.1 分层图最短路
+
+> [洛谷P4568](https://www.luogu.com.cn/problem/P4568)：给定一个由`n<=1e4`个点、`m<=5e4`条边的无向正边权**重边**图。现允许至多选中`l<=10`条边，将它们的边权重置为`0`。求起点`start`到终点`end`的最短路径长度。
+
+分层图板子题。令`dp[u + i*n]`表示从点`start`出发，选中了`i`条边重置边权为`0`，到达终点`u`的最短路径长度。由`i∈[0, l]`可以划分成`l+1`层图，每一层的点数量均为`n`，边关系如下所示：
+
+1. 层内双向边。`(u + i*n) -> (v + i*n)`与`(v + i*n) -> (u + i*n)`，边权为`w`。
+2. 层间单向边。`(u + (i-1)*n) -> (v + i*n)`与`(v + (i-1)*n) -> (u + i*n)`，边权为`0`。
+
+注意：我们不一定需要使用完全部的`l`次边权重置机会，就能找到最短路径。这时最短路径为`i∈[1, l], dp[end + i*n]`的最小值。另一种解决方案是额外建立`(end + (i-1)*n) -> (end + i*n)`的单向边，然后直接输出`dp[end + l*n]`，这种方法需要额外提供`l`条边的存储空间。
+
+```c++
+constexpr int N_INIT_MAX = 1e4, M_INIT_MAX = 5e4, L_MAX = 10;
+constexpr int N_MAX = N_INIT_MAX * (L_MAX + 1), M_MAX = (M_INIT_MAX * (L_MAX + 1) + M_INIT_MAX * L_MAX) * 2;
+int n, m, l, start, end, u_temp, v_temp; int64_t w_temp, dp[M_MAX + 1], ans; bool vis[N_MAX + 1];
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return root.w < child.w; });
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+
+    std::cin >> n >> m >> l >> start >> end; ++start; ++end;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp; ++u_temp; ++v_temp;
+        for(int j = 0; j <= l; ++j) { edge_add(u_temp + j * n, v_temp + j * n, w_temp); edge_add(v_temp + j * n, u_temp + j * n, w_temp); }
+        for(int j = 1; j <= l; ++j) { edge_add(u_temp + (j - 1) * n, v_temp + j * n, 0); edge_add(v_temp + (j - 1) * n, u_temp + j * n, 0); }
+    }
+
+    std::fill(dp + 1, dp + 1 + N_MAX, 1e18); dp[start] = 0;
+    queue.push({start, 0});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        if(vis[u] == true) { continue; } vis[u] = true;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            dp[v] = std::min(dp[v], dp[u] + edge_weight[i]);
+            if(vis[v] == false) { queue.push({v, dp[v]}); }
+        }
+    }
+
+    ans = 1e18;
+    for(int i = 0; i <= l; ++i) { ans = std::min(ans, dp[end + i * n]); }
+    std::cout << ans;
+}
+```
+
+> [洛谷P1073](https://www.luogu.com.cn/problem/P1073)：给定一个由`n<=1e5`个点、`2m<=1e6`条边构成的有向点权图。从起点`1`出发到终点`n`。`vertex_weight[i]`（即$w[i]$）表示商品在点`i`个价格，允许各进行一次买卖赚取差价，求差价最大值。形式化地，令$P$表示从起点`1`到终点`n`的路径集合，求$\displaystyle\max_{\forall i<j, i,j\in p, \forall p\in P}(w[j]-w[i])$。
+
+我们为分层图定义三个状态：`dp[0][]`表示尚未购买，`dp[1][]`表示已经购买，`dp[2][]`表示已经售出。于是分层图之间的边关系为：
+
+- 层内边：收入没有任何变动，因此`(u + i*n) -> (v + i*n)`的边权为`0`。
+- 层外边：收入有变动，`dp[0][u] -> dp[1][u]`点权为`-w[i]`，表示在此处购买。`dp[1][u] -> dp[2][u]`点权为`w[i]`，表示在此处售出。
+
+本题要求这个分层图的最长路。使用Dijkstra算法求最长路即可。
+
+```c++
+constexpr int N_INIT_MAX = 1e5, M_INIT_MAX = 5e5, L_MAX = 3, N_MAX = N_INIT_MAX * L_MAX, M_MAX = (M_INIT_MAX * L_MAX + N_INIT_MAX * (L_MAX - 1)) * 2;
+int n, m, u_temp, v_temp, w_temp, l = 3, vertex_weight[N_MAX + 1], dp[N_MAX + 1];
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> vertex_weight[i]; }
+    for(int i = 1; i <= m; ++i) { 
+        std::cin >> u_temp >> v_temp >> w_temp;
+        if(w_temp == 1) { for(int i = 0; i < l; ++i) { edge_add(u_temp + i * n, v_temp + i * n, 0); } }
+        if(w_temp == 2) { for(int i = 0; i < l; ++i) { edge_add(u_temp + i * n, v_temp + i * n, 0); edge_add(v_temp + i * n, u_temp + i * n, 0); } }
+    }
+    for(int i = 1; i <= n; ++i) {
+        edge_add(i, i + n, +vertex_weight[i]);
+        edge_add(i + n, i + 2 * n, -vertex_weight[i]);
+    }
+
+    std::fill(dp + 1, dp + 1 + N_MAX, 1e9); dp[1] = 0;
+    queue.push({1, 0});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(dp[v] > dp[u] + edge_weight[i]) {
+                dp[v] = dp[u] + edge_weight[i];
+                queue.push({v, dp[v]});
+            }
+        }
+    }
+
+    std::cout << std::max(0, -dp[n + (l - 1) * n]);
+}
+```
+
+#### §6.5.1.2 同余最短路
+
+> [洛谷P3403](https://www.luogu.com.cn/problem/P3403)：给定正系数`a[1->k=3]={x,y,z}<=1e5`以及关于$x_1,x_2,x_3$的`k=3`元一次线性方程$\displaystyle\sum_{i=1}^{k}a_i x_i = b$。求有多少个$b\in[0, t]\subseteq \mathbb{N}$，使得该方程存在自然数解。
+
+注意到：如果`b = i`时有解，那么`b = i+kx`、`b = i+ky`，`b = i+kz`（`k`为自然数）时均有解。将所有自然数`b`按模`x`意义分成`x`组，上面的^r结论可改写成存在对应的带权有向边：`(i -> (i+x)%x): x`、`(i -> (i+y)%x): y`、`(i -> (i+z)%x): z`。令`dp[i]`表示模`x`为`i`的、最小的、能让解存在的`b`值，显然$\{x_i\}_{i=1}^{N}=0$对应着初始值`dp[0] = 0`，其余`dp[1->x-1]`初始时均为正无穷。求解最短路后，对于$\forall i\in[0, x-1]$，如果`dp[i] <= t`，则存在$\displaystyle\lceil\frac{t - \mathrm{dp}[i] + 1}{x}\rceil$个满足$b\equiv i\mod x$的`b`值。**这是因为在`[0, t]`区间中，`b=0`一定有解，而`b=t`不一定有解，因此让区间`[0, t]`的右端点自增`x`一定会导致新产生一个符合条件的`b`值，自减`x`也一定会导致减少一个符合条件的`b`值，因此我们只需用区间中的数字数量，除以`x`后向上取整，就是所求的答案**。
+
+对`i`进行遍历，求出$\displaystyle\sum_{i\in[0, x-1]\wedge t \ge \mathrm{dp}[i]}\lceil\frac{t - \mathrm{dp}[i] + 1}{x}\rceil$即可。
+
+```c++
+const int X_MAX = 1e5, N_MAX = X_MAX, M_MAX = 3 * N_MAX;
+int x, y, z; int64_t h, dp[N_MAX + 1], ans;
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
+int main() {
+    std::cin >> h >> x >> y >> z; --h;
+    for(int i = 0; i < x; ++i) {
+        edge_add(i, (i + x) % x, x);
+        edge_add(i, (i + y) % x, y);
+        edge_add(i, (i + z) % x, z);
+    }
+    
+    std::fill(dp, dp + x, 1e18); dp[0] = 0;
+    queue.push({0, dp[0]});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(dp[v] > dp[u] + edge_weight[i]) {
+                dp[v] = dp[u] + edge_weight[i];
+                queue.push({v, dp[v]});
+            }
+        }
+    }
+
+    for(int i = 0; i < x; ++i) { ans += (h >= dp[i] ? (h - dp[i]) / x + 1 : 0); }
+    std::cout << ans;
+}
+```
+
+> [洛谷P2371](https://www.luogu.com.cn/problem/P2371)：给定正系数`a[1->k<=12]<=5e5`以及关于$x_1,x_2,\cdots,x_k$的`k`元一次线性方程$\displaystyle\sum_{i=1}^{k}a_i x_i = b$。求有多少个$b\in[l, r]\subseteq \mathbb{N}$，使得该方程存在自然数解。
+
+本题与[洛谷P3403](https://www.luogu.com.cn/problem/P3403)相似。最后只需求$\displaystyle\sum_{i\in[0, r]\wedge r \ge \mathrm{dp}[i]}\lceil\frac{r - \mathrm{dp}[i] + 1}{x}\rceil - \displaystyle\sum_{i\in[0, l-1]\wedge (l-1) \ge \mathrm{dp}[i]}\lceil\frac{(l - 1) - \mathrm{dp}[i] + 1}{x}\rceil$即可。
+**注意：这里我们不能写成$\displaystyle\sum_{i\in[0, x-1]\wedge r \ge \max(\mathrm{dp}[i], l)}\lceil\frac{r - \max(\mathrm{dp}[i], l) + 1}{x}\rceil$，这是因为`b=0`一定有解，但是`b=l`和`b=r`不一定有解，所以无法保证区间`[l, r]`的右端点自增`a[1]`一定会导致新产生一个符合条件的`b`值，也无法保证自减`a[1]`也一定会导致减少一个符合条件的`b`值，于是无法通过区间包含的数字数量来直接计算**。
+
+```c++
+const int K_MAX = 12, A_MAX = 5e5, N_MAX = A_MAX, M_MAX = K_MAX * N_MAX;
+int k, a[K_MAX + 1]; int64_t l, r, dp[N_MAX + 1], ans;
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
+int main() {
+    std::cin >> k >> l >> r;
+    for(int i = 1; i <= k; ++i) { std::cin >> a[i]; }
+    for(int i = 0; i < a[1]; ++i) { for(int j = 1; j <= k; ++j) { edge_add(i, (i + a[j]) % a[1], a[j]); }  }
+    
+    std::fill(dp, dp + A_MAX, 1e18); dp[0] = 0;
+    queue.push({0, dp[0]});
+    while(queue.empty() == false) {
+        Point point = queue.top(); queue.pop();
+        int u = point.u;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            if(dp[v] > dp[u] + edge_weight[i]) {
+                dp[v] = dp[u] + edge_weight[i];
+                queue.push({v, dp[v]});
+            }
+        }
+    }
+
+    for(int i = 0; i < a[1]; ++i) { ans += (r >= dp[i] ? (r - dp[i]) / a[1] + 1 : 0); }
+    for(int i = 0; i < a[1]; ++i) { ans -= ((l-1) >= dp[i] ? ((l-1) - dp[i]) / a[1] + 1 : 0); }
+    std::cout << ans;
+}
+```
+
+#### §6.5.1.3 次短路/`k`短路
+
+> [洛谷P2865](https://www.luogu.com.cn/problem/P2865)：给定一个由`n<=5e3`个点、`m<=1e5`条无向边构成的无向正边权图。求从起点`1`到终点`n`的严格次短路的长度。**路径允许重复地经过同一个点**。
+
+仍然使用Dijkstra算法，但是小根堆优先队列`std::queue<struct Point {int u; int64_t w;}>`存储的值表示一条从`1->point.i`的新路径，它可能是最短或严格次短路径。也就是说，我们的DP状态转移方程不再为`dp[v][0] = std::min(dp[v][0], dp[u][0] + edge_weight[i]`，而是`dp[v][0] = std::min(dp[v][0], point.w + edge_weight[i]`。
+
+具体来说，我们要看这条从`1`到达`v`新路径（`1 -> u -> v`）`point.w + egde_weight[i]`在`(-∞, dp[v][0])`、`(dp[v][0], dp[v][1])`、`[dp[v][1], +∞)`中的哪个区间。用这条新路径的长度来更新`1 -> v`的最短路`dp[v][0]`或严格次短路`dp[v][1]`。如果最短路或严格次短路被更新，那么就把对应的新路径长度添加到优先队列中。
+
+```c++
+const int N_MAX = 5e3, M_MAX = 1e5 * 2; const int64_t INF = 1e18;
+int n, m, u, v; int64_t w, dp[N_MAX + 1][2];
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue([](const Point &child, const Point &root){ return child.w > root.w; });
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> u >> v >> w; edge_add(u, v, w); edge_add(v, u, w); }
+
+    std::fill(&(dp[0][0]), &(dp[N_MAX][2]) + 1, INF); dp[1][0] = 0;
+    queue.push({1, dp[1][0]});
+    while(!queue.empty()) {
+        Point point = queue.top(); queue.pop();
+        u = point.u;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            v = edge_to[i];
+            if(dp[v][0] > point.w + edge_weight[i]) {
+                dp[v][1] = dp[v][0];
+                dp[v][0] = point.w + edge_weight[i];
+                queue.push({v, dp[v][0]});
+            } else if(dp[v][1] > point.w + edge_weight[i] && point.w + edge_weight[i] > dp[v][0]) {
+                dp[v][1] = point.w + edge_weight[i];
+                queue.push({v, dp[v][1]});
+            }
+        }
+    }
+    
+    std::cout << dp[n][1];
+}
+```
+
 ### §6.5.2 Floyd算法
 
 > [洛谷B3611](https://www.luogu.com.cn/problem/B3611)：给定一个由`n<=100`个点构成的有向图$\mathcal{G}$的布尔有向边邻接矩阵$\mathbf{A}$，求$\mathcal{G}$的传递闭包（即可达性矩阵）。特殊地：不认为一个节点天生对自己可达。
@@ -11708,23 +12012,132 @@ int main() {
 }
 ```
 
-### §6.5.3 分层图最短路
+> [洛谷P2419](https://www.luogu.com.cn/problem/P2419)：给定`n`个点及其`m`条严格偏序关系，请问能确定多少个点在这`n`个点中的具体排名位次？
 
-> [洛谷P4568](https://www.luogu.com.cn/problem/P4568)：给定一个由`n<=1e4`个点、`m<=5e4`条边的无向正边权**重边**图。现允许至多选中`l<=10`条边，将它们的边权重置为`0`。求起点`start`到终点`end`的最短路径长度。
-
-分层图板子题。令`dp[u + i*n]`表示从点`start`出发，选中了`i`条边重置边权为`0`，到达终点`u`的最短路径长度。由`i∈[0, l]`可以划分成`l+1`层图，每一层的点数量均为`n`，边关系如下所示：
-
-1. 层内双向边。`(u + i*n) -> (v + i*n)`与`(v + i*n) -> (u + i*n)`，边权为`w`。
-2. 层间单向边。`(u + (i-1)*n) -> (v + i*n)`与`(v + (i-1)*n) -> (u + i*n)`，边权为`0`。
-
-注意：我们不一定需要使用完全部的`l`次边权重置机会，就能找到最短路径。这时最短路径为`i∈[1, l], dp[end + i*n]`的最小值。另一种解决方案是额外建立`(end + (i-1)*n) -> (end + i*n)`的单向边，然后直接输出`dp[end + l*n]`，这种方法需要额外提供`l`条边的存储空间。
+这道题需要我们敏锐地注意到：确定点`i`在这`n`个点中的具体排名位次，**等价于知道有多少个点小于或大于当且点`i`**。令`u -> v`表示`u < v`，于是使用Floyd算法求出连通性矩阵`bool dp[][]`，若`dp[i][1->n]`均为`true`，则表示知道其余`n-1`个点与当前点`i`的大小关系。
 
 ```c++
-constexpr int N_INIT_MAX = 1e4, M_INIT_MAX = 5e4, L_MAX = 10;
-constexpr int N_MAX = N_INIT_MAX * (L_MAX + 1), M_MAX = (M_INIT_MAX * (L_MAX + 1) + M_INIT_MAX * L_MAX) * 2;
-int n, m, l, start, end, u_temp, v_temp; int64_t w_temp, dp[M_MAX + 1], ans; bool vis[N_MAX + 1];
+const int N_MAX = 1e2, M_MAX = 4.5e3;
+int n, m, u, v, ans; bool dp[N_MAX + 1][N_MAX + 1], ans_temp;
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { dp[i][i] = 1; }
+    for(int i = 1; i <= m; ++i) { std::cin >> u >> v; dp[u][v] = 1; }
+    for(int k = 1; k <= n; ++k) {
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) {
+                dp[i][j] |= dp[i][k] && dp[k][j];
+            }
+        }
+    }
+    for(int i = 1; i <= n; ++i) {
+        ans_temp = true;
+        for(int j = 1; j <= n; ++j) { ans_temp &= (dp[i][j] || dp[j][i]); }
+        if(ans_temp) { ans += 1; }
+    }
+    std::cout << ans;
+}
+```
 
-int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
+> [洛谷P2047](https://www.luogu.com.cn/problem/P2047)：给定一个由`n<=1e2`个点、`m<=4.5e3`条无向边构成的无向正边权**无环**图。令$C_{i, j}$表示从点`i`到点`j`的最短路径有多少条，$C_{i,j}(k)$表示从点`i`到点`j`的最短路径中有多少条经过点`k`。对于所有`k: 1->n`，求$f(k)=\displaystyle\sum_{\forall i, j \neq k}\frac{C_{i,j}(k)}{C_{i,j}}$的值，结果保留三位小数。
+
+先求$C_{i,j}$，我们用`dp_cnt[i][j]`表示。这个值可以在Floyd算法中维护：
+
+- 如果`dp_dis[i][j] > dp_dis[i][k] + dp_dis[k][j]`，则`dp_cnt[i][j]`被重置为`dp_cnt[i][k] * dp_cnt[k][j]`。
+- 如果`dp_dis[i][j] == dp_dis[i][k] + dp_dis[k][j]`，则`dp_cnt[i][j]`自增`dp_cnt[i][k] * dp_cnt[k][j]`。
+- `dp_dis[i][j] < dp_dis[i][k] + dp_dis[k][j]`，无需更新。
+
+然后求$\sum C_{i,j}(k)$。**如果`dp_dis[i][j] == dp_dis[i][k] + dp_dis[k][j]`，则`k`一定在`i`到`j`的最短路径上**，利用这个结论即可计算$C_{i,j}(k) = \mathrm{dp\_cnt}[i][k] \times \mathrm{dp\_cnt}[k][j]$。
+
+```c++
+const int N_MAX = 1e2, M_MAX = 4.5e3; const int64_t INF = 1e18;
+int n, m, u, v; int64_t w;
+int64_t dp_dis[N_MAX + 1][N_MAX + 1], dp_cnt[N_MAX + 1][N_MAX + 1]; double dp_ans[N_MAX + 1];
+int main() {
+    std::cin >> n >> m;
+    std::fill(&(dp_dis[0][0]), &(dp_dis[N_MAX][N_MAX]), INF);
+    for(int i = 1; i <= n; ++i) { dp_dis[i][i] = 0; } // 需要默认保证dp_cnt[i][i] = 0;
+    for(int i = 1; i <= m; ++i) { std::cin >> u >> v >> w; dp_dis[u][v] = dp_dis[v][u] = w; dp_cnt[u][v] = dp_cnt[v][u] = 1; }
+    
+    for(int k = 1; k <= n; ++k) {
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) {
+                if(i == k || j == k) { continue; } // 只统计i->j路径中的真正中间节点
+                if(dp_dis[i][j] > dp_dis[i][k] + dp_dis[k][j]) {
+                    dp_dis[i][j] = dp_dis[i][k] + dp_dis[k][j];
+                    dp_cnt[i][j] = dp_cnt[i][k] * dp_cnt[k][j];
+                } else if(dp_dis[i][j] == dp_dis[i][k] + dp_dis[k][j]) {
+                    dp_cnt[i][j] += dp_cnt[i][k] * dp_cnt[k][j];
+                }
+            }
+        }
+    }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= n; ++j) {
+            for(int k = 1; k <= n; ++k) {
+                if(i == k || j == k) { continue; } // 只统计i->j路径中的真正中间节点
+                if(dp_dis[i][j] == dp_dis[i][k] + dp_dis[k][j]) {
+                    dp_ans[k] += (double)(dp_cnt[i][k] * dp_cnt[k][j]) / dp_cnt[i][j];
+                }
+            }
+        }
+    }
+    for(int i = 1; i <= n; ++i) { std::cout << std::fixed << std::setprecision(3) << dp_ans[i] << '\n'; }
+}
+```
+
+### §6.5.3 Bellman-Ford算法+SPFA
+
+对于一条边`(u -> v): w`，我们可以用这条边来更新`dp[v] = std::min(dp[v], dp[u] + w)`，称为一次松弛（Relaxation）操作。对所有的`m`边都进行一次松弛操作，称为一轮松弛操作，**如果`dp[v]`被更新，则意味着从起点到`v`的最短路的边数量又增加了一个**。显然任意两点之间如果存在最短路，则最短路的路径包含的边数一定小于等于`n-1`。基于这个结论，我们只需进行`n-1`轮松弛操作即可。边遍历的顺序无任何要求。于是，我们要遍历$O(n-1)$轮，每轮要松弛$O(m)$条点，因此时间复杂度为$O(nm)$。
+
+```c++
+std::fill(dp + 1, dp + 1 + n, 1e18); dp[1] = 0;
+for(int i = 1; i <= n; ++i) {
+	is_relaxed = false;
+	for(int u = 1; u <= n; ++u) { for(int j = edge_first[u]; j != 0; j = edge_next[j]) { // 遍历所有边
+		v = edge_to[j];
+		if(dp[u] == 1e18) { continue; } // 防止负边权w造成+∞ > +∞ + w
+		if(dp[v] > dp[u] + edge_weight[j]) {
+			is_relaxed |= true;
+			dp[v] = dp[u] + edge_weight[j];
+		}
+	} }
+}
+```
+
+这样的时间复杂度实在太大，下面介绍一种常数优化的SPFA算法。注意到只有`dp[v] = std::min(dp[v], dp[u] + w)`被更新为新的最小值时，`v ->`的出边才有遍历的意义，因此我们可以维护一个队列，当`dp[v]`被更新时就把`v`放到队列中，同时维护`visited[v]`表示`v`当前是否在队列中，防止`v`被重复加入队列。同时维护`path_edge_count[v] = path_edge_count[u] + 1`，表示从起点到点`v`的最短路上的边的数量。当`path_edge_count[u] >= n`时出现负环，直接剪枝即可。**最坏情况下，SPFA的时间复杂度仍然为$O(nm)$**。
+
+```c++
+dp[1] = 0; queue.push(1); visited[1] = true;
+while(!queue.empty()) {
+	u = queue.front(); queue.pop(); visited[u] = false;
+	for(int j = edge_first[u]; j != 0; j = edge_next[j]) {   
+		v = edge_to[j];
+		if(dp[u] == 1e18) { continue; } // 防止负边权w造成+∞ > +∞ + w
+		if(dp[v] > dp[u] + edge_weight[j]) {
+			dp[v] = dp[u] + edge_weight[j];
+			// 这里不能使用path_edge_count[v] = path_edge_count[u] + 1，这是因为SPFA的边遍历不稳定，可能会出现path_ege_count[u]缩小后，导致path_egde_count[v]不同步更新的情况
+			if(++vertex_relax_count[v] >= n) { is_negring_exists = true; break; }
+			if(!visited[v]) { queue.push(v); visited[v] = true;  }
+		}
+	}
+	if(is_negring_exists) { break; }
+}
+```
+
+#### §6.5.3.1 负环
+
+负环指的是环上各边权相加为负数的环。
+
+> [洛谷P3385](https://www.luogu.com.cn/problem/P3385)：完成`q<=10`组任务。给定一个由`n<=2e3`个点、和`2m<=6e3`条边的边权有向图，边权可正可负。请问从点`1`出发能否遇到负环？
+
+显然任意两点之间如果存在最短路，则最短路的路径包含的边数一定小于等于`n-1`。基于这个结论，如果在第`n`轮松弛操作中仍有最短路`dp[]`被更新，则一定存在负环。
+
+```c++
+const int Q_MAX = 10, N_MAX = 2e3, M_MAX = 3e3 * 2;
+int q, n, m, u, v; int64_t w, dp[N_MAX + 1]; bool is_relaxed;
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
 inline void edge_add(const int &u, const int &v, const int64_t &w) {
     ++edge_count;
     edge_next[edge_count] = edge_first[u];
@@ -11733,52 +12146,53 @@ inline void edge_add(const int &u, const int &v, const int64_t &w) {
     edge_weight[edge_count] = w;
 }
 
-struct Point { int u; int64_t w; };
-std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return root.w < child.w; });
 int main() {
-    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
-
-    std::cin >> n >> m >> l >> start >> end; ++start; ++end;
-    for(int i = 1; i <= m; ++i) {
-        std::cin >> u_temp >> v_temp >> w_temp; ++u_temp; ++v_temp;
-        for(int j = 0; j <= l; ++j) { edge_add(u_temp + j * n, v_temp + j * n, w_temp); edge_add(v_temp + j * n, u_temp + j * n, w_temp); }
-        for(int j = 1; j <= l; ++j) { edge_add(u_temp + (j - 1) * n, v_temp + j * n, 0); edge_add(v_temp + (j - 1) * n, u_temp + j * n, 0); }
-    }
-
-    std::fill(dp + 1, dp + 1 + N_MAX, 1e18); dp[start] = 0;
-    queue.push({start, 0});
-    while(queue.empty() == false) {
-        Point point = queue.top(); queue.pop();
-        int u = point.u;
-        if(vis[u] == true) { continue; } vis[u] = true;
-        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
-            int v = edge_to[i];
-            dp[v] = std::min(dp[v], dp[u] + edge_weight[i]);
-            if(vis[v] == false) { queue.push({v, dp[v]}); }
+    std::cin >> q;
+    while(q--) {
+        std::cin >> n >> m;
+        edge_count = 0; std::fill(edge_first + 1, edge_first + 1 + n, 0);
+        for(int i = 1; i <= m; ++i) {
+            std::cin >> u >> v >> w;
+            edge_add(u, v, w);
+            if(w >= 0) { edge_add(v, u, w); }
         }
-    }
 
-    ans = 1e18;
-    for(int i = 0; i <= l; ++i) { ans = std::min(ans, dp[end + i * n]); }
-    std::cout << ans;
+        std::fill(dp + 1, dp + 1 + n, 1e18); dp[1] = 0;
+        for(int i = 1; i <= n; ++i) {
+            is_relaxed = false;
+            for(int u = 1; u <= n; ++u) { for(int j = edge_first[u]; j != 0; j = edge_next[j]) { // 遍历所有边
+                v = edge_to[j];
+                if(dp[u] == 1e18) { continue; } // 防止负边权w造成+∞ > +∞ + w
+                if(dp[v] > dp[u] + edge_weight[j]) {
+                    is_relaxed |= true;
+                    dp[v] = dp[u] + edge_weight[j];
+                }
+            } }
+        }
+        std::cout << (is_relaxed ? "YES" : "NO") << '\n';
+    }
 }
 ```
 
-> [洛谷P1073](https://www.luogu.com.cn/problem/P1073)：给定一个由`n<=1e5`个点、`2m<=1e6`条边构成的有向点权图。从起点`1`出发到终点`n`。`vertex_weight[i]`（即$w[i]$）表示商品在点`i`个价格，允许各进行一次买卖赚取差价，求差价最大值。形式化地，令$P$表示从起点`1`到终点`n`的路径集合，求$\displaystyle\max_{\forall i<j, i,j\in p, \forall p\in P}(w[j]-w[i])$。
+> 给定一个由`n`个点、和`m`条边的边权有向图，边权可正可负。请问**整个图**是否存在负环？
 
-我们为分层图定义三个状态：`dp[0][]`表示尚未购买，`dp[1][]`表示已经购买，`dp[2][]`表示已经售出。于是分层图之间的边关系为：
+我们假设一个超级源点`0`，它指向`1->n`的所有节点，额外产生`n`条边权为`0`的有向边。**问题转化为从点`0`出发能否遇到负环**。代码略。
 
-- 层内边：收入没有任何变动，因此`(u + i*n) -> (v + i*n)`的边权为`0`。
-- 层外边：收入有变动，`dp[0][u] -> dp[1][u]`点权为`-w[i]`，表示在此处购买。`dp[1][u] -> dp[2][u]`点权为`w[i]`，表示在此处售出。
+#### §6.5.3.2 差分约束
 
-本题要求这个分层图的最长路。使用Dijkstra算法求最长路即可。
+> [洛谷P5960](https://www.luogu.com.cn/problem/P5960)：给定`m<=5e3`组$(u, v)\in[1, n]^2\subset (\mathbb{N}^+)^2$，构成关于$x_1, x_2, \cdots, x_n$的`n<=5e3`元一次不等式组$\{x_{v_i}-x_{u_i}\le w_i\}_{i=1}^{m}$，其中$|w_i|\le 5000$。求该不等式组的任意一组整数解$(x_1, x_2, \cdots, x_n)$，若不存在则输出`NO`。
+
+$x_{v_i}-x_{u_i}\le w_i$可以转换成$x_{v_i}\le x_{u_i} + w_i$，这正是最短路最终状态`dp[]`满足的不等式`dp[v] <= dp[u] + w[u->v]`，于是这个问题转化为`(u_i -> v_i): w_i`的有向图求解最短路，最后的最短路长度数组`dp[1->n]`即为$(x_1, x_2, \cdots, x_n)$。
+
+由于边权可正可负，所以我们需要使用Bellman-Ford算法或SPFA算法。**我们还要判断这个不等式组是否有解，对应原图是否存在负环**。于是我们设置一个超级源点`0`，它形成了`(0 -> i∈[1,n]): 0`的`n`条有向边，问题转化为从点`0`开始出发能否遇到负环。由于超级源点的存在，图中总共有`n+1`个点，因此负环的判定条件也要改成`++vertex_relax_count[v] >= n + 1`。
 
 ```c++
-constexpr int N_INIT_MAX = 1e5, M_INIT_MAX = 5e5, L_MAX = 3, N_MAX = N_INIT_MAX * L_MAX, M_MAX = (M_INIT_MAX * L_MAX + N_INIT_MAX * (L_MAX - 1)) * 2;
-int n, m, u_temp, v_temp, w_temp, l = 3, vertex_weight[N_MAX + 1], dp[N_MAX + 1];
+const int N_MAX = 5e3, M_MAX = 5e3 + N_MAX;
+int n, m, u, v; int64_t w, dp[N_MAX + 1]; bool visited[N_MAX + 1]; int vertex_relax_count[N_MAX + 1];
+std::queue<int> queue; bool is_negring_exist = false;
 
-int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
-inline void edge_add(const int &u, const int &v, const int &w) {
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
     ++edge_count;
     edge_next[edge_count] = edge_first[u];
     edge_first[u] = edge_count;
@@ -11786,50 +12200,120 @@ inline void edge_add(const int &u, const int &v, const int &w) {
     edge_weight[edge_count] = w;
 }
 
-struct Point { int u; int64_t w; };
-std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
 int main() {
     std::cin >> n >> m;
-    for(int i = 1; i <= n; ++i) { std::cin >> vertex_weight[i]; }
+    for(int i = 1; i <= m; ++i) { std::cin >> v >> u >> w; edge_add(u, v, w); }
+    for(int i = 1; i <= n; ++i) { edge_add(0, i, 0); }
+
+    std::fill(dp, dp + 1 + n, 1e18); dp[0] = 0;
+    queue.push(0); visited[0] = true;
+    while(!queue.empty()) {
+        u = queue.front(); queue.pop(); visited[u] = false;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            v = edge_to[i];
+            if(dp[v] > dp[u] + edge_weight[i]) {
+                if(++vertex_relax_count[v] >= n + 1) { is_negring_exist = true; break; }
+                dp[v] = dp[u] + edge_weight[i];
+                if(!visited[v]) { queue.push(v); visited[v] = true; }
+            }
+        }
+        if(is_negring_exist) { break; }
+    }
+
+    if(is_negring_exist) {
+        std::cout << "NO";
+    } else {
+        for(int i = 1; i <= n; ++i) { std::cout << dp[i] << ' '; }
+    }
+}
+```
+
+> [洛谷P1993](https://www.luogu.com.cn/problem/P1993)：给定`m<=5e3`组$(u, v)\in[1, n]^2\subset (\mathbb{N}^+)^2$，构成关于$x_1, x_2, \cdots, x_n$的`n<=5e3`元一次不等式组$由\mathrm{edge\_type\_temp决定不等式类型}\begin{cases} x_{v_i}-x_{u_i}\le w_i\\ x_{v_i}-x_{u_i}\ge w_i \\ x_{v_i}-x_{u_i} = w_i\end{cases}$，其中$|w_i|\le 5000$。求该不等式组的任意一组整数解$(x_1, x_2, \cdots, x_n)$，若不存在则输出`NO`。
+
+与[洛谷P5960](https://www.luogu.com.cn/problem/P5960)做法相似。
+
+- $x_{u_i}-x_{v_i}\le m_i$可以转换成$x_{u_i}\le x_{v_i} + w_i$，这正是最短路最终状态`dp[]`满足的不等式`dp[u] <= dp[v] + w[v->u]`，对应着最短路问题中的边`(v_i -> u_i): w_i`。
+- $x_{u_i}-x_{v_i}\ge m_i$可以转换成$x_{v_i}\le x_{u_i} - w_i$，这正是最短路最终状态`dp[]`满足的不等式`dp[v] <= dp[u] - w[u->v]`，对应着最短路问题中的边`(u_i -> v_i): -w_i`。
+- $x_{u_i}-x_{v_i} = m_i$可以视为`(u_i -> v_i): 0`和`(v_i -> u_i): 0`。
+
+剩余步骤与[洛谷P5960](https://www.luogu.com.cn/problem/P5960)完全一致。
+
+```c++
+const int N_MAX = 5e3, M_MAX = 5e3 * 2 + N_MAX;
+int n, m, u, v, edge_type_temp; int64_t w, dp[N_MAX + 1]; bool visited[N_MAX + 1]; int vertex_relax_count[N_MAX + 1];
+std::queue<int> queue; bool is_negring_exist = false;
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+int main() {
+    std::cin >> n >> m;
     for(int i = 1; i <= m; ++i) { 
-        std::cin >> u_temp >> v_temp >> w_temp;
-        if(w_temp == 1) { for(int i = 0; i < l; ++i) { edge_add(u_temp + i * n, v_temp + i * n, 0); } }
-        if(w_temp == 2) { for(int i = 0; i < l; ++i) { edge_add(u_temp + i * n, v_temp + i * n, 0); edge_add(v_temp + i * n, u_temp + i * n, 0); } }
-    }
-    for(int i = 1; i <= n; ++i) {
-        edge_add(i, i + n, +vertex_weight[i]);
-        edge_add(i + n, i + 2 * n, -vertex_weight[i]);
-    }
-
-    std::fill(dp + 1, dp + 1 + N_MAX, 1e9); dp[1] = 0;
-    queue.push({1, 0});
-    while(queue.empty() == false) {
-        Point point = queue.top(); queue.pop();
-        int u = point.u;
-        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
-            int v = edge_to[i];
-            if(dp[v] > dp[u] + edge_weight[i]) {
-                dp[v] = dp[u] + edge_weight[i];
-                queue.push({v, dp[v]});
-            }
+        std::cin >> edge_type_temp >> u >> v;
+        if(edge_type_temp == 1) {
+            std::cin >> w; edge_add(u, v, -w);
+        } else if(edge_type_temp == 2) {
+            std::cin >> w; edge_add(v, u, w);
+        } else if(edge_type_temp == 3) {
+            edge_add(u, v, 0); edge_add(v, u, 0);
         }
     }
+    for(int i = 1; i <= n; ++i) { edge_add(0, i, 0); }
 
-    std::cout << std::max(0, -dp[n + (l - 1) * n]);
+    std::fill(dp, dp + 1 + n, 1e18); dp[0] = 0;
+    queue.push(0); visited[0] = true;
+    while(!queue.empty()) {
+        u = queue.front(); queue.pop(); visited[u] = false;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            v = edge_to[i];
+            if(dp[v] > dp[u] + edge_weight[i]) {
+                if(++vertex_relax_count[v] >= n + 1) { is_negring_exist = true; break; }
+                dp[v] = dp[u] + edge_weight[i];
+                if(!visited[v]) { queue.push(v); visited[v] = true; }
+            }
+        }
+        if(is_negring_exist) { break; }
+    }
+
+    std::cout << (is_negring_exist ? "No" : "Yes");
 }
 ```
 
-### §6.5.4 同余最短路
+> [洛谷P3275](https://www.luogu.com.cn/problem/P3275)：给定`m<=1e5`组$(u, v)\in[1, n]^2\subset (\mathbb{N}^+)^2$，构成关于$x_1, x_2, \cdots, x_n$的`n<=1e5`元一次不等式组$由\mathrm{edge\_type\_temp决定不等式类型}\begin{cases} x_{v_i}-x_{u_i} = 0 \\ x_{v_i}-x_{u_i} < 0 \\ x_{v_i}-x_{u_i} \ge w_i \\ x_{v_i}-x_{u_i} > 0 \\ x_{v_i}-x_{u_i} \le w_i \end{cases}$，其中$|w_i|\le 5000$。求该不等式组的正整数解$(x_1, x_2, \cdots, x_n)$的$\displaystyle\min\sum_{i=1}^{n} x_i$，若不存在则输出`-1`。
 
-> [洛谷P3403](https://www.luogu.com.cn/problem/P3403)：给定正系数`a[1->k=3]={x,y,z}<=1e5`以及关于$x_1,x_2,x_3$的`k=3`元一次线性方程$\displaystyle\sum_{i=1}^{k}a_i x_i = b$。求有多少个$b\in[0, t]\subseteq \mathbb{N}$，使得该方程存在自然数解。
+如法炮制，我们解读这五种规则：
 
-注意到：如果`b = i`时有解，那么`b = i+kx`、`b = i+ky`，`b = i+kz`（`k`为自然数）时均有解。将所有自然数`b`按模`x`意义分成`x`组，上面的^r结论可改写成存在对应的带权有向边：`(i -> (i+x)%x): x`、`(i -> (i+y)%x): y`、`(i -> (i+z)%x): z`。令`dp[i]`表示模`x`为`i`的、最小的、能让解存在的`b`值，显然$\{x_i\}_{i=1}^{N}=0$对应着初始值`dp[0] = 0`，其余`dp[1->x-1]`初始时均为正无穷。求解最短路后，对于$\forall i\in[0, x-1]$，如果`dp[i] <= t`，则存在$\displaystyle\lceil\frac{t - \mathrm{dp}[i] + 1}{x}\rceil$个满足$b\equiv i\mod x$的`b`值。对`i`进行遍历，求出$\displaystyle\sum_{i\in[0, x-1]\wedge t \ge \mathrm{dp}[i]}\lceil\frac{t - \mathrm{dp}[i] + 1}{x}\rceil$即可。
+- `dp[v] - dp[u] = 0`，意味着`dp[v] <= dp[u] + 0`且`dp[u] <= dp[v] + 0`，对应两条有向边`(u -> v): 0`和`(v -> u): 0`。
+- `dp[v] - dp[u] < 0`，**意味着`dp[v] - dp[u] <= -1`**，即`dp[v] <= dp[u] - 1`，对应一条有向边`(u -> v): -1`。
+- `dp[v] - dp[u] >= 0`，意味着`dp[u] <= dp[v] + 0`，对应一条有向边`(v -> u): 0`。
+- `dp[v] - dp[u] > 0`，**意味着`dp[v] - dp[u] >= 1`**，即`dp[u] <= dp[v] - 1`，对应一条有向边`(v -> u): -1`。
+- `dp[v] - dp[u] <= 0`，意味着`dp[v] <= dp[u] + 0`，对应一条有向边`(u -> v): 0`。
+
+本题`n<=1e5`，`m<=1e5`，显然SPFA会超时。但是本题有一个特殊的性质：**边权只有两种，即`0`和`1`**。能不能用这个特性优化呢？答案是可以的。
+
+- 我们先只考虑第1、3、5种约束条件，即`==`、`>=`、`<=`。此时它们对应的有向边定义了一种非严格偏序关系。**如果此时形成了环，则说明位于这一个强联通分量的所有点的点权都必须相等**。这提示我们先使用Tarjan算法缩点得到DAG图。时间复杂度为$O(n+m)$
+- 然后删除DAG的所有边，再在DAG上添加第2、4种约束条件，即`<`、`>`。此时它们对应的有向边定义了一种严格偏序关系。**如果此时形成了环，则说明答案不存在，因为一个点自己的点权不能小于自己（即自环），也不能小于一个大于等于自己的数字（即一般环）**。为了判断环的存在，我们对DAG图进行拓扑排序即可，如果不能拓扑排序则说明有环。令`dp[i]`表示解存在时、且$\displaystyle\sum_{i=1}^{n} x_i$取到最小值时$x_i$的值，则拓扑序上存在DP转移方程`(u->v): dp[v] = std::max(dp[v], dp[u] + w[u->v])`，在DAG上入度为`0`的节点最小只需分配初始值为`1`。时间复杂度为$O(n+m)$。
+
+写出DP方程后，我们突然注意到，本题要在DAG上求**最长路**。因此这五种规则的解读都要反过来：
+
+- `dp[v] - dp[u] = 0`，意味着`dp[v] + 0 <= dp[u]`且`dp[u] + 0 <= dp[v]`，对应两条有向边`(v -> u): 0`和`(u -> v): 0`。
+- `dp[v] - dp[u] < 0`，**意味着`dp[v] - dp[u] <= -1`**，即`dp[v] + 1 <= dp[u]`，对应一条有向边`(v -> u): 1`。
+- `dp[v] - dp[u] >= 0`，意味着`dp[u] + 0 <= dp[v]`，对应一条有向边`(u -> v): 0`。
+- `dp[v] - dp[u] > 0`，**意味着`dp[v] - dp[u] >= 1`**，即`dp[u] + 1 <= dp[v]`，对应一条有向边`(u -> v): 1`。
+- `dp[v] - dp[u] <= 0`，意味着`dp[v] + 0 <= dp[u]`，对应一条有向边`(v -> u): 0`。
 
 ```c++
-const int X_MAX = 1e5, N_MAX = X_MAX, M_MAX = 3 * N_MAX;
-int x, y, z; int64_t h, dp[N_MAX + 1], ans;
-int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
-inline void edge_add(const int &u, const int &v, const int &w) {
+const int N_MAX = 1e5, M_MAX = 1e5 * 2; const int64_t INF = 1e18;
+int n, m, u, v, edge_type_temp;
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
     ++edge_count;
     edge_next[edge_count] = edge_first[u];
     edge_first[u] = edge_count;
@@ -11837,45 +12321,108 @@ inline void edge_add(const int &u, const int &v, const int &w) {
     edge_weight[edge_count] = w;
 }
 
-struct Point { int u; int64_t w; };
-std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
-int main() {
-    std::cin >> h >> x >> y >> z; --h;
-    for(int i = 0; i < x; ++i) {
-        edge_add(i, (i + x) % x, x);
-        edge_add(i, (i + y) % x, y);
-        edge_add(i, (i + z) % x, z);
+int scc_map[N_MAX + 1], scc_count, scc_edge_count, scc_edge_first[N_MAX + 1], scc_edge_next[M_MAX + 1], scc_edge_to[M_MAX + 1], scc_edge_weight[M_MAX + 1], scc_size[N_MAX + 1], scc_indegree[N_MAX + 1], scc_visited_count;
+inline void scc_edge_add(const int &u, const int &v, const int64_t &w) {
+    ++scc_edge_count;
+    scc_edge_next[scc_edge_count] = scc_edge_first[u];
+    scc_edge_first[u] = scc_edge_count;
+    scc_edge_to[scc_edge_count] = v;
+    scc_edge_weight[scc_edge_count] = w;
+}
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size; bool tarjan_in_stack[N_MAX + 1];
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+        }
     }
-    
-    std::fill(dp, dp + x, 1e18); dp[0] = 0;
-    queue.push({0, dp[0]});
-    while(queue.empty() == false) {
-        Point point = queue.top(); queue.pop();
-        int u = point.u;
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        int v; ++scc_count;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+            scc_map[v] = scc_count;
+            ++scc_size[scc_count];
+        } while(u != v);
+    }
+}
+
+int64_t scc_dp[N_MAX + 1], ans;
+std::queue<int> queue;
+struct Edge { int edge_type, v, u; } edge_input[M_MAX + 1];
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { 
+        std::cin >> edge_type_temp >> v >> u; edge_input[i] = {edge_type_temp, v, u};
+        if(edge_type_temp == 1) { edge_add(u, v, 0); edge_add(v, u, 0); } 
+        if(edge_type_temp == 3) { edge_add(u, v, 0); } 
+        if(edge_type_temp == 5) { edge_add(v, u, 0); }
+    }
+
+    // Tarjan缩点
+    for(int u = 1; u <= n; ++u) { if(tarjan_dfn[u] == 0) { tarjan_dfs(u); } }
+
+    // 建SCC图
+    for(int u = 1; u <= n; ++u) { // 添加>=、<=、==对应的边
         for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
             int v = edge_to[i];
-            if(dp[v] > dp[u] + edge_weight[i]) {
-                dp[v] = dp[u] + edge_weight[i];
-                queue.push({v, dp[v]});
-            }
+            if(scc_map[u] == scc_map[v]) { continue; } // 排除>=、<=、==在SCC产生的自环
+            scc_edge_add(scc_map[u], scc_map[v], edge_weight[i]);
+        }
+    }
+    for(int i = 1; i <= m; ++i) { // 添加>、<对应的边
+        edge_type_temp = edge_input[i].edge_type; v = edge_input[i].v; u = edge_input[i].u;
+        if(edge_type_temp == 2) { scc_edge_add(scc_map[v], scc_map[u], 1); }
+        if(edge_type_temp == 4) { scc_edge_add(scc_map[u], scc_map[v], 1); }
+    }
+
+    // 维护SCC入度
+    for(int u = 1; u <= scc_count; ++u) {
+        for(int i = scc_edge_first[u]; i; i = scc_edge_next[i]) {
+            int v = scc_edge_to[i];
+            ++scc_indegree[v];
         }
     }
 
-    for(int i = 0; i < x; ++i) { ans += (h >= dp[i] ? (h - dp[i]) / x + 1 : 0); }
+    // 拓扑排序+DP
+    for(int u = 1; u <= scc_count; ++u) { if(scc_indegree[u] == 0) { scc_dp[u] = 1; queue.push(u); } }
+    while(!queue.empty()) {
+        u = queue.front(); queue.pop(); ++scc_visited_count;
+        for(int i = scc_edge_first[u]; i != 0; i = scc_edge_next[i]) {
+            v = scc_edge_to[i];
+            scc_dp[v] = std::max(scc_dp[v], scc_dp[u] + scc_edge_weight[i]);
+            if(--scc_indegree[v] == 0) { queue.push(v); }
+        }
+    }
+
+    if(scc_visited_count != scc_count) { std::cout << -1; return 0; }
+    for(int u = 1; u <= scc_count; ++u) { ans += scc_dp[u] * scc_size[u]; }
     std::cout << ans;
 }
 ```
 
-> [洛谷P2371](https://www.luogu.com.cn/problem/P2371)：给定正系数`a[1->k<=12]<=5e5`以及关于$x_1,x_2,\cdots,x_k$的`k`元一次线性方程$\displaystyle\sum_{i=1}^{k}a_i x_i = b$。求有多少个$b\in[l, r]\subseteq \mathbb{N}$，使得该方程存在自然数解。
+### §6.5.6 缩点最短路
 
-本题与[洛谷P3403](https://www.luogu.com.cn/problem/P3403)相似。最后只需求$\displaystyle\sum_{i\in[0, r]\wedge r \ge \mathrm{dp}[i]}\lceil\frac{r - \mathrm{dp}[i] + 1}{x}\rceil - \displaystyle\sum_{i\in[0, l-1]\wedge (l-1) \ge \mathrm{dp}[i]}\lceil\frac{(l - 1) - \mathrm{dp}[i] + 1}{x}\rceil$即可。
+> [洛谷P2169](https://www.luogu.com.cn/problem/P2169)：给定一个由`n<=2e5`个点、`m<=1e4`条有向边构成的有向有环正边权图。我们规定，如果点`i`能到点`j`，点`j`也能到点`i`，那么接着在`i`和`j`之间建立一条边权为`0`的双向边。求点`1`到点`n`的最短路。
+
+本题需要我们敏锐地发现：在`i`和`j`之间建立一条边权为`0`的双向边，等价于点`i`和点`j`属于同一个强联通分量。经过Tarjan缩点得到DAG后，强联通分量内的点天生符合`dp[i][j] == 0`的要求。于是只需在DAG上跑单源最短路即可。
 
 ```c++
-const int K_MAX = 12, A_MAX = 5e5, N_MAX = A_MAX, M_MAX = K_MAX * N_MAX;
-int k, a[K_MAX + 1]; int64_t l, r, dp[N_MAX + 1], ans;
+const int N_MAX = 2e5, M_MAX = 1e6; const int64_t INF = 1e18;
+int n, m, u, v; int64_t w;
 
-int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_weight[M_MAX + 1];
-inline void edge_add(const int &u, const int &v, const int &w) {
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
     ++edge_count;
     edge_next[edge_count] = edge_first[u];
     edge_first[u] = edge_count;
@@ -11883,30 +12430,74 @@ inline void edge_add(const int &u, const int &v, const int &w) {
     edge_weight[edge_count] = w;
 }
 
+int scc_map[N_MAX + 1], scc_count, scc_edge_count, scc_edge_first[N_MAX + 1], scc_edge_next[M_MAX + 1], scc_edge_to[M_MAX + 1], scc_edge_weight[M_MAX + 1];
+inline void scc_edge_add(const int &u, const int &v, const int64_t &w) {
+    ++scc_edge_count;
+    scc_edge_next[scc_edge_count] = scc_edge_first[u];
+    scc_edge_first[u] = scc_edge_count;
+    scc_edge_to[scc_edge_count] = v;
+    scc_edge_weight[scc_edge_count] = w;
+}
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size; bool tarjan_in_stack[N_MAX + 1];
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+        }
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        int v; ++scc_count;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+            scc_map[v] = scc_count;
+        } while(u != v);
+    }
+}
+
+int64_t scc_dp[N_MAX + 1];
 struct Point { int u; int64_t w; };
 std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
+
 int main() {
-    std::cin >> k >> l >> r;
-    for(int i = 1; i <= k; ++i) { std::cin >> a[i]; }
-    for(int i = 0; i < a[1]; ++i) { for(int j = 1; j <= k; ++j) { edge_add(i, (i + a[j]) % a[1], a[j]); }  }
-    
-    std::fill(dp, dp + A_MAX, 1e18); dp[0] = 0;
-    queue.push({0, dp[0]});
-    while(queue.empty() == false) {
-        Point point = queue.top(); queue.pop();
-        int u = point.u;
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> u >> v >> w; edge_add(u, v, w); }
+
+    // Tarjan缩点
+    for(int u = 1; u <= n; ++u) { if(tarjan_dfn[u] == 0) { tarjan_dfs(u); } }
+
+    // 建SCC图
+    for(int u = 1; u <= n; ++u) {
         for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
-            int v = edge_to[i];
-            if(dp[v] > dp[u] + edge_weight[i]) {
-                dp[v] = dp[u] + edge_weight[i];
-                queue.push({v, dp[v]});
-            }
+            v = edge_to[i];
+            if(scc_map[u] == scc_map[v]) { continue; }
+            scc_edge_add(scc_map[u], scc_map[v], edge_weight[i]);
         }
     }
 
-    for(int i = 0; i < a[1]; ++i) { ans += (r >= dp[i] ? (r - dp[i]) / a[1] + 1 : 0); }
-    for(int i = 0; i < a[1]; ++i) { ans -= ((l-1) >= dp[i] ? ((l-1) - dp[i]) / a[1] + 1 : 0); }
-    std::cout << ans;
+    // Dijkstra跑SCC的(scc_map[1] -> scc_map[n])最短路
+    std::fill(scc_dp + 1, scc_dp + 1 + scc_count, INF);
+    scc_dp[scc_map[1]] = 0; queue.push({scc_map[1], 0});
+    while(!queue.empty()) {
+        Point point = queue.top(); queue.pop();
+        u = point.u;
+        for(int i = scc_edge_first[u]; i != 0; i = scc_edge_next[i]) {
+            v = scc_edge_to[i];
+            if(scc_dp[v] > scc_dp[u] + scc_edge_weight[i]) {
+                scc_dp[v] = scc_dp[u] + scc_edge_weight[i];
+                queue.push({v, scc_dp[v]});
+            }
+        }
+    }
+    std::cout << scc_dp[scc_map[n]];
 }
 ```
 
@@ -20161,6 +20752,30 @@ int main(){
 #pragma GCC optimize(3)
 #pragma GCC optimize("Ofast", "inline", "-ffast-math")
 #pragma GCC target("avx,sse2,sse3,sse4,mmx")
+```
+
+### A.3.4 `std::queue`与数组
+
+```c++
+#include<bits/stdc++.h>
+
+const int N_MAX = 1e7;
+int n; int ans;
+
+int q_arr[N_MAX + 1], q_arr_head = 1, q_arr_tail = 1;
+std::queue<int> q_stl;
+
+int main() {
+    std::cin >> n;
+    
+    // for(int i = 1; i <= n; ++i) { q_stl.push(i * i); } // O1: 535ms, O2: 65ms
+    // while(q_stl.empty() == false) { ans ^= q_stl.front(); q_stl.pop(); }
+
+    for(int i = 1; i <= n; ++i) { q_arr[q_arr_tail++] = i; } // O1: 69ms, O2: 38ms
+    while(q_arr_head < q_arr_tail) { ans ^= q_arr[q_arr_head] * q_arr[q_arr_head]; ++q_arr_head; }
+    
+    std::cout << ans;
+}
 ```
 
 ## §A.4 数据溢出
