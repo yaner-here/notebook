@@ -256,16 +256,68 @@ std::priority_queue<Stuff, std::vector<Stuff>, decltype(comp)> queue(comp);
 
 // 方法二: Lambda表达式
 std::priority_queue<Stuff, std::vector<Stuff>, std::function<bool(Stuff&, Stuff&)>> queue(
-	[](const Stuff &lhs, const Stuff &rhs){ return ...;}
+	[](const Stuff &child, const Stuff &root){ return ...;}
 );
 
 // 方法三：重载仿函数bool Stuff(&lhs, &rhs);
 struct Stuff {
-	inline bool operator(const Stuff &lhs, const Stuff &rhs){
+	inline bool operator(const Stuff &child, const Stuff &root){
 		return ...;
 	}
 }
 std::priority_queue(Stuff, std::vector<Stuff>, Stuff) queue;
+```
+
+## §1.5 `<regex>`
+
+> [洛谷P8791](https://www.luogu.com.cn/problem/P8791)：给定两种声明变量的语句：声明`int`/`long`/`String`的`type key1=value1,key2=value2;`；声明`int[]`/`long[]`的`type[] key1[100],key2[200];`。不计`String`的末尾`\0`字符，求定义的变量占用多少字节。
+
+```c++
+const int T_MAX = 10;
+int t; std::string s, s_var;
+int64_t ans; struct { std::string desc; int64_t v; } ans_out[4] = {
+    {"B", 0},
+    {"KB", 0},
+    {"MB", 0},
+    {"GB", 0},
+};
+std::regex type_regex(R"((\w+)((\[\])?)\s+)");
+std::regex int_regex(R"((\w+)\s*=\s*(-?\d+)\s*[,;]\s*)");
+std::regex int_arr_regex(R"((\w+)\s*=\s*new\s+\w+\[(\d+)\]\s*[,;]\s*)");
+std::regex string_regex(R"((\w+)\s*=\s*\"(.*?)\"\s*[,;]\s*)");
+int main() {
+    std::cin >> t; std::cin.ignore();
+    while(t--) {
+        std::getline(std::cin, s);
+        std::smatch type_smatch, variable_smatch;
+        std::regex_search(s, type_smatch, type_regex);
+        s_var = type_smatch.suffix();
+
+        if(type_smatch[1] == "int") {
+            if(type_smatch[2] != "[]") {
+                while(std::regex_search(s_var, variable_smatch, int_regex)) { ans += 4; s_var = variable_smatch.suffix(); }
+            } else if(type_smatch[2] == "[]") {
+                while(std::regex_search(s_var, variable_smatch, int_arr_regex)) { ans += 4 * std::stoll(variable_smatch[2]); s_var = variable_smatch.suffix(); }
+            }
+        } else if(type_smatch[1] == "long") {
+            if(type_smatch[2] != "[]") {
+                while(std::regex_search(s_var, variable_smatch, int_regex)) { ans += 8; s_var = variable_smatch.suffix(); }
+            } else if(type_smatch[2] == "[]") {
+                while(std::regex_search(s_var, variable_smatch, int_arr_regex)) { ans += 8 * std::stoll(variable_smatch[2]); s_var = variable_smatch.suffix(); }
+            }
+        } else if(type_smatch[1] == "String") {
+            while(std::regex_search(s_var, variable_smatch, string_regex)) { ans += 1 * variable_smatch[2].length(); s_var = variable_smatch.suffix(); }
+        }
+    }
+    for(int i = 0; i < 4; ++i) {
+        ans_out[i].v = i < 3 ? ans % 1024 : ans;
+        ans /= 1024;
+    }
+    for(int i = 3; i >= 0; --i) {
+        if(ans_out[i].v == 0) { continue; }
+        std::cout << ans_out[i].v << ans_out[i].desc;
+    }
+}
 ```
 
 # §2 动态规划
@@ -6983,6 +7035,40 @@ int main() {
 }
 ```
 
+## §2.C 经典问题
+
+### §2.C.1 约瑟夫环
+
+> [洛谷P8671](https://www.luogu.com.cn/problem/P8671)：给定编号为`0->n-1`的`n<1e6`个人按顺时针围成一圈，从`0`号人开始顺时针从`0`递增报数，数到`k-1`的人会被淘汰并被移除，不参与以后的报数，并且被淘汰的下一个人又要从`0`开始数。求圈中最后留下的人的序号，加`1`输出。
+
+本题中的`n`个人围成一圈，这提示我们展开成无限循环的链。以`n==5,k==3`为例：
+
+```
+[ 0 -> 1 ->[2]-> 3 -> 4 ] -> [ 0 -> 1 -> 2 -> 3 -> 4 ] -> ...
+[ 3 -> 4 ->[0]-> 1 ] -> [ 3 -> 4 -> 0-> 1 ] -> ...
+[ 1 -> 3 ->[4]] -> [ 1 -> 3 -> 4 ] -> ...
+[ 1 -> 3 ] -> [[1]-> 3 ] -> ...
+[ 3 ] -> [ 3 ] -> [[3]] -> ...
+```
+
+在这里，我们将每轮被移除的编号的后一个编号，作为下一轮循环链的开头。
+
+注意到：如果场上（即环上）还有`i`个人时，展开成链的循环节长度则为`i`。被淘汰的人位于这条链上的第`k-1`处（从`0`开始数），也就是在环上的第`(k-1)%i`处（从`0`开始数）。
+
+假设当前循环链有`i`个元素，形如`a1 -> ... ->[b1]-> b2 -> b3 -> ...`，被删除的元素是`x`，则下一轮的循环链一定以`b2`开头，形如`b2 -> b3 -> ...`。显然，下一轮循环链中的下标`x`对应的元素，在本轮循环链中的下标一定为`k+x`，在本轮环中的下标一定为`(k+x)%i`。
+
+基于此，令`dp[i]`表示给定`n`和`k`时，场上还剩`i`个人时，最后一个被淘汰的人在环上的位置（从`0`开始数）。于是`dp[1] = 0`，`dp[i] = (k + dp[i-1]) % i`。递推即可解决。
+
+```c++
+const int N_MAX = 1e6;
+int n, k, dp[N_MAX + 1];
+int main() {
+    std::cin >> n >> k; // dp[0] = 0;
+    for(int i = 1; i <= n; ++i) { dp[i] = (k + dp[i - 1]) % i; }
+    std::cout << dp[n] + 1;
+}
+```
+
 # §3 基础算法
 
 ## §3.1 搜索
@@ -8304,6 +8390,70 @@ int main() {
     std::cout << ans_xor << ' ' << ans_max;
 }
 ```
+
+## §3.5 排序
+
+在ACM中，我们只需一个`std::sort()`就行。本节的内容只能用于力扣等面试场景。
+
+### §3.5.1 快速排序
+
+对于数组`a[l->r]`，我们随机选取一个值作为轴（`pivot`），将所有小于等于`pivot`的值放在左边，所有大于等于`pivot`的值放在右边。依次向下递归即可。
+
+- 以下是一种双指针的实现方式，优势在于实现简单，`pivot`可任意选择，缺点在于难以定位`pivot`一轮排序后在`a[]`中的位置，不推荐使用。
+
+```c++
+template<typename T> void quick_sort(T a[], int l, int r) {
+    if(l >= r) { return; }
+    int i = l, j = r;
+    T pivot = a[(l + r) / 2];
+    while(i < j) {
+        while(a[i] < pivot) { ++i; }
+        while(a[j] > pivot) { --j; }
+        if(i <= j) { std::swap(a[i++], a[j--]); } // <=而不是<，是为了确保r<l
+    }
+    quick_sort(a, l, j);
+    quick_sort(a, i, r);
+}
+
+const int N_MAX = 1e5;
+int n, a[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    quick_sort(a, 1, n);
+    for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; }
+}
+```
+
+- 以下是一种快慢指针的实现方式，优势在于方便定位`pivot`一轮排序后在`a[]`中的位置（即指针`i`），缺点在于只能`pivot`只能选`a[r]`，可能会被卡常，推荐使用。
+
+```c++
+template<typename T> void quick_sort(T a[], int l, int r) {
+    if(l >= r) { return; }
+    int i, j; T pivot = a[r];
+    for(i = l, j = l; j < r; ++j) { // 让a[l->i] < pivot, a[i+1->j] >= pivot
+        if(a[j] < pivot) { 
+            std::swap(a[i++], a[j]); 
+        }
+    }
+    std::swap(a[i], a[j]); // 将pivot移动到分界线，从此a[l->i-1] < pivot, a[i] = pivot, a[i+1->r] >= pivot
+    quick_sort(a, l, i - 1);
+    quick_sort(a, i + 1, r);
+}
+
+const int N_MAX = 1e5;
+int n, a[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    quick_sort(a, 1, n);
+    for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; }
+}
+```
+
+> [炼码399]：给定数组`U a[1->n]`和`V a[1->n]`，以及一个用于比较大小的、返回`-1`/`0`/`1`（表示`<`/`=`/`>`）的函数`compare(U u, V v)`。已知每个`u[i]`都有一个唯一的`v[j]`满足`comp(u[i], v[j]) == 0`，每个`v[i]`都有一个唯一的`u[j]`满足`comp(v[i], u[j]) == 0`。求每个`v[i: 1->n]`对应的`u'[]`。
+
+TODO：？？？？
 
 # §4 字符串
 
@@ -11323,6 +11473,14 @@ int main() {
 
 ## §6.5 最短路/最长路
 
+| 最短路算法名称      | 最短路类型  | 适用图  | 检测负环 | 时间复杂度            |
+| :----------- | :----- | :--- | :--- | ---------------- |
+| Dijkstra     | 单源最短路  | 非负权图 | ❌    | $O(n\log n + m)$ |
+| Floyd        | 任意源最短路 | 所有图  | ✅    | $O(n^3)$         |
+| Johnson      | 任意源最短路 | 所有图  | ✅    | $O(nm\log m)$    |
+| Bellman–Ford | 单源最短路  | 所有图  | ✅    | $O(nm)$          |
+| SPFA         | 单源最短路  | 所有图  | ✅    | $O(nm)$          |
+
 ### §6.5.1 Dijkstra算法
 
 Dijkstra算法用于求解单源最短路，也可以转化成单源最长路问题。形式化地，给定一个有向图$\mathcal{G}=(\mathcal{V}, \mathcal{E})$，时间复杂度为$O(m\log n)$，算法如下：
@@ -11831,7 +11989,7 @@ int main() {
 
 #### §6.5.1.3 次短路/`k`短路
 
-> [洛谷P2865](https://www.luogu.com.cn/problem/P2865)：给定一个由`n<=5e3`个点、`m<=1e5`条无向边构成的无向正边权图。求从起点`1`到终点`n`的严格次短路的长度。**路径允许重复地经过同一个点**。
+> [洛谷P2865](https://www.luogu.com.cn/problem/P2865)：给定一个由`n<=5e3`个点、`m<=1e5`条无向边构成的无向正边权图。求从起点`1`到终点`n`的**严格**次短路的长度。**路径允许重复地经过同一个点**。
 
 仍然使用Dijkstra算法，但是小根堆优先队列`std::queue<struct Point {int u; int64_t w;}>`存储的值表示一条从`1->point.i`的新路径，它可能是最短或严格次短路径。也就是说，我们的DP状态转移方程不再为`dp[v][0] = std::min(dp[v][0], dp[u][0] + edge_weight[i]`，而是`dp[v][0] = std::min(dp[v][0], point.w + edge_weight[i]`。
 
@@ -11875,6 +12033,162 @@ int main() {
     }
     
     std::cout << dp[n][1];
+}
+```
+
+> [洛谷P2865](https://www.luogu.com.cn/problem/P1491)：给定一个由`n<=2e3`个点、`m<=1e4`条无向边构成的无向正边权图。求从起点`1`到终点`n`的**非严格**次短路的长度。**路径不允许重复地经过同一个点**。
+
+我们先跑一遍Dijkstra最短路，并标记最短路径涉及的边，最坏情况有$O(n)$条。由于非严格次短路必定存在一条不在最短路中的边，因此我们每次均只删除一条最短路上的边，再跑一次Dijkstra算法，取最小值即可。综合时间复杂度为$O(n(n\log{n} + m))$。
+
+```c++
+const int N_MAX = 2e2, M_MAX = 1e4 * 2; const int64_t INF = 1e18;
+int n, m, u, v, x[N_MAX + 1], y[N_MAX + 1]; double w, dp_dis[N_MAX + 1], dp_ans = INF; int dp_prev[N_MAX +1];
+struct Point { int u; double w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue([](const Point &child, const Point &root){ return child.w > root.w; });
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; double edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const double &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i] >> y[i]; }
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u >> v;
+        w = std::sqrt((x[v] - x[u]) * (x[v] - x[u]) + (y[v] - y[u]) * (y[v] - y[u]));
+        edge_add(u, v, w); edge_add(v, u, w);
+    }
+
+    std::fill(dp_dis + 1, dp_dis + 1 + n, INF); dp_dis[1] = 0;
+    queue.push({1, dp_dis[1]});
+    while(!queue.empty()) {
+        Point point = queue.top(); queue.pop();
+        u = point.u;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            v = edge_to[i];
+            if(dp_dis[v] > dp_dis[u] + edge_weight[i]) {
+                dp_dis[v] = dp_dis[u] + edge_weight[i];
+                dp_prev[v] = u;
+                queue.push({v, dp_dis[v]});
+            }
+        }
+    }
+
+    for(int y = n; y != 1; y = dp_prev[y]) {
+        int x = dp_prev[y];
+        std::fill(dp_dis + 1, dp_dis + 1 + n, INF); dp_dis[1] = 0;
+        queue.push({1, dp_dis[1]});
+        while(!queue.empty()) {
+            Point point = queue.top(); queue.pop();
+            u = point.u;
+            for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+                v = edge_to[i];
+                if(u == x && v == y) { continue; } // 删边(x -> y)
+                if(dp_dis[v] > dp_dis[u] + edge_weight[i]) {
+                    dp_dis[v] = dp_dis[u] + edge_weight[i];
+                    queue.push({v, dp_dis[v]});
+                }
+            }
+        }
+        dp_ans = std::min(dp_ans, dp_dis[n]);
+    }
+
+    std::cout << std::fixed << std::setprecision(2) << dp_ans;
+}
+```
+
+#### §6.5.1.4 缩点最短路
+
+> [洛谷P2169](https://www.luogu.com.cn/problem/P2169)：给定一个由`n<=2e5`个点、`m<=1e4`条有向边构成的有向有环正边权图。我们规定，如果点`i`能到点`j`，点`j`也能到点`i`，那么接着在`i`和`j`之间建立一条边权为`0`的双向边。求点`1`到点`n`的最短路。
+
+本题需要我们敏锐地发现：在`i`和`j`之间建立一条边权为`0`的双向边，等价于点`i`和点`j`属于同一个强联通分量。经过Tarjan缩点得到DAG后，强联通分量内的点天生符合`dp[i][j] == 0`的要求。于是只需在DAG上跑单源最短路即可。
+
+```c++
+const int N_MAX = 2e5, M_MAX = 1e6; const int64_t INF = 1e18;
+int n, m, u, v; int64_t w;
+
+int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
+inline void edge_add(const int &u, const int &v, const int64_t &w) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+    edge_weight[edge_count] = w;
+}
+
+int scc_map[N_MAX + 1], scc_count, scc_edge_count, scc_edge_first[N_MAX + 1], scc_edge_next[M_MAX + 1], scc_edge_to[M_MAX + 1], scc_edge_weight[M_MAX + 1];
+inline void scc_edge_add(const int &u, const int &v, const int64_t &w) {
+    ++scc_edge_count;
+    scc_edge_next[scc_edge_count] = scc_edge_first[u];
+    scc_edge_first[u] = scc_edge_count;
+    scc_edge_to[scc_edge_count] = v;
+    scc_edge_weight[scc_edge_count] = w;
+}
+
+int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size; bool tarjan_in_stack[N_MAX + 1];
+void tarjan_dfs(int u) {
+    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
+    tarjan_stack[++tarjan_stack_size] = u;
+    tarjan_in_stack[u] = true;
+    for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(tarjan_dfn[v] == 0) {
+            tarjan_dfs(v);
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
+        } else if(tarjan_in_stack[v]) {
+            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
+        }
+    }
+    if(tarjan_dfn[u] == tarjan_low[u]) {
+        int v; ++scc_count;
+        do {
+            v = tarjan_stack[tarjan_stack_size--];
+            tarjan_in_stack[v] = false;
+            scc_map[v] = scc_count;
+        } while(u != v);
+    }
+}
+
+int64_t scc_dp[N_MAX + 1];
+struct Point { int u; int64_t w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> u >> v >> w; edge_add(u, v, w); }
+
+    // Tarjan缩点
+    for(int u = 1; u <= n; ++u) { if(tarjan_dfn[u] == 0) { tarjan_dfs(u); } }
+
+    // 建SCC图
+    for(int u = 1; u <= n; ++u) {
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            v = edge_to[i];
+            if(scc_map[u] == scc_map[v]) { continue; }
+            scc_edge_add(scc_map[u], scc_map[v], edge_weight[i]);
+        }
+    }
+
+    // Dijkstra跑SCC的(scc_map[1] -> scc_map[n])最短路
+    std::fill(scc_dp + 1, scc_dp + 1 + scc_count, INF);
+    scc_dp[scc_map[1]] = 0; queue.push({scc_map[1], 0});
+    while(!queue.empty()) {
+        Point point = queue.top(); queue.pop();
+        u = point.u;
+        for(int i = scc_edge_first[u]; i != 0; i = scc_edge_next[i]) {
+            v = scc_edge_to[i];
+            if(scc_dp[v] > scc_dp[u] + scc_edge_weight[i]) {
+                scc_dp[v] = scc_dp[u] + scc_edge_weight[i];
+                queue.push({v, scc_dp[v]});
+            }
+        }
+    }
+    std::cout << scc_dp[scc_map[n]];
 }
 ```
 
@@ -12086,7 +12400,7 @@ int main() {
 }
 ```
 
-### §6.5.3 Bellman-Ford算法+SPFA
+### §6.5.3 Bellman-Ford算法与SPFA算法
 
 对于一条边`(u -> v): w`，我们可以用这条边来更新`dp[v] = std::min(dp[v], dp[u] + w)`，称为一次松弛（Relaxation）操作。对所有的`m`边都进行一次松弛操作，称为一轮松弛操作，**如果`dp[v]`被更新，则意味着从起点到`v`的最短路的边数量又增加了一个**。显然任意两点之间如果存在最短路，则最短路的路径包含的边数一定小于等于`n-1`。基于这个结论，我们只需进行`n-1`轮松弛操作即可。边遍历的顺序无任何要求。于是，我们要遍历$O(n-1)$轮，每轮要松弛$O(m)$条点，因此时间复杂度为$O(nm)$。
 
@@ -12285,7 +12599,7 @@ int main() {
 }
 ```
 
-> [洛谷P3275](https://www.luogu.com.cn/problem/P3275)：给定`m<=1e5`组$(u, v)\in[1, n]^2\subset (\mathbb{N}^+)^2$，构成关于$x_1, x_2, \cdots, x_n$的`n<=1e5`元一次不等式组$由\mathrm{edge\_type\_temp决定不等式类型}\begin{cases} x_{v_i}-x_{u_i} = 0 \\ x_{v_i}-x_{u_i} < 0 \\ x_{v_i}-x_{u_i} \ge w_i \\ x_{v_i}-x_{u_i} > 0 \\ x_{v_i}-x_{u_i} \le w_i \end{cases}$，其中$|w_i|\le 5000$。求该不等式组的正整数解$(x_1, x_2, \cdots, x_n)$的$\displaystyle\min\sum_{i=1}^{n} x_i$，若不存在则输出`-1`。
+> [洛谷P3275](https://www.luogu.com.cn/problem/P3275)：给定`m<=1e5`组$(u, v)\in[1, n]^2\subset (\mathbb{N}^+)^2$，构成关于$x_1, x_2, \cdots, x_n$的`n<=1e5`元一次不等式组$由\mathrm{edge\_type\_temp决定不等式类型}\begin{cases} x_{v_i}-x_{u_i} = 0 \\ x_{v_i}-x_{u_i} < 0 \\ x_{v_i}-x_{u_i} \ge 0 \\ x_{v_i}-x_{u_i} > 0 \\ x_{v_i}-x_{u_i} \le 0 \end{cases}$。求该不等式组的正整数解$(x_1, x_2, \cdots, x_n)$的$\displaystyle\min\sum_{i=1}^{n} x_i$，若不存在则输出`-1`。
 
 如法炮制，我们解读这五种规则：
 
@@ -12408,96 +12722,6 @@ int main() {
     if(scc_visited_count != scc_count) { std::cout << -1; return 0; }
     for(int u = 1; u <= scc_count; ++u) { ans += scc_dp[u] * scc_size[u]; }
     std::cout << ans;
-}
-```
-
-### §6.5.6 缩点最短路
-
-> [洛谷P2169](https://www.luogu.com.cn/problem/P2169)：给定一个由`n<=2e5`个点、`m<=1e4`条有向边构成的有向有环正边权图。我们规定，如果点`i`能到点`j`，点`j`也能到点`i`，那么接着在`i`和`j`之间建立一条边权为`0`的双向边。求点`1`到点`n`的最短路。
-
-本题需要我们敏锐地发现：在`i`和`j`之间建立一条边权为`0`的双向边，等价于点`i`和点`j`属于同一个强联通分量。经过Tarjan缩点得到DAG后，强联通分量内的点天生符合`dp[i][j] == 0`的要求。于是只需在DAG上跑单源最短路即可。
-
-```c++
-const int N_MAX = 2e5, M_MAX = 1e6; const int64_t INF = 1e18;
-int n, m, u, v; int64_t w;
-
-int edge_count, edge_first[M_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1]; int64_t edge_weight[M_MAX + 1];
-inline void edge_add(const int &u, const int &v, const int64_t &w) {
-    ++edge_count;
-    edge_next[edge_count] = edge_first[u];
-    edge_first[u] = edge_count;
-    edge_to[edge_count] = v;
-    edge_weight[edge_count] = w;
-}
-
-int scc_map[N_MAX + 1], scc_count, scc_edge_count, scc_edge_first[N_MAX + 1], scc_edge_next[M_MAX + 1], scc_edge_to[M_MAX + 1], scc_edge_weight[M_MAX + 1];
-inline void scc_edge_add(const int &u, const int &v, const int64_t &w) {
-    ++scc_edge_count;
-    scc_edge_next[scc_edge_count] = scc_edge_first[u];
-    scc_edge_first[u] = scc_edge_count;
-    scc_edge_to[scc_edge_count] = v;
-    scc_edge_weight[scc_edge_count] = w;
-}
-
-int tarjan_time, tarjan_dfn[N_MAX + 1], tarjan_low[N_MAX + 1], tarjan_stack[N_MAX + 1], tarjan_stack_size; bool tarjan_in_stack[N_MAX + 1];
-void tarjan_dfs(int u) {
-    tarjan_dfn[u] = tarjan_low[u] = ++tarjan_time;
-    tarjan_stack[++tarjan_stack_size] = u;
-    tarjan_in_stack[u] = true;
-    for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
-        int v = edge_to[i];
-        if(tarjan_dfn[v] == 0) {
-            tarjan_dfs(v);
-            tarjan_low[u] = std::min(tarjan_low[u], tarjan_low[v]);
-        } else if(tarjan_in_stack[v]) {
-            tarjan_low[u] = std::min(tarjan_low[u], tarjan_dfn[v]);
-        }
-    }
-    if(tarjan_dfn[u] == tarjan_low[u]) {
-        int v; ++scc_count;
-        do {
-            v = tarjan_stack[tarjan_stack_size--];
-            tarjan_in_stack[v] = false;
-            scc_map[v] = scc_count;
-        } while(u != v);
-    }
-}
-
-int64_t scc_dp[N_MAX + 1];
-struct Point { int u; int64_t w; };
-std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point &, const Point &)>> queue([](const Point &child, const Point &root) { return child.w > root.w; });
-
-int main() {
-    std::cin >> n >> m;
-    for(int i = 1; i <= m; ++i) { std::cin >> u >> v >> w; edge_add(u, v, w); }
-
-    // Tarjan缩点
-    for(int u = 1; u <= n; ++u) { if(tarjan_dfn[u] == 0) { tarjan_dfs(u); } }
-
-    // 建SCC图
-    for(int u = 1; u <= n; ++u) {
-        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
-            v = edge_to[i];
-            if(scc_map[u] == scc_map[v]) { continue; }
-            scc_edge_add(scc_map[u], scc_map[v], edge_weight[i]);
-        }
-    }
-
-    // Dijkstra跑SCC的(scc_map[1] -> scc_map[n])最短路
-    std::fill(scc_dp + 1, scc_dp + 1 + scc_count, INF);
-    scc_dp[scc_map[1]] = 0; queue.push({scc_map[1], 0});
-    while(!queue.empty()) {
-        Point point = queue.top(); queue.pop();
-        u = point.u;
-        for(int i = scc_edge_first[u]; i != 0; i = scc_edge_next[i]) {
-            v = scc_edge_to[i];
-            if(scc_dp[v] > scc_dp[u] + scc_edge_weight[i]) {
-                scc_dp[v] = scc_dp[u] + scc_edge_weight[i];
-                queue.push({v, scc_dp[v]});
-            }
-        }
-    }
-    std::cout << scc_dp[scc_map[n]];
 }
 ```
 
@@ -15947,7 +16171,58 @@ int main() {
 
 #### §7.5.3.3 可持久化线段树/主席树
 
-TODO：？？？？？？
+对于`q`次操作，我们用`segtree_count[0->q]`存储`q+1`个历史版本的线段树头结点。其中`segtree_count[0]`表示刚初始化完毕、刚执行完`segtree_init()`的状态。
+
+在涉及更改的操作中（例如`segtree_init()`、`segtree_reset()`等等），我们都要在函数顶部先开辟一份新空间，拷贝自原有的节点，然后在下一栈层次的函数调用中更改其`l_node`/`r_node`。
+
+> [洛谷P3919](https://www.luogu.com.cn/problem/P3919)：维护一个长度为`n<=1e6`的数组`int64_t a[1->n]`，支持两个操作：（1）修改历史版本`q_temp`的`a[x_temp]`值为`v_temp`；（2）查询历史版本`q_temp`的`a[x_temp]`值。每次操作均对应着一个历史版本，第`i`个历史版本表示第`i`次操作结束后的`a[]`状态。
+
+```c++
+constexpr int N_MAX = 1e6, Q_MAX = 1e6, N_LOG2_MAX = 20;
+int n, q, a[N_MAX + 1], q_temp, op_temp, x_temp; int64_t v_temp;
+
+int segtree_count = 1, segtree_root[Q_MAX + 1];
+struct SegTree { int l, r, l_node, r_node; int64_t v; } segtree[N_MAX * 4 + 2 * N_LOG2_MAX * Q_MAX + 1];
+
+void segtree_init(int &root, const int &l, const int &r) {
+    root = ++segtree_count; segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { segtree[root].v = a[l]; return; }
+    int m = (l + r) / 2;
+    segtree_init(segtree[root].l_node, l, m);
+    segtree_init(segtree[root].r_node, m + 1, r);
+}
+void segtree_reset(int &root, const int &source, const int &l, const int &r, const int &x, const int64_t &v) {
+    segtree[root = ++segtree_count] = segtree[source];
+    if(l == r) { segtree[root].v = v; return; }
+    int m = (l + r) / 2;
+    if(x <= m) { segtree_reset(segtree[root].l_node, segtree[root].l_node, l, m, x, v); }
+    if(x > m) { segtree_reset(segtree[root].r_node, segtree[root].r_node, m + 1, r, x, v); }
+}
+int64_t segtree_query(const int &root, const int &l, const int &r, const int &x) {
+    if(l == r) { return segtree[root].v; }
+    int m = (l + r) / 2;
+    if(x <= m) { return segtree_query(segtree[root].l_node, l, m, x); }
+    if(x > m) { return segtree_query(segtree[root].r_node, m + 1, r, x); }
+}
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    segtree_init(segtree_root[0], 1, n);
+
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> q_temp >> op_temp >> x_temp;
+        if(op_temp == 1) {
+            std::cin >> v_temp;
+            segtree_reset(segtree_root[i], segtree_root[q_temp], 1, n, x_temp, v_temp);
+        } else if(op_temp == 2) {
+            std::cout << segtree_query(segtree_root[q_temp], 1, n, x_temp) << '\n';
+            segtree_root[i] = segtree_root[q_temp];
+        }
+    }
+}
+```
 
 ### §7.5.4 权值线段树
 
@@ -19049,6 +19324,54 @@ int main() {
 }
 ```
 
+## §7.11 链表
+
+> [洛谷B4324](https://www.luogu.com.cn/problem/B4324)：序列`a[1->n]`初始满足`a[i]=i`。现在执行`q<=5e5`次查询：（1）将`x`移动到`y`的左侧；（2）将`x`移动到`y`的右侧；（3）删除`x`元素。
+
+第一种方案是STL，使用`std::list`与`std::map`模拟Java的`LinkHashMap`即可。这种方案时间常数较大，不推荐使用。本题耗时最长的测试点花费了`1.01s`。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5;
+int n, q, op_temp, x_temp, y_temp;
+std::list<int> list;
+std::map<int, std::list<int>::iterator> map;
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { list.push_back(i); map.emplace(i, std::prev(list.end())); }
+
+    while(q--) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp >> y_temp;
+            if(x_temp == y_temp) { continue; }
+            auto iter_x = map.find(x_temp); if(iter_x != map.end()) { list.erase(iter_x->second); map.erase(iter_x); }
+            auto iter_y = map.find(y_temp);
+            if(iter_y == map.end()) { throw std::logic_error("Y not found!"); }
+            map.emplace(x_temp, list.insert(iter_y->second, x_temp));
+        } else if(op_temp == 2) {
+            std::cin >> x_temp >> y_temp;
+            if(x_temp == y_temp) { continue; }
+            auto iter_x = map.find(x_temp); if(iter_x != map.end()) { list.erase(iter_x->second); map.erase(iter_x); }
+            auto iter_y = map.find(y_temp); if(iter_y == map.end()) { throw std::logic_error("Y not found!"); }
+            map.emplace(x_temp, list.insert(std::next(iter_y->second), x_temp));
+        } else if(op_temp == 3) {
+            std::cin >> x_temp;
+            auto iter_x = map.find(x_temp); if(iter_x == map.end()) { continue; }
+            list.erase(iter_x->second); map.erase(iter_x);
+        }
+    }
+    if(list.empty()) {
+        std::cout << "Empty!";
+    } else {
+        for(auto iter = list.begin(); iter != list.end(); ++iter) { std::cout << *iter << ' '; }
+    }
+}
+```
+
+## §7.12 字典树
+
 # §8 数学
 
 ## §8.1 位运算
@@ -19872,6 +20195,51 @@ int main() {
     print_expression_dfs(1, n); std::cout << '\n';
     std::cout << dp[1][n] << '\n';
     print_merge_dfs(1, n);       
+}
+```
+
+> [洛谷P4404](https://www.luogu.com.cn/problem/P4404)：给定容量为`m<=1e5`的LRU缓存，以及一个离线给出的、长度为`n<=1e5`的地址访问队列`a[1->n]<=1e9`，求LRU缓存的最少失效次数。
+
+**注意到：每次LRU已满，需要删除一个元素来容纳新元素`a[i]`时，删除的那个元素`a[j]`在LRU中一定是举例下一次访问相同元素`a[j]`最远的那个**。于是经典离散化，用`last[x]`表示元素`x`在`a[1->i]`中最后一次被访问时所在的`a[]`下标，`next[i]`表示元素`a[i]`在之后最近一次被访问时所在的`a[]`下标，用$O(n)$维护，最后使用大根堆优先队列取出`next[]`值最大的那个元素`a[j]`。
+
+问题出在这个优先队列上。起初，我们自然地想让优先队列存储当前LRU缓存中的`<=m`个元素，及其`next[]`值。访问当前元素`a[i]`时，我们先判断`a[i]`是否在队列中，即`visited[a[i]]`。如果`visited[a[i]] == true`，问题就出现了：队列中已经有了`{j, next[j]}`，而`a[i] == a[j]`，是否需要再`queue.push({i, next[i]})`？如果不`push()`，那么下一次优先队列弹出的值无效；如果`push()`，则队列中就同时存在有效和无效的值。
+
+我们的解决方法是：在使用`queue.top()`前，先`while(visited[queue.top()]) { queue.pop(); }`，使得`queue.top()`拿到的一定是有效的值。其余的无效值由于`next[]`太小，自然不可能由`queue.top()`取得，就算会取得，也会在上面的`while()`中被`pop()`掉。
+
+```c++
+const int N_MAX = 1e5, N_UNIQUE_MAX = 1e5, INF = 1e9;
+int n, n_unique, m, a[N_MAX + 1], a_unique[N_MAX + 1], ans;
+int last[N_UNIQUE_MAX + 1], next[N_MAX + 1]; // last[c]=元素c最近一次出现的位置, next[i]=元素a[i]在i后面的下一次出现的位置
+bool visited[N_UNIQUE_MAX + 1]; int counter;
+struct Unit { int i, next; };
+std::priority_queue<Unit, std::vector<Unit>, std::function<bool(const Unit &, const Unit &)>> queue([](const Unit &child, const Unit &root) { return root.next > child.next; });
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> a_unique[i]; }
+    std::copy(a_unique + 1, a_unique + 1 + n, a + 1);
+    std::sort(a_unique + 1, a_unique + 1 + n);
+    n_unique = std::unique(a_unique + 1, a_unique + 1 + n) - a_unique;
+    for(int i = 1; i <= n; ++i) { a[i] = std::lower_bound(a_unique + 1, a_unique + 1 + n_unique, a[i]) - a_unique; }
+
+    for(int i = 1; i <= n; ++i) {
+        next[i] = INF;
+        next[last[a[i]]] = i;
+        last[a[i]] = i;
+    }
+
+    for(int i = 1; i <= n; ++i) {
+        while(!queue.empty() && visited[a[queue.top().i]] == false) { queue.pop(); }
+        if(visited[a[i]] == true) {
+            ;
+        } else if(visited[a[i]] == false) {
+            if(!queue.empty() && counter >= m) { visited[a[queue.top().i]] = false; --counter; }
+            visited[a[i]] = true;
+            ++ans; ++counter;
+        }
+        queue.push({i, next[i]});
+    }
+    
+    std::cout << ans;
 }
 ```
 

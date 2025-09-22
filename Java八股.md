@@ -1,4 +1,324 @@
-# §1 JVM
+
+| 参考文献                                                      |     |
+| --------------------------------------------------------- | --- |
+| [小林Coding(Java面试题)](https://xiaolincoding.com/interview/) |     |
+
+# §1 Java基础
+
+# §2 Java集合
+
+# §3 Java并发
+
+## §3.A 编程题
+
+### 两个线程交替打印奇偶数
+
+1. 使用`wait()/notify()`。
+
+```java
+public class SingletonDemo {  
+    private static int count = 0;  
+    public static void main(String[] args) {  
+        Object lock = new Object();  
+        Thread thread_1 = new Thread(() -> {  
+            while(true) {  
+                synchronized (lock) {  
+                    while(count % 2 == 1) {  
+                        try { lock.wait(); } catch (InterruptedException e) { throw new RuntimeException(e); }  
+                    }  
+                    System.out.println(count++);  
+                    lock.notifyAll();  
+                }  
+            }  
+        });  
+        Thread thread_2 = new Thread(()->{  
+            while(true) {  
+                synchronized (lock) {  
+                    while(count % 2 == 0) {  
+                        try { lock.wait(); } catch (InterruptedException e) { throw new RuntimeException(e); }  
+                    }  
+                    System.out.println(count++);  
+                    lock.notifyAll();  
+                }  
+            }  
+        });  
+        thread_1.start();  
+        thread_2.start();  
+    }  
+}
+```
+
+2. 使用`Semaphore`。
+
+```java
+public class SingletonDemo {
+    private static Semaphore semaphore_1 = new Semaphore(1);
+    private static Semaphore semaphore_2 = new Semaphore(0);
+    private static int count = 0;
+    public static void main(String[] args) {
+        Thread thread_1 = new Thread(() -> {
+            while(true) {
+                try { semaphore_1.acquire(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.println(count++);
+                semaphore_2.release();
+            }
+        });
+        Thread thread_2 = new Thread(()->{
+            while(true) {
+                try { semaphore_2.acquire(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.println(count++);
+                semaphore_1.release();
+            }
+        });
+        thread_1.start();
+        thread_2.start();
+    }
+}
+```
+
+### 三个线程交替打印ABC
+
+1. 使用`Semaphore`。
+
+```java
+public class Main {
+    private static Semaphore semaphore_1 = new Semaphore(1);
+    private static Semaphore semaphore_2 = new Semaphore(0);
+    private static Semaphore semaphore_3 = new Semaphore(0);
+    private static int count = 0;
+    public static void main(String[] args) {
+        Thread thread_1 = new Thread(()->{
+            while(true) {
+                try { semaphore_1.acquire(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.println("A");
+                semaphore_2.release();
+            }
+        });
+        Thread thread_2 = new Thread(()->{
+            while(true) {
+                try { semaphore_2.acquire(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.println("B");
+                semaphore_3.release();
+            }
+        });
+        Thread thread_3 = new Thread(()->{
+            while(true) {
+                try { semaphore_3.acquire(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                System.out.println("C");
+                semaphore_1.release();
+            }
+        });
+        thread_1.start();
+        thread_2.start();
+        thread_3.start();
+    }
+}
+```
+
+2. 使用`ReentrantLock`与`Condition`。
+
+```java
+public class Main {
+    private static ReentrantLock reentrantLock = new ReentrantLock();
+    private static Condition condition_1 = reentrantLock.newCondition();
+    private static Condition condition_2 = reentrantLock.newCondition();
+    private static Condition condition_3 = reentrantLock.newCondition();
+    private static int state = 0;
+    public static void main(String[] args) {
+        Thread thread_1 = new Thread(() -> {
+            while(true) {
+                reentrantLock.lock();
+                while(state % 3 != 0) { try { condition_1.await(); } catch (InterruptedException e) { throw new RuntimeException(e); } }
+                System.out.println("A"); ++state;
+                condition_2.signalAll();
+                reentrantLock.unlock();
+            }
+        });
+        Thread thread_2 = new Thread(()->{
+            while(true) {
+                reentrantLock.lock();
+                while(state % 3 != 1) { try { condition_2.await(); } catch (InterruptedException e) { throw new RuntimeException(e); } }
+                System.out.println("B"); ++state;
+                condition_3.signalAll();
+                reentrantLock.unlock();
+            }
+        });
+        Thread thread_3 = new Thread(()->{
+            while(true) {
+                reentrantLock.lock();
+                while(state % 3 != 2) { try { condition_3.await(); } catch (InterruptedException e) { throw new RuntimeException(e); } }
+                System.out.println("C"); ++state;
+                condition_1.signalAll();
+                reentrantLock.unlock();
+            }
+        });
+        thread_1.start();
+        thread_2.start();
+        thread_3.start();
+    }
+}
+```
+
+### 高性能并发安全自增计数器
+
+1. 原子类`AtomicInteger`：通过乐观锁CAS实现，但是高竞争时CPU空转，缓存失效率高。
+
+```java
+public class Main {
+    public static AtomicInteger counter = new AtomicInteger();
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService executorService = Executors.newFixedThreadPool(100);
+        // long start_time = System.currentTimeMillis();
+        for(int i = 1; i <= 100; ++i) {
+            executorService.submit(()->{
+                for(int j = 1; j <= 100; ++j) { counter.getAndIncrement(); }
+            });
+        }
+        executorService.shutdown();
+        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        // long end_time = System.currentTimeMillis();
+        System.out.println("Counter: " + counter.get());
+        // System.out.println("Time cost: " + (end_time - start_time)); // 224ms
+    }
+}
+```
+
+2. 原子类`LongAdder`：拆分成若干`Cell[] { volatile long; }`
+
+```java
+public class Main {
+    public static LongAdder counter = new LongAdder();
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService executorService = Executors.newFixedThreadPool(100);
+        // long start_time = System.currentTimeMillis();
+        for(int i = 1; i <= 100; ++i) {
+            executorService.submit(()->{
+                for(int j = 1; j <= 100000; ++j) { counter.add(1); }
+            });
+        }
+        executorService.shutdown();
+        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        // long end_time = System.currentTimeMillis();
+        System.out.println("Counter: " + counter.sum());
+        // System.out.println("Time cost: " + (end_time - start_time)); // 54ms
+    }
+}
+```
+
+### 三个线程指定执行顺序
+
+1. `join()`
+
+```java
+public class Main {
+    public static void main(String[] args) throws InterruptedException {
+        Thread thread_1 = new Thread(()->{
+            System.out.printf("%s: Done.\n", Thread.currentThread().getName());
+        });
+        Thread thread_2 = new Thread(()->{
+            try { thread_1.join(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            System.out.printf("%s: Done.\n", Thread.currentThread().getName());
+        });
+        Thread thread_3 = new Thread(()->{
+            try { thread_2.join(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            System.out.printf("%s: Done.\n", Thread.currentThread().getName());
+        });
+        thread_1.start();
+        thread_2.start();
+        thread_3.start();
+    }
+}
+```
+
+2. `CountDownLatch`
+
+```java
+public class Main {
+    public static CountDownLatch countDownLatch_1 = new CountDownLatch(1);
+    public static CountDownLatch countDownLatch_2 = new CountDownLatch(1);
+    public static void main(String[] args) throws InterruptedException {
+        Thread thread_1 = new Thread(()->{
+            System.out.printf("%s: Done.\n", Thread.currentThread().getName());
+            countDownLatch_1.countDown();
+        });
+        Thread thread_2 = new Thread(()->{
+            try { countDownLatch_1.await(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            System.out.printf("%s: Done.\n", Thread.currentThread().getName());
+            countDownLatch_2.countDown();
+        });
+        Thread thread_3 = new Thread(()->{
+            try { countDownLatch_2.await(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            System.out.printf("%s: Done.\n", Thread.currentThread().getName());
+        });
+        thread_1.start();
+        thread_2.start();
+        thread_3.start();
+    }
+}
+```
+
+3. `CompletableFuture`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        CompletableFuture<Void> future_1 = CompletableFuture.runAsync(()->{
+            System.out.println("A");
+        });
+        CompletableFuture<Void> future_2 = future_1.thenRunAsync(()->{
+            System.out.println("B");
+        });
+        CompletableFuture<Void> future_3 = future_2.thenRunAsync(()->{
+            System.out.println("C");
+        });
+    }
+}
+```
+
+### 生产者与消费者的等待队列模型
+
+使用`BlockingQueue`。
+
+```java
+public class SingletonDemo {
+    private static final Integer SIZE_MAX = 5;
+    private static final BlockingQueue<Integer> queue = new ArrayBlockingQueue<Integer>(SIZE_MAX);
+    static class Producer {
+        private static void produce(Integer item) throws InterruptedException {
+            synchronized (queue) {
+                while(queue.size() == SIZE_MAX) { queue.wait(); }
+                queue.put(item);
+                queue.notifyAll();
+            }
+        }
+    }
+    static class Consumer {
+        private static void consume() throws InterruptedException {
+            synchronized (queue) {
+                while(queue.size() == 0) { queue.wait(); }
+                Integer item = queue.take(); System.out.println(item);
+                queue.notifyAll();
+            }
+        }
+    }
+    public static void main(String[] args) {
+        Thread producer_thread = new Thread(()->{
+            for(int i = 1; i <= 100; ++i) {
+                try { Producer.produce(i); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            }
+        });
+        Thread consumer_thread = new Thread(()->{
+            for(int i = 1; i <= 100; ++i) {
+                try { Consumer.consume(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            }
+        });
+        producer_thread.start();
+        consumer_thread.start();
+    }
+}
+```
+
+# §4 JVM
 
 > OOM怎么办？
 > 
@@ -15,7 +335,84 @@
 > 2. 使用GCViewer分析各代占用时间图，观察GC频率
 > 3. 生成堆转储文件，查看异常代中的变量空间占用情况，定位变量的具体代码位置。
 
-# §2 Redis
+
+# §5 计算机网络
+
+# §6 操作系统
+
+# §7 MySQL
+
+# §8 Redis
+
+# §9 消息队列
+
+# §10 分布式
+
+# §11 设计模式
+
+## §11.1 单例模式
+
+### 实现单例模式的方法有哪些？
+
+1. 枚举：初始化时线程安全；避免通过反射破坏枚举单例。
+
+```java
+enum Singleton {
+    INSTANCE;
+    public void hello() { System.out.println("Hello world!"); }
+}
+
+public class SingletonDemo {
+    public static void main(String[] args) {
+        Singleton instance = Singleton.INSTANCE;
+        instance.hello();
+    }
+}
+```
+
+2. 静态内部类：初始化时线程安全；懒加载。
+
+```java
+class Singleton {
+	private Singleton() {}
+	private static class SingletonInner {
+		private final static Singleton INSTANCE = new Singleton();
+	}
+	public static Singleton getInstance() {
+		return SingletonInner.INSTANCE;
+	}
+	public void hello() { System.out.println("Hello world!"); }
+}
+
+public class SingletonDemo {  
+    public static void main(String[] args) {  
+        Singleton instance = Singleton.getInstance();  
+        instance.hello();  
+    }  
+}
+```
+
+3. 双重校验锁：初始化时线程安全；懒加载。
+
+```java
+class Singleton {
+	private volatile static Singleton INSTANCE;
+	private Singleton() {}
+	public static Singleton getInstance() {
+		if(INSTANCE == null) {
+			synchronized(Singleton.class) {
+				if(INSTANCE == null) {
+					INSTANCE = new Singleton();
+				}
+			}
+		}
+		return INSTANCE;
+	}
+}
+```
+
+
+# §12 Git
 
 > Redis如何统计连续签到天数？
 > 
