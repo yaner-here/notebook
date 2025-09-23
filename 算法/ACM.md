@@ -8399,8 +8399,8 @@ int main() {
 
 对于数组`a[l->r]`，我们随机选取一个值作为轴（`pivot`），将所有小于等于`pivot`的值放在左边，所有大于等于`pivot`的值放在右边。依次向下递归即可。
 
-- 以下是一种双指针的实现方式，优势在于实现简单，`pivot`可任意选择，缺点在于难以定位`pivot`一轮排序后在`a[]`中的位置，不推荐使用。
-
+- **双路快速排序（Hoare分区方案）**，优势在于实现简单，`pivot`可任意选择，缺点在于**难以定位`pivot`一轮排序后在`a[]`中的位置**，不推荐使用。
+	- 在中间挖坑：
 ```c++
 template<typename T> void quick_sort(T a[], int l, int r) {
     if(l >= r) { return; }
@@ -8425,7 +8425,7 @@ int main() {
 }
 ```
 
-- 以下是一种快慢指针的实现方式，优势在于方便定位`pivot`一轮排序后在`a[]`中的位置（即指针`i`），缺点在于只能`pivot`只能选`a[r]`，可能会被卡常，推荐使用。
+- **快速选择排序（Lomuto分区方案）**：优势在于方便定位`pivot`一轮排序后在`a[]`中的位置（即指针`i`），缺点在于只能`pivot`只能选`a[r]`，可能会被卡常，需要配合随机化使用。
 
 ```c++
 template<typename T> void quick_sort(T a[], int l, int r) {
@@ -8448,6 +8448,31 @@ int main() {
     for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
     quick_sort(a, 1, n);
     for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; }
+}
+```
+
+> [洛谷P1923](https://www.luogu.com.cn/problem/P1923)：给定数组`a[1->n<=5e6]<=1e9`，输出第`k+1`小的元素。
+
+我们将快速排序的一个回合称为**快速选择排序**。每次快速选择排序都至少能确定`pivot`在`a[]`排序后的位置，于是可以据此逐步缩小查找区间，直到某次快速选择排序的`pivot`恰好落在`a[]`排序后的第`k`个位置。
+
+```c++
+const int N_MAX = 5e6;
+int n, k, a[N_MAX + 1];
+int quick_select(int a[], int l, int r, int k) {
+    int i, j, pivot = a[r];
+    for(i = l, j = l; j < r; ++j) { 
+        if(a[j] < pivot) { std::swap(a[i++], a[j]); } 
+    }
+    std::swap(a[i], a[j]);
+    if(k == i) { return a[k]; }
+    if(k < i) { return quick_select(a, l, i - 1, k); }
+    if(k > i) { return quick_select(a, i + 1, r, k); }
+}
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> k; ++k;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    std::cout << quick_select(a, 1, n, k);
 }
 ```
 
@@ -16220,6 +16245,79 @@ int main() {
             std::cout << segtree_query(segtree_root[q_temp], 1, n, x_temp) << '\n';
             segtree_root[i] = segtree_root[q_temp];
         }
+    }
+}
+```
+
+> [洛谷P3834](https://www.luogu.com.cn/problem/P3834)：给定数组`int a[1->n<=2e5]`，执行`q<=2e5`次查询，每次查询询问`a[l->r]`第`k`小的元素。
+
+本题需要用离散化维护权值线段树、维护每个节点的子树持有的值个数`v_sum`。我们已经知道对于单棵线段树（即`[1, r]`）如何查询第`k`小的值，现在只需给`[1, l-1]`与`[1, r]`之间同一位置的节点的`v_sum`做差即可。具体来说，依次按顺序向权值插入`a[1->n]`的所有元素，构成`n+1`个历史版本，然后按如下伪代码查找即可：
+
+```
+单颗线段树: 
+	if(k <= 左子结点.v_sum) { 
+		向左查找;
+	} else {
+		向右查找;
+	}
+本题主席树: 
+	if(k <= (r版本)左子节点.v_sum - (l-1版本)左子结点.v_sum) {
+		向左查找;
+	} else {
+		向右查找;
+	}
+```
+
+```c++
+const int N_MAX = 2e5, N_UNIQUE_MAX = N_MAX, N_LOG2_MAX = 18, Q_MAX = 2e5;
+int n, n_unique, q, a[N_MAX + 1], a_unique[N_UNIQUE_MAX + 1], l_temp, r_temp, k_temp, ans_segtree_i;
+
+int segtree_root[N_MAX + 1], segtree_count;
+struct SegTree { int l, r, l_node, r_node; int v_sum; } segtree[4 * N_MAX + 2 * N_LOG2_MAX * Q_MAX];
+inline void segtree_pushup(const int root) {
+    segtree[root].v_sum = segtree[segtree[root].l_node].v_sum + segtree[segtree[root].r_node].v_sum;
+}
+void segtree_init(int &root, const int l, const int r) {
+    root = ++segtree_count; segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { return; }
+    int m = (l + r) / 2;
+    segtree_init(segtree[root].l_node, l, m);
+    segtree_init(segtree[root].r_node, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_incre(int &root, const int source, const int l, const int r, const int x, const int v) {
+    segtree[root = ++segtree_count] = segtree[source];
+    if(l == r) { segtree[root].v_sum += v; return; }
+    int m = (l + r) / 2;
+    if(x <= m) { segtree_incre(segtree[root].l_node, segtree[source].l_node, l, m, x, v); }
+    if(x > m) { segtree_incre(segtree[root].r_node, segtree[source].r_node, m + 1, r, x, v); }
+    segtree_pushup(root);
+}
+int segtree_query_rank(const int root, const int source, const int l, const int r, const int k) {
+    if(l == r) { return l; }
+    int m = (l + r) / 2;
+    int m_v_sum = segtree[segtree[root].l_node].v_sum - segtree[segtree[source].l_node].v_sum;
+    if(k <= m_v_sum) { return segtree_query_rank(segtree[root].l_node, segtree[source].l_node, l, m, k); }
+    if(k > m_v_sum) { return segtree_query_rank(segtree[root].r_node, segtree[source].r_node, m + 1, r, k - m_v_sum); }
+}
+
+std::unordered_map<int, int> a_map; // 原始值->离散化编号
+int main() {
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    
+    std::copy(a + 1, a + 1 + n, a_unique + 1);
+    std::sort(a_unique + 1, a_unique + 1 + n);
+    n_unique = std::unique(a_unique + 1, a_unique + 1 + n) - a_unique - 1;
+    for(int i = 1; i <= n_unique; ++i) { a_map[a_unique[i]] = i; }
+    // a[1->n]原始值, a_unique[1->n_unique]原始去重值
+
+    segtree_init(segtree_root[0], 1, n_unique);
+    for(int i = 1; i <= n; ++i) { segtree_incre(segtree_root[i], segtree_root[i - 1], 1, n_unique, a_map[a[i]], 1); }
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> l_temp >> r_temp >> k_temp;
+        ans_segtree_i = segtree_query_rank(segtree_root[r_temp], segtree_root[l_temp - 1], 1, n_unique, k_temp);
+        std::cout << a_unique[ans_segtree_i] << '\n';
     }
 }
 ```
