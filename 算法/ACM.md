@@ -16508,6 +16508,109 @@ int main() {
 }
 ```
 
+> [洛谷P10513](https://www.luogu.com.cn/problem/P10513)：给定一个只包含`(`和`)`的括号字符串序列`s[1->n<=5e5]`，执行`q<=5e5`次两种操作之一：（1）翻转`[l, r]`中的括号方向；（2）查询`[l, r]`中的最长合法括号子序列（不需要连续）长度，除`2`输出。
+
+注意到对于同一个括号字符串，它与它的翻转版本的的最长合法括号子序列长度并不一致。比喻对于括号字符串`(())`，它的所求长度为`4`，但是它的翻转版本`))((`所求长度就是`0`。这提示我们需要同时维护原始版本和翻转版本的信息。
+
+具体来说，对于线段树上每个节点对应的括号字符串区间，令`v`表示原始的最长合法括号子序列包含多少对括号，`v_l`表示多出了多少左括号字符`(`，`v_r`表示多出了多少右括号字符`)`。同理，还有它们的翻转版本`v_inv`、`v_inv_l`、`v_inv_r`。
+
+对于`segtree_pushdown()`而言，要更新翻转懒标记`lazy_inv`，让子节点翻转时只需交换维护值的原始版本和翻转版本。
+
+对于`segtree_pushup()`而言，首先我们意识到`左子节点.v_l`一定会与`右子节点.v_r`尽可能多的结合，形成了新的`std::min(segtree[root * 2].v_l, segtree[root * 2 + 1].v_r)`对括号，这正是`segtree[root].v`的增量`v_incre`。同理，这会导致未匹配的左括号数量`v_l`和右括号数量`v_r`也自减`v_incre`。翻转版本同理。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5;
+int n, q, op_temp, x_temp, y_temp; char s[1 + N_MAX + 1];
+
+struct SegTree { int l, r, v, v_l, v_r, v_inv, v_inv_l, v_inv_r; bool lazy_inv; } segtree[4 * N_MAX + 1];
+inline void segtree_pushup(const int &root) {
+    int v_incre = std::min(segtree[root * 2].v_l, segtree[root * 2 + 1].v_r);
+    segtree[root].v = segtree[root * 2].v + segtree[root * 2 + 1].v + v_incre;
+    segtree[root].v_l = segtree[root * 2].v_l + segtree[root * 2 + 1].v_l - v_incre;
+    segtree[root].v_r = segtree[root * 2].v_r + segtree[root * 2 + 1].v_r - v_incre;
+    int v_inv_incre = std::min(segtree[root * 2].v_inv_l, segtree[root * 2 + 1].v_inv_r);
+    segtree[root].v_inv = segtree[root * 2].v_inv + segtree[root * 2 + 1].v_inv + v_inv_incre;
+    segtree[root].v_inv_l = segtree[root * 2].v_inv_l + segtree[root * 2 + 1].v_inv_l - v_inv_incre;
+    segtree[root].v_inv_r = segtree[root * 2].v_inv_r + segtree[root * 2 + 1].v_inv_r - v_inv_incre;
+}
+inline void segtree_pushdown(const int &root) {
+    if(segtree[root].lazy_inv == false) { return; }
+    
+    std::swap(segtree[root * 2].v, segtree[root * 2].v_inv);
+    std::swap(segtree[root * 2].v_l, segtree[root * 2].v_inv_l);
+    std::swap(segtree[root * 2].v_r, segtree[root * 2].v_inv_r);
+    segtree[root * 2].lazy_inv = !segtree[root * 2].lazy_inv;
+    std::swap(segtree[root * 2 + 1].v, segtree[root * 2 + 1].v_inv);
+    std::swap(segtree[root * 2 + 1].v_l, segtree[root * 2 + 1].v_inv_l);
+    std::swap(segtree[root * 2 + 1].v_r, segtree[root * 2 + 1].v_inv_r);
+    segtree[root * 2 + 1].lazy_inv = !segtree[root * 2 + 1].lazy_inv;
+
+    segtree[root].lazy_inv = false;
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;;
+    if(l == r) { 
+        segtree[root].v_l = s[l] == '(';
+        segtree[root].v_r = s[l] == ')';
+        segtree[root].v_inv_l = s[l] != '(';
+        segtree[root].v_inv_r = s[l] != ')';
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_inv(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) {
+        std::swap(segtree[root].v, segtree[root].v_inv);
+        std::swap(segtree[root].v_l, segtree[root].v_inv_l);
+        std::swap(segtree[root].v_r, segtree[root].v_inv_r);
+        segtree[root].lazy_inv = !segtree[root].lazy_inv;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_inv(root * 2, l, r); }
+    if(r > m) { segtree_range_inv(root * 2 + 1, l, r); }
+    segtree_pushup(root);
+}
+SegTree segtree_range_query(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root]; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query(root * 2, l, r); }
+    if(l > m) { return segtree_range_query(root * 2 + 1, l, r); }
+    SegTree query_l = segtree_range_query(root * 2, l, r), query_r = segtree_range_query(root * 2 + 1, l, r), query;
+    query.l = std::max(l, query_l.l);
+    query.r = std::min(r, query_r.r);
+    int v_incre = std::min(query_l.v_l, query_r.v_r);
+    query.v = query_l.v + query_r.v + v_incre;
+    query.v_l = query_l.v_l + query_r.v_l - v_incre;
+    query.v_r = query_l.v_r + query_r.v_r - v_incre;
+    query.v_inv = query.v;
+    query.v_inv_l = query.v_r;
+    query.v_inv_r = query.v_l;
+    return query;
+}
+
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cin >> n >> (s + 1) >> q;
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp >> x_temp >> y_temp;
+        if(op_temp == 1) {
+            segtree_range_inv(1, x_temp, y_temp);
+        } else if(op_temp == 2) {
+            SegTree query = segtree_range_query(1, x_temp, y_temp);
+            std::cout << query.v << '\n';
+        }
+    }
+}
+```
+
 > [洛谷P5094](https://www.luogu.com.cn/problem/P5094)：给定`a[1->n]`和`x[1->n]`两个序列（值域均为`[1, 5e4]`），定义区间查询函数$f(l, r) = \displaystyle\sum_{\forall i,j, l\le i< j\le r}\left({\max(a_i, a_j)\cdot |x_i-x_j|}\right)$。输出$f(1,n)$的值。
 
 本题只涉及到一次区间查询，所以可以考虑离线做法——将这`n`个元素逐个加入到线段树中，第`j`个添加的元素会与之前的`j-1`个已添加元素共同作用，将新增的贡献叠加到$f(l, r)$中。
