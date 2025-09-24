@@ -19986,9 +19986,44 @@ for(int i = 1; i <= n; ++i) {
 std::cout << ans;
 ```
 
-### §8.3.2 向上/向下取整
+### §8.3.2 取整
 
 若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以用`(a - 1) / b + 1`表示。**该式在`a==0`时不适用**。
+
+### §8.3.3 逆元
+
+#### §8.3.3.1 线性逆元
+
+注意到恒等式$\displaystyle\lfloor\frac{p}{i}\rfloor\cdot i + (p\%i) \equiv p \equiv 0 \pmod p$，于是变形可得$\displaystyle i^{-1}=-\lfloor\frac{p}{i}\rfloor\cdot(p\%i)^{-1}$，顺序递推即可。
+
+```c++
+const int N_MAX = 1e5;
+const int64_t MOD = 998244353;
+int n, inv[N_MAX + 1];
+int main() {
+	inv[1] = 1;
+	for(int i = 2; i <= n && i <= MOD - 1; ++i) {
+		inv[i] = (p - p / i) * inv[p % i] % p;
+	}
+}
+```
+
+#### §8.3.3.2 阶乘逆元
+
+注意到恒等式$\displaystyle\frac{1}{n!}=(n+1)\cdot\frac{1}{(n+1)!}$，逆序递推即可。
+
+```c++
+const int N_MAX = 1e5;
+const int64_t MOD = 998244353;
+int n; int64_t fact[N_MAX + 1], fact_inv[N_MAX + 1];
+int main() {
+    std::cin >> n;
+    fact[0] = 1;
+    for(int i = 1; i <= n; ++i) { fact[i] = fact[i - 1] * i % MOD; }
+    fact_inv[n] = inv(fact[n], MOD);
+    for(int i = n - 1; i >= 0; --i) { fact_inv[i] = fact_inv[i + 1] * (i + 1) % MOD; }
+}
+```
 
 ## §8.4 快速幂/矩阵快速幂
 
@@ -20339,7 +20374,7 @@ int main() {
 
 ## §8.6 组合与期望
 
-> [洛谷P3802]：给定`n=7`种正整数`1, 2, ..., n`，其中数字`i`有`0<=a[i]<=1e9`个。将这`m=∑a[i]`个数字排成一个序列`b[]`。求`b[]`中有期望有多少个连续的、长度为`n`、恰好包含`[1, n]`内所有正整数的区间？答案四舍五入保留三位小数。
+> [洛谷P3802](https://www.luogu.com.cn/problem/P3802)：给定`n=7`种正整数`1, 2, ..., n`，其中数字`i`有`0<=a[i]<=1e9`个。将这`m=∑a[i]`个数字排成一个序列`b[]`。求`b[]`中有期望有多少个连续的、长度为`n`、恰好包含`[1, n]`内所有正整数的区间？答案四舍五入保留三位小数。
 
 容易发现，长度为`m`的序列一共有`m-n+1`个长度为`n`的连续区间。每个区间确定具体值后，其它下标的值也可以随意选择。
 
@@ -20367,7 +20402,46 @@ int main() {
 }
 ```
 
-> [洛谷P5104]：给定`0<w<1e9+7`元的群红包，每个人只能均匀地抢到`[0, 剩余金额]`内的任意值。求第`n<=1e18`个抽奖的人抢到的平均金额。输出分数对`1e9+7`取模。
+> [洛谷P10514](https://www.luogu.com.cn/problem/P10514)：给定`n<=1e5`个学生，做同一套具有`m<=1e5`道题的卷子，第`i`道题有`a[i]`人做错。现在从`n`个学生中随机选出`k`个，求他们均考取满分的概率，模`998244353`输出。
+
+已知对于第`i`道题，`n`个人对了`n - a[i]`个人，恰好选出的`k`个人均做对了第`i`道题，显然这是一个超几何分布，概率为$\displaystyle\frac{C_{n-a[i]}^{k}C_{a[i]}^{0}}{C_{n}^{k}}=\frac{(n-a[i])!}{(n-a[i]-k)!}\cdot\frac{(n-k)!}{n!}$。注意到每道题之间都是相互独立的，答案即为`m`道题对应概率的乘积$\displaystyle\prod_{i=1}^{m}\left(\frac{(n-a[i])!}{(n-a[i]-k)!}\right)\cdot\left(\frac{(n-k)!}{n!}\right)^m$。计算时要特殊判断`n - a[i] - k < 0`对应的阶乘值`frac[]`一旦为`0`，则说明概率为`0`，需要停止计算，防止`frac[]`下标越界。
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t ans = 1;
+    for(a = a % p; b > 0; a = (a * a) % p, b /= 2) { if(b % 2) { ans = (ans * a) % p; } }
+    return ans;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+inline int64_t inv(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
+
+const int N_MAX = 1e5, M_MAX = 1e5;
+const int64_t MOD = 998244353;
+int n, m, k; int64_t a[M_MAX + 1], fact[N_MAX + 1], fact_inv[N_MAX + 1], ans;
+int main() {
+    std::cin >> n >> m >> k;
+    for(int i = 1; i <= m; ++i) { std::cin >> a[i]; }
+    fact[0] = 1; for(int i = 1; i <= n; ++i) { fact[i] = fact[i - 1] * i % MOD; }
+    fact_inv[n] = inv(fact[n], MOD); for(int i = n - 1; i >= 0; --i) { fact_inv[i] = fact_inv[i + 1] * (i + 1) % MOD; }
+
+    ans = 1;
+    for(int i = 1; i <= m; ++i) {
+        if(n - a[i] - k < 0) { ans = 0; continue; }
+        ans = mul_mod(mul_mod(ans, fact[n - a[i]], MOD),  fact_inv[n - a[i] - k],  MOD);
+        ans %= MOD;
+    }
+    ans = mul_mod(ans, fast_pow(fact_inv[n], m, MOD), MOD);
+    ans = mul_mod(ans, fast_pow(fact[n - k], m, MOD), MOD);
+    std::cout << ans;
+}
+```
+
+
+> [洛谷P5104](https://www.luogu.com.cn/problem/P5104)：给定`0<w<1e9+7`元的群红包，每个人只能均匀地抢到`[0, 剩余金额]`内的任意值。求第`n<=1e18`个抽奖的人抢到的平均金额。输出分数对`1e9+7`取模。
 
 显然第`1`个人的抢钱金额$X_1$概率分布函数为$f_1(x)=\displaystyle\frac{1}{w}, x\in[0, w]$。于是第`1`个人抢到的金额期望为$\displaystyle\int_{0}^{w}xf_{1}(x)dx=\displaystyle\int_{0}^{w}\frac{x}{w}dx=\frac{x^2}{2w}\big{|}_{0}^{w}=\frac{w}{2}$。剩余步骤同理，容易猜出答案为$\displaystyle\frac{w}{2^n}$。对分数取模即可。
 
