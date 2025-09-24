@@ -14968,7 +14968,7 @@ int main() {
 }
 ```
 
-#### §7.5.1.1 小清新线段树
+#### §7.5.1.1 小清新线段树/势能线段树
 
 如果线段树上对区间修改的恒等函数$f(\cdot)$在$k$次迭代的过程中，总存在一个迭代次数上界$k^*$，使得对于任意取值范围$\mathcal{V}$内的$v\in\mathcal{V}$，$f^{(k^*)}(v)$总为定值$v^*$，则这样的线段树称为“小清新线段树”。针对小清新线段树，我们可以实时记录区间内各个元素的最小迭代次数$k'$，如果$k'\ge k^*$，则不必再更新这段区间；也可以维护区间内的元素是否均为$v^*$，如果是，则不必再更新这段区间。因此**小清新线段树的本质是带有剪枝的线段树**。
 
@@ -15033,6 +15033,97 @@ int main() {
             segtree_range_sqrt(1, x_temp, y_temp);
         } else if(op_temp == 1) {
             std::cout << segtree_range_query(1, x_temp, y_temp) << '\n'; 
+        }
+    }
+}
+```
+
+> [洛谷P10516](https://www.luogu.com.cn/problem/P10516)：给定序列`int64_t a[1->n<=1e5]<=m=1e5, b[1->n<=1e5]<=m=1e5`，实现三种操作并执行`q<=1e5`次：（1）给定区间`[l, r]`，让每个满足`a[i] * b[i] <= k_temp`的二元对`(a[i], b[i])`均`a[i] += v_temp; b[i] += v_temp`；（2）单点更改`a[l_temp] = x_temp`、`b[l_temp] = y_temp`；（3）查询`[l, r]`内的`∑(a[i] + b[i])`。**保证`a[]`、`b[]`、`k_temp`均为自然数**。
+
+容易发现，执行若干次操作（1）后，总存在一个时刻，使得每个`a[i] * b[i]`均大于`k_temp`，这个操作次数上限为$\displaystyle O\left(\frac{\sqrt{m}}{k}\right)\le O(\sqrt{m})$。这里要注意：**我们之所以能进行这步放缩，是因为我们默认了`k`为正数。但是实际上`k`可能取到`0`，因此需要在`k == 0`时剪枝，否则该操作没有上限，时间复杂度会爆炸**。受此启发，我们可以维护`v_ab_min`表示区间内的`a[i] * b[i]`最小值，如果`v_ab_min > k_temp`，则直接剪枝。
+
+操作（1）涉及到了区间有条件地自增，一种幼稚的想法是为其设置懒标记`v_incre`用于记录历史累加值。但是实际编写代码时，我们会发现在`segtree_pushup()`中维护`v_ab_min`是一件很困难的事情。因为如果`(a[i] + v_temp) * (b[i] + v_temp) > k_temp`后，有可能是那些早已满足`a[j] * b[j] > k_temp`的位置变成了`v_ab_min`。更棘手的是，`k_temp`是一个变量，所以根本无法针对`a[j] * b[j] > k_temp`的元素打表。于是，我们只能将该操作退化为单点操作。
+
+现在分析时间复杂度。与吉司机线段树的分析过程类似，我们给每个`v_ab_min <= k_temp`的线段树节点打上标签。显然操作（2）会打上标签，操作（1）会回收标签。详细分析过程略，平均时间复杂度为$\displaystyle O\left((q+n)\frac{\sqrt{m}}{k}\log_2{n}\right)$。本题的$k$分布较为均匀，因此会$\displaystyle O\left(\frac{\sqrt{m}}{k}\right)$常数较小，可以通过本题。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5;
+int n, q, op_temp, l_temp, r_temp; int64_t a[N_MAX + 1], b[N_MAX + 1], k_temp, x_temp, y_temp;
+
+struct SegTree { int l, r; int64_t v_ab_min, v_a_sum, v_b_sum; } segtree[4 * N_MAX + 1];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_a_sum = segtree[root * 2].v_a_sum + segtree[root * 2 + 1].v_a_sum;
+    segtree[root].v_b_sum = segtree[root * 2].v_b_sum + segtree[root * 2 + 1].v_b_sum;
+    segtree[root].v_ab_min = std::min(segtree[root * 2].v_ab_min, segtree[root * 2 + 1].v_ab_min);
+}
+inline void segtree_pushdown(const int &root) { }
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;;
+    if(l == r) { 
+        segtree[root].v_a_sum = a[l];
+        segtree[root].v_b_sum = b[l];
+        segtree[root].v_ab_min = a[l] * b[l];
+        return;
+    }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_range_filter_incre(const int &root, const int &l, const int &r, const int64_t &k, const int64_t &incre) {
+    if(segtree[root].v_ab_min > k) { return; }
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_a_sum += incre;
+        segtree[root].v_b_sum += incre;
+        segtree[root].v_ab_min = segtree[root].v_a_sum * segtree[root].v_b_sum;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(l <= m) { segtree_range_filter_incre(root * 2, l, r, k, incre); }
+    if(r > m) { segtree_range_filter_incre(root * 2 + 1, l, r, k, incre); }
+    segtree_pushup(root);
+}
+void segtree_reset(const int &root, const int &target, const int64_t &a_reset, const int64_t &b_reset) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_a_sum = a_reset;
+        segtree[root].v_b_sum = b_reset;
+        segtree[root].v_ab_min = a_reset * b_reset;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(target <= m) { segtree_reset(root * 2, target, a_reset, b_reset); }
+    if(target > m) { segtree_reset(root * 2 + 1, target, a_reset, b_reset); }
+    segtree_pushup(root);
+}
+int64_t segtree_range_query_ab_sum(const int &root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_a_sum + segtree[root].v_b_sum; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(r <= m) { return segtree_range_query_ab_sum(root * 2, l, r); }
+    if(l > m) { return segtree_range_query_ab_sum(root * 2 + 1, l, r); }
+    int64_t query_l = segtree_range_query_ab_sum(root * 2, l, r), query_r = segtree_range_query_ab_sum(root * 2 + 1, l, r);
+    return query_l + query_r;
+}
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { std::cin >> b[i]; }
+    segtree_init(1, 1, n);
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> l_temp >> r_temp >> k_temp >> x_temp;
+            if(x_temp == 0) { continue; }
+            segtree_range_filter_incre(1, l_temp, r_temp, k_temp, x_temp);
+        } else if(op_temp == 2) {
+            std::cin >> l_temp >> x_temp >> y_temp;
+            segtree_reset(1, l_temp, x_temp, y_temp);
+        } else if(op_temp == 3) {
+            std::cin >> l_temp >> r_temp;
+            std::cout << segtree_range_query_ab_sum(1, l_temp, r_temp) << '\n';
         }
     }
 }
