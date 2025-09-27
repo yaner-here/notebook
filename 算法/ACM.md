@@ -19561,7 +19561,17 @@ int main() {
 
 ## §7.9 哈希
 
-哈希的本质是对状态的非连续离散化编号。
+哈希的本质是对状态的非连续离散化编号，常与前缀和配合使用。具体来说，我们定义序列`a[]`中`a[1->i]`部分的哈希值为`hash_presum[i] = hash_presum[i-1] * BASE + a[i]`，其中`BASE`可为任意大于`a[]`最大值的数，最好为素数。特殊地，空序列的哈希值`hash_presum[0] = 0`。基于该递推式，我们可以得出通项公式：
+
+$$
+\begin{align}
+\mathrm{hash\_presum}[n] & = \sum_{i=1}^{n} a[i] \cdot \mathrm{BASE}^{n-i} \\
+\mathrm{hash}(l\rightarrow r) & = \mathrm{hash\_presum}[r] - \mathrm{hash\_presum}[l-1] \cdot \mathrm{BASE}^{r-l+1}
+
+\end{align}
+$$
+
+
 
 > [洛谷P2843](https://www.luogu.com.cn/problem/P2843)/[洛谷P1360](https://www.luogu.com.cn/problem/P1360)：给定`n`个物品排成的序列`a[1->n<=1e5]`，每个物品`a[i]`包含`k`种属性值`a[i][1->k<=30]`。请找到序列`a[]`中的一段连续闭区间`a[l->r]`，使得这`r-l+1`个物品的各个属性值相加均相同。形式化地，求解$\forall l, r\in[1, n], r-l+1=\text{len}, \text{ Solve: } \displaystyle\underset{\text{len}}{\text{argmax}}\left(\forall j\in[1, k], \sum_{\forall i\in[l,r]}{a[i][j]}均相同\right)$。
 
@@ -19592,6 +19602,53 @@ int main() {
     }
     std::cout << ans;
 }
+```
+
+> [洛谷P8643](https://www.luogu.com.cn/problem/P8643)：给定若干个字符串`char s[n<=5][l<=1e5]`。如果从中任意选择`m<=n`个字符串，从各自的位置开始截取长度为`k<=l`的子串，则这些子串有可能相等。求满足这种要求的情况总数，模`1e9+7`输出。
+
+注意到子串长度是固定的，因此我们可以使用哈希`using Hash = uint64_t;`及其前缀和`hash_presum[n][l]`，$O(n)$预处理得到每个字符串中所有长度恰好为`k`的子串的出现频率`std::map<Hash, int64_t> hash_count[n]`，将它们的键取并集后存入`std::set<Hash> hash_set`表示所有出现的长度恰好为`k`的子串哈希值。
+
+对于`hashset`存储的任意子串`s'`，令$\mathrm{dp}_{s'}[i][j]$表示从前`i`个字符串`s[1->i]`中选出`j`个互异来源的子串`s'`的情况总数，于是显然有状态转移方程：
+
+$$
+\mathrm{dp}_{s'}[i][j] = 
+	\underset{从前i-1个字符串选j个}{\underbrace{\mathrm{dp}_{s'}[i-1][j]}} + \underset{从前i-1个字符串选j-1个，从第i个字符串选1个}{\underbrace{\mathrm{dp}_{s'}[i-1][j-1] \cdot \mathrm{hash\_count}[i][s']}}
+$$
+
+用滚动数组压成一行即可。
+
+```c++
+const int N_MAX = 5, M_MAX = 5, L_MAX = 1e5, BASE = 131; const int64_t MOD = 1e9 + 7;
+int n, m, k; char s[N_MAX + 1][L_MAX + 2]; int s_len[N_MAX + 1];
+uint64_t hash_temp, hash_pow[L_MAX + 1], hash_presum[N_MAX + 1][L_MAX + 2]; std::map<uint64_t, int> hash_count[N_MAX + 1]; std::set<uint64_t> hash_set;
+int64_t dp[M_MAX + 1], ans;
+int main() {
+    hash_pow[0] = 1; for(int i = 1; i <= L_MAX; ++i) { hash_pow[i] = hash_pow[i - 1] * BASE; }
+
+    std::cin >> n >> m >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> (s[i] + 1); s_len[i] = std::strlen(s[i] + 1); }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= s_len[i]; ++j) { hash_presum[i][j] = hash_presum[i][j - 1] * 131 + s[i][j]; } }
+    for(int i = 1; i <= n; ++i) {
+        for(int l = 1, r = k; r <= s_len[i]; ++l, ++r) {
+            hash_temp = hash_presum[i][r] - hash_presum[i][l - 1] * hash_pow[r - l + 1];
+            ++hash_count[i][hash_temp];
+            hash_set.insert(hash_temp);
+        }
+    }
+    
+    for(auto hash_iter = hash_set.begin(); hash_iter != hash_set.end(); ++hash_iter) {
+        hash_temp = *hash_iter;
+        std::fill(dp, dp + M_MAX + 1, 0); dp[0] = 1;
+        for(int i = 1; i <= n; ++i) {
+            for(int j = m; j > 0; --j) {
+                dp[j] = dp[j] + dp[j - 1] * hash_count[i][hash_temp]; dp[j] %= MOD;
+            }
+        }
+        ans += dp[m]; ans %= MOD;
+    }
+    std::cout << ans;
+}
+
 ```
 
 ## §7.10 Set/Multiset
@@ -19782,6 +19839,42 @@ static inline uint64_t popcount(uint64_t x) {
     x = (x & m2) + ((x >> 2) & m2);
     x = (x + (x >> 4)) & m4;
     return (x * h01) >> 56;
+}
+```
+
+### §8.1.A 位运算并行化
+
+对于一系列`bool`变量，逐个计算的时间复杂度为$O(n)$。如果能将其转化为位运算，则可以降为$O(1)$。
+
+> 洛谷P8644：给定正整数`h<=21`及其对应初始序列`bool a_h[1->h]`及其递推公式$a_{i}[j] = a_{i+1}[j] \oplus a_{i+1}[j+1]$，且第`i`层的序列的取值范围仅为`a_i[1->i]`。给定正整数`m`，如果$\displaystyle\sum_{i=1}^{h}\sum_{j=1}^{i}\mathbb{1}_{a_i[j]=1}=m$，求有多少种满足该条件的初始`a_h[1->h]`。
+
+显然本题直接暴力模拟即可。我们穷举`a_h[1->h]`的$2^h$种初始状态，针对每一种初始状态判定是否满足条件，每次判定的时间复杂度为$O(h^2)$。综上所述，总时间复杂度为$O(2^hh^2)<O(2^{21}\cdot 21^2)\approx O(9.2\times 10^{8})$，显然会超时。
+
+注意到这是一堆布尔变量做异或操作，不妨使用位运算来并行化。我们将`a_h[1->h]`视为一个二进制数字`layer_temp`，则`a_{h-1}[1->h-1]`就是`layer_temp ^ (layer_temp >> 1)`后取低`h-1`Bit位，用与运算即可完成截取操作。时间复杂度为$\displaystyle O(2^h\frac{h^2}{\omega})=\displaystyle O(2^h\cdot h)<O(2^{21}\cdot 21)\approx O(4.4\times 10^{7})$，可以通过。
+
+```c++
+template<typename T> inline T popcount(T x) {
+    T ans = 0;
+    while(x > 0) { ans += x & 1; x >>= 1; }
+    return ans;
+}
+
+const int N_MAX = 231, M_MAX = 231;
+int n, m, h, m_temp, layer_temp, ans;
+int main() {
+    std::cin >> n >> m;
+    for(h = 1; h <= 21; ++h) { if(h * (h + 1) / 2 == n + m) { break; } }
+
+    for(int64_t i = 0; i < (1 << h); ++i) {
+        layer_temp = i; m_temp = popcount(layer_temp);
+        for(int j = 2; j <= h; ++j) {
+            layer_temp ^= layer_temp >> 1;
+            layer_temp &= ((1 << (h - j + 1)) - 1);
+            m_temp += popcount(layer_temp);
+        }
+        if(m_temp == m) { ++ans; }
+    }
+    std::cout << ans;
 }
 ```
 
@@ -20064,6 +20157,235 @@ int main() {
     for(int i = 1; i <= n; ++i) { fact[i] = fact[i - 1] * i % MOD; }
     fact_inv[n] = inv(fact[n], MOD);
     for(int i = n - 1; i >= 0; --i) { fact_inv[i] = fact_inv[i + 1] * (i + 1) % MOD; }
+}
+```
+
+### §8.3.4 素数筛
+
+#### §8.3.4.1 埃氏筛
+
+要求出所有的素数，一种显然的方法是从`2`遍历到`n`，一旦遇到一个素数$i$，就把$2i$、$3i$、...全部标记为合数。由素数分布相关知识，可以证明时间复杂度为$O(n\ln\ln n)$。
+
+```c++
+const int N_MAX = 1e5;
+int n; bool is_prime[1 + N_MAX];
+int main() {
+    n = N_MAX;
+    std::fill(is_prime + 1, is_prime + 1 + n, true); is_prime[1] = false;
+    for(int i = 2; i * i <= n; ++i) {
+        if(is_prime[i] == false) { continue; }
+        for(int j = i * 2; j <= n; j += i) { is_prime[j] = false; }
+    }
+    std::cout << std::count(is_prime + 1, is_prime + 1 + n, true);
+}
+```
+
+我们注意到一个事实：**对于任意合数$n=\displaystyle\prod_{i=1}^{\omega(n)}p_{i}^{a_i}$，它的素因子最小值一定满足$\min \{ p_i \} \le \sqrt{n}$**。用反证法易证：若$p_i\le\sqrt{n}$则显然成立，若$p_i > \sqrt{n}$则$p_j=\displaystyle\frac{n}{p_i}\le\sqrt{n}$，结论同样成立。基于此：（1）$\{n'|n'=kn, k\in\mathrm{N}^+, n'\in[2n, n^2)\}$中的所有合数的最小素因子均满足$\min\{p_i\}\le\sqrt{n'} < \sqrt{n^2} = n$；（2）注意到$p_j=\displaystyle\frac{n’}{p_i}\ge p_i$，因此$n'\ge p_{i}^2$。综上所述这些合数$n'$一定已经被它们的最小素因子$p_i$更新过。**这使得我们一方面可以只遍历到$\sqrt{n}$，另一方面遍历到素数$n$时，只需把$n^2$、$n^2+n$、$n^2+2n$、...标记为合数即可**。时间复杂度降到$O(n\ln\ln\sqrt{n})$。
+
+```c++
+const int N_MAX = 1e5;
+int n; bool is_prime[1 + N_MAX];
+int main() {
+    n = N_MAX;
+    std::fill(is_prime + 1, is_prime + 1 + n, true); is_prime[1] = false;
+    for(int i = 2; i <= n; ++i) {
+        if(is_prime[i] == false) { continue; } 
+        for(int j = i * 2; j <= n; j += i) { is_prime[j] = false; }
+    }
+    std::cout << std::count(is_prime + 1, is_prime + 1 + n, true);
+}
+```
+
+我们注意到除了`2`以外的偶数均为合数，因此可以直接跳过。时间复杂度进一步降到$\displaystyle O(\frac{1}{2}n\ln\ln\sqrt{n})$。
+
+```c++
+const int N_MAX = 1e5;
+int n; bool is_prime[1 + N_MAX];
+int main() {
+    n = N_MAX;
+    std::fill(is_prime + 1, is_prime + 1 + n, true); is_prime[1] = false;
+    for(int i = 2; i <= n; i += 1 + (i > 2)) {
+        if(is_prime[i] == false) { continue; } 
+        for(int j = i * 2; j <= n; j += i) { is_prime[j] = false; }
+    }
+    std::cout << std::count(is_prime + 1, is_prime + 1 + n, true);
+}
+```
+
+最后，我们可以把`bool[]`换成`std::bitset<>`或`std::vector<bool>`，配合CPU缓存局部性原理，在O2优化下能显著降低常数至$\displaystyle O(\frac{1}{2\omega}n\ln\ln\sqrt{n})$，**在竞赛常见的数据范围内甚至比$O(n)$的线性筛还要快**。
+
+```c++
+const int N_MAX = 1e5;
+int n; std::bitset<1 + N_MAX> is_prime;
+int main() {
+    n = N_MAX;
+    is_prime.flip(); is_prime[0] = is_prime[1] = false;
+    for(int i = 2; i <= n; i += 1 + (i > 2)) {
+        if(is_prime[i] == false) { continue; } 
+        for(int j = i * 2; j <= n; j += i) { is_prime[j] = false; }
+    }
+    std::cout << is_prime.count();
+}
+```
+
+#### §8.3.4.2 欧式筛/线性筛
+
+埃氏筛的一个显著缺点是它会重复标记同一个值。线性筛（又称欧式筛）在此基础上进行了优化，完全避免了这种无意义的步骤，将时间复杂度将至$O(n)$。
+
+特别感谢[Bilibili @Doger哔哔](https://www.bilibili.com/video/BV1Pt421G7Xc/?p=2)的解释。具体来说，我们维护两个数组：`bool is_prime[i]`表示`i`是否为质数，`std::vector<int> prime`用于升序存储`[1, i]`内的所有质数。令$n=\displaystyle\prod_{i=1}^{\omega(n)}p_{i}^{a_i}$，在埃氏筛中，重复标记同一个值的原因就是$\{p_1, p_2, \cdots, p_{\omega(n)}\}$均会标记`is_prime[n]`，于是我们的思路是只让最小质因数$p_{\mathrm{min}}=\min\{p_i\}$来标记`is_prime[n]`。
+
+于是，$n$可以表示为$\displaystyle n = p_{\mathrm{min}} \cdot \frac{n}{p_\mathrm{min}}$，我们在外层循环`for(int i = 2; i <= n; ++i)`遍历$i = \displaystyle\frac{n}{p_{\mathrm{min}}}$，在内层循环`for(int j : prime)`遍历$j = p_{\mathrm{min}}$。如果某一时刻发现`i % j == 0`，则说明此时存在一个因数$p’ = \displaystyle\frac{i}{j}$满足$j \mid i$。那么遍历到后面更大的`j'`时，`j'`就不再是最小的质因数了，$j\mid i$导致`i`中包含的质因数`j`才是最小的，需要立刻`break;`。
+
+**欧式筛的优点在于：它不仅有着优秀的时间复杂度，同时也可以方便地打表出每个正整数`i`的最小质因数**。
+
+```c++
+const int N_MAX = 1e5;
+int n; bool is_prime[1 + N_MAX]; std::vector<int> prime;
+int main() {
+    n = N_MAX;
+    std::fill(is_prime + 1, is_prime + 1 + n, true); is_prime[1] = false;
+    for(int i = 2; i <= n; ++i) {
+        if(is_prime[i] == true) { 
+	        prime.push_back(i);
+	        // min_factor[i] = i;
+        }
+        for(int j : prime) {
+            if(i * j > n) { break; }
+            is_prime[i * j] = false;
+            // min_factor[i * j] = j;
+            if(i % j == 0) { break; }
+        }
+    }
+    std::cout << std::count(is_prime + 1, is_prime + 1 + n, true);
+}
+```
+
+### §8.3.5 阶
+
+当$a, p$互质时，方程$a^x \equiv 1 \pmod p$的最小正整数解称为$a$模$p$的**阶**，记为$\mathrm{ord}_p(a)$
+
+由欧拉定理：当$a, p$互质时，令$\varphi(p)$表示小于等于$p$且与$p$互质的正整数个数，则$a^{\varphi(p)} \equiv 1 \pmod p$。所以$\mathrm{ord}_p(a)$一定满足$\mathrm{ord}_p(a)\mid \varphi(a)$，我们只需穷举$\varphi(a)$的所有因数即可。令$n=\displaystyle\prod_{i=1}^{\omega(n)}p_{i}^{a_i}$，$\Omega(n)=\displaystyle\sum_{i=1}^{\omega{n}}a_i\sim \ln\ln n$，$\pi(n)=\displaystyle\sum_{p\in\mathbb{N}^+}{\mathbb{1}_{p\le n, p为素数}}\sim\frac{n}{\ln n}$，则以下代码实现的时间复杂度是$O\left(\underset{线性筛}{\underbrace{n}} + (\underset{因数数量}{\underbrace{\Omega(n)}} + \underset{素数数量}{\underbrace{\pi(n)}})\underset{快速幂}{\underbrace{\log_2{n}}})\right)=O(n \log_2(n))$。
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t ans = 1;
+    for(a = a % p; b > 0; a = (a * a) % p, b /= 2) {
+        if(b % 2) { ans = (ans * a) % p; }
+    }
+    return ans;
+}
+
+const int N_MAX = 1e5;
+int a, n, p, min_factor[1 + N_MAX], ans; bool is_prime[1 + N_MAX]; std::vector<int> prime;
+int main() {
+    std::cin >> a >> n; p = n;
+    std::fill(is_prime + 1, is_prime + 1 + n, true); is_prime[1] = false;
+    for(int i = 2; i <= n; ++i) {
+        if(is_prime[i] == true) { min_factor[i] = i; prime.push_back(i); }
+        for(int j : prime) {
+            if(i * j > n) { break; }
+            is_prime[i * j] = false;
+            min_factor[i * j] = j;
+            if(i % j == 0) { break; }
+        }
+    }
+    
+    ans = p - 1; // φ(p) = p - 1
+    for(int i = 0; i < prime.size() && prime[i] <= ans; ++i) {
+        while(ans % prime[i] == 0 && fast_pow(a, ans / prime[i], p) == 1) {
+            ans /= prime[i];
+        }
+    }
+    std::cout << ans;
+}
+```
+
+在上面的例子中，我们仍然遍历了所有素数，而这是不必要的。我们可以通过线性筛直接得到每个数`i`的最小素因子`min_factor[i]`，从而直接定位到素因数，不必通过遍历得到。时间复杂度将至$O\left(\underset{线性筛}{\underbrace{n}} + \underset{因数数量}{\underbrace{\Omega(n)}}\underset{快速幂}{\underbrace{\log_2{n}}})\right)=O(\ln\ln n \cdot \log_{2}n)$。
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t ans = 1;
+    for(a = a % p; b > 0; a = (a * a) % p, b /= 2) {
+        if(b % 2) { ans = (ans * a) % p; }
+    }
+    return ans;
+}
+
+const int N_MAX = 1e5;
+int a, n, p, min_factor[1 + N_MAX], ans, ans_remain; bool is_prime[1 + N_MAX]; std::vector<int> prime;
+int main() {
+    std::cin >> a >> n; p = n;
+    std::fill(is_prime + 1, is_prime + 1 + n, true); is_prime[1] = false;
+    for(int i = 2; i <= n; ++i) {
+        if(is_prime[i] == true) { min_factor[i] = i; prime.push_back(i); }
+        for(int j : prime) {
+            if(i * j > n) { break; }
+            is_prime[i * j] = false;
+            min_factor[i * j] = j;
+            if(i % j == 0) { break; }
+        }
+    }
+    
+    ans = ans_remain = p - 1; // φ(p) = p - 1
+    for(ans_remain = ans; ans_remain > 1; ans_remain /= min_factor[ans_remain]) {
+        if(fast_pow(a, ans / min_factor[ans_remain], p) == 1) { ans /= min_factor[ans_remain]; }
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P10515](https://www.luogu.com.cn/problem/P10515)：给定`q<=4e5`组查询。每个查询给定质数`n<=1e7`与正整数`m<n`，令函数$f(x) = (m+1)x \% n$，$f^{(k)}=\underset{k个f(\cdot)}{\underbrace{f(f(f(\cdots f(x))))}}$，求集合$\{f^{(k)}(1)|k\in\mathbb{N}\}$的元素数量。
+
+注意到递推式：
+
+$$
+\begin{align}
+	f^{(1)}(x) & = (m+1)x \% n \\
+	f^{(2)}(x) & = (m+1)((m+1)x \% n) \% n = (m+1)^2x \% n \\
+	\cdots \\
+	f^{(k)}(x) & = (m+1)^{k}x \% n
+\end{align}
+$$
+因此，**当`m+1 == n`时**，答案显然为`m + 1 == 1 ? 1 : 2`；**当`m+1 < n`时，两者互质**，答案显然为`m+1`模`n`的阶。要注意分类讨论！
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t ans = 1;
+    for(a = a % p; b > 0; a = (a * a) % p, b /= 2) {
+        if(b % 2) { ans = (ans * a) % p; }
+    }
+    return ans;
+}
+
+const int N_MAX = 1e7, Q_MAX = 4e5;
+int q, n, m, min_factor[1 + N_MAX], ans, ans_remain; bool is_prime[1 + N_MAX]; std::vector<int> prime;
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    
+    std::fill(is_prime + 1, is_prime + 1 + N_MAX, true); is_prime[1] = false;
+    for(int i = 2; i <= N_MAX; ++i) {
+        if(is_prime[i] == true) { min_factor[i] = i; prime.push_back(i); }
+        for(int j : prime) {
+            if(i * j > N_MAX) { break; }
+            is_prime[i * j] = false;
+            min_factor[i * j] = j;
+            if(i % j == 0) { break; }
+        }
+    }
+
+    std::cin >> q;
+    while(q--) {
+        std::cin >> n >> m;
+        
+        if(m + 1 == n) { std::cout << (m + 1 == 1 ? 1 : 2) << '\n'; continue; }
+        ans = ans_remain = n - 1;
+        for(ans_remain = ans; ans_remain > 1; ans_remain /= min_factor[ans_remain]) {
+            if(fast_pow(m + 1, ans / min_factor[ans_remain], n) == 1) {
+                ans /= min_factor[ans_remain]; 
+            }
+        }
+        std::cout << ans << '\n';
+    }
 }
 ```
 
@@ -20725,7 +21047,7 @@ int main() {
 
 > [洛谷P6345](https://www.luogu.com.cn/problem/P6345)：接雨水。给定`n`个高度分别为`h[i]`的柱子，有$A_n^n$种排列方式，将所有排列的接水量存入集合去重，升序输出该集合。
 
-我们需要证明一个及其重要的结论：给定`n`个柱子。从中随意取出`n-1`个柱子，它们的高度分别为`h[i:1->n-1]`，记其中高度最大/小的柱子编号为`i_max`/`i_min`（如果有多个最大/小值则任取一个柱子），在$A_{n-1}^{n-1}$种排列方式中随意选择一种。记`x[i:1->n-1]`和`v[1->n-1]`分别表示在该排列方式中，从左往右数第`i`个柱子的编号和节水量分别是什么。记表示在。接水量分别为`h[i:1->n-1]`和。要在其中插入第`n`个柱子时（记高度为`h'`），一定存在一个插入位置，使得插入后，原先的`n-1`个柱子的接水量保持不变，且第`n`个柱子的接水量可以是集合$\{0\}\cup\{h_i-h'|\forall i\in[1,n-1], h[i]>h' \wedge i\ne i_{\text{max}}\}$中的任意一个值。
+我们需要证明一个极其重要的结论：给定`n`个柱子。从中随意取出`n-1`个柱子，它们的高度分别为`h[i:1->n-1]`，记其中高度最大/小的柱子编号为`i_max`/`i_min`（如果有多个最大/小值则任取一个柱子），在$A_{n-1}^{n-1}$种排列方式中随意选择一种。记`x[i:1->n-1]`和`v[1->n-1]`分别表示在该排列方式中，从左往右数第`i`个柱子的编号和节水量分别是什么。记表示在。接水量分别为`h[i:1->n-1]`和。要在其中插入第`n`个柱子时（记高度为`h'`），一定存在一个插入位置，使得插入后，原先的`n-1`个柱子的接水量保持不变，且第`n`个柱子的接水量可以是集合$\{0\}\cup\{h_i-h'|\forall i\in[1,n-1], h[i]>h' \wedge i\ne i_{\text{max}}\}$中的任意一个值。
 
 证明如下：
 
