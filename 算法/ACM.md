@@ -5514,7 +5514,7 @@ int main() {
 
 事实上本题有时间更优的$O(40n\log{n})$DP做法，使用了倍增的思想，但这种做法太过特殊，不具有普适性。本节略，详见[洛谷题解](https://www.luogu.com.cn/article/3zhrb4e5)。
 
-> [P1622](https://www.luogu.com.cn/problem/P1622)：给定一个长度为`n`的全`true`布尔序列`{true, true, true, ..., true}`与`m`个待重置为`false`的位置`a[1->m]`。每当一个位置被重置为`false`时，以当前位置向两侧扩张至另一个`false`或序列尽头，统计一共能遇到多少个`true`元素，本次重置操作就会产生多少代价。要删除这`m`个位置的数字，求总代价最小值。
+> [洛谷P1622](https://www.luogu.com.cn/problem/P1622)：给定一个长度为`n`的全`true`布尔序列`{true, true, true, ..., true}`与`m`个待重置为`false`的位置`a[1->m]`。每当一个位置被重置为`false`时，以当前位置向两侧扩张至另一个`false`或序列尽头，统计一共能遇到多少个`true`元素，本次重置操作就会产生多少代价。要删除这`m`个位置的数字，求总代价最小值。
 
 为了简化操作，不妨在原始序列两侧同时添加一个`0`，于是越界判定转化为`0`判定。**令`dp[i][j]`表示在闭区间`[a[i], a[j]]`以外的重置操作全部执行完毕、以内的重置操作都没有执行的情况下，进行闭区间以内的重置操作产生的总代价最小值**。
 
@@ -6347,20 +6347,38 @@ int main() {
 }
 ```
 
-## §2.15 刷表DP与填表DP
+## §2.15 线性DP
 
-DP的转移方式可以分为两种，一种是填表法（`dp[i] = f(dp[i - 1])`），另一种是刷表法`dp[i + g(i)] += h(dp[i])`。具体应用哪种，取决于`f()`和`g()`/`h()`两者哪个更容易确定。
+线性DP将一个序列划分为若干段，求一种划分方式以满足最优化目标。
 
-> [洛谷P2182](https://www.luogu.com.cn/problem/solution/P2182)：给定`n<=100`个硬币，其中有`diff`个反面朝上，`n - diff`个正面朝上。每次操作选择其中`p`枚硬币翻转，则经过`m<=100`次操作后所有硬币恰好均正面朝上的方案数量是多少？答案模`1e9+7`输出。
+> [洛谷P1018](https://www.luogu.com.cn/problem/P1018)：以`char s[1 + N_MAX<=40 + 1]`的方式给定一个十进制数字，按十进制为划分成`m<=7`个非空子串，求这些部分的乘积最大值。
 
-令`dp[i][j]`表示经过`i`次操作后恰好有`j`枚硬币朝上的方案总数，显然初始化条件`dp[0][n - diff] = 1`，其余为`0`。使用刷表法容易得出DP递推式：
+令`dp[i][j]`表示给定`s[1->i]`，切成`j`份的乘积最大值，显然有状态转移方程：
 
 $$
-\mathrm{dp}[i][j] = \sum_{k=\max(0, j - p)}^{n, j + p} \left( \mathrm{dp}[i][k] \cdot C_{k}^{\frac{p+j-k}{2}} C_{n-k}^{\frac{p-j+k}{2}} \right)
+\mathrm{dp}[i][j] = \max_{k\in[j-1, i)} \mathrm{dp}[k][j-1] \cdot s[k+1\rightarrow i]
 $$
 
-然而，并不是所有范围内的`k`都能让`dp[i][k]`转移到`dp[i][j]`。比如`n=10, j=10, p=5`时，`k`的范围是`[5, 10]`，而`dp[][6]`无法转移到`dp[][10]`，这是因为此时$C_{k}^{\frac{p+j-k}{2}}$会得到小数，并且`6/10`枚正面硬币翻转`5`个硬币后只能得到的正面硬币结果有`1/10`、`3/10`、`5/10`、`7/10`、`9/10`等等，不可能得到`10/10`。
+乘积需要用到高精度，这里省略了高精度的板子。
 
+```c++
+const int N_MAX = 40, M_MAX = 6 + 1;
+int n, m; std::string s;
+Num dp[N_MAX + 1][M_MAX + 1], temp;
+int main() {
+    std::cin >> n >> m >> s; ++m; s = ' ' + s;
+    dp[0][0] = 1;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            for(int k = j - 1; k < i; ++k) {
+                temp = dp[k][j - 1] * Num(s.substr(k + 1, i - (k + 1) + 1).c_str());
+                if(temp > dp[i][j]) { dp[i][j] = temp; }
+            }
+        }
+    }
+    std::cout << dp[n][m];
+}
+```
 
 ## §2.A DP优化
 
@@ -7035,9 +7053,23 @@ int main() {
 }
 ```
 
-## §2.C 经典问题
+## §2.C 刷表法与填表法
 
-### §2.C.1 约瑟夫环
+DP的转移方式可以分为两种，一种是填表法（`dp[i] = f(dp[i - 1])`），另一种是刷表法`dp[i + g(i)] += h(dp[i])`。具体应用哪种，取决于`f()`和`g()`/`h()`两者哪个更容易确定。
+
+> [洛谷P2182](https://www.luogu.com.cn/problem/solution/P2182)：给定`n<=100`个硬币，其中有`diff`个反面朝上，`n - diff`个正面朝上。每次操作选择其中`p`枚硬币翻转，则经过`m<=100`次操作后所有硬币恰好均正面朝上的方案数量是多少？答案模`1e9+7`输出。
+
+令`dp[i][j]`表示经过`i`次操作后恰好有`j`枚硬币朝上的方案总数，显然初始化条件`dp[0][n - diff] = 1`，其余为`0`。使用刷表法容易得出DP递推式：
+
+$$
+\mathrm{dp}[i][j] = \sum_{k=\max(0, j - p)}^{n, j + p} \left( \mathrm{dp}[i][k] \cdot C_{k}^{\frac{p+j-k}{2}} C_{n-k}^{\frac{p-j+k}{2}} \right)
+$$
+
+然而，并不是所有范围内的`k`都能让`dp[i][k]`转移到`dp[i][j]`。比如`n=10, j=10, p=5`时，`k`的范围是`[5, 10]`，而`dp[][6]`无法转移到`dp[][10]`，这是因为此时$C_{k}^{\frac{p+j-k}{2}}$会得到小数，并且`6/10`枚正面硬币翻转`5`个硬币后只能得到的正面硬币结果有`1/10`、`3/10`、`5/10`、`7/10`、`9/10`等等，不可能得到`10/10`。
+
+## §2.D 经典问题
+
+### §2.D.1 约瑟夫环
 
 > [洛谷P8671](https://www.luogu.com.cn/problem/P8671)：给定编号为`0->n-1`的`n<1e6`个人按顺时针围成一圈，从`0`号人开始顺时针从`0`递增报数，数到`k-1`的人会被淘汰并被移除，不参与以后的报数，并且被淘汰的下一个人又要从`0`开始数。求圈中最后留下的人的序号，加`1`输出。
 
@@ -12466,6 +12498,468 @@ int main() {
     for(int i = 1; i <= n; ++i) { std::cout << std::fixed << std::setprecision(3) << dp_ans[i] << '\n'; }
 }
 ```
+
+#### §6.5.2.1 定长路
+
+> [洛谷P2886](https://www.luogu.com.cn/problem/P2886)：给定一个含有`n`个点、`m<=1e2`条边权为`1<=w<=1e3`的无向边`u <-> v: w`（`u, v <= 1e3`）构成的无向边权连通无环图。求从起点`a`到终点`b`的、恰好经过`t`条边的路径的最小边权和。
+
+**首先判断`n`的取值范围**。注意到这是一个连通图，边的数量满足`m<=1e2`，因此最多有`n<=1e2+1`个点。而`u, v <= 1e3`，这说明我们要先做离散化。
+
+令$\mathbf{A}$表示图中各点的连通性矩阵，即$\mathbf{A}[i][j]$表示点`i`和点`j`之间存在一条边权为$\mathbf{A}[i][j]$的有向边。特殊地，$\forall i\in[1, n], \mathbf{A}[i][i]=0$。再令`C[t][i][j]`表示从点`i`出发，经过`t`条边后到达点`j`的最短路，显然$\mathbf{C}[i]=\mathbf{A}$。于是有状态转移方程：
+
+$$
+\mathbf{C}[t][i][j] = \min_{k\in[1,k]} \left(\mathbf{C}[t-1][i][k] + \mathbf{A}[k][j]\right)
+$$
+
+这有点类似于矩阵乘法，但是与传统的矩阵乘法不太一样。借用抽象代数的概念，我们发现本题的矩阵乘法依然满足结合律，因此可以使用矩阵快速幂解决。
+
+```c++
+for(int i = 1; i <= a; ++i) {
+	for(int j = 1; j <= b; ++i) {
+		for(int k = 1; k <= c; ++k) {
+			C[i][j] = func(C[i][j], A[i][k], B[k][j]);
+		}
+	}
+}
+
+/* 传统矩阵乘法 */
+std::function<T(const T, const T, const T)> func = 
+	[](const T raw_ij, const T lhs_ik, const T rhs_kj){
+		return raw_ij + lhs_ik * rhs_kj;
+	};
+	
+/* 本题的矩阵乘法 */
+std::function<T(const T, const T, const T)> func = 
+	[](const T raw_ij, const T lhs_ik, const T rhs_kj){
+		return std::min(raw_ij, lhs_ik + rhs_kj); // raw_ij初始为正无穷大
+	};
+```
+
+```c++
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 101, M_MAX = 101;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
+    Matrix(int n, int m, T v) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = v; } }
+    }
+    Matrix() : Matrix(N_MAX, M_MAX, 0) { }
+    Matrix(int n, int m) : Matrix(n, m, 0) { }
+	static Matrix eye(const int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, 0);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+    static Matrix diag(const int n, T diag_v, T non_diag_v) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, non_diag_v);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = diag_v; }
+		return ans;
+    }
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+    T _safe_multiply(T x, T y, const T &p) {
+        T ans = 0;
+        for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) {
+            if(y & 1) { ans = (ans + x) % p; }
+        }
+        return ans;
+    }
+	Matrix safe_multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + _safe_multiply(this->data[i][k], rhs[k][j], mod)) % mod; }}}
+		return ans;		
+	}
+	Matrix multiply(const Matrix &rhs, const Lambda &lambda) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, lambda.v_init);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = lambda.func(ans[i][j], this->data[i][k], rhs[k][j]); }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m, 0);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = (ans * base) % mod; }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix safe_fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.safe_multiply(base, mod) % mod; }
+			base = base.safe_multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+    }
+	inline Matrix fast_pow(int64_t power, const Lambda &lambda) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = lambda.ans_init;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, lambda); }
+			base = base.multiply(base, lambda);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline void debug_print() {
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) {
+                std::cerr << this->data[i][j] << ' ';
+            }
+            std::cerr << '\n';
+        }
+    }
+};
+
+const int N_MAX = 1e2 + 1, M_MAX = 1e2 * 2, T_MAX = 1e6;
+int n, m, t, a, b, u_temp, v_temp; int64_t w_temp;
+std::map<int, int> vertex_map;
+Matrix<int64_t> A(N_MAX, N_MAX, 1e18);
+Matrix<int64_t>::Lambda lambda = { 
+    (int64_t)1e18, 
+    [](const int64_t &raw_ij, const int64_t &lhs_ik, const int64_t &rhs_kj){ return std::min(raw_ij, lhs_ik + rhs_kj); },
+    Matrix<int64_t>::diag(N_MAX, 0, 1e18) 
+};
+
+int main() {
+    std::cin >> t >> m >> a >> b;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> w_temp >> u_temp >> v_temp;
+        if(vertex_map.count(u_temp) == 0) { vertex_map[u_temp] = ++n; }
+        if(vertex_map.count(v_temp) == 0) { vertex_map[v_temp] = ++n; }
+        u_temp = vertex_map[u_temp]; v_temp = vertex_map[v_temp];
+        A[u_temp][v_temp] = A[v_temp][u_temp] = std::min(A[u_temp][v_temp], w_temp); // 防重边
+    }
+    a = vertex_map[a]; b = vertex_map[b];
+    A.n = A.m = n; lambda.ans_init.n = lambda.ans_init.m = n;
+
+    Matrix<int64_t> B = A.fast_pow(t, lambda);
+    std::cout << B[a][b];
+}
+```
+
+
+> [洛谷P4159](https://www.luogu.com.cn/problem/P4159)：给定一个含有`n<=10`个点、`m`条无向边的无向边权图，其中每条边的边权的取值范围是`1<=edge_weight[]<=9`。求从起点`1`到终点`n`的、路径可以存在重复点/边的、边权可重复叠加的、边权之和恰好为`t<=1e9`的路径有多少条，答案模`2009`输出。
+
+这道题如果边权均为`1`，就是Floyd算法的板子题。只需令`dp_0[1] = 1`，计算$\mathbf{dp}_t = \mathbf{A}^t \cdot \mathbf{dp}_0$即可统计。
+
+现在这道题的边权是可变的，但是值域范围很小，因此我们可以**把一条边权为`w`的边拆成`w`条边权为`1`的边，并将它们串联起来**，这就是**分层图**的思想。具体来说，我们将每一个点`i`拆成`9`个点`i[1->9]`，它们之间天然存在着`i[k+1] -> i[k]`的边权为`1`的有向边。如果原图中存在一条有向边`i -> j: w`，则在分层图中对应着`i[1] -> j[w]: 1`。在分层图上跑Floyd算法即可。
+
+```c++
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 90, M_MAX = 90;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    Matrix() {
+        n = N_MAX; m = M_MAX;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    Matrix(int n, int m) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+	static Matrix eye(int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n);
+		for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }}
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = (ans * base) % mod; }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+};
+
+const int N_MAX = 10; const int64_t MOD = 2009;
+int n; int64_t t; char w;
+Matrix<int64_t> A(9 * N_MAX, 9 * N_MAX), dp(9 * N_MAX, 1);
+inline int map_to_array(int i, int j) { return 9 * (i - 1) + j; }
+int main() {
+    std::cin >> n >> t;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= n; ++j) {
+            std::cin >> w; w -= '0'; // w ∈ [1, 9]
+            if(w == 0) { continue; }
+            A[map_to_array(j, w)][map_to_array(i, 1)] = 1;
+        }
+        std::cin.ignore();
+    }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j < 9; ++j) {
+            A[map_to_array(i, j)][map_to_array(i, j + 1)] = 1;
+        }
+    }
+    dp[map_to_array(1, 1)][1] = 1;
+    dp = A.fast_pow(t, MOD) * dp; dp %= MOD;
+    std::cout << dp[map_to_array(n, 1)][1];
+}
+```
+
+> [洛谷P2151](https://www.luogu.com.cn/problem/P2151)：给定一个含有`n<=50`个点、`m<=60`条无向边的无向图，边权均为`1`。求从起点`a`到终点`b`的、路径可以存在重复点/边的、**路径中相邻两条边不能重复的**、边权之和恰好为`t<=2<<30`的路径有多少条，答案模`45989`输出。
+
+一种容易想到的方法是令`dp[t][i]`表示路径长度恰好为`t`、从点`a`出发后到达点`i`的方案总数。但是这样无法表示**路径中相邻两条边不能重复**，因为对于无向边`i <-> j: 1`而言，`dp[t-1][i]`中可能存在不符合条件的方法总数，我们不知道具体有哪些方法总数能从`dp[t-1][i]`转移到`dp[t][j]`。
+
+这提示我们要以边来统计。先把无向边拆成有向边（特判自环只能拆成`1`个有向边），我们重新令`dp[t][i]`表示路径长度恰好为`t`，路径中最后一条边为`i = (u -> v): 1`的情况总数。于是有状态转移方程：
+
+$$
+\mathrm{dp}[t][i] = \sum_{\forall j=(w, u)\in\mathcal{E}\wedge \mathrm{edge\_anti}[j]\neq i} 
+\mathrm{dp}[t-1][j]
+$$
+
+初始时`dp[1][a] = 1`，其余`dp[1][*] = 0`。使用连通性矩阵转移即可。
+
+```c++
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 120, M_MAX = 120;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    Matrix() {
+        n = N_MAX; m = M_MAX;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    Matrix(int n, int m) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+	static Matrix eye(int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n);
+		for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }}
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = (ans * base) % mod; }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+};
+
+const int N_MAX = 50, M_MAX = 60, T_MAX = 2 << 30; const int64_t MOD = 45989;
+int edge_count, edge_first[N_MAX + 1], edge_from[M_MAX * 2 + 1], edge_to[M_MAX * 2 + 1], edge_next[M_MAX * 2 + 1], edge_anti[M_MAX * 2 + 1];
+inline int edge_add(const int &u, const int &v) {
+    ++edge_count;
+    edge_from[edge_count] = u;
+    edge_to[edge_count] = v;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    return edge_count;
+}
+
+int n, m, t, a, b, u_temp, v_temp, w_temp; int64_t ans;
+Matrix<int64_t> A(M_MAX * 2, M_MAX * 2), dp(M_MAX * 2, 1);
+int main() {
+    std::cin >> n >> m >> t >> a >> b; ++a; ++b;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp; ++u_temp; ++v_temp;
+        int edge_anti_1_temp = edge_add(u_temp, v_temp);
+        if(u_temp != v_temp) { // 特判自环，无向边自环只能拆成一条有向边
+            int edge_anti_2_temp = edge_add(v_temp, u_temp);
+            edge_anti[edge_anti_1_temp] = edge_anti_2_temp; // 维护反边
+            edge_anti[edge_anti_2_temp] = edge_anti_1_temp; // 维护反边
+        } else {
+            edge_anti[edge_anti_1_temp] = edge_anti_1_temp; // 自环不存在反边
+        }
+    }
+    
+    if(edge_count == 0) { std::cout << 0; return 0; }
+    A.n = A.m = edge_count; dp.n = edge_count;
+    for(int i = 1; i <= edge_count; ++i) {
+        u_temp = edge_from[i]; v_temp = edge_to[i]; // i = u -> v
+        for(int j = edge_first[v_temp]; j != 0; j = edge_next[j]) {
+            w_temp = edge_to[j]; // j = v -> w
+            if(i != edge_anti[j]) { A[j][i] += 1; }
+        }
+    }
+    for(int i = edge_first[a]; i != 0; i = edge_next[i]) { ++dp[i][1]; }
+    
+    dp = A.fast_pow(t - 1, MOD) * dp; dp %= MOD;
+    
+    for(int i = 1; i <= edge_count; ++i) {
+        if(edge_to[i] == b) {
+            ans += dp[i][1]; ans %= MOD;
+        }
+    }
+    std::cout << ans;
+}
+```
+
 
 ### §6.5.3 Bellman-Ford算法与SPFA算法
 
@@ -20121,6 +20615,58 @@ for(int i = 1; i <= n; ++i) {
 std::cout << ans;
 ```
 
+#### §8.3.1.5 整数上溢取模
+
+当`p`太大，导致`(a % p) * (b % p)`就马上溢出时，我们除了使用高精度乘法板子，还可以使用以下技巧。
+
+##### §8.3.1.5.1 龟速乘（`p<2^62`）
+
+给定接近于`INT64_MAX`的`int64_t a, b;`（$a,b\le 2^{63}-1$）以及略小于`INT64_MAX`的`int64_t p;`（$p\le \displaystyle\frac{2^{63}-1}{2}<2^{62}$），如何计算`a * b % p`？显然我们无法`(a % p) * (b % p) % p`，这是因为在`p`很大的情况下，$(a\% p) \times (b\% p) \le p \times p$，仍然会超过`int64_t`的最大值。
+
+一种显然的方案是：我们将`b`拆成两半，四半乃至`k`半，直到`a * (b / k)`不会溢出，然后将这`k`分结果相加时取模即可。但是这样效率太慢了，我们可以使用二进制分治的方法，类似于多重背包或快速幂的思想——我们将`b`拆成若干二进制位`b'[]`，于是原式转换为：
+
+$$
+\begin{align}
+	a \times b \% p
+		& = a \times \sum_{i=0}^{\lfloor\log_{10}b\rfloor}2^i\cdot b'[i] \% p\\
+		& = \sum_{i=0}^{\lfloor\log_{10}b\rfloor}\left(a\times 2^i\right) \% p \cdot b'[i] \% p & 令q[i] = \left(a\cdot 2^i\right)
+\end{align}
+$$
+
+我们令`q[0] = a % p`、`q[i] = (q[i-1] * 2) % p`来维护上式的计算，从而将$a \times b$拆成$1a + 2a + 4a + \cdots$的形式。这种做法保证了任意二元运算（加法、自乘`2`）均不会超过`INT64_MAX`。这种方法为了保证安全，将时间复杂度从$O(1)$提升到了$O(\log_2b)$。
+
+```c++
+int64_t safe_mul_mod(int64_t x, int64_t y, const int64_t &p) {
+	int64_t ans = 0;
+	while(y > 0) {
+		if(y & 1) { ans = (ans + x) % p; }
+		x = (x * 2) % p;
+		y /= 2;
+	}
+	return ans;
+}
+```
+
+##### §8.3.1.5.2 快速乘（`p<2^53`/`p<2^63`）
+
+[2009年国家集训队论文《论程序底层优化的一些方法与技巧》](https://luxrck.github.io/assets/%E8%AE%BA%E7%A8%8B%E5%BA%8F%E5%BA%95%E5%B1%82%E4%BC%98%E5%8C%96%E7%9A%84%E4%B8%80%E4%BA%9B%E6%96%B9%E6%B3%95%E4%B8%8E%E6%8A%80%E5%B7%A7.pdf)中提到了一种快速乘的技巧：利用`double`的`53`位二进制有效数字，我们仍可以用$O(1)$的时间复杂度来计算。
+
+```c++
+inline int64_t fast_mul_mod(const int64_t &a, const int64_t &b, const int64_t &p) {
+	int64_t d = (int64_t) std::floor(a * (double)b / p + 0.5);
+	int64_t ans = a * b - d * p;
+	if(ans < 0) { ans += p; }
+	return ans;
+}
+
+/* 压行 */
+inline int64_t fast_mul_mod(const int64_t &a, const int64_t &b, const int64_t &p) {
+    return ((a * b - (int64_t)((double)a * b / p) * p + p) % p);
+}
+```
+
+大多数实现X86指令集的CPU同时也提供`long double`数据类型，它占用`10`字节，有`63`位二进制有效数字。如果将以上代码换为`long double`，可使得`p`取到`p<=2^63`。
+
 ### §8.3.2 取整
 
 若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以用`(a - 1) / b + 1`表示。**该式在`a==0`时不适用**。
@@ -20423,24 +20969,27 @@ inline long long int fast_power(long long int base, long long int power, long lo
 ```c++
 template<typename T> class Matrix {
 public:
-	const static int N_MAX = 2, M_MAX = 2;
+	const static int N_MAX = 101, M_MAX = 101;
 	int n, m;
 	T data[N_MAX + 1][M_MAX + 1];
-    Matrix() {
-        n = N_MAX; m = M_MAX;
-        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
-    }
-    Matrix(int n, int m) {
+    using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
+    Matrix(int n, int m, T v) {
         assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
         this->n = n; this->m = m;
-        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = v; } }
     }
-	static Matrix eye(int n) {
-		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n);
-		for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }}
+    Matrix() : Matrix(N_MAX, M_MAX, 0) { }
+    Matrix(int n, int m) : Matrix(n, m, 0) { }
+	static Matrix eye(const int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, 0);
 		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
 		return ans;
 	}
+    static Matrix diag(const int n, T diag_v, T non_diag_v) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, non_diag_v);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = diag_v; }
+		return ans;
+    }
 	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
 	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
 	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
@@ -20464,13 +21013,30 @@ public:
 		return *this;
 	}
 	Matrix multiply(const Matrix &rhs, const T &mod) {
-		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m);
-		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+    T _safe_multiply(T x, T y, const T &p) {
+        T ans = 0;
+        for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) {
+            if(y & 1) { ans = (ans + x) % p; }
+        }
+        return ans;
+    }
+	Matrix safe_multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + _safe_multiply(this->data[i][k], rhs[k][j], mod)) % mod; }}}
+		return ans;		
+	}
+	Matrix multiply(const Matrix &rhs, const Lambda &lambda) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, lambda.v_init);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = lambda.func(ans[i][j], this->data[i][k], rhs[k][j]); }}}
 		return ans;		
 	}
 	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
-		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m);
-		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { ans[i][j] = 0; for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m, 0);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
 		return ans;
 	}
 	Matrix& operator*=(const Matrix &rhs) {
@@ -20504,7 +21070,45 @@ public:
 		}
 		return ans;
 	}
+    inline Matrix safe_fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.safe_multiply(base, mod) % mod; }
+			base = base.safe_multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+    }
+	inline Matrix fast_pow(int64_t power, const Lambda &lambda) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = lambda.ans_init;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, lambda); }
+			base = base.multiply(base, lambda);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline void debug_print() {
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) {
+                std::cerr << this->data[i][j] << ' ';
+            }
+            std::cerr << '\n';
+        }
+    }
 };
+
+const int N_MAX = 1e2, T_MAX = 1e6;
+int n, t;
+Matrix<int64_t> A(N_MAX, N_MAX, 1e18);
+Matrix<int64_t>::Lambda lambda = { 
+    (int64_t)1e18, 
+    [](const int64_t &raw_ij, const int64_t &lhs_ik, const int64_t &rhs_kj){ return std::min(raw_ij, lhs_ik + rhs_kj); },
+    Matrix<int64_t>::diag(N_MAX, 0, 1e18) 
+};
+int main() {
+	Matrix<int64_t> B = A.fast_pow(t, lambda);
+}
 ```
 
 > [洛谷P1962](https://www.luogu.com.cn/problem/P1962)：给定斐波那契数列的通项公式$f(n)=f(n-1)+f(n-2)$与初值条件$f(1)=f(2)=1$，求$f(n)$的值，模`MOD`输出。
