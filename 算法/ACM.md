@@ -12882,7 +12882,7 @@ int main() {
 然而在数据加强版中，我们无法承受$\mathbf{A}_{3n\times 3n} = \mathbf{A}_{300\times 300}$量级的矩阵相乘。这使得我们必须缩小矩阵的尺寸。
 
 1. 注意到在数据加强版中，可以保证不存在自环，因此再也无需区分“通过自环回到原点”与“本轮不动仍在原点”的两种情况，可以删除`j==2`状态。
-2. 注意到一旦自杀不再移动，则可以认为每个节点都会转移到一个全局统一的自杀节点，可以删除`j==3`状态。
+2. 注意到一旦自杀不再移动，则可以认为每个节点都会转移到一个全局统一的自杀节点`n+1`，可以删除`j==3`状态。
 
 经过以上两步优化，我们把$\mathbf{A}_{3n\times 3n}$量级降到了$A_{(n+1)\times (n+1)} = \mathbf{A}_{101\times 101}$，可以接受。对于一条无向边`i <-> j`，在分层图显然对应着以下有向边：
 
@@ -21601,6 +21601,205 @@ int main() {
     }
     std::cout << ans;
 }
+```
+
+> [洛谷P1707](https://www.luogu.com.cn/problem/P1707)：给定常量`1 <= p, q, r, t, u, v, w, x, y, z <= 100`与模数`MOD<=1e16`，令数列$a_n, b_n, c_n$存在递推关系：$\begin{cases}a_{k+2}=pa_{k+1}+qa_k + b_{k+1} + c_{k+1} + rk^2 + tk + 1 \\ b_{k+2} = a_{k+1} + ub_{k+1} + vb_k + c_{k+1} + w^k \\ c_{k+2}=a_{k+1}+b_{k+1}+xc_{k+1}+yc_{k}+z^k+k+2\end{cases}$。令$\mathbf{dp}_k = \left[\begin{matrix}a_k\\b_k\\c_k\end{matrix}\right]$，已知$\mathbf{dp}_1=\left[\begin{matrix}1 \\ 1 \\ 1\end{matrix}\right]$与$\mathbf{dp_2}=\left[\begin{matrix}3\\3\\3\end{matrix}\right]$，求$\mathbf{dp}_n \% \mathrm{MOD}$的值。
+
+本题是一道非常综合的矩阵设计题。
+
+一种危险的做法是先将原式中的$k+2$统一变换为$k$：$\begin{cases}a_{k} = pa_{k-1} + qa_{k-2} + b_{k-1} + c_{k-1} + rk^2 + (t-2)k + (4r-2t+1) \\ b_{k} = a_{k-1} + ub_{k-1} + vb_{k-2} + c_{k-1} + w^{k-2} \\ c_{k} = a_{k-1} + b_{k-1} + xc_{k-1} + yc_{k-2} + z^{k-2} + k\end{cases}$。经计算可得，这会导致$\mathbf{A}$中出现不可约分数，造成精度损失。
+
+这里我们直接给出答案：
+
+$$
+\mathbf{dp}_{k+2} = \left[\begin{matrix}
+    a_{k+2} \\ b_{k+2} \\ c_{k+2} \\ a_{k+1} \\ b_{k+1} \\ c_{k+1} \\ k^2 \\ k \\ 1 \\ w^k \\ z^k
+\end{matrix}\right] = \left[\begin{matrix}
+    p & 1 & 1 & q & 0 & 0  &  r & 2r+t & 1+r+t & 0 & 0 \\
+    1 & u & 1 & 0 & v & 0  &  0 & 0 & 0 & w & 0 \\
+    1 & 1 & x & 0 & 0 & y  &  0 & 1 & 3 & 0 & z \\
+    1 & 0 & 0 & 0 & 0 & 0  &  0 & 0 & 0 & 0 & 0 \\
+    0 & 1 & 0 & 0 & 0 & 0  &  0 & 0 & 0 & 0 & 0 \\
+    0 & 0 & 1 & 0 & 0 & 0  &  0 & 0 & 0 & 0 & 0 \\
+    0 & 0 & 1 & 0 & 0 & 0  &  1 & 2 & 1 & 0 & 0 \\
+    0 & 0 & 1 & 0 & 0 & 0  &  0 & 1 & 1 & 0 & 0 \\
+    0 & 0 & 1 & 0 & 0 & 0  &  0 & 0 & 1 & 0 & 0 \\
+    0 & 0 & 1 & 0 & 0 & 0  &  0 & 0 & 0 & w & 0 \\
+    0 & 0 & 1 & 0 & 0 & 0  &  0 & 0 & 0 & 0 & z \\
+\end{matrix}\right] \times \left[\begin{matrix}
+    a_{k+1} \\ b_{k+1} \\ c_{k+1} \\ a_{k} \\ b_{k} \\ c_{k} \\ (k-1)^2 \\ k-1 \\ 1 \\ w^{k-1} \\ z^{k-1}
+\end{matrix}\right] = \mathbf{A}^1 \times \mathbf{dp}_{k+1} = \mathbf{A}^{k} \times \mathbf{dp}_{2}
+$$
+
+于是$\mathbf{dp}_{n} = \mathbf{A}^{n-2}\times\mathbf{dp}_2$**注意到本题的模数`m<=1e16`，所以要使用龟速乘防止溢出**。
+
+```c++
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 101, M_MAX = 101;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
+    Matrix(int n, int m, T v) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = v; } }
+    }
+    Matrix() : Matrix(N_MAX, M_MAX, 0) { }
+    Matrix(int n, int m) : Matrix(n, m, 0) { }
+	static Matrix eye(const int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, 0);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+    static Matrix diag(const int n, T diag_v, T non_diag_v) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, non_diag_v);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = diag_v; }
+		return ans;
+    }
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+    T _safe_multiply(T x, T y, const T &p) {
+        T ans = 0;
+        for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) {
+            if(y & 1) { ans = (ans + x) % p; }
+        }
+        return ans;
+    }
+	Matrix safe_multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + _safe_multiply(this->data[i][k], rhs[k][j], mod)) % mod; }}}
+		return ans;		
+	}
+	Matrix multiply(const Matrix &rhs, const Lambda &lambda) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, lambda.v_init);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = lambda.func(ans[i][j], this->data[i][k], rhs[k][j]); }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m, 0);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = (ans * base) % mod; }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix safe_fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.safe_multiply(base, mod) % mod; }
+			base = base.safe_multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+    }
+	inline Matrix fast_pow(int64_t power, const Lambda &lambda) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = lambda.ans_init;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, lambda); }
+			base = base.multiply(base, lambda);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix transpose() {
+		Matrix ans(this->m, this->n);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { ans[j][i] = this->data[i][j]; }}
+		return ans;
+    }
+    inline void debug_print() {
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) {
+                std::cerr << this->data[i][j] << ' ';
+            }
+            std::cerr << '\n';
+        }
+    }
+};
+
+const int64_t N_MAX = 1e16, MOD_MAX = 1e16;
+int64_t n, MOD; int64_t p, q, r, t, u, v, w, x, y, z;
+Matrix<int64_t> A(11, 11), dp(11, 1);
+int main() {
+    std::cin >> n >> MOD >> p >> q >> r >> t >> u >> v >> w >> x >> y >> z;
+    
+    A[1][1] = p; A[1][2] = 1; A[1][3] = 1; A[1][4] = q; A[1][7] = r; A[1][8] = 2 * r + t; A[1][9] = 1 + r + t;
+    A[2][1] = 1; A[2][2] = u; A[2][3] = 1; A[2][5] = v; A[2][10] = w;
+    A[3][1] = 1; A[3][2] = 1; A[3][3] = x; A[3][6] = y; A[3][8] = 1; A[3][9] = 3; A[3][11] = z;
+    A[4][1] = 1;
+    A[5][2] = 1;
+    A[6][3] = 1;
+    A[7][7] = 1; A[7][8] = 2; A[7][9] = 1;
+    A[8][8] = 1; A[8][9] = 1;
+    A[9][9] = 1;
+    A[10][10] = w;
+    A[11][11] = z;
+
+    // dp_2
+    dp[1][1] = dp[2][1] = dp[3][1] = 3;
+    dp[4][1] = dp[5][1] = dp[6][1] = 1;
+    dp[7][1] = 0; dp[8][1] = 0; dp[9][1] = 1;
+    dp[10][1] = 1; dp[11][1] = 1;
+
+    if(n == 1) { std::cout << "nodgd 1\n" << "Ciocio 1\n" << "Nicole 1\n"; return 0; }
+    if(n == 2) { std::cout << "nodgd 3\n" << "Ciocio 3\n" << "Nicole 3\n"; return 0;}
+    dp = A.safe_fast_pow(n - 2, MOD).safe_multiply(dp, MOD);
+    std::cout << "nodgd " << dp[1][1] << '\n' << "Ciocio " << dp[2][1] << '\n' << "Nicole " << dp[3][1];
+}
+
 ```
 
 ## §8.5 数列递推
