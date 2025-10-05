@@ -556,6 +556,7 @@ int main(){
 > [洛谷P1757](https://www.luogu.com.cn/problem/P1757)：给定容量为`capacity`的背包，`n`个供应量无穷大的，体积、价值、类别分别为`volume[i]`、`value[i]`和`type[i]`的物品，每个类别中最多只能挑出一个物品装入背包，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
 本题在0/1背包的基础上引入了分组问题，显然`dp[i][j]`中的`i`指的不再是第`i`个物品，而是第`i`种类别。状态转移方程为：
+
 $$
 \text{dp}[i][j]=\max\bigg(
 	\text{dp}[i-1][j],
@@ -6133,7 +6134,7 @@ template<typename T> class Matrix {
         Matrix base(*this), ans = Matrix::eye(this->n);
         base %= mod;
         while(power > 0) {
-            if(power % 2) { ans = (ans * base) % mod; }
+            if(power % 2) { ans = ans.multiply(base, mod); }
             base = base.multiply(base, mod);
             power /= 2;
         }
@@ -6442,6 +6443,63 @@ int main() {
         }
     }
     std::cout << dp[n & 1][m];
+}
+```
+
+> [洛谷P5004](https://www.luogu.com.cn/problem/P5004)：`n<=1e18`个格子排成一行，初始时位于`1`号格子的左边无穷远处，第一回合跳跃至第`1`个格子及其右边的任意格子，从第二回合起每回合至少向右跳跃`m+1<=16`格，求跳跃到`n+1`号格子及其右边的跳跃方案总数。
+
+令`a[i]`表示从左边无穷远处向右**恰好**跳跃到`i`号格子的方法总数。考虑某种跳跃方案最后一次跳跃的起点，显然所求答案为$a_{-\infty}+\displaystyle\sum_{i=1}^{n}a_i$，记为$1+S_n$。
+
+显然有状态转移方程：
+
+$$
+\begin{align}
+	& a_n = a_1 + a_2 + a_3 + \cdots + a_{n-m-1} = \sum_{i=1}^{n-m-1}a_i \\
+	& a_{-\infty} = 1, a_{\le 0} = 0, a_1 = a_2 = a_3 = \cdots = a_m = 1, 因为只能从a_{-\infty}=1转移而来 \\
+\end{align}
+$$
+
+注意到：$\begin{cases}\displaystyle a_n = \sum_{i=1}^{n-m-1} a_i \\ \displaystyle a_{n+1} = \sum_{i=1}^{n-m} a_i \end{cases}$，两者取差分立即得到$a_{n+1} = a_n + a_{n-m}$，即$a_n = a_{n-1} + a_{n-m-1}$。现在就可以用矩阵快速幂了。
+
+$$
+\mathbf{dp}_n = \left[\begin{matrix}
+	a_n \\ a_{n-1} \\ a_{n-2} \\ \vdots \\ a_{n-m+1} \\ a_{n-m} \\ S_n
+\end{matrix}\right]_{(m+2)\times(1)} = \left[\begin{matrix}
+	1 & 0 & 0 & \cdots & 0 & 1 & 0 \\
+	1 & 0 & 0 & \cdots & 0 & 0 & 0 \\
+	0 & 1 & 0 & \cdots & 0 & 0 & 0 \\
+	\vdots & \vdots & \ddots & \ddots & \vdots & \vdots & \vdots \\
+	0 & 0 & 0 & \ddots & 0 & 0 & 0 \\
+	0 & 0 & 0 & \cdots & 1 & 0 & 0 \\
+	1 & 0 & 0 & \cdots & 0 & 1 & 1 \\
+\end{matrix}\right] \times \left[\begin{matrix}
+	a_{n-1} \\ a_{n-2} \\ a_{n-3} \\ \vdots \\ a_{n-m} \\ a_{n-m-1} \\ S_{n-1}
+\end{matrix}\right] = \mathbf{A}^{1} \times \mathbf{dp}_{n-1} 
+= \mathbf{A}^{n-m} \times \mathbf{dp}_m
+= \mathbf{A}^{n-m} \times \left[\begin{matrix}
+	1 \\ 1 \\ 1 \\ \vdots \\ 1 \\ 0 \\ m
+\end{matrix}\right]
+$$
+
+```c++
+/* 省略矩阵快速幂板子 */
+
+const int64_t MOD = 1e9 + 7, M_MAX = 15;
+int64_t n, m;
+Matrix<int64_t> A(M_MAX + 2, M_MAX + 2), dp(M_MAX + 2, 2);
+int main() {
+    std::cin >> n >> m; A.n = A.m = dp.n = m + 2;
+
+    A[1][1] = A[1][m + 1] = 1;
+    for(int i = 2; i <= m + 1; ++i) { A[i][i - 1] = 1; }
+    A[m + 2][1] = A[m + 2][m + 1] = A[m + 2][m + 2] = 1;
+
+    for(int i = 1; i <= m; ++i) { dp[i][1] = 1; }
+    dp[m + 2][1] = m;
+
+    if(n <= m) { std::cout << (dp[n - m + 1][1] + 1) % MOD; return 0; }
+    dp = A.fast_pow(n - m, MOD).multiply(dp, MOD);
+    std::cout << (dp[m + 2][1] + 1) % MOD;
 }
 ```
 
@@ -11837,7 +11895,7 @@ int main() {
 
 我们的对策是：使用一个小根堆优先队列`queue`，初始时存储所有的`{i, dp_cost[i]}`。我们先取出其中的两个值，它们一定是最便宜的获取方式，因为其它的合成方式都需要用到更贵的物品。在代码实现上，我们将合成关系`(u1+u2 -> v)`拆分成两条有向边`(u1 -> v): u2`、`(u2 -> v): u1`。如果`point.w > dp_cost[u1]`，则说明存在比`point = {u1, w}`对应的方案更便宜的方案`dp_cost[u1]`。
 
-为了统计`dp_cost[]`，我们不认为自己与自己合成自己存在两条有向边，而是只计入一条有向边。
+为了统计`dp_cost[]`，我们不认为自己与自己之间存在两条有向边，而是只计入一条有向边。
 
 ```c++
 const int N_MAX = 1e3, M_MAX = 1e5 * 2; const int64_t INF = 1e18;
@@ -12633,7 +12691,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -12805,7 +12863,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -12990,7 +13048,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -13135,7 +13193,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -13259,7 +13317,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -13316,6 +13374,183 @@ int main() {
 }
 ```
 
+> [洛谷P2579](https://www.luogu.com.cn/problem/P2579)：给定一个包含`n<=50`个点、`m`条无向边构成的无向**无自环**图。图上有`l`个杀手，它们第`i`个杀手起始时在`l_path[i][0]`处，之后按照`l_path[i:1->l][j:1->1<=l_t[i]<=4]`规定的路线按周期移动，如果某一时刻与任何杀手相遇则判定位死亡。求从点`a`出发、恰好经过`t`条边，到达终点`b`，全程未死亡的方案总数，模`10000`输出。数据保证起始时在起点`a`不会死亡。
+
+注意到杀手的运动周期`l_t[i]∈[1, 4]`，因此公共总周期为`std::gcd(1,2,3,4)=12`。一种幼稚的想法是开一个`12`层的分层图，每层之间进行状态转移。但是这样会导致转移矩阵$\mathbf{A}_{12n\times 12n}=\mathbf{A}_{600\times 600}$太大。于是我们为这周期为`12`的循环开`12`个转移矩阵`A[0->11]`，显然有状态转移方程：
+
+$$
+\begin{align}
+\mathbf{dp}_t = \left[\begin{matrix}
+	\mathrm{dp_t[1]} \\ \mathrm{dp_t[2]} \\ \mathrm{dp_t[3]} \\ \vdots \\ \mathrm{dp_t[n-1]} \\ \mathrm{dp_t[n]} \\
+\end{matrix}\right] & = (\mathbf{A}_0 \mathbf{A}_1 \mathbf{A}_2 \cdots \mathbf{A}_{11})^{\lfloor\frac{t}{12}\rfloor} \times(\mathbf{A}_0 \mathbf{A}_1 \mathbf{A}_2 \cdots \mathbf{A}_{(t\% 12) - 1}) \times \mathbf{dp}_0 \\
+	& = \left(\prod_{i\in[0,12)}\mathbf{A}_i\right)^{\lfloor\frac{t}{12}\rfloor} \times \left(\prod_{i\in[0,t\% 12)}\mathbf{A}_i\right) \times \mathbf{dp}_0
+\end{align}
+$$
+
+```c++
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 50, M_MAX = 50;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
+    Matrix(int n, int m, T v) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = v; } }
+    }
+    Matrix() : Matrix(N_MAX, M_MAX, 0) { }
+    Matrix(int n, int m) : Matrix(n, m, 0) { }
+	static Matrix eye(const int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, 0);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+    static Matrix diag(const int n, T diag_v, T non_diag_v) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, non_diag_v);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = diag_v; }
+		return ans;
+    }
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+    T _safe_multiply(T x, T y, const T &p) {
+        T ans = 0;
+        for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) {
+            if(y & 1) { ans = (ans + x) % p; }
+        }
+        return ans;
+    }
+	Matrix safe_multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + _safe_multiply(this->data[i][k], rhs[k][j], mod)) % mod; }}}
+		return ans;		
+	}
+	Matrix multiply(const Matrix &rhs, const Lambda &lambda) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, lambda.v_init);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = lambda.func(ans[i][j], this->data[i][k], rhs[k][j]); }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m, 0);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, mod); }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix safe_fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.safe_multiply(base, mod) % mod; }
+			base = base.safe_multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+    }
+	inline Matrix fast_pow(int64_t power, const Lambda &lambda) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = lambda.ans_init;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, lambda); }
+			base = base.multiply(base, lambda);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix transpose() {
+		Matrix ans(this->m, this->n);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { ans[j][i] = this->data[i][j]; }}
+		return ans;
+    }
+    inline void debug_print(std::string s) {
+        std::cerr << s << ": \n";
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) {
+                std::cerr << this->data[i][j] << ' ';
+            }
+            std::cerr << '\n';
+        }
+    }
+};
+
+const int N_MAX = 50, L_MAX = 20, L_PATH_MAX = 4; const int64_t MOD = 10000;
+int n, m, a, b, t, l, l_t[L_MAX + 1], u_temp, v_temp, l_path[L_MAX + 1][L_PATH_MAX];
+int main() {
+    std::cin >> n >> m >> a >> b >> t; ++a; ++b;
+    Matrix<int64_t> A[12], A_MUL = Matrix<int64_t>::eye(n), dp(n, 1); for(int i = 0; i < 12; ++i) { A[i].n = A[i].m = n; }
+    for(int i = 1; i <= m; ++i) { std::cin >> u_temp >> v_temp; ++u_temp; ++v_temp; for(int j = 0; j < 12; ++j) { ++A[j][v_temp][u_temp]; ++A[j][u_temp][v_temp]; } } // 无自环,无需特判
+    std::cin >> l;
+    for(int i = 1; i <= l; ++i) {
+        std::cin >> l_t[i]; for(int j = 0; j < l_t[i]; ++j) { std::cin >> l_path[i][j]; ++l_path[i][j]; }
+        for(int j = 0; j < 12 / l_t[i]; ++j) {
+            for(int k = 0; k < l_t[i]; ++k) {
+                for(int kk = 1; kk <= n; ++kk) {
+                    A[l_t[i] * j + k][l_path[i][(k + 1) % l_t[i]]][kk] = 0;
+                }
+            }
+        }
+    }
+    
+    for(int i = 0; i < 12; ++i) { A_MUL = A[i].multiply(A_MUL, MOD); }
+    dp[a][1] = 1; // dp_0
+    dp = A_MUL.fast_pow(t / 12, MOD).multiply(dp, MOD);
+    for(int i = 0; i < t % 12; ++i) { dp = A[i].multiply(dp, MOD);}
+
+    std::cout << dp[b][1];
+}
+```
 
 ### §6.5.3 Bellman-Ford算法与SPFA算法
 
@@ -21029,7 +21264,7 @@ inline int64_t fast_mul_mod(const int64_t &a, const int64_t &b, const int64_t &p
 
 根号取模的存在性由**Euler判别法**给出：给定奇质数$p$与**正**整数$a$，则$\displaystyle a^{\frac{p-1}{2}} \equiv \begin{cases} 1 & \Leftrightarrow x^2 \equiv a存在解 \\ -1\equiv p-1,  & \Leftrightarrow x^2 \equiv a无解 \end{cases}$。特殊地，当$a=0$时要额外特判解一定存在且为$x=0$。**显然，如果$x$是一个解，那么它的相反数$-x\equiv -x+p$也是一个解**。
 
-一种求解根号取模的方法是**Cipolla算法**。与复数类比，我们定义一个关于$\mathbb{i}$的多项式。给定奇质数$p$与**正**整数$a$，且$a$是模$p$的二次剩余，则首先随机化$r\in[0, p)$直到找到一个$r$使得$v = r^2-a$模$p$是二次非剩余，同时强行创建一个“虚数”单位$\mathbb{i}$满足$\mathbb{i}^2\equiv v \pmod p$，接下来我们的运算均在伽罗瓦域$\mathbb{F}_{p^2}[\mathbb{i}]$上进行。于是$x=(r-\mathbb{i})^{\frac{p+1}{2}}\% (\mathbb{i}^2-(r^2-a))$即为所求的一个解，使用伽罗瓦域$\mathbb{F}_{p^2}[\mathbb{i}]$意义下的乘法做快速幂即可。这里的$\mod (\mathbb{i}^2-(r^2-a))$指的是将运算过程中出现的所有$\mathbb{i}^2$全部替换为$(r^2-a)$。**数学可以证明得到的解不包含$\mathbb{i}$，只有最后的常数项**；取相反数可得另一个解。特殊地，当$a=0$时要额外特判解一定存在且为$x=0$。数学上可以证明，随机化的期望查找次数为$\displaystyle\frac{2p}{p-1}\approx 2$，因此均摊时间复杂度为$\displaystyle O\left((2+1)\cdot\log_2{\frac{p-1}{2}}\right)\approx O(3\log_2{p})$。
+一种求解根号取模的方法是**Cipolla算法**。与复数类比，我们定义一个关于$\mathbb{i}$的多项式。给定奇质数$p$与**正**整数$a$，且$a$是模$p$的二次剩余，则首先随机化$r\in[0, p)$直到找到一个$r$使得$v = r^2-a$模$p$是二次非剩余，同时强行创建一个**“虚数”单位**$\mathbb{i}$满足$\mathbb{i}^2\equiv v \pmod p$，这一步称为**扩域**。接下来我们的运算均在伽罗瓦域𝕚上进行。于是$x=(r-\mathbb{i})^{\frac{p+1}{2}}\% (\mathbb{i}^2-(r^2-a))$即为所求的一个解，使用伽罗瓦域$\mathbb{F}_{p^2}[\mathbb{i}]$意义下的乘法做快速幂即可。这里的$\mod (\mathbb{i}^2-(r^2-a))$指的是将运算过程中出现的所有$\mathbb{i}^2$全部替换为$(r^2-a)$。**数学可以证明得到的解不包含$\mathbb{i}$，只有最后的常数项**；取相反数可得另一个解。特殊地，当$a=0$时要额外特判解一定存在且为$x=0$。数学上可以证明，随机化的期望查找次数为$\displaystyle\frac{2p}{p-1}\approx 2$，因此均摊时间复杂度为$\displaystyle O\left((2+1)\cdot\log_2{\frac{p-1}{2}}\right)\approx O(3\log_2{p})$。
 
 在程序实现中，为了计算$\mathbb{F}_{p^2}[\mathbb{i}]$模$\mathbb{i}^2 - (r^2 - a)$，我们需要分别计算多项式的“实部”和“虚部”：
 
@@ -21038,6 +21273,25 @@ $$
 	(a+b\mathbb{i})\times(c+d\mathbb{i}) & = ac + (ad+bc)\mathbb{i} + (bd)\mathbb{i}^2 \\
 		& = ac + (ad+bc)\mathbb{i} + (bd)v \\
 		& = (ac+bdv) + (ad+bc)\mathbb\cdot\mathbb{i}
+\end{align}
+$$
+
+最后，我们额外探讨一下$(a+b\mathbb{i})^n$的性质。前文我们说过，$v'$模$p$是二次非剩余，也就是说由Euler判别法可知$v^{\frac{p-1}{2}}\equiv -1\pmod p$。于是根据$\mathbb{i}$的定义可知$\mathbb{i}^2\equiv v\equiv -1$，因此我们确实可以认为$\mathbb{i}$就是“虚数”**单位**。于是有以下重要的恒等式成立，可以视为[Freshman's Dream](https://en.wikipedia.org/wiki/Freshman%27s_dream)的扩展：
+
+$$
+\begin{align}
+	(a+b\mathbb{i})^{p+1}
+		& = \sum_{i=0}^{p+1} C_{p+1}^i a^{p-i+1} (b\mathbb{i})^{i} \\
+		& = \sum_{i=0}^{p+1} \frac{(p+1)!}{i!\times(p+1-i)!} a^{p-i+1} (b\mathbb{i})^{i} \\
+		& 为了让C_{p+1}^{n}中出现p因子, 不能让分母中出现p因子，对应p\in\{0, 1, p, p+1\}的情况 \\
+		& \textcolor{red}{\equiv} \sum_{i\textcolor{red}{\in[0,1,p,p+1]}} \frac{(p+1)!}{i!\times(p+1-i)!} a^{p-i+1} (b\mathbb{i})^{i} \textcolor{red}{\pmod p} \\
+		& = a^{p+1} + a^pb\mathbb{i} + ab^p\mathbb{i}^p + b^{p+1}\mathbb{i}^{p+1} \\
+		& 由费马小定理化简 \\
+		& \equiv a^2 + ab\mathbb{i} + ab\mathbb{i}^p + b^2\mathbb{i}^{p+1} \\
+		& 由\mathbb{i}^2 = v, v^{\frac{p-1}{2}}\equiv -1得(\mathbb{i}^2)^{\frac{p-1}{2}} = \mathbb{i}^{p-1} \equiv -1 \\
+		& = a^2 + ab\mathbb{i} + ab\textcolor{red}{\mathbb{i}^{p-1}}\cdot\mathbb{i} + b^{2}\textcolor{red}{\mathbb{i}^{p-1}}\cdot\mathbb{i}^2 \\
+		& \equiv a^2 + ab\mathbb{i} - ab\mathbb{i} - b^2\mathbb{i}^2 \\
+		& \equiv a^2 - b^2\mathbb{i}^2
 \end{align}
 $$
 
@@ -21059,17 +21313,17 @@ constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p
 std::mt19937_64 rng(std::random_device{}());
 class CipollaPolynomial {
   public:
-    int64_t power[2], v; // v = r^2 - a
-    CipollaPolynomial(const std::initializer_list<int64_t> &power, const int64_t &v) {
+    int64_t power[2], v, p; // v = r^2 - a
+    CipollaPolynomial(const std::initializer_list<int64_t> &power, const int64_t &v, const int64_t &p_cipolla) {
         int i; std::initializer_list<int64_t>::iterator iter; assert(2 == power.size());
         for(i = 0, iter = power.begin(); i < power.size() && iter != power.end(); ++i, ++iter) { this->power[i] = *iter; }
-        this->v = v;
+        this->v = v; this->p = p_cipolla;
     }
 	friend CipollaPolynomial operator*(const CipollaPolynomial &lhs, const CipollaPolynomial &rhs) {
 		return CipollaPolynomial({
-            ((lhs.power[0] * rhs.power[0]) % p + ((lhs.power[1] * rhs.power[1]) % p * lhs.v) % p) % p, 
-            ((lhs.power[0] * rhs.power[1]) % p + (lhs.power[1] * rhs.power[0]) % p) % p
-        }, lhs.v);
+            ((lhs.power[0] * rhs.power[0]) % lhs.p + ((lhs.power[1] * rhs.power[1]) % lhs.p * lhs.v) % lhs.p) % lhs.p, 
+            ((lhs.power[0] * rhs.power[1]) % lhs.p + (lhs.power[1] * rhs.power[0]) % lhs.p) % lhs.p
+        }, lhs.v, lhs.p);
 	}
 	CipollaPolynomial& operator*=(const CipollaPolynomial &rhs) {
 		*this = (*this) * rhs;
@@ -21082,6 +21336,270 @@ class CipollaPolynomial {
 	}
 	CipollaPolynomial& operator%=(const int64_t &mod) {
 		for(int i = 0; i <= 1; ++i) { this->power[i] %= p; }
+		return *this;
+	}
+	inline CipollaPolynomial fast_pow(int64_t power, const int64_t &p) {
+		CipollaPolynomial base(*this), ans({1, 0}, this->v, p);
+		while(power > 0) { 
+            if(power % 2) { ans *= base; ans %= p; } 
+            base *= base; base %= p;
+            power /= 2;
+        }
+		return ans;
+	}
+};
+int64_t cipolla_sqrt(int64_t a, int64_t p_cipolla) {
+    if(a == 0) { return 0; } // 特判重根
+    if(fast_pow(a, (p_cipolla - 1) / 2, p_cipolla) == p_cipolla - 1) { return -1; } // 特判无解
+
+    int64_t r, v;
+    for(r = rng() % p_cipolla; ; r = rng() % p_cipolla) {
+        if(fast_pow(mod(r * r - a, p_cipolla), (p_cipolla - 1) / 2, p_cipolla) != p_cipolla - 1) { continue; }
+        v = mod(r * r - a, p_cipolla); break;
+    }
+    CipollaPolynomial poly({r, -1}, v, p_cipolla);
+    return poly.fast_pow((p_cipolla + 1) / 2, p_cipolla).power[0];
+}
+
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> a >> p;
+        ans_1 = cipolla_sqrt(a, p);
+        if(ans_1 == -1) {
+            std::cout << "Hola!\n";
+        } else if (ans_1 == 0) {
+            std::cout << ans_1 << '\n';
+        } else {
+            ans_2 = (-ans_1 + p) % p;
+            std::cout << std::min(ans_1, ans_2) << ' ' << std::max(ans_1, ans_2) << '\n';
+        }
+    }
+}
+```
+
+> [洛谷P5110](https://www.luogu.com.cn/problem/P5110)：已知$a_n = 233\cdot a_{n-1} + 666\cdot a_{n-2}$，$a_{0}=0$，$a_{1}=1$。给定`q<=5e7`组关于`n<=1e9`的询问，求`a[n] % (1e9+7)`。
+
+易写出矩阵转移方程：
+
+$$
+\mathbf{dp}_n = \left[\begin{matrix}a_{n}\\a_{n-1}\end{matrix}\right] = \left[\begin{matrix}233&666\\1&0\end{matrix}\right] \times \left[\begin{matrix}a_{n-1}\\a_{n-2}\end{matrix}\right] = \mathbf{A}^1\times\mathbf{dp}_{n-1} = \mathbf{A}^{n-1}\times\mathbf{dp}_1 = \mathbf{A}^{n-1}\times\left[\begin{matrix}1\\0\end{matrix}\right]
+$$
+
+如果每次询问都走一次矩阵快速幂，那么时间复杂度会高达$O(q\log_2n)$，显然会超时。这里我们需要矩阵对角化，将矩阵幂转化为常数幂，最后使用光速幂$O(1)$查表计算。借助Sympy计算矩阵对角化分解：
+
+```python
+import sympy
+from sympy import Matrix, symbols
+sympy.init_printing()
+
+A = Matrix([[233, 666], [1, 0]])
+P, D = A.diagonalize()
+P_inv = P.inv()
+
+# P, D, P_inv
+print(sympy.latex(P)), print(sympy.latex(D)), print(sympy.latex(P_inv))
+```
+
+$$
+\begin{align}
+	& \mathbf{A} = \left[\begin{matrix}
+	233 & 666\\
+	1 & 0
+	\end{matrix}\right] = \left[\begin{matrix}
+		\frac{233}{2} - \frac{13 \sqrt{337}}{2} & \frac{233}{2} + \frac{13 \sqrt{337}}{2}\\
+		1 & 1
+	\end{matrix}\right] \times \left[\begin{matrix}
+		\frac{233}{2} - \frac{13 \sqrt{337}}{2} & 0 \\
+		0 & \frac{233}{2} + \frac{13 \sqrt{337}}{2}
+	\end{matrix}\right] \times \left[\begin{matrix}
+		-\frac{\sqrt{337}}{4381} & \frac{233 \sqrt{337}}{8762} + \frac{1}{2}\\
+		\frac{\sqrt{337}}{4381} & \frac{1}{2} - \frac{233 \sqrt{337}}{8762}
+	\end{matrix}\right] = \mathbf{P}\mathbf{\Lambda}\mathbf{P}^{-1} \\
+	& \mathbf{A}^{n} = \mathbf{P}\mathbf{\Lambda}^n\mathbf{P}^{-1} = \left[\begin{matrix}
+		\frac{233-13\sqrt{337}}{2} & \frac{233+13\sqrt{337}}{2} \\ 
+		1 & 1
+	\end{matrix}\right] \times \left[\begin{matrix}
+		\frac{233-13\sqrt{337}}{2} & 0 \\
+		0 & \frac{233+13\sqrt{337}}{2}
+	\end{matrix}\right]^n \times \left[\begin{matrix}
+		\frac{-233 + 13 \sqrt{337}}{-56953 + 3029 \sqrt{337}} & \frac{1332}{56953-3029\sqrt{337}}\\
+		\frac{\sqrt{337}}{4381} & \frac{4381-233\sqrt{337}}{8762}
+	\end{matrix}\right]
+\end{align}
+$$
+
+```c++
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+inline int64_t inv(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 50, M_MAX = 50;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
+    Matrix(int n, int m, T v) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = v; } }
+    }
+    Matrix() : Matrix(N_MAX, M_MAX, 0) { }
+    Matrix(int n, int m) : Matrix(n, m, 0) { }
+	static Matrix eye(const int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, 0);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+    static Matrix diag(const int n, T diag_v, T non_diag_v) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, non_diag_v);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = diag_v; }
+		return ans;
+    }
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+    T _safe_multiply(T x, T y, const T &p) {
+        T ans = 0;
+        for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) {
+            if(y & 1) { ans = (ans + x) % p; }
+        }
+        return ans;
+    }
+	Matrix safe_multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + _safe_multiply(this->data[i][k], rhs[k][j], mod)) % mod; }}}
+		return ans;		
+	}
+	Matrix multiply(const Matrix &rhs, const Lambda &lambda) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, lambda.v_init);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = lambda.func(ans[i][j], this->data[i][k], rhs[k][j]); }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m, 0);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, mod); }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix safe_fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.safe_multiply(base, mod) % mod; }
+			base = base.safe_multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+    }
+	inline Matrix fast_pow(int64_t power, const Lambda &lambda) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = lambda.ans_init;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, lambda); }
+			base = base.multiply(base, lambda);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix transpose() {
+		Matrix ans(this->m, this->n);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { ans[j][i] = this->data[i][j]; }}
+		return ans;
+    }
+    inline void debug_print(std::string s) {
+        std::cerr << s << ": \n";
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) {
+                std::cerr << this->data[i][j] << ' ';
+            }
+            std::cerr << '\n';
+        }
+    }
+};
+
+std::mt19937_64 rng(std::random_device{}());
+int64_t p_cipolla;
+class CipollaPolynomial {
+  public:
+    int64_t power[2], v; // v = r^2 - a
+    CipollaPolynomial(const std::initializer_list<int64_t> &power, const int64_t &v) {
+        int i; std::initializer_list<int64_t>::iterator iter; assert(2 == power.size());
+        for(i = 0, iter = power.begin(); i < power.size() && iter != power.end(); ++i, ++iter) { this->power[i] = *iter; }
+        this->v = v;
+    }
+	friend CipollaPolynomial operator*(const CipollaPolynomial &lhs, const CipollaPolynomial &rhs) {
+		return CipollaPolynomial({
+            ((lhs.power[0] * rhs.power[0]) % p_cipolla + ((lhs.power[1] * rhs.power[1]) % p_cipolla * lhs.v) % p_cipolla) % p_cipolla, 
+            ((lhs.power[0] * rhs.power[1]) % p_cipolla + (lhs.power[1] * rhs.power[0]) % p_cipolla) % p_cipolla
+        }, lhs.v);
+	}
+	CipollaPolynomial& operator*=(const CipollaPolynomial &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend CipollaPolynomial operator%(const CipollaPolynomial &lhs, const int64_t &p) {
+		CipollaPolynomial ans(lhs);
+		for(int i = 0; i <= 1; ++i) { ans.power[i] %= p; }
+		return ans;
+	}
+	CipollaPolynomial& operator%=(const int64_t &mod) {
+		for(int i = 0; i <= 1; ++i) { this->power[i] %= p_cipolla; }
 		return *this;
 	}
 	inline CipollaPolynomial fast_pow(int64_t power, const int64_t &p) {
@@ -21107,19 +21625,386 @@ int64_t cipolla_sqrt(int64_t a, int64_t p) {
     return poly.fast_pow((p + 1) / 2, p).power[0];
 }
 
+namespace Mker {
+    unsigned long long SA, SB, SC;
+    void init() { scanf("%llu%llu%llu", &SA, &SB, &SC); }
+    unsigned long long rand() {
+        SA ^= SA << 32, SA ^= SA >> 13, SA ^= SA << 1;
+        unsigned long long t = SA;
+        SA = SB, SB = SC, SC ^= t ^ SA;
+        return SC;
+    }
+}
+
+const int64_t MOD = 1e9 + 7, K = 65536;
+Matrix<int64_t> P(2, 2), D(2, 2), P_inv(2, 2), D_temp(2, 2), dp_1(2, 1); int64_t A_sqrt_337;
+int64_t A_lambda1_pow[K + 1], A_lambda1_k_pow[K + 1], A_lambda2_pow[K + 1], A_lambda2_k_pow[K + 1];
+int q; uint64_t n; int64_t ans;
 int main() {
-    std::cin >> q;
+    p_cipolla = MOD; A_sqrt_337 = cipolla_sqrt(337, MOD);
+    
+    P[1][1] = frac_mod(mod(233 - 13 * A_sqrt_337, MOD), 2, MOD);
+    P[1][2] = frac_mod(mod(233 + 13 * A_sqrt_337, MOD), 2, MOD);
+    P[2][1] = P[2][2] = 1;
+
+    D[1][1] = frac_mod(mod(233 - 13 * A_sqrt_337, MOD), 2, MOD);
+    D[2][2] = frac_mod(mod(233 + 13 * A_sqrt_337, MOD), 2, MOD);
+
+    P_inv[1][1] = frac_mod(mod(-A_sqrt_337, MOD), 4381 , MOD);
+    P_inv[1][2] = frac_mod(4381 + 233 * A_sqrt_337, 8762, MOD);
+    P_inv[2][1] = frac_mod(A_sqrt_337, 4381, MOD);
+    P_inv[2][2] = frac_mod(mod(4381 - 233 * A_sqrt_337, MOD), 8762, MOD);
+
+    dp_1[1][1] = 1; dp_1[2][1] = 0;
+
+    A_lambda1_pow[0] = 1; for(int i = 1; i <= K; ++i) { A_lambda1_pow[i] = A_lambda1_pow[i - 1] * D[1][1] % MOD;}
+    A_lambda2_pow[0] = 1; for(int i = 1; i <= K; ++i) { A_lambda2_pow[i] = A_lambda2_pow[i - 1] * D[2][2] % MOD;}
+    A_lambda1_k_pow[0] = 1; A_lambda1_k_pow[1] = fast_pow(D[1][1], K, MOD); for(int i = 2; i <= K; ++i) { A_lambda1_k_pow[i] = mul_mod(A_lambda1_k_pow[i - 1], A_lambda1_k_pow[1], MOD); }
+    A_lambda2_k_pow[0] = 1; A_lambda2_k_pow[1] = fast_pow(D[2][2], K, MOD); for(int i = 2; i <= K; ++i) { A_lambda2_k_pow[i] = mul_mod(A_lambda2_k_pow[i - 1], A_lambda2_k_pow[1], MOD); }
+    
+    std::cin >> q; Mker::init();
     while(q--) {
-        std::cin >> a >> p;
-        ans_1 = cipolla_sqrt(a, p);
-        if(ans_1 == -1) {
-            std::cout << "Hola!\n";
-        } else if (ans_1 == 0) {
-            std::cout << ans_1 << '\n';
-        } else {
-            ans_2 = (-ans_1 + p) % p;
-            std::cout << std::min(ans_1, ans_2) << ' ' << std::max(ans_1, ans_2) << '\n';
+        n = Mker::rand();
+        if(n == 0) { ans ^= 0; continue; }
+        n = (n - 1) % (MOD - 1);
+
+        D_temp[1][1] = mul_mod(A_lambda1_k_pow[n / K], A_lambda1_pow[n % K], MOD);
+        D_temp[2][2] = mul_mod(A_lambda2_k_pow[n / K], A_lambda2_pow[n % K], MOD);
+        ans ^= P.multiply(D_temp, MOD).multiply(P_inv, MOD).multiply(dp_1, MOD)[1][1];
+    }
+    std::cout << ans;
+}
+```
+
+至此仍然不够。注意到`q<=5e7`，这使得我们甚至无法承受矩阵相乘的开销，需要进一步缩小常数。我们当然可以手动矩阵相乘，但是这样做的计算量太大。这里我们直接使用二阶线性递推数列通项公式：解关于$\{a_n\}$的特征方程$\lambda^2=233\lambda+666$，解得$\lambda_{1,2}=\displaystyle\frac{233\pm13\sqrt{337}}{2}$。利用待定系数法设$a_n$的通项公式为$a_n = A\lambda_1^n + B\lambda_2^n$，带入特殊值$a_0=0, a_1=1$可得$\begin{cases}A+B=0\\\frac{233+13\sqrt{337}}{2}A+\frac{233-13\sqrt{337}}{2}B=1\end{cases}$，解得$\begin{cases}A=\frac{1}{13\sqrt{337}}\\B=-\frac{1}{13\sqrt{337}}\end{cases}$，于是$a_n=\frac{1}{13\sqrt{337}}\left(\left(\frac{233+13\sqrt{337}}{2}\right)^n-\left(\frac{233-13\sqrt{337}}{2}\right)^n\right)$。直接光速幂即可。注意这里为了降低常数，需要手动优化模运算的次数。
+
+```c++
+// 略过前面的代码板子
+
+const int64_t MOD = 1e9 + 7, K = 65536;
+int64_t A_sqrt_337, A_lambda1, A_lambda2, A_coef;
+int64_t A_lambda1_pow[K + 1], A_lambda1_k_pow[K + 1], A_lambda2_pow[K + 1], A_lambda2_k_pow[K + 1];
+int64_t A_lambda1_pow_n, A_lambda2_pow_n, A_n;
+int q; uint64_t n; int64_t ans;
+int main() {
+    p_cipolla = MOD; A_sqrt_337 = cipolla_sqrt(337, MOD);
+    
+    A_lambda1 = frac_mod(233 + 13 * A_sqrt_337, 2, MOD);
+    A_lambda2 = frac_mod(mod(233 - 13 * A_sqrt_337, MOD), 2, MOD);
+    A_coef = frac_mod(1, 13 * A_sqrt_337, MOD);
+
+    A_lambda1_pow[0] = 1; for(int i = 1; i <= K; ++i) { A_lambda1_pow[i] = A_lambda1_pow[i - 1] * A_lambda1 % MOD;}
+    A_lambda2_pow[0] = 1; for(int i = 1; i <= K; ++i) { A_lambda2_pow[i] = A_lambda2_pow[i - 1] * A_lambda2 % MOD;}
+    A_lambda1_k_pow[0] = 1; A_lambda1_k_pow[1] = fast_pow(A_lambda1, K, MOD); for(int i = 2; i <= K; ++i) { A_lambda1_k_pow[i] = mul_mod(A_lambda1_k_pow[i - 1], A_lambda1_k_pow[1], MOD); }
+    A_lambda2_k_pow[0] = 1; A_lambda2_k_pow[1] = fast_pow(A_lambda2, K, MOD); for(int i = 2; i <= K; ++i) { A_lambda2_k_pow[i] = mul_mod(A_lambda2_k_pow[i - 1], A_lambda2_k_pow[1], MOD); }
+    
+    std::cin >> q; Mker::init();
+    while(q--) {
+        n = Mker::rand() % (MOD - 1);
+        A_lambda1_pow_n = A_lambda1_k_pow[n / K] * A_lambda1_pow[n % K] % MOD;
+        A_lambda2_pow_n = A_lambda2_k_pow[n / K] * A_lambda2_pow[n % K] % MOD;
+        A_n = A_coef * mod(A_lambda1_pow_n - A_lambda2_pow_n, MOD) % MOD;
+        ans ^= A_n;
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P4000](https://www.luogu.com.cn/problem/P4000)：已知$a_n = a_{n-1} + a_{n-2}$，$a_{0}=0$，$a_{1}=1$。给定`n<=1e(3e7)`与`1<=p<(2^31)`，求`a[n] % p`。
+
+这道题的棘手之处在于`p`是不固定的。由二阶线性数列递推公式易得通项公式：$a_n=\displaystyle\frac{1}{\sqrt{5}}\left(\left(\frac{1+\sqrt{5}}{2}\right)^n-\left(\frac{1-\sqrt{5}}{2}\right)^n\right)$。记特征方程的解$\lambda_{1,2} = \displaystyle\frac{1\pm\sqrt{5}}{2}$，问题转化为如何快速计算$\lambda^n\mod p$。
+
+1. 注意到$\lambda_{1,2}$涉及到了$2^{-1}$与$\sqrt{5}$，$a_n$涉及到了$\displaystyle\frac{1}{\sqrt{5}}$，因此需要考虑：（1）$2^{-1}$在模$p$意义下是否存在，这要求$p\neq 2$；（2）$\sqrt{5}$在模意义下是否存在，这要求$5$模$p$存在二次剩余；（3）$\displaystyle\frac{1}{\sqrt{5}}$在模意义下是否存在，这要求$5$模存在二次剩余且**非零**，这要求$p\neq 5$。据此进行分类讨论。
+2. 根据抽屉原理，$a_n \mod p$一定是周期数列，$a_{n+1} \mod p$一定也是周期数列，所以$a_{n+2}=a_{n+1}+a_{n}  \mod p$也是周期数列，其最小正周期$k(p)\le p^2$。
+
+特别感谢[洛谷 @飞雨烟雁 的题解](https://www.luogu.com.cn/article/yhse5gli)提供的思路。
+
+第一种情况：$p$无法进行质因数分解（$p=1$），显然$\forall n\in\mathbb{N}, a_n \equiv 0 \pmod p$，直接输出`0`即可。
+
+第二种情况：$p$为**偶**质数（即$p=2$），由欧拉判别法可知$\sqrt{5}\equiv 1$存在，但$\displaystyle\frac{1}{2}$不存在。因此我们无法使用递推公式，只能寄希望于循环节。手动打表可知$k(p)=k(2)=3$。
+
+第三种情况：$p=5$，由欧拉判别法可知$\sqrt{5}\equiv 0$为重根，此时$\displaystyle\frac{1}{\sqrt{5}}$不存在。因此我们无法使用递推公式，只能寄希望于循环节。手动打表可知$k(p)=k(5)=20$。
+
+第四种情况：$p$为**奇**质数，且$\sqrt{5}$存在，由费马小定理知$2^{-1}$一定存在。这是最平凡的情况，直接根号取模、分数取模、欧拉定理给幂模$\varphi(p) = p-1$来降幂次、快速幂即可。
+
+第五种情况：$p$为**奇**质数，且$\sqrt{5}$不存在，由费马小定理知$2^{-1}$一定存在。这时我们利用扩域，令$\mathbb{i}^2\equiv 5$，由Freshman's Dream恒等式可得：
+
+$$
+\begin{align}
+	& \begin{cases}
+		\lambda_1^{p+1} &
+			= \left(\frac{1}{2}+\frac{\sqrt{5}}{2}\right)^{p+1}
+			= \left(\frac{1}{2} + \frac{\mathbb{i}}{2}\right)^{p+1} 
+			\equiv \left(\frac{1}{2}\right)^2 - \left(\frac{1}{2}\right)^2\cdot \mathbb{i}^2
+			= \left(\frac{1}{2}\right)^2 - \left(\frac{1}{2}\right)^2\cdot \textcolor{red}{5}
+			= \textcolor{red}{-1} \\
+		\lambda_2^{p+1} &
+			= \left(\frac{1}{2} - \frac{\sqrt{5}}{2}\right)^{p+1}
+			= \left(\frac{1}{2} - \frac{\mathbb{i}}{2}\right)^{p+1} 
+			\equiv \left(\frac{1}{2}\right)^2 - \left(-\frac{1}{2}\right)^2\cdot \mathbb{i}^2
+			= \left(\frac{1}{2}\right)^2 - \left(\frac{1}{2}\right)^2\cdot \textcolor{red}{5}
+			= \textcolor{red}{-1} \\
+	\end{cases} \\
+	\Longrightarrow & \begin{cases}
+		\lambda_1^{\textcolor{red}{2p+2}} \equiv \textcolor{red}{1} \\
+		\lambda_2^{\textcolor{red}{2p+2}} \equiv \textcolor{red}{1} \\
+	\end{cases} \Longrightarrow a_n的循环节可以是2p+2, 即a_n \equiv a_{n\%(2p+2)} \pmod p
+\end{align}
+$$
+
+
+
+
+第六种情况：$p$为合数，且可以表示为某个质数的幂（$p=p_{*}^{k}$）。首先我们有结论：（1）$a^{p}\equiv 1\pmod {p_{*}^{k+1}}$，可以用数学归纳法证明，此处略；（2）记斐波那契数列模`p*`的循环节最小正周期为皮萨诺周期$k(p_*)$，则显然有$\begin{cases}a_{k(p_*)}\equiv a_0 = 0 \\ a_{k(p_*)+1}\equiv a_1 = 1\end{cases} \pmod {p_*}$，代入通项公式可得$\begin{cases}\lambda_1^{k(p_*)} - \lambda_2^{k(p_*)}\equiv 0 \\ \lambda_2^{k(p_*)}\cdot\frac{1+\sqrt{5}}{2} - \lambda_2^{k(p_*)}\cdot\frac{1-\sqrt{5}}{2}\equiv \sqrt{5}\end{cases}\pmod{p_*}$，联立可得$\lambda_1^{k(p)} \equiv \lambda_2^{k(p)} \equiv 1 \pmod{p_*}$。由以上两个结论可得，在（2）式左右两侧同时取$p_*^{k-1}$次方可得$\lambda_1^{k(p_*)\cdot p_*^{k-1}} \equiv \lambda_2^{k(p_*)\cdot p_*^{k-1}} \equiv 1 \pmod{p_{*}^k\textcolor{red}{=p}}$。于是对于任意$i$，均有$\displaystyle a_{i+k(p_*)\cdot p_{*}^{k-1}} = \frac{1}{\sqrt{5}}(\lambda_1^{i+k(p_*)\cdot p_{*}^{k-1}}-\lambda_2^{i+k(p_*)\cdot p_{*}^{k-1}}) = \frac{1}{\sqrt{5}}(\lambda_1^{i}\cdot\textcolor{red}{\lambda_1^{k(p_*)\cdot p_{*}^{k-1}}} - \lambda_2^{i}\cdot\textcolor{red}{\lambda_2^{k(p_*)\cdot p_{*}^{k-1}}}) \textcolor{red}{\equiv} \frac{1}{\sqrt{5}}(\lambda_1^i-\lambda_2^i) = a_i$，因此$a_n$的循环周期可以是$k(p_*)\cdot p_*^{k-1}$。
+
+第七种情况：$p$为合数，且可以表示为若干个质数的幂的乘积（$\displaystyle p=\prod_{i=1}^{\varphi(p)}p_{i}^{k_i}$）。由皮萨诺周期的定义可知$a_{k(p)} \equiv a_0 \equiv 0 \pmod p$，也就说是$p \mid a_{k(p)}$。同时$\forall i, p_i^{k_i} \mid p$，因此通过传递性可知$\forall i, p_i^{k_i} \mid a_{k(p)}$，即$a_{k(p)} \equiv a_0 \equiv 0 \pmod {p_i^{k_i}}$，这意味着$k(p)$也是模$p_i^{k_i}$意义下的正周期，已知模$p_i^{k_i}$意义下的最小正周期为$k(p_i^{k_i})$，于是$k(p_i^{k_i}) \mid k(p)$。总上所述，$k(p) = \mathrm{lcm}(k(p_i^{k_i}))$。
+
+```c++
+template<typename T> inline T fast_pow(T a, int64_t b) {
+    T ans = 1;
+    for(; b > 0; a = a * a, b /= 2) { if(b % 2) { ans = ans * a; } }
+    return ans;
+}
+template<typename T> inline T fast_pow(T a, int64_t b, const int64_t &p) {
+    T ans = 1;
+    for(a = a % p; b > 0; a = (a * a) % p, b /= 2) { if(b % 2) { ans = (ans * a) % p; } }
+    return ans;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+inline int64_t inv(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 50, M_MAX = 50;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
+    Matrix(int n, int m, T v) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = v; } }
+    }
+    Matrix() : Matrix(N_MAX, M_MAX, 0) { }
+    Matrix(int n, int m) : Matrix(n, m, 0) { }
+	static Matrix eye(const int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, 0);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+    static Matrix diag(const int n, T diag_v, T non_diag_v) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, non_diag_v);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = diag_v; }
+		return ans;
+    }
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+    T _safe_multiply(T x, T y, const T &p) {
+        T ans = 0;
+        for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) {
+            if(y & 1) { ans = (ans + x) % p; }
         }
+        return ans;
+    }
+	Matrix safe_multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + _safe_multiply(this->data[i][k], rhs[k][j], mod)) % mod; }}}
+		return ans;		
+	}
+	Matrix multiply(const Matrix &rhs, const Lambda &lambda) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, lambda.v_init);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = lambda.func(ans[i][j], this->data[i][k], rhs[k][j]); }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m, 0);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, mod); }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix safe_fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.safe_multiply(base, mod) % mod; }
+			base = base.safe_multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+    }
+	inline Matrix fast_pow(int64_t power, const Lambda &lambda) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = lambda.ans_init;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, lambda); }
+			base = base.multiply(base, lambda);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix transpose() {
+		Matrix ans(this->m, this->n);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { ans[j][i] = this->data[i][j]; }}
+		return ans;
+    }
+    inline void debug_print(std::string s) {
+        std::cerr << s << ": \n";
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) {
+                std::cerr << this->data[i][j] << ' ';
+            }
+            std::cerr << '\n';
+        }
+    }
+};
+
+std::mt19937_64 rng(std::random_device{}());
+class CipollaPolynomial {
+  public:
+    int64_t power[2], v, p; // v = r^2 - a
+    CipollaPolynomial(const std::initializer_list<int64_t> &power, const int64_t &v, const int64_t &p_cipolla) {
+        int i; std::initializer_list<int64_t>::iterator iter; assert(2 == power.size());
+        for(i = 0, iter = power.begin(); i < power.size() && iter != power.end(); ++i, ++iter) { this->power[i] = *iter; }
+        this->v = v; this->p = p_cipolla;
+    }
+	friend CipollaPolynomial operator*(const CipollaPolynomial &lhs, const CipollaPolynomial &rhs) {
+		return CipollaPolynomial({
+            ((lhs.power[0] * rhs.power[0]) % lhs.p + ((lhs.power[1] * rhs.power[1]) % lhs.p * lhs.v) % lhs.p) % lhs.p, 
+            ((lhs.power[0] * rhs.power[1]) % lhs.p + (lhs.power[1] * rhs.power[0]) % lhs.p) % lhs.p
+        }, lhs.v, lhs.p);
+	}
+	CipollaPolynomial& operator*=(const CipollaPolynomial &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend CipollaPolynomial operator%(const CipollaPolynomial &lhs, const int64_t &p) {
+		CipollaPolynomial ans(lhs);
+		for(int i = 0; i <= 1; ++i) { ans.power[i] %= p; }
+		return ans;
+	}
+	CipollaPolynomial& operator%=(const int64_t &mod) {
+		for(int i = 0; i <= 1; ++i) { this->power[i] %= p; }
+		return *this;
+	}
+	inline CipollaPolynomial fast_pow(int64_t power, const int64_t &p) {
+		CipollaPolynomial base(*this), ans({1, 0}, this->v, p);
+		while(power > 0) { 
+            if(power % 2) { ans *= base; ans %= p; } 
+            base *= base; base %= p;
+            power /= 2;
+        }
+		return ans;
+	}
+};
+int64_t cipolla_sqrt(int64_t a, int64_t p_cipolla) {
+    if(a == 0) { return 0; } // 特判重根
+    if(fast_pow(a, (p_cipolla - 1) / 2, p_cipolla) == p_cipolla - 1) { return -1; } // 特判无解
+
+    int64_t r, v;
+    for(r = rng() % p_cipolla; ; r = rng() % p_cipolla) {
+        if(fast_pow(mod(r * r - a, p_cipolla), (p_cipolla - 1) / 2, p_cipolla) != p_cipolla - 1) { continue; }
+        v = mod(r * r - a, p_cipolla); break;
+    }
+    CipollaPolynomial poly({r, -1}, v, p_cipolla);
+    return poly.fast_pow((p_cipolla + 1) / 2, p_cipolla).power[0];
+}
+
+const int FACT_LEN = 16;
+std::string n_str; int64_t n, p, p_fact[FACT_LEN + 1], p_fact_power[FACT_LEN + 1], p_fact_top, k_p_fact[FACT_LEN + 1], k_p = 1;
+int64_t sqrt_5; Matrix<int64_t> A(2, 2), dp(2, 1);
+int main() {
+    std::cin >> n_str >> p;
+
+    // 分解p的质因数
+    if(p == 1) { std::cout << 0 << '\n'; return 0; }
+    int64_t p_temp = p;
+    for(int64_t i = 2; i * i <= p_temp; ++i) {
+        if(p_temp % i != 0) { continue; }
+        p_fact[++p_fact_top] = i;
+        while(p_temp % i == 0) { ++p_fact_power[p_fact_top], p_temp /= i; }
+    }
+    if(p_temp > 1) { p_fact[++p_fact_top] = p_temp; ++p_fact_power[p_fact_top];}
+
+    // 计算k(p)
+    for(int i = 1; i <= p_fact_top; ++i) {
+        if(p_fact[i] == 2) {
+            k_p_fact[i] = 3;
+        } else if(p_fact[i] == 5) {
+            k_p_fact[i] = 20;
+        } else {
+            sqrt_5 = cipolla_sqrt(5, p_fact[i]);
+            if(sqrt_5 != -1) { k_p_fact[i] = p_fact[i] - 1; }
+            if(sqrt_5 == -1) { k_p_fact[i] = 2 * p_fact[i] + 2; }
+        }
+        k_p = std::lcm(k_p, k_p_fact[i] * fast_pow(p_fact[i], p_fact_power[i] - 1));
+    }
+
+    A[1][1] = A[1][2] = A[2][1] = 1;
+    dp[1][1] = 1; dp[2][1] = 0; // dp_1
+
+    if(n_str == "0") { 
+        std::cout << dp[2][1] << '\n';
+    } else if(n_str == "1") { 
+        std::cout << dp[1][1] << '\n';
+    } else {
+        for(int i = 0; i < n_str.size(); ++i) { n = (n * 10 + (n_str[i] - '0')) % k_p; } n = ((n - 1) % k_p + k_p) % k_p; // n = (n_str - 1) % k_p;
+        dp = A.fast_pow(n, p).multiply(dp, p);
+        std::cout << dp[1][1] << '\n';
     }
 }
 ```
@@ -21797,7 +22682,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -22172,7 +23057,7 @@ inline long long int fast_power(long long int base, long long int power, long lo
 ```c++
 template<typename T> class Matrix {
 public:
-	const static int N_MAX = 2, M_MAX = 2;
+	const static int N_MAX = 50, M_MAX = 50;
 	int n, m;
 	T data[N_MAX + 1][M_MAX + 1];
     using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
@@ -22267,7 +23152,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -22296,7 +23181,8 @@ public:
 		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { ans[j][i] = this->data[i][j]; }}
 		return ans;
     }
-    inline void debug_print() {
+    inline void debug_print(std::string s) {
+        std::cerr << s << ": \n";
         for(int i = 1; i <= this->n; ++i) {
             for(int j = 1; j <= this->m; ++j) {
                 std::cerr << this->data[i][j] << ' ';
@@ -22582,7 +23468,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -22775,7 +23661,7 @@ public:
 	inline Matrix fast_pow(int64_t power, const T &mod) {
 		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
 		while(power > 0) {
-			if(power % 2) { ans = (ans * base) % mod; }
+			if(power % 2) { ans = ans.multiply(base, mod); }
 			base = base.multiply(base, mod);
 			power /= 2;
 		}
@@ -22836,6 +23722,270 @@ int main() {
 }
 ```
 
+#### §8.4.1.3 分段矩阵快速幂
+
+> [洛谷P3216](https://www.luogu.com.cn/problem/P3216)：定义$\mathrm{Concatenate}(n)$表示将`1->n`所有正整数的十进制字符串按顺序拼接得到的字符串对应的十进制数字，例如$\mathrm{Concatenate}(11)=1234567891011$。求$\mathrm{Concatenate}(n)\% p$。
+
+令`dp[n]=Concatenate(n)`，显然有状态转移方程：$\mathrm{dp}[n] = \mathrm{dp}[i-1]\cdot 10^{\lfloor\log_{10}{n}\rfloor+1}+i \mod p$。据此容易写出矩阵转移方程：
+
+$$
+\mathbf{dp}[n] = \left[\begin{matrix}
+	\mathrm{dp}[n] \\ n \\ 1
+\end{matrix}\right] = \left[\begin{matrix}
+	10^{\lfloor\log_{10}{n}\rfloor + 1} & 1 & 1 \\
+	0 & 1 & 1 \\
+	0 & 0 & 1
+\end{matrix}\right] \times \left[\begin{matrix}
+	\mathrm{dp}[n-1] \\ n-1 \\ 1
+\end{matrix}\right] = \boxed{\mathbf{A}}^1\times\mathbf{dp}[n-1] = \boxed{\mathbf{A}}^n\times \mathbf{dp}[0] = \boxed{\mathbf{A}}^n\times \left[\begin{matrix}
+	0 \\ 0 \\ 1
+\end{matrix}\right]
+$$
+
+然而，这里的$\boxed{\mathbf{A}}$并不是一个常矩阵，无法直接用矩阵快速幂。但是，我们注意到它在某些分段中是恒定的，例如`1~9`、`10~99`、`100~999`等等。因此，我们不妨将第`i`段的左右端点记为`seg_min[i]`、`seg_max[i]`。于是如果`n`涉及到了第`i`个分段（即`n >= seg_min[i]`），在每个分段中占用了`std::min(n, seg_max[i]) - seg_min[i] + 1`份的$\mathbf{A}_i$。
+
+```c++
+template<typename T> class Matrix {
+public:
+	const static int N_MAX = 50, M_MAX = 50;
+	int n, m;
+	T data[N_MAX + 1][M_MAX + 1];
+    using Lambda = struct { T v_init; std::function<T(const T&, const T&, const T&)> func; Matrix ans_init; };
+    Matrix(int n, int m, T v) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n; this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = v; } }
+    }
+    Matrix() : Matrix(N_MAX, M_MAX, 0) { }
+    Matrix(int n, int m) : Matrix(n, m, 0) { }
+	static Matrix eye(const int n) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, 0);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+		return ans;
+	}
+    static Matrix diag(const int n, T diag_v, T non_diag_v) {
+		assert(n <= N_MAX && n <= M_MAX && n >= 1); Matrix ans(n, n, non_diag_v);
+		for(int i = 1; i <= n; ++i) { ans[i][i] = diag_v; }
+		return ans;
+    }
+	T (&operator[](int i))[M_MAX + 1] { return data[i]; }
+	const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+	friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator+=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }}
+		return *this;
+	}
+	friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.n == rhs.n && lhs.m == rhs.m); Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }}
+		return ans;
+	}
+	Matrix& operator-=(const Matrix &rhs) {
+		assert(this->n == rhs.n && this->m == rhs.m);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }}
+		return *this;
+	}
+	Matrix multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }}}
+		return ans;		
+	}
+    T _safe_multiply(T x, T y, const T &p) {
+        T ans = 0;
+        for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) {
+            if(y & 1) { ans = (ans + x) % p; }
+        }
+        return ans;
+    }
+	Matrix safe_multiply(const Matrix &rhs, const T &mod) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, 0);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + _safe_multiply(this->data[i][k], rhs[k][j], mod)) % mod; }}}
+		return ans;		
+	}
+	Matrix multiply(const Matrix &rhs, const Lambda &lambda) {
+		assert(this->m == rhs.n); Matrix ans(this->n, rhs.m, lambda.v_init);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= this->m; ++k) { ans[i][j] = lambda.func(ans[i][j], this->data[i][k], rhs[k][j]); }}}
+		return ans;		
+	}
+	friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+		assert(lhs.m == rhs.n); Matrix ans(lhs.n, rhs.m, 0);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= rhs.m; ++j) { for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }}}
+		return ans;
+	}
+	Matrix& operator*=(const Matrix &rhs) {
+		*this = (*this) * rhs;
+		return *this;
+	}
+	friend Matrix operator%(const Matrix &lhs, const T &mod) {
+		Matrix ans(lhs.n, lhs.m);
+		for(int i = 1; i <= lhs.n; ++i) { for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }}
+		return ans;
+	}
+	Matrix& operator%=(const T &mod) {
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }}
+		return *this;
+	}
+	inline Matrix fast_pow(int64_t power) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n);
+		while(power > 0) {
+			if(power % 2) { ans *= base; }
+			base *= base;
+			power /= 2;
+		}
+		return ans;
+	}
+	inline Matrix fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, mod); }
+			base = base.multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix safe_fast_pow(int64_t power, const T &mod) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = Matrix::eye(this->n); base %= mod;
+		while(power > 0) {
+			if(power % 2) { ans = ans.safe_multiply(base, mod) % mod; }
+			base = base.safe_multiply(base, mod);
+			power /= 2;
+		}
+		return ans;
+    }
+	inline Matrix fast_pow(int64_t power, const Lambda &lambda) {
+		assert(this->n == this->m && power >= 0); Matrix base(*this), ans = lambda.ans_init;
+		while(power > 0) {
+			if(power % 2) { ans = ans.multiply(base, lambda); }
+			base = base.multiply(base, lambda);
+			power /= 2;
+		}
+		return ans;
+	}
+    inline Matrix transpose() {
+		Matrix ans(this->m, this->n);
+		for(int i = 1; i <= this->n; ++i) { for(int j = 1; j <= this->m; ++j) { ans[j][i] = this->data[i][j]; }}
+		return ans;
+    }
+    inline void debug_print(std::string s) {
+        std::cerr << s << ": \n";
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) {
+                std::cerr << this->data[i][j] << ' ';
+            }
+            std::cerr << '\n';
+        }
+    }
+};
+
+const int64_t N_MAX = 1e18, L_MAX = 18 + 1;
+int64_t n, p, pow_10[L_MAX + 1], pow_10_mod[L_MAX + 1], seg_min[L_MAX + 1], seg_max[L_MAX + 1];
+Matrix<int64_t> A[1 + L_MAX], dp(3, 1);
+int main() {
+    std::cin >> n >> p;
+    for(int i = 1; i <= L_MAX; ++i) { A[i].n = A[i].m = 3; }
+
+    pow_10[0] = pow_10_mod[0] = 1; for(int i = 1; i < L_MAX; ++i) { pow_10[i] = pow_10[i - 1] * 10; pow_10_mod[i] = pow_10_mod[i - 1] * 10 % p;} pow_10[L_MAX] = 2e18; pow_10_mod[L_MAX] = pow_10_mod[L_MAX - 1] * 10 % p;
+    for(int i = 1; i <= L_MAX; ++i) { seg_min[i] = pow_10[i - 1]; seg_max[i] = pow_10[i] - 1; }
+    for(int i = 1; i <= L_MAX; ++i) { A[i][1][1] = pow_10_mod[i]; A[i][1][2] = A[i][1][3] = A[i][2][2] = A[i][2][3] = A[i][3][3] = 1; }
+
+    dp[1][1] = 0; dp[2][1] = 0; dp[3][1] = 1;
+    for(int i = 1; i <= L_MAX && n >= seg_min[i]; ++i) {
+        int64_t t = std::min(n, seg_max[i]) - seg_min[i] + 1;
+        if(t <= 0) { break; }
+        dp = A[i].fast_pow(t, p).multiply(dp, p);
+    }
+    std::cout << dp[1][1];
+}
+```
+
+#### §8.4.1.4 分块矩阵快速幂
+
+> [洛谷P10502](https://www.luogu.com.cn/problem/P10502)：给定`n<=30`阶方阵$\mathbf{A}$，给定`k<=1e9`、`p<=1e4`，求$\mathbf{S}_k = \displaystyle\sum_{i=1}^{k} \mathbf{A}^i \mod p$。
+
+注意到$\mathbf{S}_n = \mathbf{S}_{n-1} + \mathbf{A}^n$，于是存在矩阵转移方程：
+
+$$
+\mathbf{dp}_n = \left[\begin{matrix}
+	\mathbf{A}^{n} \\ \mathbf{S}_n
+\end{matrix}\right] = \left[\begin{matrix}
+	\mathbf{A} & \mathbf{0} \\
+	\mathbf{A} & \mathbf{E}
+\end{matrix}\right] \times \left[\begin{matrix}
+	\mathbf{A}^{n-1} \\ \mathbf{S}_{n-1}
+\end{matrix}\right] 
+	= \mathbf{B}^1 \times \mathbf{dp}_{n-1} 
+	= \mathbf{B}^n \times \mathbf{dp}_{0} 
+	= \mathbf{B}^n \times \left[\begin{matrix}
+		\mathbf{E} \\ \mathbf{0}
+	\end{matrix}\right]
+$$
+
+```c++
+/* 省略矩阵快速幂板子 */
+
+const int N_MAX = 30; const int64_t K_MAX = 1e9;
+int n; int64_t k, p;
+Matrix<int64_t> B(2 * N_MAX, 2 * N_MAX), dp(2 * N_MAX, N_MAX);
+int main() {
+    std::cin >> n >> k >> p; B.n = B.m = dp.n = 2 * n; dp.m = n;
+
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cin >> B[i][j]; } }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { B[i + n][j] = B[i][j]; } }
+    for(int i = 1; i <= n; ++i) { B[i + n][i + n] = 1; }
+    for(int i = 1; i <= n; ++i) { dp[i][i] = 1; }
+
+    dp = B.fast_pow(k, p).multiply(dp, p);
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= n; ++j) {
+            std::cout << dp[i + n][j] << ' ';
+        }
+        std::cout << '\n';
+    }
+}
+```
+
+### §8.4.2 十进制快速幂
+
+当幂高至$10^{10^6}$时，我们必须使用支持`x % 2`或`x & 1`的高精度整数才能照常使用快速幂。由于我们通常使用`char s[N_MAX + 3]`存储十进制数字（首尾`\0`，`s[1]`存储首位有效数字，`s[2->n+1]`存储$10^6$个`0`），因此一种显然的想法是使用十进制快速幂。时间复杂度保持不变，仍然是$O(\log_{10}n\cdot\log_{2}{10}) = O(\log_2n)$。
+
+```c++
+/* 二进制快速幂 */
+inline int64_t fast_power(int64_t base, int64_t power) {
+    long long int result = 1;
+    while(power > 0) {
+        if(power % 2) { result *= base; }
+        base = base * base;
+        power /= 2;
+    }
+    return result;
+}
+
+/* 十进制快速幂 */
+inline int64_t fast10_power(int64_t base, int64_t power) {
+    long long int result = 1;
+    while(power > 0) {
+        if(power % 10 > 0) { result = result.fast_power(base, power % 10); }
+        base = fast_pow(base, 10);
+        power /= 2;
+    }
+    return result;
+}
+inline int64_t fast10_power(int64_t base, char power[], int power_n) {
+    long long int result = 1;
+    while(power_n >= 1) {
+        if((power[power_n] - '0') % 10 > 0) { result = result.fast_power(base, (power[power_n] - '0') % 10); }
+        base = fast_pow(base, 10);
+        --power_n;
+    }
+    return result;
+}
+```
+
 ## §8.5 数列递推
 
 > [洛谷P2609](https://www.luogu.com.cn/problem/P2609)：给定数列$\{a_n\}$的递推式$\begin{cases}a_0=0 \\ a_1=1 \\ a_{2i}=a_{i} \\ a_{2i+1}=a_{i+1}+a_{i}\end{cases}$，求$a_n$的值（`n<=1e100`）。
@@ -22875,6 +24025,8 @@ int main() {
     }
 }
 ```
+
+### §8.5.1 递归下降法
 
 > [洛谷P6858](https://www.luogu.com.cn/problem/P6858)：初始时A箱中有`n<=1e14`个球，B箱中有`m<=1e6`个球。每回合随机从全体球中等可能的选中一个球，若在A箱，则把B箱所有球放入A箱，将选中球放入B箱；若在B箱，则删除这个球。如果要最终删除所有球，求回合数的期望值，分数模`998244353`输出。
 
@@ -22933,6 +24085,20 @@ int main() {
 ```
 
 递归的时间常数较大。我们也可以先算出`f(n, 0)`的值，再使用递推式按顺序求出`f(n, 0->m)`的值。本题略。
+
+### §8.5.1 线性递推数列
+
+给定数列$\{a_n\}$的线性递推公式：$\displaystyle\sum_{k\in[0, m]} c_m\cdot a_{n+m} = f(n)$。若$f(n)=0$则为其次，反之则为非齐次。通过以下步骤求解通项公式：
+
+1. 求解其特征方程$\displaystyle\sum_{k\in[0,m]}c_m\cdot \lambda^{m} = 0$的$m$个解$\{\lambda_1, \lambda_2, \cdots, \lambda_m\}$，按照重根情况分成$m'\le m$组。
+2. 对这$m'$组解，按以下方式得出贡献，取以下贡献的线性组合就是其次方程的通解$a_n^{(\mathcal{H})}$：
+	1. 如果$\lambda_i$是一个单根，那么它对接的贡献是$A_i \cdot \lambda_i^n$。
+	2. 如果$\lambda_i$是一个$k$重根，那么它对解的贡献是$(A_0 + A_1 n + A_2 n^2 + \cdots + A_{k-1}n^{k-1}) \cdot \lambda_i^n$。
+	3. 如果$\lambda_i$是一个复数根$\rho_i(\cos{\theta_i}+i\sin{\theta_i})$，那么它对解的贡献是$(A\cos{n\theta_i}+B\sin{n\theta_i})\cdot \rho_i^n$。
+3. 用以下方式求解非齐次特解$a_n^{(\mathcal{P})}$，取其特解的线性组合就是非齐次方程的特解。
+	1. 对于$f(n)$中的$p$阶多项式成分$F_p(n)$，设特解$a_n = F'_p(n)$，使用待定系数法解出$F'_p(n)$的各项系数。
+	2. 对于$f(n)$中的$p$阶指数成分$b\cdot e^{n}$，设特解$a_n = C\cdot e^n$，使用待定系数法解出系数$C$。
+4. 得到通项公式$a_n = a_{n}^{(\mathcal{H})} + a_{n}^{\mathcal{P}}$。
 
 ## §8.6 组合与期望
 
@@ -23629,7 +24795,7 @@ int main(){
 
 ## §A.3 压时间
 
-### §A.3.1 顺序与随机读写
+### §A.3.1 顺序IO
 
 > [洛谷P1197](https://www.luogu.com.cn/problem/P1197)：初始时给定一个无向图。接下来依次删除`deleted_index[]`中的点，及其相邻的所有边，求每次删除后的连通分量数量。
 
@@ -24050,7 +25216,7 @@ int main(){
 #pragma GCC target("avx,sse2,sse3,sse4,mmx")
 ```
 
-### A.3.4 `std::queue`与数组
+### §A.3.4 `std::queue`
 
 ```c++
 #include<bits/stdc++.h>
@@ -24072,6 +25238,15 @@ int main() {
     
     std::cout << ans;
 }
+```
+
+### §A.3.4 整除与取模
+
+除法与取模非常耗时，比其逆运算高出一个数量级。当被运算数`n`为自然数，且除数或模数`K`为`2`的幂时（$K = 2^k$），可以用位运算模拟：
+
+```c++
+n << k;       // 等价于 n / K
+n & (2 << k); // 等价于 n % K
 ```
 
 ## §A.4 数据溢出
