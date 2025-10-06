@@ -5980,246 +5980,7 @@ int main() {
 
 #TODO：？？？？？？虚树DP？感觉应该放在图论里介绍
 
-## §2.13 概率DP
-
-> [洛谷P8229](https://www.luogu.com.cn/problem/P8229)：初始时筐里有`1`枚硬币，每个回合有概率`p<=1e9`让筐里的硬币数量变成`k<=1e9`倍，有`1-p`的概率收获筐里的所有硬币，并重置硬币数量为`1`。给定`n<=1e18`回合操作，求期望收获的硬币总数。给定`T<=1e5`次这样的查询，答案模`998244353`输出。
-
-令`r[i]`表示第`i`回合后的筐内硬币数量期望值，`s[i]`表示第`i`回合后收获的硬币总数，于是显然有递推关系，矩阵快速幂即可。
-
-$$
-\begin{align}
-	& \begin{cases}
-		r_i = (p) \cdot kr_{i-1} + (1-p) \cdot 1 \\
-		s_i = s_{i-1} + (1-p) \cdot r_{i-1}
-	\end{cases}, \begin{cases}
-		r_0 = 1 \\
-		s_0 = 0
-	\end{cases} \\
-	\Rightarrow & \left[\begin{matrix}r_i\\s_i\end{matrix}\right] = \left[ \begin{matrix}
-		kp & 0 \\ 1-p & 1
-	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\end{matrix}\right] + \left[\begin{matrix}1-p \\ 0\end{matrix}\right] \\
-	\Rightarrow & \left[\begin{matrix}r_i\\s_i\\1\end{matrix}\right] = \left[ \begin{matrix}
-		kp & 0 & 1-p \\
-		1-p & 1 & 0 \\
-		0 & 0 & 1
-	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\\1\end{matrix}\right] = \mathbf{A}^{i} \left[\begin{matrix}r_{0}\\s_{0}\\1\end{matrix}\right] = \mathbf{A}^{i}\left[\begin{matrix}1\\0\\1\end{matrix}\right]
-\end{align}
-
-$$
-
-注意：**`1-p`可能是负值，因此需要预先对负数取模，才能使用取模意义下的快速幂！**
-
-```c++
-inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
-    int64_t result = 1;
-    a %= p;
-    while(b > 0) {
-        if(b % 2) { result = (result * a) % p; }
-        a = (a * a) % p;
-        b /= 2;
-    }
-    return result;
-}
-int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
-int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
-constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
-
-template<typename T> class Matrix {
-  public:
-    const static int N_MAX = 3, M_MAX = 3;
-    int n, m;
-    T data[N_MAX + 1][M_MAX + 1];
-    Matrix() {
-        n = N_MAX;
-        m = M_MAX;
-        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
-    }
-    Matrix(int n, int m) {
-        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
-        this->n = n;
-        this->m = m;
-        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
-    }
-    static Matrix eye(int n) {
-        assert(n <= N_MAX && n <= M_MAX && n >= 1);
-        Matrix ans(n, n);
-        for(int i = 1; i <= n; ++i) {
-            for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }
-        }
-        for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
-        return ans;
-    }
-    T (&operator[](int i)) [M_MAX + 1] { return data[i]; } const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
-    friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
-        assert(lhs.n == rhs.n && lhs.m == rhs.m);
-        Matrix ans(lhs.n, lhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }
-        }
-        return ans;
-    }
-    Matrix &operator+=(const Matrix &rhs) {
-        assert(this->n == rhs.n && this->m == rhs.m);
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }
-        }
-        return *this;
-    }
-    friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
-        assert(lhs.n == rhs.n && lhs.m == rhs.m);
-        Matrix ans(lhs.n, lhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }
-        }
-        return ans;
-    }
-    Matrix &operator-=(const Matrix &rhs) {
-        assert(this->n == rhs.n && this->m == rhs.m);
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }
-        }
-        return *this;
-    }
-    Matrix multiply(const Matrix &rhs, const T &mod) {
-        assert(this->m == rhs.n);
-        Matrix ans(this->n, rhs.m);
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= rhs.m; ++j) {
-                ans[i][j] = 0;
-                for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }
-            }
-        }
-        return ans;
-    }
-    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
-        assert(lhs.m == rhs.n);
-        Matrix ans(lhs.n, rhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= rhs.m; ++j) {
-                ans[i][j] = 0;
-                for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }
-            }
-        }
-        return ans;
-    }
-    Matrix &operator*=(const Matrix &rhs) {
-        *this = (*this) * rhs;
-        return *this;
-    }
-    friend Matrix operator%(const Matrix &lhs, const T &mod) {
-        Matrix ans(lhs.n, lhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }
-        }
-        return ans;
-    }
-    Matrix &operator%=(const T &mod) {
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }
-        }
-        return *this;
-    }
-    inline Matrix fast_pow(int64_t power) {
-        assert(this->n == this->m);
-        Matrix base(*this), ans = Matrix::eye(this->n);
-        while(power > 0) {
-            if(power % 2) { ans *= base; }
-            base *= base;
-            power /= 2;
-        }
-        return ans;
-    }
-    inline Matrix fast_pow(int64_t power, const T &mod) {
-        assert(this->n == this->m);
-        Matrix base(*this), ans = Matrix::eye(this->n);
-        base %= mod;
-        while(power > 0) {
-            if(power % 2) { ans = ans.multiply(base, mod); }
-            base = base.multiply(base, mod);
-            power /= 2;
-        }
-        return ans;
-    }
-};
-
-const int64_t N_MAX = 1e18, T_MAX = 1e5, MOD = 998244353;
-int t; int64_t n, k, p;
-int main() {
-    std::cin >> t;
-    while(t--) {
-        std::cin >> n >> k >> p;
-        
-        Matrix<int64_t> A(3, 3);
-        A[1][1] = mod(k * p, MOD); A[1][2] = 0; A[1][3] = mod(1 - p, MOD);
-        A[2][1] = mod(1 - p, MOD); A[2][2] = 1; A[2][3] = 0;
-        A[3][1] = 0; A[3][2] = 0; A[3][3] = 1;
-
-        Matrix<int64_t> ans(3, 1);
-        ans[1][1] = 1; ans[2][1] = 0; ans[3][1] = 1;
-
-        ans = A.fast_pow(n, MOD).multiply(ans, MOD);
-        
-        std::cout << ans[2][1] << '\n';
-    }
-}
-```
-
-### §2.13.1 图上概率DP
-
-> [洛谷P4316]：给定一个由`n<=1e5`个点和`m<=2e5`条边构成的有向无环边权图。求从起点`1`到终点`n`的所有路径的边权之和的期望值，四舍五入保留两位小数输出。
-
-令`dp_p[i]`表示路径包含第`i`个节点的概率，`dp_e[i]`为从起点`1`到终点`n`的所有路径的边权之和按概率加权的期望值，所以`E[n] = dp_e[n]/dp_p[n]`就是我们所求的结果，又因为`dp_p[n]=1`，所以只需输出`dp_e[n]`。于是我们有：
-
-$$
-\begin{cases}
-	\mathrm{dp}_{p}[v] = 
-		\displaystyle\frac{\displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \mathrm{dp}_{p}[u] \right)}{\mathrm{outdeg}[u]} 
-		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \frac{\mathrm{dp}_{p}[u]}{\mathrm{outdeg}[u]} \right) \\
-	\mathrm{dp}_e[v] 
-		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( 
-			\frac{\mathrm{dp}_e[u] + \mathrm{dp}_p[u] \cdot \mathrm{weight}[e]}{\mathrm{outdeg}[u]}
-		\right) 
-\end{cases}
-$$
-
-这里的`dp_e[v]`运用到了条件概率的思想，先从起点`1`到`u`，然后再考虑转移的可能。
-
-```c++
-const int N_MAX = 1e5, M_MAX = 2 * N_MAX;
-int n, m; int u_temp, v_temp; double w_temp;
-int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count; double edge_weight[M_MAX + 1];
-int vertex_indeg[N_MAX + 1], vertex_outdeg[N_MAX + 1];
-int root, child; std::queue<int> queue;
-double dp_p[N_MAX + 1], dp_e[N_MAX + 1];
-inline void add_edge(const int &root, const int &child, const double &edge_weight_temp) {
-    ++edge_count;
-    edge_next[edge_count] = edge_first[root];
-    edge_first[root] = edge_count;
-    edge_to[edge_count] = child;
-    edge_weight[edge_count] = edge_weight_temp;
-    ++vertex_outdeg[root]; ++vertex_indeg[child];
-}
-int main() {
-    std::cin >> n >> m;
-    for(int i = 1; i <= m; ++i) {
-        std::cin >> u_temp >> v_temp >> w_temp;
-        add_edge(u_temp, v_temp, w_temp);
-    }
-    queue.emplace(1); dp_p[1] = 1;
-    while(queue.empty() == false) {
-        root = queue.front(); queue.pop();
-        for(int j = edge_first[root]; j != 0; j = edge_next[j]) {
-            child = edge_to[j];
-            dp_p[child] += dp_p[root] / vertex_outdeg[root];
-            dp_e[child] += (dp_e[root] + dp_p[root] * edge_weight[j]) / vertex_outdeg[root];
-            --vertex_indeg[child]; if(vertex_indeg[child] == 0) { queue.emplace(child); }
-        }
-    }
-    std::cout << std::fixed << std::setprecision(2) << dp_e[n];
-}
-```
-
-## §2.14 换根DP
+## §2.13 换根DP
 
 > [洛谷P3478](https://www.luogu.com.cn/problem/P3478)：给定含有`n<=1e6`个节点的无向树。定义节点`i`的深度$\mathrm{depth}_{u}(i)$为节点`i`到根节点`u`的简单路径上边的数量。请问以哪个节点`u`为根节点，可以让所有结点的深度之和能取得最大值？请输出`u`的编号，如果有多个`u`能使得所求函数值达到最大值，则输出最小的`u`。形式化地，求$\displaystyle\min_{u}\underset{u}{\mathrm{argmax}}\sum_{\forall i\in[1,n]}\mathrm{depth}_{u}(i)$。
 
@@ -6348,7 +6109,7 @@ int main() {
 }
 ```
 
-## §2.15 线性DP
+## §2.14 线性DP
 
 线性DP将一个序列划分为若干段，求一种划分方式以满足最优化目标。
 
@@ -23544,7 +23305,7 @@ int main() {
 
 > [洛谷P5678](https://www.luogu.com.cn/problem/P5678)：给定数列`uint64_t a[1->n<=1e9], b[1->k<=1e2];`，以及`a[]`的前`k<=1e2`个值`a[1->k]`作为初始值。当`n>k`时，有递推公式$a[n] = \displaystyle\bigvee_{\forall i\in[0,k)}\left({a[n-k+i]\wedge b[i]}\right)$，也就是说`a[n]`等于它前面的`k`个元素`a[n-k->n-1]`分别与`b[1->k]`的与运算的或运算结果。求`a[n]`的值。
 
-对于这道题，我们有连续序列，有二元运算（与运算），有归并运行（或运算），于是可以视为广义矩阵乘法。令$\mathbf{dp}_n = \left[\begin{matrix}a[n]&a[n-1]&a[n-1]&\cdots&a[n-k+2]&a[n-k+1]\end{matrix}\right]^T$，下表中的$\mathbb{1}_{\infty}$表示二进制形式的每个Bit均为`1`的正无穷，在本题的`uint64_t`背景下取`UINT64_MAX`。
+对于这道题，我们有连续序列，有二元运算（与运算），有归并运算（或运算），于是可以视为广义矩阵乘法。令$\mathbf{dp}_n = \left[\begin{matrix}a[n]&a[n-1]&a[n-1]&\cdots&a[n-k+2]&a[n-k+1]\end{matrix}\right]^T$，下表中的$\mathbb{1}_{\infty}$表示二进制形式的每个Bit均为`1`的正无穷，在本题的`uint64_t`背景下取`UINT64_MAX`。
 
 $$
 \mathbf{dp}_n = \left[\begin{matrix}
@@ -24086,7 +23847,46 @@ int main() {
 
 递归的时间常数较大。我们也可以先算出`f(n, 0)`的值，再使用递推式按顺序求出`f(n, 0->m)`的值。本题略。
 
-### §8.5.1 线性递推数列
+> [洛谷P10503](https://www.luogu.com.cn/problem/P10503)：给定`q`次查询，每次查询给定`n<=10`、`m<=1e9`、`0<=a[1->m]<(2^31)`，定义$f(n,m) = \begin{cases}233 &,n=0\wedge m=1 \\ 10f(n,m-1) + 3 &, n=0 \wedge m\ge 1 \\ a_m &, n\ge 1 \wedge m=0 \\ f(n-1,m) + f(n,m-1) &, \mathrm{otherwise}\end{cases}$，求$f(n, m)$的值，模`1e7+7`输出。
+
+本题的`n<=10`、`m<=1e9`数据范围很有意思。这提示我们，$O(nm)$的暴力解法会爆时间，用滚动数组优化不会爆空间。数据范围提示不限`n`常数，但是需要优化`m`，因此不妨按列来考虑：
+
+$$
+\begin{align}
+	\mathbf{dp}_m = \left[\begin{matrix}
+		f(0,m) \\ f(1,m) \\ f(2,m) \\ \vdots \\ f(n,m) \\ 1
+	\end{matrix}\right] = \left[\begin{matrix}
+		10 & 0 & 0 & \cdots & 0 & 3 \\
+		10 & 1 & 0 & \cdots & 0 & 3 \\
+		10 & 1 & 1 & \cdots & 0 & 3 \\
+		\vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+		10 & 1 & 1 & \cdots & 1 & 3 \\
+		0 & 0 & 0 & \cdots & 0 & 1 \\
+	\end{matrix}\right] \times \left[\begin{matrix}
+		f(0,m-1) \\ f(1,m-1) \\ f(2,m-1) \\ \vdots \\ f(n,m-1) \\ 1
+	\end{matrix}\right] = \mathbf{A}^1\times\mathbf{dp}_{m-1} = \mathbf{A}^{m}\times\mathbf{dp}_{0}
+\end{align}
+$$
+
+```c++
+/* 此处省略矩阵快速幂板子 */
+
+const int N_MAX = 10; const int64_t M_MAX = 1e18, MOD = 1e7 + 7;
+int64_t n, m;
+int main() {
+    while(std::cin >> n >> m) {
+        Matrix<int64_t> A(n + 2, n + 2), dp(n + 2, 1);
+        for(int i = 1; i <= n + 1; ++i) { A[i][1] = 10; A[i][n + 2] = 3; }
+        for(int i = 2; i <= n + 1; ++i) { for(int j = 2; j <= i; ++j) { A[i][j] = 1; } }
+        A[n + 2][n + 2] = 1;
+        dp[1][1] = 23; for(int i = 2; i <= n + 1; ++i) { std::cin >> dp[i][1]; } dp[n + 2][1] = 1;
+        dp = A.fast_pow(m, MOD).multiply(dp, MOD);
+        std::cout << dp[n + 1][1] << '\n';
+    }
+}
+```
+
+### §8.5.2 线性递推数列
 
 给定数列$\{a_n\}$的线性递推公式：$\displaystyle\sum_{k\in[0, m]} c_m\cdot a_{n+m} = f(n)$。若$f(n)=0$则为其次，反之则为非齐次。通过以下步骤求解通项公式：
 
@@ -24100,7 +23900,383 @@ int main() {
 	2. 对于$f(n)$中的$p$阶指数成分$b\cdot e^{n}$，设特解$a_n = C\cdot e^n$，使用待定系数法解出系数$C$。
 4. 得到通项公式$a_n = a_{n}^{(\mathcal{H})} + a_{n}^{\mathcal{P}}$。
 
-## §8.6 组合与期望
+## §8.6 概率论
+
+### §8.6.1 期望
+
+> [洛谷P8229](https://www.luogu.com.cn/problem/P8229)：初始时筐里有`1`枚硬币，每个回合有概率`p<=1e9`让筐里的硬币数量变成`k<=1e9`倍，有`1-p`的概率收获筐里的所有硬币，并重置硬币数量为`1`。给定`n<=1e18`回合操作，求期望收获的硬币总数。给定`T<=1e5`次这样的查询，答案模`998244353`输出。
+
+令`r[i]`表示第`i`回合后的筐内硬币数量期望值，`s[i]`表示第`i`回合后收获的硬币总数，于是显然有递推关系，矩阵快速幂即可。
+
+$$
+\begin{align}
+	& \begin{cases}
+		r_i = (p) \cdot kr_{i-1} + (1-p) \cdot 1 \\
+		s_i = s_{i-1} + (1-p) \cdot r_{i-1}
+	\end{cases}, \begin{cases}
+		r_0 = 1 \\
+		s_0 = 0
+	\end{cases} \\
+	\Rightarrow & \left[\begin{matrix}r_i\\s_i\end{matrix}\right] = \left[ \begin{matrix}
+		kp & 0 \\ 1-p & 1
+	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\end{matrix}\right] + \left[\begin{matrix}1-p \\ 0\end{matrix}\right] \\
+	\Rightarrow & \left[\begin{matrix}r_i\\s_i\\1\end{matrix}\right] = \left[ \begin{matrix}
+		kp & 0 & 1-p \\
+		1-p & 1 & 0 \\
+		0 & 0 & 1
+	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\\1\end{matrix}\right] = \mathbf{A}^{i} \left[\begin{matrix}r_{0}\\s_{0}\\1\end{matrix}\right] = \mathbf{A}^{i}\left[\begin{matrix}1\\0\\1\end{matrix}\right]
+\end{align}
+
+$$
+
+注意：**`1-p`可能是负值，因此需要预先对负数取模，才能使用取模意义下的快速幂！**
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+
+template<typename T> class Matrix {
+  public:
+    const static int N_MAX = 3, M_MAX = 3;
+    int n, m;
+    T data[N_MAX + 1][M_MAX + 1];
+    Matrix() {
+        n = N_MAX;
+        m = M_MAX;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    Matrix(int n, int m) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n;
+        this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    static Matrix eye(int n) {
+        assert(n <= N_MAX && n <= M_MAX && n >= 1);
+        Matrix ans(n, n);
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }
+        }
+        for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+        return ans;
+    }
+    T (&operator[](int i)) [M_MAX + 1] { return data[i]; } const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+    friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.n == rhs.n && lhs.m == rhs.m);
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }
+        }
+        return ans;
+    }
+    Matrix &operator+=(const Matrix &rhs) {
+        assert(this->n == rhs.n && this->m == rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }
+        }
+        return *this;
+    }
+    friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.n == rhs.n && lhs.m == rhs.m);
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }
+        }
+        return ans;
+    }
+    Matrix &operator-=(const Matrix &rhs) {
+        assert(this->n == rhs.n && this->m == rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }
+        }
+        return *this;
+    }
+    Matrix multiply(const Matrix &rhs, const T &mod) {
+        assert(this->m == rhs.n);
+        Matrix ans(this->n, rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                ans[i][j] = 0;
+                for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }
+            }
+        }
+        return ans;
+    }
+    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.m == rhs.n);
+        Matrix ans(lhs.n, rhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                ans[i][j] = 0;
+                for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }
+            }
+        }
+        return ans;
+    }
+    Matrix &operator*=(const Matrix &rhs) {
+        *this = (*this) * rhs;
+        return *this;
+    }
+    friend Matrix operator%(const Matrix &lhs, const T &mod) {
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }
+        }
+        return ans;
+    }
+    Matrix &operator%=(const T &mod) {
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }
+        }
+        return *this;
+    }
+    inline Matrix fast_pow(int64_t power) {
+        assert(this->n == this->m);
+        Matrix base(*this), ans = Matrix::eye(this->n);
+        while(power > 0) {
+            if(power % 2) { ans *= base; }
+            base *= base;
+            power /= 2;
+        }
+        return ans;
+    }
+    inline Matrix fast_pow(int64_t power, const T &mod) {
+        assert(this->n == this->m);
+        Matrix base(*this), ans = Matrix::eye(this->n);
+        base %= mod;
+        while(power > 0) {
+            if(power % 2) { ans = ans.multiply(base, mod); }
+            base = base.multiply(base, mod);
+            power /= 2;
+        }
+        return ans;
+    }
+};
+
+const int64_t N_MAX = 1e18, T_MAX = 1e5, MOD = 998244353;
+int t; int64_t n, k, p;
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> n >> k >> p;
+        
+        Matrix<int64_t> A(3, 3);
+        A[1][1] = mod(k * p, MOD); A[1][2] = 0; A[1][3] = mod(1 - p, MOD);
+        A[2][1] = mod(1 - p, MOD); A[2][2] = 1; A[2][3] = 0;
+        A[3][1] = 0; A[3][2] = 0; A[3][3] = 1;
+
+        Matrix<int64_t> ans(3, 1);
+        ans[1][1] = 1; ans[2][1] = 0; ans[3][1] = 1;
+
+        ans = A.fast_pow(n, MOD).multiply(ans, MOD);
+        
+        std::cout << ans[2][1] << '\n';
+    }
+}
+```
+
+#### §8.6.1.1 连续期望
+
+> [洛谷P5104](https://www.luogu.com.cn/problem/P5104)：给定`0<w<1e9+7`元的群红包，每个人只能均匀地抢到`[0, 剩余金额]`内的任意值。求第`n<=1e18`个抽奖的人抢到的平均金额。输出分数对`1e9+7`取模。
+
+显然第`1`个人的抢钱金额$X_1$概率分布函数为$f_1(x)=\displaystyle\frac{1}{w}, x\in[0, w]$。于是第`1`个人抢到的金额期望为$\displaystyle\int_{0}^{w}xf_{1}(x)dx=\displaystyle\int_{0}^{w}\frac{x}{w}dx=\frac{x^2}{2w}\big{|}_{0}^{w}=\frac{w}{2}$。剩余步骤同理，容易猜出答案为$\displaystyle\frac{w}{2^n}$。对分数取模即可。
+
+```c++
+const int64_t W_MAX = 1e9 + 7, N_MAX = 1e18;
+int64_t w, n, mod;
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int main() {
+    std::cin >> w >> n >> n; mod = 1e9 + 7;
+    std::cout << frac_mod(w, fast_pow(2, n, mod), mod);
+}
+```
+
+#### §8.6.1.2 顺序统计量
+
+> [洛谷P4562](https://www.luogu.com.cn/problem/P4562)：给定区间`1<=[l, r]<=1e7`内的`n=r-l+1`个正整数，及其交换群$S_n$构成的全排列。给定一个排列$p\in S_n$，按顺序依次读取值。当读到第$i$个值$p_i$时，会将$p_i$的倍数（包括它自己）均标记为已访问。显然存在某个瞬间，当按照前文步骤处理完第$f(p)$个元素时，`[l, r]`中的所有数字恰好均已被访问。求$\displaystyle\sum_{\forall p\in S_n}f(p)$，答案模`1e9+7`输出。
+
+**需要敏锐地注意到**：我们将`[l, r]`中的元素分为两类——关键数和非关键数。如果不存在$x\in[l, r]$和正整数$k$，使得$y=kx$，则$y$就是关键数。关键数意味着它不会被`>=2`的倍数机制触发。关键数的数量$k$可以通过埃拉托斯特尼筛法以$O(n\log_2\log_2 n)$的时间复杂度求出。令这`k`个关键数在序列$p$中的下标位置随机变量分别为$X_1, X_2, \cdots, X_k$，其顺序统计量分别为$X_{(1)}, X_{(1)}, \cdots, X_{(k)}$。**于是，$f(p)$就是$X_{(n)}$。关键数全部被处理完毕的时刻，就是`[l, r]`内所有数字均访问完毕的时刻**。
+
+问题转化为如何求$X_{(n)}$。**令$Y_{(n)}$表示序列末尾的连续非关键数长度，则注意到$E(X_{(n)})=E(n-Y_{(n)})=n-E(Y_{(n)})$**。问题转化为如何求$Y_{(n)}$：使用隔板法，将$k$个关键数视为$k$个隔板，产生$k+1$个间隔，$n-k$个非关键数等可能地选中其中一个间隔填入。于是$E(Y_{(n)})=\displaystyle\frac{n-k}{k+1}$，$E(X_{(n)})=n-\displaystyle\frac{n-k}{k+1}=\frac{k}{k+1}(n+1)$，$\displaystyle\sum_{\forall p\in S_n}f(p)=\mathrm{count}(S_n)\cdot E(X_{(n)})=A_n^n \cdot \frac{k}{k+1}(n+1)=\frac{k}{k+1}(n+1)!$。
+
+```c++
+const int L_MAX = 1e7, R_MAX = 1e7;
+int l, r, n, k; int64_t ans = 1, mod;
+std::bitset<R_MAX + 1> visited;
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int main() {
+    std::cin >> l >> r; mod = 1e9 + 7;
+    n = r - l + 1;
+    for(int i = l; i <= r; ++i) {
+        if(visited[i] == true) { continue; }
+        visited[i] = true; ++k;
+        for(int j = 2 * i; j <= r; j += i) { visited[j] = true; }
+    }
+
+    ans = frac_mod(k, k + 1, mod);
+    for(int i = 2; i <= n + 1; ++i) { ans = (ans * i) % mod; } // (1e9+7)*(1e7)不会溢出INT64_MAX
+    std::cout << ans;
+}
+```
+
+#### §8.6.1.3 马尔科夫链
+
+我们将离散随机变量的不同值视为DFA上的节点，根据转移状态联立方程即可解得期望值。
+
+例如连续抛一枚硬币，正面概率为$p$，反面概率为$1-p$，求首次出现连续$2$次均为正面的期望抛掷次数$E(X_2)$。根据DFA思想，考虑现在已经经过$E(X_{n-1})$次抛掷，到达了首次出现连续$n-1$次均为正面的情况。此时要么一次成功，最终抛掷次数为$E(X_{n-1}+1)$；要么从头再来，最终抛掷次数为$E(X_{n-1}+1+X_{n})$。对应的方程为$E(X_n) = p \cdot E(X_{n-1} + 1) + (1 - p) \cdot E(X_{n-1} + 1 + X_n)$，整理得到递推公式$E(X_n) = \frac{1}{p}(1+E(X_{n-1}))$。显然初始项$E(X_1)=\displaystyle\frac{1}{2}$，所以$E(X_n) = \displaystyle\sum_{i=1}^{n}\frac{1}{p^i} = \frac{1-\frac{1}{p^n}}{p(1-\frac{1}{p})}$。
+
+> [洛谷P7358](https://www.luogu.com.cn/problem/P7358)：给定`n<=1e6`与随机变量$X, Y$的**未归一化的**概率分布列`a[i:1->n]<=1e9`、`b[i:1->n]<=1e9`。每回合取一组$(X,Y)$，若$X>Y$则加`1`分，若$X=Y$则分数不变，若$X<Y$则减`1`分，如果分数等于`0`则不再扣分。求分数到达`m<=1e(1e3)`所需的回合数期望值。
+
+先求单一回合内胜利、平局与失败的概率。我们先将`a[]`与`b[]`归一化，然后使用求和计算概率，注意到可以使用前缀和降低时间复杂度：
+
+$$
+\begin{cases}
+	\displaystyle P_{\mathrm{win}} = P(X>Y) = \sum_{j=1}^n \sum_{i=j+1}^{n} a[i]b[j] = \sum_{j=1}^{n} (\mathrm{a\_presum}[n] - \mathrm{a\_presum}[j]) \cdot b[j] \\
+	\displaystyle P_{\mathrm{tie}} = P(X=Y) = \sum_{j=1}^{n} a[j]b[j] \\
+	\displaystyle P_{\mathrm{lose}} = P(X<Y) = \sum_{j=1}^n \sum_{i=1}^{j-1} a[i]b[j] = \sum_{j=1}^{n} (\mathrm{a\_presum}[j-1] - \mathrm{a\_presum}[0]) \cdot b[j] \\
+\end{cases}
+$$
+
+且三个概率显然满足$P_{\mathrm{win}} + P_{\mathrm{tie}} + P_{\mathrm{lose}} = 1$，这会在后面的递推公式化简中用到。
+
+再求回合数的期望值。令现在的分数为`i`时、到达分数`m`的回合数期望值为$E(X_i)$，则本题所求的值为$E(X_0)$。显然存在递推关系：
+
+$$
+E(X_i) = \begin{cases}
+	P_{\mathrm{win}} \cdot (1 + E(X_{i+1})) + P_{\mathrm{tie}} \cdot (1 + E(X_{i})) + P_{\mathrm{lose}} \cdot (1 + E(X_{i-1})) &, i \ge 1 \\
+	P_{\mathrm{win}} \cdot (1 + E(X_{i+1})) + P_{\mathrm{tie}} \cdot (1 + E(X_{i})) + P_{\mathrm{lose}} \cdot (1 + E(X_{i})) &, i = 0 \\
+\end{cases}
+$$
+
+这个递推关系同时出现了$E(X_{i})$、$E(X_{i-1})$、$E(X_{i+1})$，因此不妨通过$E(X_{i-1})$和$E(X_{i})$推出$E(X_{i+1})$，**也就是通过$E(X_{i-2})$和$E(X_{i-1})$推出$E(X_{i})$**：
+
+$$
+\begin{cases}
+	\displaystyle E(X_{i}) = 
+		\frac{1 - P_{\mathrm{tie}}}{P_{\mathrm{win}}} E(X_{i-1}) + 
+		\frac{-P_{\mathrm{lose}}}{P_{\mathrm{win}}} E(X_{i-2}) + 
+		\frac{-1}{P_{\mathrm{win}}}
+	\\
+	\displaystyle E(X_1) = E(X_0) + \frac{-1}{P_{\mathrm{win}}} \\
+	\displaystyle E(X_m) = 0
+\end{cases}
+$$
+
+不妨将$E(X_0)$视为所求的未知数，于是$\{E(X_i)\}$构成了二阶非齐次递推数列，其中的每一项均可以视为关于$E(X_0)$的一元一次多项式，不妨记为$E(X_i) = a_i \cdot E(X_0) + b_i$，其中$a_i$与$b_i$不再表示上文的分布列，而是多项式的系数。于是$a_m$和$b_m$可以通过矩阵快速幂得到。本题无法保证$\mathbf{A}$与$\mathbf{B}$总是可以对角化，因此无法使用矩阵形式的扩展欧拉定理缩小幂数，因此只能使用支持高精度除法与取模的矩阵快速幂来计算，时间复杂度为$O(\log_2{m})\le O(\log_2{10^{10^3}}) \approx O(3322)$，可以接受。
+
+$$
+\begin{align}
+	& \mathbf{dp\_a}_m = \left[\begin{matrix}
+		a_m \\ a_{m-1}
+	\end{matrix}\right] = \left[\begin{matrix}
+		\displaystyle \frac{1 - P_{\mathrm{tie}}}{P_{\mathrm{win}}} & \displaystyle \frac{-P_{\mathrm{lose}}}{P_{\mathrm{win}}} \\
+		1 & 0
+	\end{matrix}\right] \times \left[\begin{matrix}
+		a_{m-1} \\ a_{m-2}
+	\end{matrix}\right] = \mathbf{A}^{1} \times \mathbf{dp\_a}_{m-1} 
+		= \mathbf{A}^{m-1} \times \mathbf{dp\_a}_{1} = \mathbf{A}^{m-1} \times \left[\begin{matrix}
+			1 \\ 0
+		\end{matrix}\right]
+	\\
+	& \mathbf{dp\_b}_m = \left[\begin{matrix}
+		b_m \\ b_{m-1} \\ 1
+	\end{matrix}\right] = \left[\begin{matrix}
+		\displaystyle \frac{1 - P_{\mathrm{tie}}}{P_{\mathrm{win}}} & \displaystyle \frac{-P_{\mathrm{lose}}}{P_{\mathrm{win}}} & \displaystyle \frac{-1}{P_{\mathrm{win}}} \\
+		1 & 0 & 0 \\
+		0 & 0 & 1 \\
+	\end{matrix}\right] \times \left[\begin{matrix}
+		b_{m-1} \\ b_{m-2} \\ 1
+	\end{matrix}\right] = \mathbf{B}^1 \times \mathbf{dp\_b}_{m-1}
+		= \mathbf{B}^{m-1} \times \mathbf{dp\_b}_1
+		= \mathbf{B}^{m-1} \times \left[\begin{matrix}
+			\displaystyle \frac{-1}{P_{\mathrm{win}}} \\ 0 \\ 1
+		\end{matrix}\right]
+\end{align}
+$$
+
+又因为$E(X_m) = 0$，所以$a_m \cdot E(X_0) + b_m = 0$，解得$E(X_0) = \displaystyle\frac{-b_m}{a_m}$。
+
+```c++
+/* 矩阵快速幂Matrix 与 高精度整数BigInteger 的代码板子略 */
+
+const int N_MAX = 1e6; const int64_t p = 1e9 + 7;
+int n; BigInteger m;
+int64_t a[N_MAX + 1], a_presum[N_MAX + 1], b[N_MAX + 1], b_presum[N_MAX + 1], a_sum_inv, b_sum_inv;
+int64_t p_win, p_tie, p_lose;
+Matrix<int64_t> A(2, 2), B(3, 3), dp_A(2, 2), dp_B(3, 3);
+int64_t a_m, b_m;
+int main() {
+    std::cin >> n >> m;
+
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a[i] = mod(a[i], p); a_presum[i] = (a_presum[i - 1] + a[i]) % p; }
+    for(int i = 1; i <= n; ++i) { std::cin >> b[i]; b[i] = mod(b[i], p); b_presum[i] = (b_presum[i - 1] + b[i]) % p; }
+    a_sum_inv = inv_mod(a_presum[n], p); b_sum_inv = inv_mod(b_presum[n], p);
+    for(int i = 1; i <= n; ++i) { a[i] = (a[i] * a_sum_inv) % p; b[i] = (b[i] * b_sum_inv) % p; }
+    for(int i = 1; i <= n; ++i) { a_presum[i] = (a_presum[i] * a_sum_inv) % p; b_presum[i] = (b_presum[i] * b_sum_inv) % p; }
+
+    for(int j = 1; j <= n; ++j) {
+        p_win = mod(p_win + (a_presum[n] - a_presum[j]) * b[j], p); // i > j
+        p_tie = mod(p_tie + a[j] * b[j], p);
+        p_lose = mod(p_lose + (a_presum[j - 1] - a_presum[0]) * b[j], p);
+    }
+
+    A[1][1] = frac_mod(mod(1 - p_tie, p), p_win, p);
+    A[1][2] = frac_mod(mod(-p_lose, p), p_win, p);
+    A[2][1] = 1;
+    dp_A[1][1] = dp_A[2][1] = 1; // dp_A_1
+
+    B[1][1] = frac_mod(mod(1 - p_tie, p), p_win, p);
+    B[1][2] = frac_mod(mod(-p_lose, p), p_win, p);
+    B[1][3] = inv_mod(mod(-p_win, p), p);
+    B[2][1] = B[3][3] = 1;
+    dp_B[1][1] = frac_mod(mod(-1, p), p_win, p); dp_B[2][1] = 0; dp_B[3][1] = 1; // dp_B_1
+
+    auto matrix_bigint_fast_pow = [](const Matrix<int64_t> &X, BigInteger power, const int64_t &p){
+        assert(X.n == X.m); Matrix<int64_t> base(X), ans = Matrix<int64_t>::eye(X.n);
+        for(base %= p; power > 0; base = base.multiply(base, p), power /= 2) {
+            if(power % 2 == 1) { ans = ans.multiply(base, p); }
+        }
+        return ans;
+    };
+    a_m = matrix_bigint_fast_pow(A, m - 1, p).multiply(dp_A, p)[1][1];
+    b_m = matrix_bigint_fast_pow(B, m - 1, p).multiply(dp_B, p)[1][1];
+
+    std::cout << frac_mod(mod(-b_m, p), a_m, p);
+}
+```
+
+### §8.6.2 排列组合与概率
 
 > [洛谷P3802](https://www.luogu.com.cn/problem/P3802)：给定`n=7`种正整数`1, 2, ..., n`，其中数字`i`有`0<=a[i]<=1e9`个。将这`m=∑a[i]`个数字排成一个序列`b[]`。求`b[]`中有期望有多少个连续的、长度为`n`、恰好包含`[1, n]`内所有正整数的区间？答案四舍五入保留三位小数。
 
@@ -24168,68 +24344,587 @@ int main() {
 }
 ```
 
+#### §8.6.2.1 图上概率DP
 
-> [洛谷P5104](https://www.luogu.com.cn/problem/P5104)：给定`0<w<1e9+7`元的群红包，每个人只能均匀地抢到`[0, 剩余金额]`内的任意值。求第`n<=1e18`个抽奖的人抢到的平均金额。输出分数对`1e9+7`取模。
+> [洛谷P4316]：给定一个由`n<=1e5`个点和`m<=2e5`条边构成的有向无环边权图。求从起点`1`到终点`n`的所有路径的边权之和的期望值，四舍五入保留两位小数输出。
 
-显然第`1`个人的抢钱金额$X_1$概率分布函数为$f_1(x)=\displaystyle\frac{1}{w}, x\in[0, w]$。于是第`1`个人抢到的金额期望为$\displaystyle\int_{0}^{w}xf_{1}(x)dx=\displaystyle\int_{0}^{w}\frac{x}{w}dx=\frac{x^2}{2w}\big{|}_{0}^{w}=\frac{w}{2}$。剩余步骤同理，容易猜出答案为$\displaystyle\frac{w}{2^n}$。对分数取模即可。
+令`dp_p[i]`表示路径包含第`i`个节点的概率，`dp_e[i]`为从起点`1`到终点`n`的所有路径的边权之和按概率加权的期望值，所以`E[n] = dp_e[n]/dp_p[n]`就是我们所求的结果，又因为`dp_p[n]=1`，所以只需输出`dp_e[n]`。于是我们有：
+
+$$
+\begin{cases}
+	\mathrm{dp}_{p}[v] = 
+		\displaystyle\frac{\displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \mathrm{dp}_{p}[u] \right)}{\mathrm{outdeg}[u]} 
+		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \frac{\mathrm{dp}_{p}[u]}{\mathrm{outdeg}[u]} \right) \\
+	\mathrm{dp}_e[v] 
+		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( 
+			\frac{\mathrm{dp}_e[u] + \mathrm{dp}_p[u] \cdot \mathrm{weight}[e]}{\mathrm{outdeg}[u]}
+		\right) 
+\end{cases}
+$$
+
+这里的`dp_e[v]`运用到了条件概率的思想，先从起点`1`到`u`，然后再考虑转移的可能。
 
 ```c++
-const int64_t W_MAX = 1e9 + 7, N_MAX = 1e18;
-int64_t w, n, mod;
-inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
-    int64_t result = 1;
-    a %= p;
-    while(b > 0) {
-        if(b % 2) { result = (result * a) % p; }
-        a = (a * a) % p;
-        b /= 2;
-    }
-    return result;
+const int N_MAX = 1e5, M_MAX = 2 * N_MAX;
+int n, m; int u_temp, v_temp; double w_temp;
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count; double edge_weight[M_MAX + 1];
+int vertex_indeg[N_MAX + 1], vertex_outdeg[N_MAX + 1];
+int root, child; std::queue<int> queue;
+double dp_p[N_MAX + 1], dp_e[N_MAX + 1];
+inline void add_edge(const int &root, const int &child, const double &edge_weight_temp) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+    edge_weight[edge_count] = edge_weight_temp;
+    ++vertex_outdeg[root]; ++vertex_indeg[child];
 }
-int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
 int main() {
-    std::cin >> w >> n >> n; mod = 1e9 + 7;
-    std::cout << frac_mod(w, fast_pow(2, n, mod), mod);
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        add_edge(u_temp, v_temp, w_temp);
+    }
+    queue.emplace(1); dp_p[1] = 1;
+    while(queue.empty() == false) {
+        root = queue.front(); queue.pop();
+        for(int j = edge_first[root]; j != 0; j = edge_next[j]) {
+            child = edge_to[j];
+            dp_p[child] += dp_p[root] / vertex_outdeg[root];
+            dp_e[child] += (dp_e[root] + dp_p[root] * edge_weight[j]) / vertex_outdeg[root];
+            --vertex_indeg[child]; if(vertex_indeg[child] == 0) { queue.emplace(child); }
+        }
+    }
+    std::cout << std::fixed << std::setprecision(2) << dp_e[n];
 }
 ```
 
-### §8.6.1 顺序统计量
-
-> [洛谷P4562](https://www.luogu.com.cn/problem/P4562)：给定区间`1<=[l, r]<=1e7`内的`n=r-l+1`个正整数，及其交换群$S_n$构成的全排列。给定一个排列$p\in S_n$，按顺序依次读取值。当读到第$i$个值$p_i$时，会将$p_i$的倍数（包括它自己）均标记为已访问。显然存在某个瞬间，当按照前文步骤处理完第$f(p)$个元素时，`[l, r]`中的所有数字恰好均已被访问。求$\displaystyle\sum_{\forall p\in S_n}f(p)$，答案模`1e9+7`输出。
-
-**需要敏锐地注意到**：我们将`[l, r]`中的元素分为两类——关键数和非关键数。如果不存在$x\in[l, r]$和正整数$k$，使得$y=kx$，则$y$就是关键数。关键数意味着它不会被`>=2`的倍数机制触发。关键数的数量$k$可以通过埃拉托斯特尼筛法以$O(n\log_2\log_2 n)$的时间复杂度求出。令这`k`个关键数在序列$p$中的下标位置随机变量分别为$X_1, X_2, \cdots, X_k$，其顺序统计量分别为$X_{(1)}, X_{(1)}, \cdots, X_{(k)}$。**于是，$f(p)$就是$X_{(n)}$。关键数全部被处理完毕的时刻，就是`[l, r]`内所有数字均访问完毕的时刻**。
-
-问题转化为如何求$X_{(n)}$。**令$Y_{(n)}$表示序列末尾的连续非关键数长度，则注意到$E(X_{(n)})=E(n-Y_{(n)})=n-E(Y_{(n)})$**。问题转化为如何求$Y_{(n)}$：使用隔板法，将$k$个关键数视为$k$个隔板，产生$k+1$个间隔，$n-k$个非关键数等可能地选中其中一个间隔填入。于是$E(Y_{(n)})=\displaystyle\frac{n-k}{k+1}$，$E(X_{(n)})=n-\displaystyle\frac{n-k}{k+1}=\frac{k}{k+1}(n+1)$，$\displaystyle\sum_{\forall p\in S_n}f(p)=\mathrm{count}(S_n)\cdot E(X_{(n)})=A_n^n \cdot \frac{k}{k+1}(n+1)=\frac{k}{k+1}(n+1)!$。
+## §8.7 高精度
 
 ```c++
-const int L_MAX = 1e7, R_MAX = 1e7;
-int l, r, n, k; int64_t ans = 1, mod;
-std::bitset<R_MAX + 1> visited;
-inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
-    int64_t result = 1;
-    a %= p;
-    while(b > 0) {
-        if(b % 2) { result = (result * a) % p; }
-        a = (a * a) % p;
-        b /= 2;
+/**
+ * 改自 https://www.luogu.com.cn/article/rz9ubds1
+ * 要求C++20（因为用到了GNU C++11 std::__lg() -> C++20 std::bit_width()）
+ */
+
+namespace __FFT {
+    constexpr int64_t FFT_BASE = 1e4;
+    constexpr double PI2 = 6.283185307179586231995927;
+    constexpr double PI6 = 18.84955592153875869598778;
+    constexpr int RECALC_WIDTH = 10;
+    constexpr int RECALC_BASE = (1 << RECALC_WIDTH) - 1;
+    struct complex {
+        double real, imag;
+        complex(double x = 0.0, double y = 0.0): real(x), imag(y) {}
+        complex operator+(const complex &other) const { return complex(real + other.real, imag + other.imag); }
+        complex operator-(const complex &other) const { return complex(real - other.real, imag - other.imag); }
+        complex operator*(const complex &other) const { return complex(real * other.real - imag * other.imag, real * other.imag + other.real * imag); }
+        complex &operator+=(const complex &other) { return real += other.real, imag += other.imag, *this; }
+        complex &operator-=(const complex &other) { return real -= other.real, imag -= other.imag, *this; }
+        complex &operator*=(const complex &other) { return *this = *this * other; }
+    };
+    complex *arr = nullptr;
+    inline void init(int n) {
+        if(arr != nullptr) delete[] arr, arr = nullptr;
+        arr = new complex[n + 1];
     }
-    return result;
+    template<const int n> inline void fft(complex *a) {
+        const int n2 = n >> 1, n4 = n >> 2;
+        complex w(1.0, 0.0), w3(1.0, 0.0);
+        const complex wn(std::cos(PI2 / n), std::sin(PI2 / n)), wn3(std::cos(PI6 / n), std::sin(PI6 / n));
+        for(int i = 0; i < n4; i++, w *= wn, w3 *= wn3) {
+            if(!(i & RECALC_BASE)) w = complex(std::cos(PI2 * i / n), std::sin(PI2 * i / n)), w3 = w * w * w;
+            complex x = a[i] - a[i + n2], y = a[i + n4] - a[i + n2 + n4];
+            y = complex(y.imag, -y.real);
+            a[i] += a[i + n2], a[i + n4] += a[i + n2 + n4];
+            a[i + n2] = (x - y) * w, a[i + n2 + n4] = (x + y) * w3;
+        }
+        fft<n2>(a), fft<n4>(a + n2), fft<n4>(a + n2 + n4);
+    }
+    template<> inline void fft<0>(complex *) {}
+    template<> inline void fft<1>(complex *) {}
+    template<> inline void fft<2>(complex *a) {
+        complex x = a[0], y = a[1];
+        a[0] += y, a[1] = x - y;
+    }
+    template<> inline void fft<4>(complex *a) {
+        complex a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3];
+        complex x = a0 - a2, y = a1 - a3;
+        y = complex(y.imag, -y.real);
+        a[0] += a2, a[1] += a3, a[2] = x - y, a[3] = x + y;
+        fft<2>(a);
+    }
+    template<const int n> inline void ifft(complex *a) {
+        const int n2 = n >> 1, n4 = n >> 2;
+        ifft<n2>(a), ifft<n4>(a + n2), ifft<n4>(a + n2 + n4);
+        complex w(1.0, 0.0), w3(1.0, 0.0);
+        const complex wn(std::cos(PI2 / n), -std::sin(PI2 / n)), wn3(std::cos(PI6 / n), -std::sin(PI6 / n));
+        for(int i = 0; i < n4; i++, w *= wn, w3 *= wn3) {
+            if(!(i & RECALC_BASE)) w = complex(std::cos(PI2 * i / n), -std::sin(PI2 * i / n)), w3 = w * w * w;
+            complex p = w * a[i + n2], q = w3 * a[i + n2 + n4];
+            complex x = a[i], y = p + q, x1 = a[i + n4], y1 = p - q;
+            y1 = complex(y1.imag, -y1.real);
+            a[i] += y, a[i + n4] += y1, a[i + n2] = x - y, a[i + n2 + n4] = x1 - y1;
+        }
+    }
+    template<> inline void ifft<0>(complex *) {}
+    template<> inline void ifft<1>(complex *) {}
+    template<> inline void ifft<2>(complex *a) {
+        complex x = a[0], y = a[1];
+        a[0] += y, a[1] = x - y;
+    }
+    template<> inline void ifft<4>(complex *a) {
+        ifft<2>(a);
+        complex p = a[2], q = a[3];
+        complex x = a[0], y = p + q, x1 = a[1], y1 = p - q;
+        y1 = complex(y1.imag, -y1.real);
+        a[0] += y, a[1] += y1, a[2] = x - y, a[3] = x1 - y1;
+    }
+    inline void dft(complex *a, int n) {
+        if(n <= 1) return;
+        switch(n) {
+        case 1 << 2: fft<1 << 2>(a); break;
+        case 1 << 3: fft<1 << 3>(a); break;
+        case 1 << 4: fft<1 << 4>(a); break;
+        case 1 << 5: fft<1 << 5>(a); break;
+        case 1 << 6: fft<1 << 6>(a); break;
+        case 1 << 7: fft<1 << 7>(a); break;
+        case 1 << 8: fft<1 << 8>(a); break;
+        case 1 << 9: fft<1 << 9>(a); break;
+        case 1 << 10: fft<1 << 10>(a); break;
+        case 1 << 11: fft<1 << 11>(a); break;
+        case 1 << 12: fft<1 << 12>(a); break;
+        case 1 << 13: fft<1 << 13>(a); break;
+        case 1 << 14: fft<1 << 14>(a); break;
+        case 1 << 15: fft<1 << 15>(a); break;
+        case 1 << 16: fft<1 << 16>(a); break;
+        case 1 << 17: fft<1 << 17>(a); break;
+        case 1 << 18: fft<1 << 18>(a); break;
+        case 1 << 19: fft<1 << 19>(a); break;
+        case 1 << 20: fft<1 << 20>(a); break;
+        case 1 << 21: fft<1 << 21>(a); break;
+        case 1 << 22: fft<1 << 22>(a); break;
+        case 1 << 23: fft<1 << 23>(a); break;
+        case 1 << 24: fft<1 << 24>(a); break;
+        case 1 << 25: fft<1 << 25>(a); break;
+        case 1 << 26: fft<1 << 26>(a); break;
+        case 1 << 27: fft<1 << 27>(a); break;
+        case 1 << 28:
+            fft<1 << 28>(a);
+            break;
+            std::cerr << "FFTLimitExceededError" << '\n'; exit(-1);
+        }
+    }
+    inline void idft(complex *a, int n) {
+        if(n <= 1) return;
+        switch(n) {
+        case 1 << 2: ifft<1 << 2>(a); break;
+        case 1 << 3: ifft<1 << 3>(a); break;
+        case 1 << 4: ifft<1 << 4>(a); break;
+        case 1 << 5: ifft<1 << 5>(a); break;
+        case 1 << 6: ifft<1 << 6>(a); break;
+        case 1 << 7: ifft<1 << 7>(a); break;
+        case 1 << 8: ifft<1 << 8>(a); break;
+        case 1 << 9: ifft<1 << 9>(a); break;
+        case 1 << 10: ifft<1 << 10>(a); break;
+        case 1 << 11: ifft<1 << 11>(a); break;
+        case 1 << 12: ifft<1 << 12>(a); break;
+        case 1 << 13: ifft<1 << 13>(a); break;
+        case 1 << 14: ifft<1 << 14>(a); break;
+        case 1 << 15: ifft<1 << 15>(a); break;
+        case 1 << 16: ifft<1 << 16>(a); break;
+        case 1 << 17: ifft<1 << 17>(a); break;
+        case 1 << 18: ifft<1 << 18>(a); break;
+        case 1 << 19: ifft<1 << 19>(a); break;
+        case 1 << 20: ifft<1 << 20>(a); break;
+        case 1 << 21: ifft<1 << 21>(a); break;
+        case 1 << 22: ifft<1 << 22>(a); break;
+        case 1 << 23: ifft<1 << 23>(a); break;
+        case 1 << 24: ifft<1 << 24>(a); break;
+        case 1 << 25: ifft<1 << 25>(a); break;
+        case 1 << 26: ifft<1 << 26>(a); break;
+        case 1 << 27: ifft<1 << 27>(a); break;
+        case 1 << 28:
+            ifft<1 << 28>(a);
+            break;
+            std::cerr << "FFTLimitExceededError" << '\n'; exit(-1);
+        }
+    }
 }
-int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
-int main() {
-    std::cin >> l >> r; mod = 1e9 + 7;
-    n = r - l + 1;
-    for(int i = l; i <= r; ++i) {
-        if(visited[i] == true) { continue; }
-        visited[i] = true; ++k;
-        for(int j = 2 * i; j <= r; j += i) { visited[j] = true; }
+class BigInteger {
+  protected:
+    using digit_t = int64_t;
+    static constexpr int WIDTH = 8;
+    static constexpr digit_t BASE = 1e8;
+    static constexpr int64_t FFT_LIMIT = 32;
+    static constexpr int64_t NEWTON_DIV_LIMIT = 64;
+    static constexpr int64_t NEWTON_DIV_MIN_LEVEL = 16;
+    static constexpr int64_t NEWTON_SQRT_LIMIT = 48;
+    static constexpr int64_t NEWTON_SQRT_MIN_LEVEL = 5;
+    digit_t *digits;
+    int capacity, size;
+    bool flag;
+    inline void push(const digit_t &val) {
+        if(size == capacity) {
+            int new_capacity = 0;
+            if(capacity < 256) new_capacity = capacity << 1;
+            else new_capacity = std::pow(capacity + 1, 0.125) * capacity;
+            digit_t *new_digits = new digit_t[new_capacity + 1];
+            std::memcpy(new_digits, digits, sizeof(int64_t) * (capacity + 1));
+            delete[] digits;
+            digits = new_digits, capacity = new_capacity;
+        }
+        digits[++size] = val;
+    }
+    inline void pop() { digits[size--] = 0; }
+    inline int compare(const BigInteger &x) const {
+        if(flag && !x.flag) return 1;
+        if(!flag && x.flag) return -1;
+        int sgn = (flag && x.flag ? 1 : -1);
+        if(size > x.size) return sgn;
+        if(size < x.size) return -sgn;
+        for(int i = size; i >= 1; i--) {
+            if(digits[i] > x.digits[i]) return sgn;
+            if(digits[i] < x.digits[i]) return -sgn;
+        }
+        return 0;
+    }
+    static BigInteger fft_mul(const BigInteger &a, const BigInteger &b) {
+        static_assert(__FFT::FFT_BASE * __FFT::FFT_BASE == BASE);
+        int least = (a.size + b.size) << 1, lim = 1 << (std::bit_width(static_cast<uint32_t>(least)) - 1);
+        if(lim < least) lim <<= 1;
+        __FFT::init(lim);
+        using __FFT::arr;
+        for(int i = 0; i < a.size; i++) {
+            arr[i << 1].real = a.digits[i + 1] % 10000;
+            arr[i << 1 | 1].real = a.digits[i + 1] / 10000 % 10000;
+        }
+        for(int i = 0; i < b.size; i++) {
+            arr[i << 1].imag = b.digits[i + 1] % 10000;
+            arr[i << 1 | 1].imag = b.digits[i + 1] / 10000 % 10000;
+        }
+        __FFT::dft(arr, lim);
+        for(int i = 0; i < lim; i++) arr[i] *= arr[i];
+        __FFT::idft(arr, lim);
+        BigInteger res;
+        res.resize(a.size + b.size + 1);
+        digit_t carry = 0;
+        double inv = 0.5 / lim;
+        for(int i = 0; i <= a.size + b.size; i++) {
+            carry += (digit_t) (arr[i << 1].imag * inv + 0.5);
+            carry += (digit_t) (arr[i << 1 | 1].imag * inv + 0.5) * 10000LL;
+            res.digits[i + 1] += carry % BASE, carry /= BASE;
+        }
+        while(res.size > 1 && res.digits[res.size] == 0) res.pop();
+        return res;
+    }
+    BigInteger newton_inv(int n) const {
+        if(*this == 0) { std::cerr << "ZeroDivisionError" << '\n'; std::exit(-1); }
+        if(std::min(size, n - size) <= NEWTON_DIV_MIN_LEVEL) {
+            BigInteger a;
+            a.resize(n + 1);
+            std::memset(a.digits, 0, sizeof(digit_t) * a.size);
+            a.digits[n + 1] = 1;
+            return a.divmod(*this, true).first;
+        }
+        int k = (n - size + 2) >> 1, k2 = k > size ? 0 : size - k;
+        BigInteger x = _move_r(k2);
+        int n2 = k + x.size;
+        BigInteger y = x.newton_inv(n2), a = y + y, b = (*this) * y * y;
+        return a._move_l(n - n2 - k2) - b._move_r(2 * (n2 + k2) - n) - 1;
+    }
+    std::pair<BigInteger, BigInteger> newton_div(const BigInteger &x) const {
+        int k = size - x.size + 2, k2 = k > x.size ? 0 : x.size - k;
+        BigInteger x2 = x._move_r(k2);
+        if(k2 != 0) x2 += 1;
+        int n2 = k + x2.size;
+        BigInteger u = (*this) * x2.newton_inv(n2);
+        BigInteger q = u._move_r(n2 + k2), r = (*this) - q * x;
+        while(r >= x) q += 1, r -= x;
+        return std::make_pair(q, r);
     }
 
-    ans = frac_mod(k, k + 1, mod);
-    for(int i = 2; i <= n + 1; ++i) { ans = (ans * i) % mod; } // (1e9+7)*(1e7)不会溢出INT64_MAX
-    std::cout << ans;
-}
+  public:
+    inline void reserve(const int &sz) {
+        if(sz < 0) return;
+        if(digits != nullptr) delete[] digits;
+        capacity = sz, size = 0;
+        digits = new digit_t[sz + 1];
+        std::memset(digits, 0, sizeof(digit_t) * (sz + 1));
+    }
+
+  protected:
+    inline void resize(const int &sz) { reserve(sz), size = sz; }
+
+  public:
+    BigInteger(): digits(nullptr), flag(true) { *this = 0LL; }
+    BigInteger(const BigInteger &x): digits(nullptr) { *this = x; }
+    BigInteger(const int64_t &x): digits(nullptr) { *this = x; }
+    BigInteger(const std::string &s): digits(nullptr) { *this = s; }
+    BigInteger &operator=(const BigInteger &x) {
+        if(this == &x) return *this;
+        reserve(x.size + 1);
+        flag = x.flag, size = x.size;
+        std::memcpy(digits, x.digits, sizeof(digit_t) * (x.size + 1));
+        return *this;
+    }
+    BigInteger &operator=(const int64_t &x) {
+        flag = (x >= 0), reserve(4);
+        if(x == 0) return size = 1, digits[1] = 0, *this;
+        if(x == LLONG_MIN) return *this = "-9223372036854775808";
+        int64_t n = std::abs(x);
+        do { push(n % BASE), n /= BASE; } while(n);
+        return *this;
+    }
+    BigInteger &operator=(const std::string &s) {
+        flag = true, reserve(s.size() / WIDTH + 1);
+        if(s.empty() || s == "-") return *this = 0;
+        int i = 0;
+        if(s[0] == '-') flag = false, i++;
+        for(int j = s.size() - 1; j >= i; j -= WIDTH) {
+            int start = std::max(i, j - WIDTH + 1), len = j - start + 1;
+            push(std::stoll(s.substr(start, len)));
+        }
+        while(size > 1 && digits[size] == 0) pop();
+        return *this;
+    }
+    void clear() {
+        if(digits != nullptr) delete[] digits, digits = nullptr;
+    }
+    ~BigInteger() { clear(); }
+    friend std::ostream &operator<<(std::ostream &out, const BigInteger &x) {
+        if(!x.flag) out << '-';
+        out << (int64_t) x.digits[x.size];
+        for(int i = x.size - 1; i >= 1; i--) out << std::setw(WIDTH) << std::setfill('0') << (int64_t) x.digits[i];
+        return out;
+    }
+    friend std::istream &operator>>(std::istream &in, BigInteger &x) {
+        std::string s;
+        in >> s;
+        x = s;
+        return in;
+    }
+
+    std::string to_string() const {
+        std::stringstream ss;
+        ss << *this;
+        return ss.str();
+    }
+    int64_t to_int64() const { return std::stoll(to_string()); }
+    std::vector<bool> to_binary() const {
+        if(*this == 0) return {0};
+        std::vector<bool> res;
+        if(flag) {
+            for(BigInteger x = *this; x != 0; x = x.div2()) res.emplace_back(x.digits[1] & 1);
+            res.emplace_back(0);
+            std::reverse(res.begin(), res.end());
+            return res;
+        } else {
+            for(BigInteger x = -*this - 1; x != 0; x = x.div2()) res.emplace_back(!(x.digits[1] & 1));
+            res.emplace_back(1);
+            std::reverse(res.begin(), res.end());
+            return res;
+        }
+    };
+    int _digit_len() const { return size; }
+    BigInteger operator-() const {
+        if(*this == 0) { return 0; }
+        BigInteger res = *this;
+        res.flag = !flag;
+        return res;
+    }
+    BigInteger operator~() const { return -(*this) - 1; }
+    BigInteger abs() const {
+        BigInteger res = *this;
+        res.flag = true;
+        return res;
+    }
+    bool operator==(const BigInteger &x) const { return compare(x) == 0; }
+    bool operator<(const BigInteger &x) const { return compare(x) < 0; }
+    bool operator>(const BigInteger &x) const { return compare(x) > 0; }
+    bool operator!=(const BigInteger &x) const { return compare(x) != 0; }
+    bool operator<=(const BigInteger &x) const { return compare(x) <= 0; }
+    bool operator>=(const BigInteger &x) const { return compare(x) >= 0; }
+    BigInteger div2() const {
+        BigInteger res = *this;
+        for(int i = size; i >= 1; i--) {
+            if((res.digits[i] & 1) && (i > 1)) res.digits[i - 1] += BASE;
+            res.digits[i] >>= 1;
+        }
+        while(res.size > 1 && res.digits[res.size] == 0) res.pop();
+        return res;
+    }
+    std::pair<BigInteger, BigInteger> divmod(const BigInteger &x, bool dis_newton = false) const {
+        static const int base = BigInteger::BASE;
+        BigInteger a = abs(), b = x.abs();
+        if(b == 0) { std::cerr << "ZeroDivisionError" << '\n'; std::exit(-1); }
+        if(a < b) return std::make_pair(0, flag ? a : -a);
+        if(!dis_newton && size > NEWTON_DIV_LIMIT) return newton_div(x);
+        int t = base / (x.digits[x.size] + 1);
+        a *= t, b *= t;
+        int n = a.size, m = b.size;
+        BigInteger q = 0, r = 0;
+        q.resize(n);
+        for(int i = n; i >= 1; i--) {
+            r *= base, r += a.digits[i];
+            digit_t d1 = m < r.size ? r.digits[m + 1] : 0, d2 = m - 1 < r.size ? r.digits[m] : 0;
+            int d = (d1 * base + d2) / b.digits[m];
+            r -= b * d;
+            while(!r.flag) r += b, d--;
+            q.digits[i] = d;
+        }
+        q.flag = !(flag ^ x.flag), r.flag = flag;
+        while(q.size > 1 && q.digits[q.size] == 0) q.pop();
+        return std::make_pair(q, r / t);
+    }
+    inline BigInteger _move_r(int d) const {
+        if(*this == 0 || d >= size) return 0;
+        if(d == 0) return *this;
+        BigInteger res;
+        res.reserve(size - d + 1);
+        for(int i = d + 1; i <= size; i++) res.push(digits[i]);
+        return res;
+    }
+    inline BigInteger _move_l(int d) const {
+        if(*this == 0) return 0;
+        if(d == 0) return *this;
+        BigInteger res;
+        res.reserve(size + d + 1);
+        for(int i = 1; i <= d; i++) res.push(0);
+        for(int i = 1; i <= size; i++) res.push(digits[i]);
+        return res;
+    }
+    BigInteger operator+(const BigInteger &x) const {
+        if(!x.flag) return *this - x.abs();
+        if(!flag) return x - abs();
+        BigInteger res;
+        res.flag = !(flag ^ x.flag);
+        int n = std::max(size, x.size) + 1;
+        res.reserve(n);
+        digit_t carry = 0;
+        for(int i = 1; i <= n; i++) {
+            digit_t d1 = i <= size ? digits[i] : 0, d2 = i <= x.size ? x.digits[i] : 0;
+            res.push(d1 + d2 + carry);
+            carry = res.digits[i] / BASE;
+            res.digits[i] %= BASE;
+        }
+        while(res.size > 1 && res.digits[res.size] == 0) res.pop();
+        return res;
+    }
+    BigInteger operator-(const BigInteger &x) const {
+        if(!x.flag) return *this + x.abs();
+        if(!flag) return -(abs() + x);
+        BigInteger res;
+        if(*this < x) res.flag = false;
+        digit_t carry = 0;
+        int n = std::max(size, x.size);
+        res.reserve(n);
+        for(int i = 1; i <= n; i++) {
+            digit_t d1 = i <= size ? digits[i] : 0, d2 = i <= x.size ? x.digits[i] : 0;
+            if(res.flag) res.push(d1 - d2 - carry);
+            else res.push(d2 - d1 - carry);
+            if(res.digits[i] < 0) res.digits[i] += BASE, carry = 1;
+            else carry = 0;
+        }
+        while(res.size > 1 && res.digits[res.size] == 0) res.pop();
+        return res;
+    }
+    BigInteger operator*(const BigInteger &x) const {
+        BigInteger zero = 0;
+        if(*this == zero || x == zero) return zero;
+        int n = size, m = x.size;
+        int64_t lim = 1LL * n * m;
+
+        if(lim >= FFT_LIMIT) {
+            BigInteger res = fft_mul(*this, x);
+            res.flag = !(flag ^ x.flag);
+            return res;
+        }
+
+        BigInteger res;
+        res.flag = !(flag ^ x.flag);
+        res.resize(n + m + 2);
+        for(int i = 1; i <= n; i++) {
+            for(int j = 1; j <= m; j++) {
+                res.digits[i + j - 1] += digits[i] * x.digits[j];
+                res.digits[i + j] += res.digits[i + j - 1] / BASE;
+                res.digits[i + j - 1] %= BASE;
+            }
+        }
+        for(int i = 1; i <= n + m + 1; i++) {
+            res.digits[i + 1] += res.digits[i] / BASE;
+            res.digits[i] %= BASE;
+        }
+        while(res.size > 1 && res.digits[res.size] == 0) res.pop();
+        return res;
+    }
+    BigInteger &operator*=(int x) {
+        if(x == 0 || *this == 0) return *this = 0;
+        if(x < 0) flag = !flag, x = -x;
+        digit_t carry = 0;
+        for(int i = 1; i <= size || carry; i++) {
+            if(i > size) push(0);
+            digit_t cur = digits[i] * x + carry;
+            carry = cur / BigInteger::BASE;
+            digits[i] = cur % BigInteger::BASE;
+        }
+        while(size > 1 && digits[size] == 0) pop();
+        return *this;
+    }
+    BigInteger operator*(const int &x) const {
+        BigInteger t = *this;
+        return t *= x;
+    }
+    BigInteger operator/(const int64_t &x) const {
+        if(x == 0) { std::cerr << "ZeroDivisionError" << '\n'; std::exit(-1); }
+        if(*this == 0) return 0;
+        if(x == 2) return div2();
+        if(x == -2) {
+            BigInteger res = div2();
+            res.flag = !res.flag;
+            return res;
+        }
+
+        BigInteger res;
+        res.flag = !(flag ^ (x >= 0));
+
+        digit_t cur = 0, div = std::abs(x);
+        res.resize(size);
+
+        for(int i = size; i >= 1; i--) {
+            cur = cur * BASE + digits[i];
+            res.digits[i] = res.flag ? (cur / div) : (-cur / -div);
+            cur %= div;
+        }
+        while(res.size > 1 && res.digits[res.size] == 0) res.pop();
+        return res;
+    }
+    BigInteger operator/(const BigInteger &x) const { return divmod(x).first; }
+    BigInteger operator%(const int64_t &x) const {
+        if(x == 2 || x == 4 || x == 5) { return digits[1] % x; }
+        return *this - (*this / x * x);
+    }
+    BigInteger operator%(const BigInteger &x) const { return divmod(x).second; }
+    BigInteger &operator+=(const BigInteger &x) { return *this = *this + x; }
+    BigInteger &operator-=(const BigInteger &x) { return *this = *this - x; }
+    BigInteger &operator*=(const BigInteger &x) { return *this = *this * x; }
+    BigInteger &operator/=(const int64_t &x) { return *this = *this / x; }
+    BigInteger &operator/=(const BigInteger &x) { return *this = *this / x; }
+    BigInteger &operator%=(const int64_t &x) { return *this = *this % x; }
+    BigInteger &operator%=(const BigInteger &x) { return *this = *this % x; }
+    BigInteger &operator++() { return *this += 1; }
+    BigInteger operator++(int) {
+        BigInteger t = *this;
+        return *this += 1, t;
+    }
+    BigInteger &operator--() { return *this -= 1; }
+    BigInteger operator--(int) {
+        BigInteger t = *this;
+        return *this -= 1, t;
+    }
+};
 ```
+
 # §9 模拟
 
 "与成功只差最后一步，卡在这里了"。
