@@ -7,6 +7,81 @@
 
 # §2 Java集合
 
+## §2.A 编程题
+
+### 手写HashMap
+
+手写HashMap，只要求实现最基本的插入和查找操作。这里我们使用哈希映射到`Entries[]`数组+链表尾插法。
+
+```java
+class CustomizedHashMap<K, V> {
+
+    static class Entry<K, V> {
+        K key; V value; Entry<K, V> next;
+        public Entry(K key, V value) {
+            this.key = key; this.value = value; this.next = null;
+        }
+    }
+    private Entry<K, V>[] entries;
+
+
+    private static final int INITIAL_CAPACITY = 16;
+    @SuppressWarnings("unchecked") public CustomizedHashMap(int capacity) {
+        entries = (Entry<K, V>[]) new Entry[capacity];
+    }
+    public CustomizedHashMap() {
+        this(INITIAL_CAPACITY);
+    }
+
+
+    private int getIndex(K key) { return key.hashCode() & 0x7FFFFFFF % entries.length; }
+    public void put(K key, V value) {
+        Entry<K, V> entry = new Entry<>(key, value);
+        int index = getIndex(key);
+        Entry<K, V> existEntry = entries[index];
+        if (existEntry == null) {
+            entries[index] = entry;
+        } else {
+            while(existEntry.next != null) {
+                if(!existEntry.key.equals(key)) {
+                    existEntry = existEntry.next; continue;
+                }
+                existEntry.value = value; return;
+            }
+            if(existEntry.key.equals(key)) {
+                existEntry.value = value; return;
+            }
+            existEntry.next = entry;
+        }
+    }
+    public V get(K key) {
+        int index = getIndex(key);
+        Entry<K, V> existEntry = entries[index];
+        while(existEntry != null) {
+            if(existEntry.key.equals(key)) {
+                return existEntry.value;
+            }
+            existEntry = existEntry.next;
+        }
+        return null;
+    }
+    public void remove(K key) {
+        int index = getIndex(key);
+        Entry<K, V> existEntry = entries[index];
+        if(existEntry == null) { return; } // 特判空链表
+        if(existEntry.key.equals(key)) { entries[index] = existEntry.next; return; } // 特判头结点
+        Entry<K, V> prevEntry = existEntry, curEntry = existEntry.next;
+        while(curEntry != null) {
+            if(curEntry.key.equals(key)) {
+                prevEntry.next = curEntry.next;
+                return;
+            }
+            prevEntry = curEntry; curEntry = curEntry.next;
+        }
+    }
+}
+```
+
 # §3 Java并发
 
 ## §3.A 编程题
@@ -314,6 +389,111 @@ public class SingletonDemo {
         });
         producer_thread.start();
         consumer_thread.start();
+    }
+}
+```
+
+### 手写线程池
+
+```java
+class YanerThreadPool {
+
+    static class YanerWorkerThread extends Thread {
+        private final BlockingQueue<Runnable> taskQueue;
+        private final long keepAliveTime;
+        private final List<YanerWorkerThread> threads;
+        public YanerWorkerThread(BlockingQueue<Runnable> taskQueue, long keepAliveTime, List<YanerWorkerThread> threads) {
+            this.taskQueue = taskQueue;
+            this.keepAliveTime = keepAliveTime;
+            this.threads = threads;
+        }
+        @Override public void run() {
+            long lastActiveTime = System.currentTimeMillis();
+            while(!Thread.currentThread().isInterrupted() && !taskQueue.isEmpty()) {
+                try {
+                    Runnable task = taskQueue.poll(keepAliveTime, TimeUnit.MILLISECONDS);
+                    if(task == null && System.currentTimeMillis() - lastActiveTime >= keepAliveTime) {
+                        threads.remove(this); break; // 超时终止进程
+                    } else if(task != null) {
+                        task.run(); continue;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    threads.remove(this);
+                }
+            }
+        }
+    }
+
+    interface YanerRejectedExecutionHandler {
+        void rejectedExecution(Runnable runnable, YanerThreadPool threadPool);
+    }
+    static class DiscardPolicy implements YanerRejectedExecutionHandler {
+        @Override public void rejectedExecution(Runnable runnable, YanerThreadPool threadPool) { ; /* 直接忽略 */ }
+    }
+    static class AbortPolicy implements YanerRejectedExecutionHandler {
+        @Override public void rejectedExecution(Runnable runnable, YanerThreadPool threadPool) { throw new RuntimeException("TaskQueue is full"); }
+    }
+
+    private final int initSize;
+    private final int maxSize;
+    private final int coreSize;
+    private final int queueSize;
+    private final BlockingQueue<Runnable> taskQueue;
+    private final List<YanerWorkerThread> threads;
+    private final YanerRejectedExecutionHandler rejectedExecutionHandler;
+    private final long keepAliveTime;
+    private volatile boolean isShutdown = false;
+    public YanerThreadPool(int initSize, int maxSize, int coreSize, int queueSize, YanerRejectedExecutionHandler rejectedExecutionHandler, long keepAliveTime) {
+        this.initSize = initSize;
+        this.maxSize = maxSize;
+        this.coreSize = coreSize;
+        this.queueSize = queueSize;
+        this.taskQueue = new LinkedBlockingQueue<>(queueSize);
+        this.threads = new ArrayList<>(initSize);
+        this.rejectedExecutionHandler = rejectedExecutionHandler;
+        this.keepAliveTime = keepAliveTime;
+        for(int i = 0; i < this.initSize; ++i) {
+            YanerWorkerThread workerThread = new YanerWorkerThread(taskQueue, keepAliveTime, threads);
+            workerThread.start();
+            threads.add(workerThread);
+        }
+    }
+    public YanerThreadPool() {
+        this(4, 16, 8, 256, new AbortPolicy(), 3000);
+    }
+
+    private void addWorkerThread(Runnable task) throws InterruptedException {
+        YanerWorkerThread workerThread = new YanerWorkerThread(taskQueue, keepAliveTime, threads);
+        workerThread.start();
+        threads.add(workerThread);
+        taskQueue.put(task);
+    }
+    public void execute(Runnable task) throws InterruptedException {
+        if(isShutdown) { throw new IllegalStateException("CustomizedThreadPool has been shutdown"); }
+        if(threads.size() < coreSize) { addWorkerThread(task); return; } // 如果线程数量<核心线程数, 则创建核心线程
+        boolean isSuccess = taskQueue.offer(task);
+        if(!isSuccess) {
+            if(threads.size() < maxSize) { addWorkerThread(task); return; } // 如果队列添加失败, 且未达线程数上限, 则创建新线程
+            rejectedExecutionHandler.rejectedExecution(task, this); // 如果队列添加失败, 且已达线程数上限, 则执行拒绝策略
+        }
+    }
+    public void shutdown() {
+        this.isShutdown = true;
+        for(int i = 0; i < this.initSize; ++i) {
+            this.threads.get(i).interrupt();
+        }
+    }
+    public List<Runnable> shutdownNow() {
+        this.isShutdown = true;
+
+        List<Runnable> remainedTasks = new ArrayList<>();
+        this.taskQueue.drainTo(remainedTasks);
+
+        for(int i = 0; i < this.initSize; ++i) {
+            this.threads.get(i).interrupt();
+        }
+        return remainedTasks;
     }
 }
 ```
