@@ -1,5 +1,6 @@
 /**
  * https://www.luogu.com.cn/article/rz9ubds1
+ * 功能全面
  * 要求C++20
  */
 
