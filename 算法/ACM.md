@@ -14958,7 +14958,15 @@ void bit_init(const int &n) {
 }
 ```
 
-### §7.4.A 逆序对计数
+### §7.4.2 二维树状数组
+
+### §7.4.3 K叉树状数组
+
+### §7.4.4 可持久化树状数组
+
+TODO：？？？详见[博客](https://www.luogu.com.cn/article/790vjft4)。
+
+### §7.4.5 逆序对计数
 
 给定一个序列`a[1->n]`，若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。
 
@@ -15007,7 +15015,7 @@ int main() {
 }
 ```
 
-#### §7.4.A.1 离散化逆序对计数
+#### §7.4.5.1 离散化逆序对计数
 
 > [洛谷P2448](https://www.luogu.com.cn/problem/P2448)：给定序列`a[1->n<=2e9]`，其中第`i`个元素初始时为`a[i]=i`。若一个二元有序组$(i,j)$满足$i<j, a[i]>a[j]$，则称其为逆序对。现给定`k<=1e5`次交换`a[x[i]], a[y[i]]`操作，执行完毕后，求序列`a[1->n]`的逆序对总数。
 
@@ -15254,7 +15262,7 @@ int main() {
 }
 ```
 
-#### §7.4.A.2 逆序对计数最优化
+#### §7.4.5.2 逆序对计数最优化
 
 > [洛谷P4280](https://www.luogu.com.cn/problem/P4280)：给定长度为`n`的序列`a[]`（`1<=a[i]<=k`或`a[i]==-1`）。当`a[i]==-1`时，说明这个元素是未知的，可以为`[1, k<=100]`中的任意一个正整数。求逆序对数量的最小值。
 
@@ -15399,7 +15407,7 @@ int main() {
 }
 ```
 
-#### §7.4.A.3 在线/离线逆序对
+#### §7.4.5.3 在线/离线逆序对
 
 > [洛谷P3157](https://www.luogu.com.cn/problem/P3157)：给定一个`1~n<=1e5`的一个全排列序列`a[1->n]`，然后按顺序依次删除元素`b[1->m<=5e4]`。每删除一个元素之前，输出当前序列的逆序对个数。
 
@@ -15518,7 +15526,7 @@ int main() {
 }
 ```
 
-#### §7.4.A.4 逆序对排列方案
+#### §7.4.5.4 逆序对排列方案
 
 > [洛谷P1521](https://www.luogu.com.cn/problem/P1521)/[洛谷P2513](https://www.luogu.com.cn/problem/P2513)：在`1~n`这`n<=1e2`/`n<=1e3`个数字的所有$A_n^n$种全排列中，逆序对数量恰好为`k`的排列方法有多少种？输入数据保证答案存在，且答案模`MOD`输出。
 
@@ -15694,6 +15702,86 @@ int main() {
     }
     std::cout << kind << '\n';
     for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; }
+}
+```
+
+### §7.4.A 无需树状数组的区间问题
+
+#### §7.4.A.1 `±1`差分序列
+
+> [洛谷B4153](https://www.luogu.com.cn/problem/B4153)：给定`0/1`序列`char s[1->n<=1e7]`，求有多少个非空子串满足`1`出现次数大于`0`出现次数。
+
+显然我们需要前缀和来快速查询`s[i->j]`中的`1`与`0`的出现次数，记为`presum_0[0->n]`与`presum_1[0->n]`。于是问题转换为：
+
+$$
+\begin{align}
+	& \sum_{j=1}^{n} \sum_{i=1}^{j} \mathbb{1}_{\mathrm{presum}_1[j] - \mathrm{presum}_1[i-1] > \mathrm{presum}_0[j] - \mathrm{presum}_0[i-1]} \\
+	= & \sum_{j=1}^{n} \sum_{i=1}^{j} \mathbb{1}_{\mathrm{presum}_1[j] - \mathrm{presum}_0[j] > \mathrm{presum}_1[i-1] - \mathrm{presum}_0[i-1]} & (将i,j移动到不等式同一侧) \\
+	= & \sum_{j=1}^{n} \sum_{i=1}^{j} \mathbb{1}_{\mathrm{presum}[j] > \mathrm{presum}[i-1]} & (令\mathrm{presum}[i]:=\mathrm{presum}_1[i] - \mathrm{presum}_0[i]) \\
+\end{align}
+$$
+
+我们注意到`presum[i]`也可以用以下方式构建：遇到`s[i] == 1`就加`1`，遇到`s[i] == 0`就`-1`，即`presum[i] = presum[i - 1] + (s[i] == '1' ? 1 : -1)`。我们令`j: 1->n`为外层循环，于是问题转化为：对于每个`j`，求有多少个`i: 1->j`满足`presum[j] > presum[i-1]`。一种显然的想法是每次遍历到一个新的`j: 1->n`，就将`presum[i-1]`加入到集合中，然后查询集合中小于`presum[i]`的元素个数，自增到答案`ans`中。
+
+容易立即想到用树状数组维护。传统树状数组满足`bit[0->N_MAX]`，而当前树状数组需要统计负数，值域为`[-n - 1, n]`（这里`-n`需要减`1`是为了模拟传统树状数组的`bit[0]`），因此需要添加偏移量`bit_offset = n + 1`。
+
+```c++
+const int N_MAX = 1e7, BIT_OFFSET_MAX = N_MAX + 1, BIT_N_MAX = N_MAX * 2 + 1;
+int n; std::string s; int presum[N_MAX + 1];
+int bit_n, bit_offset; int64_t bit[N_MAX * 2 + 1], ans;
+
+inline int lowbit(int x) { return x & -x; }
+inline void bit_incre(int64_t bit[], int x, const int64_t &incre) { while(x <= bit_n) { bit[x] += incre; x += lowbit(x); } }
+inline int64_t bit_query_sum(int64_t bit[], int x) { int64_t ans = 0; while(x >= 1) { ans += bit[x]; x -= lowbit(x); } return ans; }
+inline int64_t bit_range_query_sum(int64_t bit[], int l, int r) { assert(l >= 1 && r >= l); return bit_query_sum(bit, r) - bit_query_sum(bit, l - 1); }
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> s; s.insert(0, " ");
+    bit_n = n * 2 + 1; bit_offset = n + 1;
+
+    for(int i = 1; i <= n; ++i) { presum[i] = presum[i - 1] + (s[i] == '1' ? 1 : -1); }
+    for(int i = 1; i <= n; ++i) {
+        bit_incre(bit, presum[i - 1] + bit_offset, 1);
+        ans += bit_range_query_sum(bit, -n + bit_offset, presum[i] - 1 + bit_offset);
+        std::cerr << bit_range_query_sum(bit, -n + bit_offset, presum[i] - 1 + bit_offset) << '\n';
+    }
+    std::cout << ans;
+}
+
+```
+
+然而这种做法的时间复杂度为$O(n \cdot 2\log_2{2n}) \le 4.85\times 10^8$，显然会炸时间。这强迫我们不能承受树状数组带来的$O(\log_2 \cdot)$，只能使用$O(n)$的算法。令当前外层循环状态为`j`，我们容易维护`presum_count[v]`表示`presum[1->j-1]`内元素`v`出现的次数。**注意到：`presum[]`的差分数组中的元素值，要么为`1`，要么为`-1`，因此可以从`j-1`状态已经求出的`LHS = bit_range_query(-n, presum[i-1]-1)`转移到这一轮所需的`RHS = bit_range_query(-n, presum[i]-1)`**：
+
+- 当`s[i] == '1'`时，`presum[i] = presum[i-1] + 1`，因此`RHS = bit_range_query(-n, presum[i-1]) = LHS + presum_count[presum[i-1]]`。
+- 当`s[i] == '0'`时，`presum[i] = presum[i-1] - 1`，因此`RHS = bit_range_query(-n, presum[i-1] - 2) = LHS - presum_count[presum[i-1]-1]`。
+
+可以发现，我们全程根本无需计算`bit_range_query()`，只需维护`LHS`到`RHS`的递推式和`presum_count[v]`数组即可。这样时间复杂度就不再涉及树状数组，而是只剩下$O(1)$的转移了。时间复杂度为$O(n)$。
+
+```c++
+const int N_MAX = 1e7, BIT_OFFSET_MAX = N_MAX + 1, BIT_N_MAX = N_MAX * 2 + 1;
+int n; std::string s;
+int presum[N_MAX + 1], presum_count[BIT_N_MAX];
+int bit_n, bit_offset, bit_range_query_sum; int64_t ans;
+
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> s; s.insert(0, " ");
+    bit_n = n * 2 + 1; bit_offset = n + 1;
+
+    for(int i = 1; i <= n; ++i) { presum[i] = presum[i - 1] + (s[i] == '1' ? 1 : -1); }
+    
+    bit_range_query_sum = 0;
+    for(int i = 1; i <= n; ++i) {
+        ++presum_count[presum[i - 1] + bit_offset];
+        if(s[i] == '1') {
+            bit_range_query_sum += presum_count[presum[i - 1] + bit_offset];
+        } else if(s[i] == '0') {
+            bit_range_query_sum -= presum_count[presum[i - 1] - 1 + bit_offset];
+        }
+        ans += bit_range_query_sum;
+    }
+    std::cout << ans;
 }
 ```
 
@@ -19812,6 +19900,88 @@ int main() {
     }
 
     std::cout << ans;
+}
+```
+
+### §7.5.11 转换为区间问题
+
+线段树的大多数难题，难在看不出来这是个线段树问题。
+
+> [洛谷P12347](https://www.luogu.com.cn/problem/P12347)：给定一个栈，执行`q<=1e5`次操作：（1）元素`x_temp<2^30`入栈；（2）元素出栈，若栈为空则忽略；（3）查询靠近栈顶的前`y_temp`个元素的乘积`query_temp`，若`query_temp >= (1<<32)`则输出`OVERFLOW`，若栈内没有`y_temp`个元素则输出`ERROR`。
+
+一种显然的想法是动态维护序列后`y_temp`个元素的乘积，但是这样有两个问题：一是`y_temp`是动态变化的，二是`query_temp`可能会爆`INT64_MAX`。
+
+注意到：**可以将栈视为序列**。于是操作（1）等价于单点`++stack_len`重置为`x_temp`；操作（2）等价于单点`stack_len--`重置为`1`；操作（3）等价于区间查询`[stack_len - y_temp + 1, y_temp]`内的乘积。于是**只需用线段树，维护每个节点对应闭区间内的元素乘积`v_mul`即可**。
+
+为了防止爆`INT64_MAX`，我们在`v_mul >= (1<<32)`时令其为`-1`表示正无穷即可。
+
+1. 若查询区间存在一个`v_mul == 0`，则最终结果为`0`。
+2. 若查询区间不存在`v_mul == 0`，但是存在`v_mul == -1`，则最终结果为正无穷`-1`。
+3. 若查询区间不存在`v_mul == 0`，不存在`v_mul == -1`，但是两个`v_mul`的乘积`>= (2<<32)`，则最终结果为正无穷`-1`。
+4. 若查询区间不存在`v_mul == 0`，不存在`v_mul == -1`，两个`v_mul`的乘积`< (2<<32)`，则最终结果为两者相乘。
+
+```c++
+const int Q_MAX = 1e5;
+
+struct SegTree { int l, r; int64_t v_mul; } segtree[Q_MAX * 4 + 1];
+inline void segtree_pushup(const int &root) {
+    if(segtree[root * 2].v_mul == 0 || segtree[root * 2 + 1].v_mul == 0) { segtree[root].v_mul = 0; return; }
+    if(segtree[root * 2].v_mul == -1 || segtree[root * 2 + 1].v_mul == -1) { segtree[root].v_mul = -1; return; }
+    segtree[root].v_mul = segtree[root * 2].v_mul * segtree[root * 2 + 1].v_mul;
+    if(segtree[root].v_mul >= (1ll << 32)) { segtree[root].v_mul = -1; return; }
+}
+inline void segtree_pushdown(const int &root) { }
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { segtree[root].v_mul = 1; return; }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_reset(const int root, const int &x, const int64_t &v) {
+    if(segtree[root].l == segtree[root].r) {
+        segtree[root].v_mul = v;
+        return;
+    }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(x <= m) { segtree_reset(root * 2, x, v); }
+    if(x > m) { segtree_reset(root * 2 + 1, x, v); }
+    segtree_pushup(root);
+}
+int64_t segtree_range_query_mul(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && r >= segtree[root].r) { return segtree[root].v_mul; }
+    segtree_pushdown(root);
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    int64_t query_l = 1, query_r = 1;
+    if(l <= m) { query_l = segtree_range_query_mul(root * 2, l, r); }
+    if(r > m) { query_r = segtree_range_query_mul(root * 2 + 1, l, r); }
+    if(query_l == 0 || query_r == 0) { return 0; }
+    if(query_l == -1 || query_r == -1) { return -1; }
+    return query_l * query_r < (1ll << 32) ? query_l * query_r : -1;
+}
+
+int q, op_temp, y_temp, stack_len; int64_t x_temp, query_temp;
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> q;
+    segtree_init(1, 1, q);
+    while(q--) {
+        std::cin >> op_temp;
+        if(op_temp == 1) {
+            std::cin >> x_temp; segtree_reset(1, ++stack_len, x_temp);
+        } else if(op_temp == 2) {
+            if(stack_len == 0) { continue; }
+            segtree_reset(1, stack_len--, 1);
+        } else if(op_temp == 3) {
+            std::cin >> y_temp;
+            if(y_temp > stack_len) { std::cout << "ERROR\n"; continue; }
+            query_temp = segtree_range_query_mul(1, stack_len - y_temp + 1, stack_len);
+            if(query_temp == -1) { std::cout << "OVERFLOW\n"; continue; }
+            std::cout << query_temp << '\n'; 
+        }
+    }
 }
 ```
 
