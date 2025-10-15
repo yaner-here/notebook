@@ -522,6 +522,11 @@ class YanerThreadPool {
 
 # §7 MySQL
 
+### 为什么要用小表JOIN大表？
+
+1. 按照JOIN的前后顺序，时间复杂度可能为$O(n\log m)$与$O(m\log n)$，肯定希望大表的查询开销被索引降到$O(\log)$。
+2. 小表可以一次性加载到内存中。
+
 # §8 Redis
 
 # §9 消息队列
