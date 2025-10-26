@@ -522,6 +522,14 @@ class YanerThreadPool {
 
 # §7 MySQL
 
+### MySQL中的数据排序是如何实现的？（面试鸭）
+
+如果排序字段命中索引，就使用索引排序，因为索引有序所以效率最高。如果没有命中，就使用文件排序，按照能否放入`sort_buffer`（也就是是否小于等于`sort_buffer_size`）分为内存排序和磁盘归并排序，按照内存排序的数据长度是否小于等于`max_length_for_sort_data = 4096B`分为内存单路排序和内存双路排序，其中内存双路排序只把主键和排序字段值放入`sort_buffer`后进行回表。
+
+### 介绍MySQL批量数据入库（面试鸭）
+
+在`INSERT INTO ... VALUES (),(),()`后面拼接多条数据，可以手动设置JDBC的`rewriteBatchedStatements = true`来开启。优点：减少网络时间的开销，均摊解析SQL与写入日志的开销。缺点：一条数据插入失败导致所有数据插入回滚，降低查询缓存的命中率。
+
 ### 为什么要用小表JOIN大表？
 
 1. 按照JOIN的前后顺序，时间复杂度可能为$O(n\log m)$与$O(m\log n)$，肯定希望大表的查询开销被索引降到$O(\log)$。
@@ -531,9 +539,28 @@ class YanerThreadPool {
 
 # §9 消息队列
 
-# §10 分布式
+# §10 Spring
 
-# §11 设计模式
+> 什么是Spring框架？
+> 
+> Spring是一款开源的轻量级框架，集合了很多模块，支持IoC和AOP的特性。
+
+> 介绍Spring包含的模块。
+> 
+> 
+
+> SpringBoot默认最多可以同时处理多少请求？
+> 
+> `application.yml`的`server.tomcat`配置项下有以下选项：
+> - 最小工作线程数`threads.min-spare`：SpringBoot Tomcat最小并发数。
+> - 最大工作线程数`threads.max`：SpringBoot Tomcat最大并发数。
+> - 最大连接数`max-connections`：SpringBoot Tomcat接受的请求，有`threads.max`个请求会被处理，其它会等待。
+> - 最大队列数`accept-count`：未被SpringBoot Tomcat接受的请求，会放在操作系统级别的TCP等待队列。
+> 答案是：`max-connections + accept-count = 8192 + 100 = 8292`。
+
+# §11 分布式
+
+# §12 设计模式
 
 ## §11.1 单例模式
 
@@ -597,7 +624,7 @@ class Singleton {
 ```
 
 
-# §12 Git
+# §13 Git
 
 > Redis如何统计连续签到天数？
 > 
@@ -610,7 +637,7 @@ class Singleton {
 > 将用户按照分数阈值拆分成多个ZSet，每个ZSet只存储一定范围内的分数，Top100只需要取分数最高ZSet的前100个值就行。
 
 
-# §3 内存限制
+# §A 场景题
 
 > 给定200MB内存，求1GB文件中各个元素的出现次数。
 > 
@@ -618,16 +645,6 @@ class Singleton {
 > 2. 读取的每个元素模`p`得到哈希值`h`，存储到以`h`命名的文件中。这是为了防止`Map`的Key太多导致OOM。
 > 3. 遍历每个文件，使用`Map`统计频次，直接`std::cout <<`，然后释放`Map`内存。
 
-# §4 Spring
-
-> SpringBoot默认最多可以同时处理多少请求？
-> 
-> `application.yml`的`server.tomcat`配置项下有以下选项：
-> - 最小工作线程数`threads.min-spare`：SpringBoot Tomcat最小并发数。
-> - 最大工作线程数`threads.max`：SpringBoot Tomcat最大并发数。
-> - 最大连接数`max-connections`：SpringBoot Tomcat接受的请求，有`threads.max`个请求会被处理，其它会等待。
-> - 最大队列数`accept-count`：未被SpringBoot Tomcat接受的请求，会放在操作系统级别的TCP等待队列。
-> 答案是：`max-connections + accept-count = 8192 + 100 = 8292`。
 
 # §5 架构
 
