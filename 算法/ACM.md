@@ -3494,6 +3494,68 @@ int main(){
 }
 ```
 
+> [洛谷P1006](https://www.luogu.com.cn/problem/P1006)：给定一个$m\times n$的二维棋盘，每个格子都有`bonus[i][j]`个食物。每次从左上角出发，到右下角结束，总共允许走两次，禁止一个格子被走过两次（起点与终点除外），求能够最多食物数量。
+
+类似于[洛谷P1004](https://www.luogu.com.cn/problem/P1004)，但是重复经过同一个格子的惩罚不再是无法再次获得食物，而是直接判定为非法，于是直接令非法状态对应的`dp[]`值为`-∞`即可，表示前功尽弃。
+
+$$
+\text{dp}[i][j][k][l]=\begin{cases}
+	\textcolor{red}{\text{bonus}[i][j] + \text{bonus}[k][l]} + \max\Big(
+		\text{dp}[i][j][k][l],
+		\text{dp}[i - 1][j][k - 1][l],
+		\text{dp}[i - 1][j][k][l - 1],
+		\text{dp}[i][j - 1][k - 1][l],
+		\text{dp}[i][j - 1][k][l - 1]
+	\Big) & ,(i,j)\neq(k,l) \\
+	\textcolor{red}{\text{bonus}[i][j]} + \max\Big(
+		\text{dp}[i][j][k][l],
+		\text{dp}[i - 1][j][k - 1][l],
+		\text{dp}[i - 1][j][k][l - 1],
+		\text{dp}[i][j - 1][k - 1][l],
+		\text{dp}[i][j - 1][k][l - 1]
+	\Big) & ,(i,j)=(k,l)\text{且在起/终点} \\
+	-\infty & ,(i,j)=(k,l)\text{不在起/终点}
+\end{cases}
+$$
+
+```c++
+template<typename T>
+T multi_max(std::initializer_list<T> list){
+    return *std::max_element(list.begin(), list.end());
+}
+
+const long long int M_MAX = 50, N_MAX = 50;
+long long int m, n, bonus[M_MAX + 1][N_MAX + 1], dp[M_MAX + 1][N_MAX + 1][M_MAX + 1][N_MAX + 1];
+int main(){
+    std::cin >> m >> n;
+    for(int i = 1; i <= m; ++i) { for(int j = 1; j <= n; ++j) { std::cin >> bonus[i][j]; } }
+    for(long long int i = 1 ; i <= m ; ++i){
+        for(long long int j = 1 ; j <= n ; ++j){
+            for(long long int k = 1 ; k <= m ; ++k){
+                for(long long int l = 1 ; l <= n ; ++l){
+                    dp[i][j][k][l] = multi_max({
+                        dp[i - 1][j][k - 1][l],
+                        dp[i - 1][j][k][l - 1],
+                        dp[i][j - 1][k - 1][l],
+                        dp[i][j - 1][k][l - 1]
+                    }) + bonus[i][j] + bonus[k][l];
+                    if(i == k && j == l){
+                        if(i != 1 && i != m && j != 1 && j != n) { 
+                            dp[i][j][k][l] = INT64_MIN; 
+                        } else {
+                            dp[i][j][k][l] -= bonus[i][j];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::cout << dp[m][n][m][n];
+}
+```
+
+可用滚动数组优化，本题略。
+
 > [洛谷P1373](https://www.luogu.com.cn/problem/P1373)：给定`n×m`个格子，每个格子上都有价值为`map[i][j]`的物品。现在允许从任意一个格子出发，每个回合只能向下或向右，经过偶数个格子($\ge 2$)后在任意格子结束。在行进的过程中，依次把物品交替放入甲背包和乙背包中（在起点把物品装入甲背包）。若两个背包中的总价值对`k+1`取模后恰好相同，求满足该条件的路径个数。
 
 本题的第一个难点在于设计状态。本题的方案是令`dp[i][j][l][t]`表示走到`(i,j)`处，A背包减B背包为`l`，当前格子轮到`A/B`背包时的方法数。基于此容易推出状态转移方程：
