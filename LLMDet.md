@@ -25,5 +25,3 @@
 # DynamicEarth
 
 DynamicEarth: How Far are We from Open-Vocabulary Change Detection? 武汉大学. 2025.01
-
-![]()
