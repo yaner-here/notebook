@@ -6934,6 +6934,61 @@ int main() {
 }
 ```
 
+> [洛谷P4310](https://www.luogu.com.cn/problem/P4310)：给定`int a[1->n<=1e5]<=1e9`，保证存在长度大于等于`2`的子序列，使得子序列相邻两项的与运算结果均不为`0`。求满足该条件的最长子序列长度。
+
+本题给定的数据范围决定了一个`a[i]`可以拆成`32`个Bit。考虑一个满足条件的序列，相邻两项之所以能放在一起，是因为两者都有一个位置相同的`1`bit作为桥梁。如果说桥梁本质上是一条单向边，那么这$32n$个Bit都对应着各自的节点。我们使用`dp[i:1->n][j:0->31]`表示：以这个Bit为终点，最长可以构建多"长"的路径，这里的长度指的就是本题所求的最长子序列长度。
+
+考虑`dp[i][j]`对应节点的来源，也就是它在路径中最近的上一个节点，它有以下三种情况：
+1. 它没有最近的上一个节点，整条路径只有自己，此时序列只有`a[i]`这一个数字，即`dp[i][j] = 1`。
+2. 它最近的上一个节点来自于前`i-1`个数字`dp[k:1->i-1][j]`，这要求`a[i]`与`a[k]`的第`j`个Bit均为`1`，此时序列得到延续，长度加`1`，即`dp[i][j] = dp[k][j] + 1`。
+3. 它最近的上一个节点来自于第`i`个数字`dp[i][k:!=j]`，这要求`a[i]`的第`k`个Bit为`1`，此时`dp[i][j] = dp[i][k]`。
+
+以`a[] = {1, 2, 0, 3}`为例，这三种情况会创建以下有向边：
+
+- 第一种情况：`虚空节点(0) --+1--> dp[*][*]`。
+- 第二种情况：`dp[1][0] --+1-> dp[4][0]`、 `dp[2][1] --+1-> dp[4][1]`。
+- 第三种情况：`dp[1][0] --+0-> dp[1][1]`、`dp[2][1] --+0-> dp[2][0]`、`dp[4][0] <--+0--> dp[4][1]`。
+
+基于此，我们可以写出状态转移方程，其中`bit(a[i], j) = a[i] & (1<<j)`。注意到第二种情况可以打表维护，使用`dq[i][j]`表示给定`a[1->i]`这`i`个数，序列最后一个元素满足第`j`个Bit为`1`的最长序列长度。时间复杂度为$O(32n)$。
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j] & = \max\left\{
+		\underset{第一种情况}{\underbrace{1}} , 
+		\underset{第二种情况}{\underbrace{\max_{\forall k\in[1, i),\begin{cases}\mathrm{bit}(a[i],j) = 1 \\ \mathrm{bit}(a[k],j) = 1\end{cases}}{\mathrm{dp}[k][j]} + 1}} ,
+		\underset{第三种情况}{\underbrace{\max_{\forall k\in[0, 32),\begin{cases}k\neq j \\ \mathrm{bit}(a[i],k) = 1\end{cases}}{\mathrm{dp}[i][k]}}}
+	\right\} \\
+	& = \max\left\{
+		\underset{第一种情况}{\underbrace{1}}, 
+		\underset{第二种情况,O(1)维护与查询}{\underbrace{\mathrm{dq}[i-1][j]}}, 
+		\underset{第三种情况,O(32)查询}{\underbrace{\max_{\forall k\in[0, 32),\begin{cases}k\neq j \\ \mathrm{bit}(a[i],k) = 1\end{cases}}{\mathrm{dp}[i][k]}}}
+	\right\}
+\end{align}
+$$
+
+```c++
+const int N_MAX = 1e5;
+int n, a[N_MAX + 1], dp[N_MAX + 1][32], dq[N_MAX + 1][32], dq_max_temp;
+int main() {
+    std::cin >> n;
+    for (int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 0; j < 32; ++j) { 
+            dq[i][j] = dp[i - 1][j] + (a[i] & (1 << j) ? 1 : 0); // 加上第一/二条路径
+        } 
+        dq_max_temp = 0;
+        for(int j = 0; j < 32; ++j) { 
+            if(a[i] & (1 << j)) { dq_max_temp = std::max(dq_max_temp, dq[i][j]); } // 计算第三条路径 
+        }
+        for(int j = 0; j < 32; ++j) { 
+            dp[i][j] = a[i] & (1 << j) ? dq_max_temp : dq[i][j]; // 加上第三条路径
+        }
+    }
+    std::cout << *std::max_element(dp[n], dp[n] + 32);        
+}
+```
+
 ## §2.C 刷表法与填表法
 
 DP的转移方式可以分为两种，一种是填表法（`dp[i] = f(dp[i - 1])`），另一种是刷表法`dp[i + g(i)] += h(dp[i])`。具体应用哪种，取决于`f()`和`g()`/`h()`两者哪个更容易确定。
