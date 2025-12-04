@@ -2885,6 +2885,46 @@ int main() {
 }
 ```
 
+### §2.2.2.1 广义最长单调子序列
+
+在最长单调子序列问题中，符合条件的子序列满足的是**单调关系**。我们将其广义的拓展为**二元关系**，也就是一个元素能否转移到另一个元素。对于普通二元关系来说，给定$n$个元素，我们需要打一张$O(n^2)$的表才能确认元素间能否转移。然而由于单调关系具有传递性，因此我们可以优化到$O(n\log n)$。
+
+> [洛谷P2285](https://www.luogu.com.cn/problem/P2285)：给定一个$n\times n$（`n<=1e3`）的方格棋盘，初始时机器人可以在任意位置，每一回合可以保持不变，或移动到上下左右相邻的格子。给定`m<=1e4`个地鼠，第`i`个鼹鼠会在第`t[i]`回合时于`(x[i], y[i])`格子处露头，如果此时机器人也在这个格子，则视为敲了一个地鼠。请找出一种最佳初始位置与移动策略，最大化敲地鼠的数量，输出该最大值。
+
+我们按照地鼠出现的时机进行升序排序，让`t[]`、`x[]`、`y[]`变成排序后的结果。这意味着由于受地鼠出现时机的制约，因此每一种敲地鼠的合法序列，一定是排序序列的一个子序列。于是问题转化为：预处理打一个$O(n^2)$的表`map`，其中`map[i][j]`判断打完第`i`个地鼠后，能否及时赶到第`j`个地鼠出现的位置。显然$\mathrm{map}[i][j] = \begin{cases}\mathrm{false} &, t[i]\le t[j] \Rightarrow i \le j \\ |x[j] - x[i]| + |y[j] - y[i]| \le t[j] - t[i] &, t[j] \ge t[i] \Rightarrow j \ge i\end{cases}$。
+
+令`dp[i]`表示当最后一个被敲的地鼠是第`i`个地鼠时，所敲的地鼠数量最大值。于是显然有状态转移方程：
+
+$$
+\mathrm{dp}[i] = \max_{j\in[1, i) \wedge \mathrm{map}[j][i] = \mathrm{true}}\left\{\mathrm{dp}[j]\right\} + 1
+$$
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e4;
+int n, m; bool map[M_MAX + 1][M_MAX + 1]; int dp[M_MAX + 1];
+struct Mouse { int t, x, y; } mouse[M_MAX + 1];
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> mouse[i].t >> mouse[i].x >> mouse[i].y; }
+    std::sort(mouse + 1, mouse + m + 1, [](const Mouse &lhs, const Mouse &rhs){ return lhs.t < rhs.t; });
+
+    for(int i = 1; i <= m; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            map[i][j] = (i <= j) ? (std::abs(mouse[j].x - mouse[i].x) + std::abs(mouse[j].y - mouse[i].y) <= mouse[j].t - mouse[i].t) : false;
+        }
+    }
+    for(int i = 1; i <= m; ++i) {
+        dp[i] = 1;
+        for(int j = 1; j < i; ++j) {
+            if(map[j][i]) {
+                dp[i] = std::max(dp[i], dp[j] + 1);
+            }
+        }
+    }
+    std::cout << *std::max_element(dp + 1, dp + m + 1);
+}
+```
+
 > [洛谷P1970](https://www.luogu.com.cn/problem/P1970)：给定一个长度为`n`的数字序列`a[]`，其子序列`b[]`满足：对于任意偶数$i\in[1,n]$，要么都满足`a[i-1]<a[i]>a[i+1]`，要么都满足`a[i-1]>a[i]<a[i+1]`。求`b[]`的最大长度。
 
 #TODO：？？？？？ 
@@ -4912,6 +4952,38 @@ int main() {
     dp[0] = dp[1] = 1;
     for(int i = 2; i <= n; ++i) { dp[i % 3] = (dp[(i - 1) % 3] + dp[(i - 2) % 3] * (i - 1)) % MOD; }
     std::cout << dp[n % 3];
+}
+```
+
+### §2.5.7 等差数列计数
+
+> [洛谷P4933](https://www.luogu.com.cn/problem/P4933)：给定`a[1->n<=1e3]<=2e4`，求它有多少个非空子序列能构成等差数列？特别的，我们认为只有一个或两个元素的子序列一律为等差数列。答案模`998244353`输出。
+
+令`dp[i][d]`表示给定`a[1->i]`这前`i`个数字，以`a[i]`为尾项、`d`为公差的**长度大于等于`2`的**等差数列总数。只有一个元素的子序列不存在公差这一说，因此我们需要分开考虑。
+
+我们枚举等差子序列的最后两项的下标`j, i`（`1<=j<i<=n`），得到公差$d = a[i] - a[j]$，于是显然有状态转移方程：
+
+$$
+\mathrm{dp}[i][d] = \sum_{j=1}^{i}\left(\mathrm{dp}[j][d] + 1\right)
+$$
+
+我们在DP中统计了长度大于等于`2`的等差数列数量，而长度恰好为`1`的等差数列显然为`n`个，两者相加取模即可。
+
+```c++
+const int N_MAX = 1e3, V_MAX = 2e4, V_OFFSET = V_MAX; const int64_t MOD = 998244353;
+int n, a[N_MAX + 1], d; int64_t dp[N_MAX + 1][V_MAX * 2 + 1], ans;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j < i; ++j) {
+            d = a[i] - a[j] + V_OFFSET;
+            dp[i][d] = (dp[i][d] + dp[j][d] + 1) % MOD;
+            ans = (ans + dp[j][d] + 1) % MOD; // 多出来的+1代表新生成的长度为2的等差数列[a[j],a[i]]
+        }
+    }
+    ans = (ans + n) % MOD;
+    std::cout << ans;
 }
 ```
 
