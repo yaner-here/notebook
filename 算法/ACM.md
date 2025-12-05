@@ -5902,7 +5902,7 @@ int main() {
 }
 ```
 
-> [洛谷P1434](https://www.luogu.com.cn/problem/solution/P1434)：给定一个`r`行`c`的数字矩阵。从中任选一个作为起点，每回合都可以从上下左右四个方向中选择一个值更小的格子作为目的地，以此类推，构成一条条严格单调下降路径。求这种路径的最大长度（即最多能经过多少个格子，从`1`开始数）。
+> [洛谷P1434](https://www.luogu.com.cn/problem/solution/P1434)：给定一个`r`行`c`的数字矩阵。从中任选一个作为起点，每回合都可以从上下左右四个方向中选择一个值更小的格子作为目的地，以此类推，构成一条严格单调下降路径。求这种路径的最大长度（即最多能经过多少个格子，从`1`开始数）。
 
 令`dp[i][j]`表示以`(i,j)`为路径终点时，严格单调下降路径的最大长度。显然有状态转移方程：
 
@@ -6395,6 +6395,59 @@ int main() {
     if(n <= m) { std::cout << (dp[n - m + 1][1] + 1) % MOD; return 0; }
     dp = A.fast_pow(n - m, MOD).multiply(dp, MOD);
     std::cout << (dp[m + 2][1] + 1) % MOD;
+}
+```
+
+> [洛谷P1025](https://www.luogu.com.cn/problem/P1025)：给定`n`个无序号的苹果，放到`k`个无序号的筐里，要求每个筐非空，求总共有多少种不同的放置方案？
+
+令`dp[i][j]`表示给定`i`个苹果和`j`个筐的、每个筐非空的方案总数。由于`dp[i][j]`已经能保证每个筐非空，因此每个筐内至少有`1`个苹果。我们有以下两种思路来推导出状态转移方程：
+
+1. 考虑哪些状态可以转移到`dp[i][j]`。第一种情况是新加一个只有一个苹果的筐，对应的状态是`dp[i-1][j-1]`。第二种是给所有框都加一个苹果，对应的状态是`dp[i-j][j]`。
+2. `i`个苹果放入`j`个非空筐的方案数，完全等价于`i-j`个苹果放入`k:1->j`个非空筐的方案数之和，这是因为后者中的`j`个筐苹果数均`+1`即可唯一对应一种前者。
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j] & = \mathrm{dp}[i - j][1] + \mathrm{dp}[i-j][2] + \cdots + \mathrm{dp}[i-j][j] \\
+	 & = \displaystyle\sum_{k=1}^{j}\left(\mathrm{dp}[i-j][k]\right) = \textcolor{red}{\displaystyle\sum_{k=1}^{j-1}\left(\mathrm{dp}[(i-1) - (j-1)][k]\right)} + \mathrm{dp}[i-j][j] \\
+	 & = \textcolor{red}{\mathrm{dp}[i-1][j-1]} + \mathrm{dp}[i-j][j]
+\end{align}
+$$
+
+显然初始状态为`dp[0][0] = 1`。这里我们可以用滚动数组干掉`j`的维度，本处略。
+
+```c++
+const int N_MAX = 200, K_MAX = 6;
+int n, k, dp[N_MAX + 1][K_MAX + 1];
+int main() {
+    std::cin >> n >> k;
+    dp[0][0] = 1;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= k && j <= i; ++j) {
+            dp[i][j] = dp[i - 1][j - 1] + dp[i - j][j];
+        }
+    }
+    std::cout << dp[n][k];
+}
+```
+
+本题的另一种做法是DFS搜索。由于苹果和筐都没有序号，所以我们不妨将它们按照苹果数量升序排序，按照这个升序条件来搜索。
+
+```c++
+const int N_MAX = 200, K_MAX = 6;
+int n, k, ans;
+
+// 给定x个苹果与k个筐，要求k个筐所盛的苹果数量非严格递增，且第1个筐的苹果数量>=x_last的方案书
+int dfs(int x, int x_last, int dep) {
+    if(dep == 0) { return x == 0 ? 1 : 0; } // 筐用完了，只有当苹果也分配完毕的时候才算作一个合法方案
+    int ans = 0;
+    for(int i = x_last; i <= x / dep; ++i) { // 若第1个筐的苹果数量>x/dep，则后面必有一个筐的苹果<x/dep，违反升序约束
+        ans += dfs(x - i, i, dep - 1); // 第1个筐的苹果数量为i，下一个筐的苹果数量必须大于等于i，还剩x-i个苹果要放到dep-1个筐
+    }
+    return ans;
+}
+int main() {
+    std::cin >> n >> k;
+    std::cout << dfs(n, 1, k);
 }
 ```
 
