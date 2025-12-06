@@ -2443,7 +2443,7 @@ int main() {
 }
 ```
 
-## §2.2 子序列DP
+## §2.2 线性DP
 
 给定一个数字序列，从中抽出一部分元素后，剩下的元素构成了一个新的子序列。
 
@@ -3181,6 +3181,44 @@ int main() {
         }
     }
     std::cout << std::fixed << std::setprecision(1) << dp[n];
+}
+```
+
+> [洛谷P2679](https://www.luogu.com.cn/problem/P2679)：给定`char a[1->n<=1e3], b[1->m<=2e2]`两个字符串。要求从`a`中按顺序选出`p<=2e2`个互不重叠的子串，拼接后得到的字符串恰好为`b`，求选择方案的总数，模`1e9+7`后输出。
+
+令`dp[i][j][k][p=0/1]`表示给定`a[1->i]`、`b[1->m]`、从`a[1->i]`选出互不重叠的`k`段，且最后一段恰好用到了`(p=1)`/没用到(`p=0`)`a[i]`的方案总数。显然有状态转移方程：
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j][k][0] & = \mathrm{dp}[i-1][j][k][0] + \mathrm{dp}[i-1][j][k][1] \\
+	\mathrm{dp}[i][j][k][1] & = \begin{cases}
+		0, & a[i] \neq b[j] \\
+		\underset{不选a[i-1]}{\underbrace{\mathrm{dp}[i-1][j-1][k-1][0]}} + 
+			\underset{选a[i-1],但a[i]自成一个新子串}{\underbrace{\mathrm{dp}[i-1][j][k][1]}} +
+			\underset{选a[i-1],与a[i]共处同一个子串}{\underbrace{\mathrm{dp}[i-1][j-1][k-1][1]}} & , a[i] = b[j]
+	\end{cases}
+\end{align}
+$$
+
+初始条件为`dp[0][0][0][0] = 1`，如果上式遇到数组越界情况，一律视为`0`（即没有合法方案）。为了防止炸空间，可以使用滚动数组压掉`i`的维度。
+
+```c++
+const int N_MAX = 1000, M_MAX = 200, P_MAX = M_MAX; const int64_t MOD = 1e9 + 7;
+int n, m, p; char a[N_MAX + 2], b[N_MAX + 2];
+int64_t dp[2][M_MAX + 1][P_MAX + 1][2];
+int main() {
+    std::cin >> n >> m >> p >> *reinterpret_cast<char(*)[N_MAX + 1]>(a + 1) >> *reinterpret_cast<char(*)[M_MAX + 1]>(b + 1);
+
+    dp[0 & 1][0][0][0] = 1;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 0; j <= m; ++j) {
+            for(int k = 0; k <= p; ++k) {
+                dp[i & 1][j][k][0] = dp[(i - 1) & 1][j][k][0] + dp[(i - 1) & 1][j][k][1]; dp[i & 1][j][k][0] %= MOD;
+                dp[i & 1][j][k][1] = j >= 1 && k >= 1 && a[i] == b[j] ? dp[(i - 1) & 1][j - 1][k - 1][0] + dp[(i - 1) & 1][j - 1][k - 1][1] + dp[(i - 1) & 1][j - 1][k][1] : 0; dp[i & 1][j][k][1] %= MOD;
+            }
+        }
+    }
+    std::cout << (dp[n & 1][m][p][0] + dp[n & 1][m][p][1]) % MOD << '\n';
 }
 ```
 
@@ -5689,6 +5727,49 @@ int main() {
 }
 ```
 
+> [洛谷P4170](https://www.luogu.com.cn/problem/P4170)：给定`n<=50`个排成一行的格子，起始时均无颜色，结束时颜色为`a[1->n]`。每个回合可以选择一个闭区间，将其中的格子涂成每种颜色，后涂的颜色会覆盖先涂的颜色。求回合数的最小值。
+
+把玩一下本题，容易发现次数最少的方案有很多种。例如序列`ABB`，既可以`A:[1->1], B:[2->3]`，也可以`A:[1->3] + B:[2->3]`，这些最优方案的次数都是`2`。我们有一种直觉：如果存在一种最优涂色方案，使得首格子或尾格子被重复涂色，则一定可以转化为另一种最优方案，使得首格子和尾格子都只被涂色一次——把涂色区间“收缩”一下就行。**本文后面提到的最优方案均为后者**。
+
+考虑任意一段闭区间`a[l->r]`。由于首格子和尾格子都只被涂色一次，所以自然考虑它们能否被同一回合所涂色。
+
+- 若`a[l] == a[r]`，则当然可以被同一回合所涂色，相当于给整个闭区间打个底。这次涂色的区间可以向内收——砍去首格子或尾格子都可以，因为内部小区间向外多涂一个格子就是顺手的事。但是不能都砍，因为不一定能保证这次涂色是有必要的，只有当开区间`(l, r)`中存在这次涂色的颜色才需要保留。为了避免这种判定所需的额外开销，我们这里一次只砍一个格子，保证总有另一个格子仍然需要这次涂色。
+- 若`a[l] != a[r]`，则涂首格子与尾格子必定不在同一回合中。这两个回合的涂色区间可以不重叠，于是可以枚举这两个区间断开的位置`x`，从而将`[l, r]`拆成两个子区间——`[l, x]`与`[x+1. r]`。
+
+$$
+\mathrm{dp}[i][j] = \begin{cases}
+	\min(\mathrm{dp}[i+1][j], \mathrm{dp}[i][j-1]) &, a[i]=a[j] \\
+	\displaystyle\min_{k\in[i, j)}(\mathrm{dp}[i][k] + \mathrm{dp}[k+1][j]) &, a[i]\neq a[j]
+\end{cases}
+$$
+
+初始值`dp[i][i] = 1`，只有一个格子当然只需涂一次色。其它状态初始时均为`+∞`。时间复杂度为$O(n^3)$。
+
+```c++
+const int N_MAX = 50;
+char n, a[1 + N_MAX + 1];
+int dp[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::cin >> *reinterpret_cast<char(*)[N_MAX + 1]>(a + 1);
+    n = std::strlen(a + 1);
+
+    std::fill(&(dp[0][0]), &(dp[N_MAX][N_MAX]) + 1, INT32_MAX);
+    for(int i = 1; i <= n; ++i) { dp[i][i] = 1; }
+    for(int l = 2; l <= n; ++l) {
+        for(int i = 1, j = i + l - 1; j <= n; ++i, ++j) {
+            if(a[i] == a[j]) {
+                dp[i][j] = std::min(dp[i + 1][j], dp[i][j - 1]);
+            } else {
+                for(int k = i; k < j; ++k) {
+                    dp[i][j] = std::min(dp[i][j], dp[i][k] + dp[k + 1][j]);
+                }
+            }
+        }
+    }
+    std::cout << dp[1][n];
+}
+```
+
 ### §2.9.2 不重叠区间优化DP
 
 有许多区间DP题满足下面的特征：这类问题需要你找到一种最佳策略，将整个大区间分割成若干**不相交**的小区间，对每个小区间使用一种或多种策略，各个小区间使用的策略产生的局部影响之间是**独立的**，最后求解关于某个变量的最优化问题。
@@ -6240,39 +6321,6 @@ int main() {
     }
     std::cout << ans_dp;
     return 0;
-}
-```
-
-## §2.14 线性DP
-
-线性DP将一个序列划分为若干段，求一种划分方式以满足最优化目标。
-
-> [洛谷P1018](https://www.luogu.com.cn/problem/P1018)：以`char s[1 + N_MAX<=40 + 1]`的方式给定一个十进制数字，按十进制为划分成`m<=7`个非空子串，求这些部分的乘积最大值。
-
-令`dp[i][j]`表示给定`s[1->i]`，切成`j`份的乘积最大值，显然有状态转移方程：
-
-$$
-\mathrm{dp}[i][j] = \max_{k\in[j-1, i)} \mathrm{dp}[k][j-1] \cdot s[k+1\rightarrow i]
-$$
-
-乘积需要用到高精度，这里省略了高精度的板子。
-
-```c++
-const int N_MAX = 40, M_MAX = 6 + 1;
-int n, m; std::string s;
-Num dp[N_MAX + 1][M_MAX + 1], temp;
-int main() {
-    std::cin >> n >> m >> s; ++m; s = ' ' + s;
-    dp[0][0] = 1;
-    for(int i = 1; i <= n; ++i) {
-        for(int j = 1; j <= m; ++j) {
-            for(int k = j - 1; k < i; ++k) {
-                temp = dp[k][j - 1] * Num(s.substr(k + 1, i - (k + 1) + 1).c_str());
-                if(temp > dp[i][j]) { dp[i][j] = temp; }
-            }
-        }
-    }
-    std::cout << dp[n][m];
 }
 ```
 
@@ -8614,6 +8662,47 @@ int main() {
 > [炼码399]：给定数组`U a[1->n]`和`V a[1->n]`，以及一个用于比较大小的、返回`-1`/`0`/`1`（表示`<`/`=`/`>`）的函数`compare(U u, V v)`。已知每个`u[i]`都有一个唯一的`v[j]`满足`comp(u[i], v[j]) == 0`，每个`v[i]`都有一个唯一的`u[j]`满足`comp(v[i], u[j]) == 0`。求每个`v[i: 1->n]`对应的`u'[]`。
 
 TODO：？？？？
+
+### §3.6 倍增
+
+> [洛谷P3147](https://www.luogu.com.cn/problem/P3147)：给定数列`a[1->n<=2^18]<=40`。每回合可以选出相邻两个相同的元素`a[i] = a[i + 1] = x`，合并成一个新元素`x + 1`，然后放入原位，这会使得数列长度减`1`。重复该操作，直到无法进行为止。求最终数列中的元素最大值。
+
+注意到每个合并得到的大数，都能对应一段**闭**区间，这个区间中的数按照一定的次序进行合并。令`dp[i][j]`表示只考虑`a[i->n]`、且`a[i]`参与合并作为区间左端点，最终合并得到`j`的右端点位置。考虑最后一次合并，肯定是由两个相邻的`j-1`得到的，对应着两个子区间。注意到右子区间右端点与区间右端点是重合的，于是得到状态转移方程：
+
+$$
+\mathrm{dp}[i][j] = \begin{cases}
+	\mathrm{dp}[\mathrm{dp}[i][j-1]+1][j-1] &, 其它的正常情况 \\
+	i &, 初始情况,j=a[i] \\
+	0 &, 非法情况,如果转移方程中的\mathrm{dp}[\cdots][\cdots]本身就是非法情况,则\mathrm{dp}[i][j]也是非法情况
+	
+\end{cases}
+$$
+
+注意：这里的`i`维度不能保证无后效性，但是`j`维度可以，因为它只会引用比它还小的`j-1`维度，因此最外层循环枚举的是`j`。
+
+```c++
+const int N_MAX = 1 << 18, N_LOG2_MAX = 18, M_MAX = 40 + N_LOG2_MAX;
+int n, m, a[N_MAX + 1], dp[N_MAX + 1][M_MAX + 1], ans;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    m = *std::max_element(a + 1, a + 1 + n) + std::floor(std::log2(n));
+
+    for(int j = 1; j <= m; ++j) {
+        for(int i = 1; i <= n; ++i) {
+            if(a[i] == j) {
+                dp[i][j] = i;
+            } else if(dp[i][j - 1] != 0 && dp[i][j - 1] + 1 <= n) {
+                dp[i][j] = dp[dp[i][j - 1] + 1][j - 1];
+            } else {
+                dp[i][j] = 0;
+            }
+            if(dp[i][j] != 0) { ans = std::max(ans, j); }
+        }
+    }
+    std::cout << ans;
+}
+```
 
 # §4 字符串
 
@@ -26554,4 +26643,28 @@ n & (2 << k); // 等价于 n % K
 int ans, a; bool flag_a, flag_b;
 ans = a + (flag_a && flag_b); // √
 ans = a + flag_a && flag_b; // ×
+```
+
+## §A.6 现代C++
+
+### §A.6.1 `std::cin >> char*`
+
+C++20起，移除了`std::cin >> char*`的用法，这意味着给定一个字符串`char s[N+2]`，我们无法直接使用`std::cin >> (s + 1)`来方便地写入1-based字符串。然而，C++20仍然保留了`std::cin >> char[]`的用法，也就是说我们可以`std::cin >> s`。因此，我们使用`*reinterpret_cast<char(*)[N + 1]>(s + 1)`，将`(s + 1)`的`char*`类型强行转化为`char s'[N+1]`即可。
+
+```c++
+const int N_MAX = 100;
+char s[1 + N_MAX +1];
+int main() {
+	std::cin >> s; // √
+	std::cin >> (s + 1); // ×, C++20后废弃
+	std::cin >> *reinterpret_cast<char(*)[N_MAX + 1]>(s + 1); // √
+}
+```
+
+### §A.6.2 `int`转`string`统计十进制数字长度
+
+```c++
+int x = 1234;
+std::cout << std::string.to_string(x).length(); // 通用方案
+std::cout << std::formatted_size("{}", x); // C++20方案
 ```
