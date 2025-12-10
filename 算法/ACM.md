@@ -2885,7 +2885,45 @@ int main() {
 }
 ```
 
-### §2.2.2.1 广义最长单调子序列
+> [洛谷P1410](https://www.luogu.com.cn/problem/P1410)：给定`a[1->n<=2e3]<=1e9`（保证`n`为偶数），判断能否将其按顺序拆成两个长度均为`n/2`的严格单调递增子序列。如果能就输出`Yes!`，不能就输出`No!`。
+
+令`dp[i][j]`表示给定`a[1->i]`，将其拆成两个严格单调自增子序列，且`a[i]`所在的子序列长度为`j`时，另一个长度为`i-j`的子序列的末尾最小值。考虑`a[i-1]`所在的子序列（记为A），以及不在的子序列（记为B），对应着`dp[i-1][j]`。其中A的长度为`j`，末尾值为`a[i-1]`；B的长度为`(i-1)-j`，末尾值为`dp[i-1][j]`。
+
+我们的`a[i]`只有两种情况：
+
+1. `a[i]`接到A末尾：这要求`a[i] > a[i-1]`。以`a[i]`为结尾的序列仍然为A，不以`a[i]`为结尾的序列依然为B，于是`dp[i][j] = std::min(dp[i][j], dp[i-1][j-1])`。
+2. `a[i]`接到B末尾：这要求`a[i] > dp[i-1][j]`。以`a[i]`为结尾的序列为B，序列长度自增加`1`变为`(i-1)-j+1 => i-j`。于是`dp[i][i-j] = std::min(dp[i][i-j], a[i-1])`。
+
+初始时`a[0] = -∞`，表示可以作为任意严格单调自增子序列的首元素。除了`dp[0][0] = -∞`之外，其余`dp[*][*]`均初始化为`+∞`。`dp[i][j]`需要满足`i>=j`才有意义，这也是我们DP转移时循环边界的依据之一。
+
+```c++
+const int N_MAX = 2000, INF = 1e9 + 1;
+int n, a[N_MAX + 1], dp[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    while(std::cin >> n) {
+        for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+        
+        std::fill(&(dp[0][0]), &(dp[0][0]) + (N_MAX + 1) * (N_MAX + 1), INF);
+        a[0] = -INF; dp[0][0] = -INF;
+        for(int i = 1; i <= n; ++i) {
+            if(a[i] > a[i - 1]) {
+                for(int j = 1; j <= i; ++j) {
+                    dp[i][j] = std::min(dp[i][j], dp[i - 1][j - 1]);
+                }
+            }
+            for(int j = 0; j <= i - 1; ++j) {
+                if(a[i] > dp[i - 1][j]) {
+                    dp[i][i - j] = std::min(dp[i][i - j], a[i - 1]);   
+                }
+            }
+        }
+        std::cout << (dp[n][n / 2] != INF ? "Yes!" : "No!") << '\n';
+    }
+}
+```
+
+#### §2.2.2.1 广义最长单调子序列
 
 在最长单调子序列问题中，符合条件的子序列满足的是**单调关系**。我们将其广义的拓展为**二元关系**，也就是一个元素能否转移到另一个元素。对于普通二元关系来说，给定$n$个元素，我们需要打一张$O(n^2)$的表才能确认元素间能否转移。然而由于单调关系具有传递性，因此我们可以优化到$O(n\log n)$。
 
@@ -5770,6 +5808,47 @@ int main() {
 }
 ```
 
+> [洛谷P4290](https://www.luogu.com.cn/problem/P4290)：给定一个由`m=4`个字符构成的字符集`{'W','I','N','G'}`，每个字符`i`都有`m_cnt[i]<=16`条从单字符`i`映射到双字符串`m_str[i][j:1->m_cnt][1->2]`的替换规则，显然每替换一次就会导致字符串长度自增加`1`。现在已知一个从单字符开始，经过若干次替换得到的字符串`s[1->n<=20]`。求其原始单字符的所有可能取值。
+
+令`dp[i][j][u]`表示`s[i->j]`是否能由单字符`u`经过若干次替换得到。考虑其最后一次替换，显然要满足以下条件：
+
+- 枚举最后一次替换的分割点`k∈[i,j)`，左子区间可以由字符`v`转移而来（`dp[i][k][v] == true`），右子区间可以由字符`w`转移而来（`dp[k+1][j][w] == true`）。
+- 恰好存在一条替换规则`u->vw`，也就是`chk[v][w][u] == true`。`chk[1->m][1->m][1->m]`可以通过打表预处理得到。
+
+综上所述，状态转移方程为$\mathrm{dp}[i][j][u] = \displaystyle\bigcup_{\begin{align}&\forall k\in[i, j)\\&\forall (v, w)\in[1, m]^2\end{align}}\mathrm{chk}[v][w][u] \wedge \mathrm{dp}[i][k][v] \wedge \mathrm{dp}[k+1][j][w]$，时间复杂度为$O(n^3m^3)$。
+
+```c++
+const int N_MAX = 200, M_MAX = 4, M_CNT_MAX = 16;
+const std::map<char, int> m_map{{'W', 1}, {'I', 2}, {'N', 3}, {'G', 4}};
+const std::map<int, char> m_inv_map{{1, 'W'}, {2, 'I'}, {3, 'N'}, {4, 'G'}};
+int n, m = M_MAX, m_cnt[M_MAX + 1]; char m_str[M_MAX + 1][M_CNT_MAX + 1][2 + 1]; int m_int[M_MAX + 1][M_CNT_MAX + 1][2];
+char s[1 + N_MAX + 1];
+bool chk[M_MAX + 1][M_MAX + 1][M_MAX + 1], dp[N_MAX + 1][N_MAX + 1][M_MAX + 1];
+int main() {
+    for(int i = 1; i <= m; ++i) { std::cin >> m_cnt[i]; }
+    for(int i = 1; i <= m; ++i) { for(int j = 1; j <= m_cnt[i]; ++j) { std::cin >> m_str[i][j]; m_int[i][j][0] = m_map.at(m_str[i][j][0]); m_int[i][j][1] = m_map.at(m_str[i][j][1]); } }
+    for(int i = 1; i <= m; ++i) { for(int j = 1; j <= m_cnt[i]; ++j) { chk[m_int[i][j][0]][m_int[i][j][1]][i] = true; } }
+    std::cin >> *reinterpret_cast<char(*)[N_MAX + 1]>(s + 1); n = strlen(s + 1);
+
+    for(int i = 1; i <= n; ++i) { dp[i][i][m_map.at(s[i])] = true; }
+    for(int l = 2; l <= n; ++l) {
+        for(int i = 1, j = i + l - 1; j <= n; ++i, ++j) {
+            for(int u = 1; u <= m; ++u) {
+                for(int k = i; k < j; ++k) {
+                    for(int v = 1; v <= m; ++v) {
+                        for(int w = 1; w <= m; ++w) { 
+                            dp[i][j][u] |= chk[v][w][u] && dp[i][k][v] && dp[k + 1][j][w]; 
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for(int i = 1; i <= m; ++i) { if(dp[1][n][i]) { std::cout << m_inv_map.at(i); } }
+    if(std::none_of(&dp[1][n][0] + 1, &dp[1][n][0] + m + 1, [](const bool &x) { return x; })) { std::cout << "The name is wrong!"; }
+}
+```
+
 ### §2.9.2 不重叠区间优化DP
 
 有许多区间DP题满足下面的特征：这类问题需要你找到一种最佳策略，将整个大区间分割成若干**不相交**的小区间，对每个小区间使用一种或多种策略，各个小区间使用的策略产生的局部影响之间是**独立的**，最后求解关于某个变量的最优化问题。
@@ -5897,6 +5976,71 @@ int main() {
         }
     }
     std::cout << dp[n][m];
+}
+```
+
+### §2.9.3 二维区间DP
+
+> [洛谷P1436]()：给定一个`n × n`的棋盘（`n==8`），每个格子上都有值`x[1->n][1->n]∈[0, 100]`。接下来进行`m<=15`个回合，每回合沿横线或竖线，将棋盘切成两个矩形非空子棋盘，选择其中的一个作为下一回合要切割的棋盘，最终会得到`m+1`块矩形子棋盘。将每个子棋盘上的`x[][]`相加并平方作为分数值，求`m`个分数值相加得到的最小值。
+
+令`dp[a][b][c][d][e]`表示给定一块左上角格子坐标为`(a, b)`、右下角格子为`(c, d)`、经过`e`次切割得到的`e + 1`块棋盘的分数平方和最小值。于是每次切割的时候，我们可以选择横切/竖切、选择左或上/右或下部分的子棋盘进行下一次切割，由笛卡尔积得到四种转移情况。状态转移方程为：
+
+$$
+\mathrm{dp}[a][b][c][d][e] = \min\begin{cases}
+	\mathrm{dp}[a][b][u][d][e - 1] + \mathrm{dp}[u + 1][b][c][d][0] &, 横切,保留下半部分,下次切割上半部分 \\
+	\mathrm{dp}[a][b][u][d][0] + \mathrm{dp}[u + 1][b][c][d][e - 1] &, 横切,保留上半部分,下次切割下半部分 \\
+	\mathrm{dp}[a][b][c][v][e - 1] + \mathrm{dp}[a][v + 1][c][d][0] &, 竖切,保留右半部分,下次切割左半部分 \\
+	\mathrm{dp}[a][b][c][v][0] + \mathrm{dp}[a][v + 1][c][d][e - 1] &, 竖切,保留左半部分,下次切割右半部分
+\end{cases}
+$$
+
+初始状态`dp[a][b][c][d][0]`可以使用二维前缀和来快速求和，再进行平方即可。其余`dp[*][*][*][*][1->m] = +∞`。
+
+```c++
+const int N_MAX = 8, M_MAX = 15, INF = 1e9;
+int n = 8, m, x[N_MAX + 1][N_MAX + 1], x_presum[N_MAX + 1][N_MAX + 1], dp[N_MAX + 1][N_MAX + 1][N_MAX + 1][N_MAX + 1][M_MAX + 1];
+int main() {
+    std::cin >> m; --m;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cin >> x[i][j]; } }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { x_presum[i][j] = x_presum[i][j - 1] + x[i][j];} }
+    for(int j = 1; j <= n; ++j) { for(int i = 1; i <= n; ++i) { x_presum[i][j] += x_presum[i - 1][j]; } }
+
+    std::fill(&(dp[0][0][0][0][0]), &(dp[0][0][0][0][0]) + (N_MAX + 1) * (N_MAX + 1) * (N_MAX + 1) * (N_MAX + 1) * (M_MAX + 1), INF);
+    for(int a = 1; a <= n; ++a) {
+        for(int b = 1; b <= n; ++b) {
+            for(int c = a; c <= n; ++c) {
+                for(int d = b; d <= n; ++d) {
+                    dp[a][b][c][d][0] = x_presum[c][d] - x_presum[a - 1][d] - x_presum[c][b - 1] + x_presum[a - 1][b - 1];
+                    dp[a][b][c][d][0] *= dp[a][b][c][d][0];
+                }
+            }
+        }
+    }
+    for(int lx = 1; lx <= n; ++lx) {
+        for(int a = 1, c = a + lx - 1; c <= n; ++a, ++c) {
+            for(int ly = 1; ly <= n; ++ly) {
+                for(int b = 1, d = b + ly - 1; d <= n; ++b, ++d) {
+                    for(int e = 1; e <= m; ++e) {
+                        for(int u = a; u < c; ++u) {
+                            dp[a][b][c][d][e] = std::min({
+                                dp[a][b][c][d][e], 
+                                dp[a][b][u][d][e - 1] + dp[u + 1][b][c][d][0],
+                                dp[a][b][u][d][0] + dp[u + 1][b][c][d][e - 1]
+                            });
+                        }
+                        for(int v = b; v < d; ++v) {
+                            dp[a][b][c][d][e] = std::min({
+                                dp[a][b][c][d][e], 
+                                dp[a][b][c][v][e - 1] + dp[a][v + 1][c][d][0],
+                                dp[a][b][c][v][0] + dp[a][v + 1][c][d][e - 1]
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::cout << dp[1][1][n][n][m];
 }
 ```
 
@@ -6039,7 +6183,29 @@ int main() {
 - `j==j`时，$\mathrm{dp}[i][j]=\displaystyle\frac{i}{i+j}\mathrm{dp}[i-1+j][1]+\frac{j}{i+j}\mathrm{dp}[i][j-1]+1$。也就是$f_j(i)=\displaystyle\frac{i}{i+j}f_1(i-1+j)+\frac{j}{i+j}f_{j-1}(i)$。**注意到$f_j(i)$和$f_{j-1}(i)$构成了递推数列关系**，再求出初始值$f_0(i)=\mathrm{dp}[i][0]=i$即可完成递推。
 
 ```c++
-
+const int64_t N_MAX = 1e14, M_MAX = 1e6, MOD = 998244353;
+int64_t quickpow(int64_t a, int64_t b) {
+    int64_t res = 1;
+    for(; b; b >>= 1, a = a * a % MOD)
+        if(b & 1) res = res * a % MOD;
+    return res;
+}
+int64_t calc(int64_t x) { return ((x * x + x * 5 + 2) / 2) % MOD; }
+int64_t frac(int64_t x, int64_t y, int64_t p) { return (x * quickpow(y, p - 2)) % p; }
+int64_t frac_mod_2(int64_t a, int64_t b) { return (a * fast_pow(b, MOD - 2, MOD)) % MOD; }
+int64_t n, m, ans;
+int main() {
+    std::cin >> n >> m;
+    n %= MOD;
+    ans = ((frac_mod(mul_mod(n - 1, n + 4, MOD), 2, MOD) + 1) + 1) % MOD; // f(n, 0)
+    for(int i = 1; i <= m; ++i) {
+        ans = (
+            mul_mod(frac_mod_2(n, n + i), calc(n + i - 1), MOD) + 
+            mul_mod(frac_mod_2(i, n + i), ans, MOD) + 1
+        ) % MOD;
+    }
+    std::cout << ans;
+}
 ```
 
 ## §2.12 树形DP
@@ -7019,6 +7185,75 @@ int main() {
     std::cout << dp[capacity];
 }
 ```
+
+> [洛谷P1070](https://www.luogu.com.cn/problem/P1070)：给定一个含有`n<=1e3`个节点与`n`条有向边的静态点权`a[1->n]`、动态边权`b[1->n][1->m<=1e3]`环，按顺时针顺序给点和边标号`1, 2, ..., n`，第`i`条边从`i`号节点到`i+1`号节点。给定`m`个可供使用的回合，每个回合`t∈[1,m]`可以选择如下两种操作的一种：（1）如果场上不存在机器人，可以花费`a[i]`个金币，在第`i`个点放置一个机器人，设定它接下来行走的次数`∈[1,p<=m]`；（2）让机器人按顺时针行走到下一个节点，同时拾取道路上的`b[t][i]`个金币，如果行走结束后恰好到达次数上限，则立即判定为死亡，可以再执行操作1。求最终收集的金币总数最大值。
+
+本题的天才之处在于：与其处理一个顺时针移动的机器人，不如认为机器人不动，而是节点和边在逆时针旋转。于是：
+
+- 原先表示第`i`个节点的静态点权`a_old[1->n]`，变成表示第`i`个位置的点在第`j`回合的动态点权`a[i:1->n][j:1->m]`。两者满足`a[i][j] = a_old[(i+(j-1)-1)%n+1][j]`
+- 原先表示第`i`条边在第`j`回合的动态边权`b_old[1->n][1->m]`，变成表示在第`i`个位置的边在第`j`回合的动态边权`b[1->n][1->m]`。两者满足`b[i][j] = b_old[(i+(j-1)-1)%n+1][j]`。
+
+令`dp[i]`表示给定前`i`个回合，最终所能收集的金币最大值。容易写出状态转移方程：
+
+$$
+\begin{align}
+	\mathrm{dp}[i] & = \max_{\begin{cases}j\in[1, i)\\i-j\in[1,p]\end{cases}} \left(
+		\underset{t\in[1, j]的金币收益}{\underbrace{\mathrm{dp}[j]}} + 
+		\underset{t\in[j+1,i]的金币收益}{\underbrace{
+			\textcolor{red}{购买机器人开销} + \textcolor{green}{道路金币收益}
+		}}
+	\right) \\
+	& = \max_{\begin{cases}j\in[1, i)\\j\in[i-p,i-1]\end{cases}} \left(
+		\mathrm{dp}[j] + \max_{k\in[1,n]}\left(
+			\textcolor{red}{a[j][k]} + 
+			\textcolor{green}{\sum_{t\in[j+1,i]}b[k][t]}
+		\right)
+	\right) \\
+	& = \max_{j\in[\max(i-p,1),i-1]} \left(
+		\mathrm{dp}[j] + \max_{k\in[1,n]}\left(
+			\textcolor{red}{a[j][k]} + 
+			\textcolor{green}{\sum_{t\in[j+1,i]}b[k][t]}
+		\right)
+	\right) \\
+\end{align}
+$$
+
+到了这一步，它的时间复杂度由四层循环组成，从外到里分别是遍历`dp[i:1->n]`、遍历上一个机器人的死亡时间`j∈[max(i-p,1),i-1]`、遍历这一次机器人的购买地点`k∈[1,n]`、道路金币收益按时间求和`t∈[j+1,i]`，合计为$O(n^2m^2)$，显然无法接受，需要考虑优化：
+
+$$
+\begin{align}
+	\mathrm{dp}[i] & = \max_{j\in[\max(i-p,1),i-1]} \left(
+		\mathrm{dp}[j] + \max_{k\in[1,n]}\left(
+			\textcolor{red}{a[j][k]} + 
+			\textcolor{green}{\sum_{t\in[j+1,i]}b[k][t]}
+		\right)
+	\right) \\
+	& = \max_{j\in[\max(i-p,1),i-1]} \left(
+		\mathrm{dp}[j] + \max_{k\in[1,n]}\left(
+			\textcolor{red}{a[j][k]} + 
+			\underset{前缀和优化}{\underbrace{\textcolor{green}{
+				\mathrm{b\_presum}[k][i] - \mathrm{b\_presum}[k][j]
+			}}}
+		\right)
+	\right) \\
+	& = \max_{k\in[1,n]}\textcolor{green}{\mathrm{b\_presum}[k][i]} + \max_{j\in[\max(i-p,1),i-1]} \left(
+		\mathrm{dp}[j] + \max_{k\in[1,n]}\left(
+			\textcolor{red}{a[j][k]} -
+			\textcolor{green}{\mathrm{b\_presum}[k][j]}
+		\right)
+	\right) \\
+	& = 
+		\underset{最大值打表}{\underbrace{\mathrm{b\_presum\_max}[i]}} + 
+		\max_{j\in[\max(i-p,1),i-1]} \left( \max_{k\in[1,n]} \left(
+			\mathrm{dp}[j] + \textcolor{blue}{a[j][k] - \mathrm{b\_presum}[k][j]}
+		\right)
+	\right) \\
+	& = 
+		\mathrm{b\_presum\_max}[i] + 
+		\underset{单调队列优化}{\underbrace{\max_{j\in[\max(i-p,1),i-1]} \textcolor{blue}{\mathrm{ds}[j]}}}
+	\\
+\end{align}
+$$
 
 ## §2.B 疑难DP构造收集
 
@@ -10133,7 +10368,7 @@ int main() {
 }
 ```
 
-### §4.4.2 修改为子序列
+### §4.4.2 修改为子串
 
 > [洛谷P8703](https://www.luogu.com.cn/problem/P8703)：给定两个字符串`a`、`b`（`a`的长度大于等于`b`）。请问至少要更改`a`中的多少个字符，才能让`b`是`a`的子串？
 
@@ -10173,6 +10408,66 @@ int main() {
         }
     }
     std::cout << dp[len_a][len_b];
+}
+```
+
+> [洛谷P1136](https://www.luogu.com.cn/problem/P1136)：给定一个只包含`A`和`B`两种字符的字符串`a[1->n<=500]`，现在允许选择任意两个字符交换，最多交换`m<=100`次。转换后的字符串最多能包含多少个`AB`子串？
+
+令`dp[i][j][k][0/1]`表示给定`a[1->i]`，将`j`个`A`转换为`B`、将`k`个`B`转换为`A`、且转换后的最后一个字符`a'[i]`为`A/B`时，能包含的`AB`子串最大值。答案即为`std::max(dp[n][i][i][0], dp[n][i][i][1])`。只有当`a'[i-1] == 'A' && a'[i] == 'B'`时才能形成一个`AB`子串，于是有状态转移方程：
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j][k][0] & = \max\begin{cases}
+		a'[i-1]=\mathrm{A} & a[i] = \mathrm{A} \rightarrow a'[i] = \mathrm{A} & \mathrm{dp}[i-1][j][k][0] \\
+		a'[i-1]=\mathrm{A} & a[i] = \mathrm{A} \rightarrow a'[i] = \mathrm{B} & \mathrm{dp}[i-1][j][k-1][0] \\
+		a'[i-1]=\mathrm{A} & a[i] = \mathrm{B} \rightarrow a'[i] = \mathrm{A} & \mathrm{dp}[i-1][j][k][1] \\
+		a'[i-1]=\mathrm{A} & a[i] = \mathrm{B} \rightarrow a'[i] = \mathrm{B} & \mathrm{dp}[i-1][j][k-1][1] \\
+	\end{cases} \\
+	\mathrm{dp}[i][j][k][1] & = \max\begin{cases}
+		a'[i-1]=\mathrm{B} & a[i] = \mathrm{A} \rightarrow a'[i] = \mathrm{A} & \mathrm{dp}[i-1][j-1][k][0] + 1 \\
+		a'[i-1]=\mathrm{B} & a[i] = \mathrm{A} \rightarrow a'[i] = \mathrm{B} & \mathrm{dp}[i-1][j][k][0] + 1 \\
+		a'[i-1]=\mathrm{B} & a[i] = \mathrm{B} \rightarrow a'[i] = \mathrm{A} & \mathrm{dp}[i-1][j-1][k][1] \\
+		a'[i-1]=\mathrm{B} & a[i] = \mathrm{B} \rightarrow a'[i] = \mathrm{B} & \mathrm{dp}[i-1][j][k][1] \\
+	\end{cases} \\
+\end{align}
+$$
+
+不妨令`a[0] = 'B'`，表示无法参与任何`AB`子串的形成。初始时`dp[0][0][0][1] = 0`，其余`dp[*][*][*][*]`均为`-∞`。
+
+```c++
+const int N_MAX = 500, M_MAX = 100, INF = 1e9;
+std::map<char, char> map = {{'j', 'A'}, {'z', 'B'}};
+int n, m; char a[N_MAX + 2]; int a_A_sum[N_MAX + 1], a_B_sum[N_MAX + 1];
+int dp[N_MAX + 1][M_MAX + 1][M_MAX + 1][2], ans;
+int main() {
+    std::cin >> n >> m >> *(reinterpret_cast<char(*)[N_MAX + 1]>(a + 1)); a[0] = 'B';
+    std::transform(a + 1, a + 1 + n, a + 1, [](const char &c){ return map[c]; });
+    for(int i = 1; i <= n; ++i) { a_A_sum[i] = a_A_sum[i - 1] + (a[i] == 'A'); a_B_sum[i] = a_B_sum[i - 1] + (a[i] == 'B');}
+
+    std::fill(&(dp[0][0][0][0]), &(dp[0][0][0][0]) + (N_MAX + 1) * (M_MAX + 1) * (M_MAX + 1) * 2, -INF);
+    dp[0][0][0][1] = 0;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 0; j <= std::min({a_A_sum[i], m}); ++j) { // j个A->B
+            for(int k = 0; k <= std::min({a_B_sum[i], m}); ++k) { // k个B->A
+                dp[i][j][k][0] = std::max({
+                    a[i] == 'A' ? dp[i - 1][j][k][0] : -INF,
+                    a[i] == 'B' && k >= 1 ? dp[i - 1][j][k - 1][0] : -INF,
+                    a[i] == 'A' ? dp[i - 1][j][k][1] : -INF,
+                    a[i] == 'B' && k >= 1 ? dp[i - 1][j][k - 1][1] : -INF,
+                });
+                dp[i][j][k][1] = std::max({
+                    a[i] == 'A' && j >= 1 ? dp[i - 1][j - 1][k][0] + 1 : -INF,
+                    a[i] == 'B' ? dp[i - 1][j][k][0] + 1 : -INF,
+                    a[i] == 'A' && j >= 1 ? dp[i - 1][j - 1][k][1] : -INF,
+                    a[i] == 'B' ? dp[i - 1][j][k][1] : -INF,
+                });
+            }
+        }
+    }
+    for(int i = 0; i <= std::min({a_A_sum[n], a_B_sum[n], m}); ++i) {
+        ans = std::max({ans, dp[n][i][i][0], dp[n][i][i][1]});
+    }
+    std::cout << ans;
 }
 ```
 
@@ -21160,6 +21455,181 @@ int main() {
 ```
 
 ## §7.12 字典树
+
+> [洛谷P8306](https://www.luogu.com.cn/problem/P8306)：给定`t<=1e5`组查询，每组查询包含`n<=1e5`个字典串`s[1->n]`和`q<=1e5`个查询串，对于每个查询串，输出有多少个字典串的前缀可以是当前查询串。数据保证输入的字符串长度之和`<=3e6`。
+
+字典树板子题。
+
+```c++
+const int T_MAX = 1e5, N_MAX = 1e5, CHARSET_SIZE = 128, S_MAX = 3e6;
+int t, n, q; char s[1 + S_MAX + 1];
+
+struct Trie { int next[CHARSET_SIZE]; int v; bool vis; } trie[S_MAX + 1];
+int trie_count;
+bool trie_insert(const char *s) {
+    int root = 0;
+    for(int i = 0; s[i] != '\0'; ++i) {
+        if(trie[root].next[s[i]] == 0) {
+            trie[root].next[s[i]] = ++trie_count;
+            trie[trie_count] = {.next = {}, .v = 0, .vis = false};
+        }
+        trie[root].v += 1;
+        root = trie[root].next[s[i]];
+    }
+    bool vis = trie[root].vis;
+    trie[root].v += 1;
+    trie[root].vis = true;
+    return vis;
+}
+int trie_find(const char *s) {
+    int root = 0;
+    for(int i = 0; s[i] != '\0'; ++i) {
+        if(trie[root].next[s[i]] == 0) { return -1; }
+        root = trie[root].next[s[i]];
+    }
+    return root;
+}
+void trie_clear() {
+    for(int i = 0; i <= trie_count; ++i) { trie[i] = {.next = {}, .v = 0, .vis = false};}
+    trie_count = 0;
+}
+
+
+int main() {
+    std::cin >> t;
+    while(t--) {
+        trie_clear();
+        std::cin >> n >> q;
+        for(int i = 1; i <= n; ++i) { 
+            std::cin >> *(reinterpret_cast<char(*)[S_MAX + 1]>(s + 1)); 
+            trie_insert(s + 1);
+        }
+        for(int i = 1; i <= q; ++i) {
+            std::cin >> *(reinterpret_cast<char(*)[S_MAX + 1]>(s + 1));
+            int res = trie_find(s + 1);
+            std::cout << (res != -1 ? trie[res].v : 0) << '\n';
+        }
+    }
+}
+```
+
+> [洛谷P4407](https://www.luogu.com.cn/problem/P4407)：给定`n<=1e4`个字典串，给定`m<=1e4`个查询串。如果一个字符串能通过一次删除/添加/更改一个字符，就能变成另一个字符串，则称两者的编辑距离为`1`。对于每个查询串，输出字典中中有多少个字典串，与查询串的编辑距离恰好为`1`。特殊地，如果存在查询距离为`0`的字典串，则直接输出`-1`。
+
+Trie上DFS板子题。`int dfs(root, i, is_edited)`表示当前在字典树的`root`号节点上，这次要匹配查询串的第`i`个字符，而且当前已经/尚未经过了一次编辑，所能收集的字典串数量。由于一个查询串可能有多种方式，经过一次编辑变成字典串，因此我们要使用`visited`变量防止一个字典串被多条路径重复统计。
+
+```c++
+const int N_MAX = 1e4, M_MAX = 1e4, S_MAX = 20;
+int n, m; char s[1 + S_MAX + 1]; std::stack<int> trie_stack;
+
+const int CHARSET_SIZE = 26, S_SUM_MAX = N_MAX * S_MAX;
+struct Trie { int next[CHARSET_SIZE]; int v_end; bool visited; } trie[S_SUM_MAX + 1];
+int trie_count;
+bool trie_insert(const char *s) {
+    int root = 0;
+    for(int i = 0; s[i] != '\0'; ++i) {
+        if(trie[root].next[s[i] - 'a'] == 0) {
+            trie[root].next[s[i] - 'a'] = ++trie_count;
+            trie[trie_count] = {.next = {}, .v_end = 0};
+        }
+        root = trie[root].next[s[i] - 'a'];
+    }
+    bool vis = trie[root].v_end > 0;
+    trie[root].v_end += 1;
+    return vis;
+}
+int trie_find(const char *s) {
+    int root = 0;
+    for(int i = 0; s[i] != '\0'; ++i) {
+        if(trie[root].next[s[i] - 'a'] == 0) { return -1; }
+        root = trie[root].next[s[i] - 'a'];
+    }
+    return root;
+}
+
+int dfs(int root, int i, bool is_edited) {
+    if(s[i] == '\0' && is_edited) {
+        if(trie[root].v_end == 0) { return 0; }
+        if(trie[root].visited) { return 0; }
+        trie[root].visited = true; trie_stack.emplace(root);
+        return trie[root].v_end;
+    }
+    int ans = 0;
+    // 正常匹配
+    ans += (s[i] != '\0' && trie[root].next[s[i] - 'a'] != 0 ? dfs(trie[root].next[s[i] - 'a'], i + 1, is_edited) : 0); 
+    if(!is_edited) {
+        // 插入
+        for(char j = 'a'; j <= 'z'; ++j) { ans += (trie[root].next[j - 'a'] != 0 ? dfs(trie[root].next[j - 'a'], i, true) : 0); }
+
+        // 删除
+        ans += (s[i] != '\0' ? dfs(root, i + 1, true) : 0);
+
+        // 替换
+        if(s[i] != '\0') { for(char j = 'a'; j <= 'z'; ++j) { ans += (j != s[i] && trie[root].next[j - 'a'] != 0 ? dfs(trie[root].next[j - 'a'], i + 1, true) : 0); } }
+    }
+    return ans;
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { 
+        std::cin >> *(reinterpret_cast<char(*)[S_MAX + 1]>(s + 1)); 
+        trie_insert(s + 1);
+    }
+    for(int i = 1; i <= m; ++i) {
+        while(!trie_stack.empty()) {
+            trie[trie_stack.top()].visited = false;
+            trie_stack.pop();
+        }
+        std::cin >> *(reinterpret_cast<char(*)[S_MAX + 1]>(s + 1));
+        int res = trie_find(s + 1);
+        std::cout << (res == -1 ||trie[res].v_end == 0 ? dfs(0, 1, false) : -1) << '\n';
+    }
+}
+```
+
+> ]洛谷P1666](https://www.luogu.com.cn/problem/P1666)：如果一个字符串集合不存在两个互异的字符串，使得一个字符串是另一个字符串的前缀，则我们称其为安全集合。给定一个字符串集合`s[1->n<=50][1->l<=50]`，求其有多少个子集是安全集合。
+
+字典树DP板子题。首先将这个字符串集合塞进字典树中，于是对于字典树上的任意一个节点，我们容易发现它的子节点们对应的字符串一定互不为前缀，因为字典树在分叉处就决定了字符串之间的前缀从属关系发生断裂。于是统计每个节点`u`的子节点`v = trie[root].next[*]`所在子树包含的字符串个数`trie[u].next[*].v_pass`，相乘即可。如果`u`本身就代表一个集合中的字符串，则选了`u`就无法选中子树中的字符串了，于是额外记为`1`。
+
+$$
+\forall u, \mathrm{dp}[u] = \mathbb{1}_{\mathrm{trie}[u].\mathrm{v\_end}} + \prod_{\forall v, u\rightarrow v} \mathrm{dp}[v]
+$$
+
+```c++
+const int N_MAX = 50, S_MAX = 50;
+const int CHARSET_SIZE = 26, S_SUM_MAX = N_MAX * S_MAX;
+int n; char s[1 + S_MAX + 1]; int64_t dp[S_SUM_MAX + 1];
+struct Trie { int next[CHARSET_SIZE]; int v_pass, v_end; } trie[S_SUM_MAX + 1];
+int trie_count;
+void trie_insert(const char *s) {
+    int root = 0;
+    for(int i = 0; s[i] != '\0'; ++i) {
+        ++trie[root].v_pass;
+        if(trie[root].next[s[i] - 'a'] == 0) {
+            trie[root].next[s[i] - 'a'] = ++trie_count;
+            trie[trie_count] = {.next = {}, .v_pass = 0};
+        }
+        root = trie[root].next[s[i] - 'a'];
+    }
+    ++trie[root].v_pass; ++trie[root].v_end;
+}
+int64_t dfs(int root) {
+    dp[root] = 1;
+    for(int i = 0; i < CHARSET_SIZE; ++i) {
+        if(trie[root].next[i] == 0) { continue; }
+        dp[root] *= dfs(trie[root].next[i]);
+    }
+    return dp[root] + trie[root].v_end;
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> *(reinterpret_cast<char(*)[S_MAX + 1]>(s + 1));
+        trie_insert(s + 1);
+    }
+    dfs(0);
+    std::cout << dp[0];
+}
+```
 
 # §8 数学
 
