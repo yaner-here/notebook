@@ -4972,6 +4972,45 @@ int main() {
 }
 ```
 
+> [洛谷P1758](https://www.luogu.com.cn/problem/P1758)：给定分别有`n<=500`和`m<=500`个小球的栈`a[1->n]`和栈`b[1->m]`，小球有`'A'`/`'B'`两种颜色。每回合从栈尾取出一个小球放入队列`c`末尾，经过`n+m`个回合后，队列`c[1->n+m]`形成一个序列。在$C_{n+m}^{2}$中取出小球的顺序中，会产生`k`种不同的`c[]`序列，设第`i`种序列对应着`x[i]`种取出方式，显然$\displaystyle\sum_{i=1}^{k}=C_{n+m}^2$。求$\displaystyle\sum_{i=1}^{k}x_i^2$的值，模`1024523`输出。
+
+这个$\displaystyle\sum_{i=1}^{k}x_i^2$非常难办，我们无法直接计算，但是注意到它对应着一个等价问题：将`a[1->n]`和`b[1->m]`分别复制一份，得到上部分的`a1[1->n]`、`b1[1->m]`，与下部分的`a2[1->n]`、`b2[1->m]`。同时从两个部分取出一个小球，放入格子的`c1[]`与`c2[]`序列末尾。此时能保证`c1[]`与`c2[]`相同的取出方式即为$\displaystyle\sum_{i=1}^{k}x_i^2$。
+
+令`dp[i][j][k]`表示经过`i`回合，从`a1[]`中取出`j`个小球、从`b1[]`中取出`i-j`个小球、从`a2[]`中取出`k`个小球、从`b2[]`中取出`i-k`个小球，恰好使得`c1[]`与`c2[]`相同的取出方式，显然有状态转移方程：
+
+$$
+\mathrm{dp}[i][j][k] = \sum\begin{cases}
+	\mathrm{dp}[i-1][j-1][k-1] &, a[j  ] = a[k  ] & \wedge & j   \ge 1 & \wedge & k   \ge 1 \\
+	\mathrm{dp}[i-1][j-1][k]   &, a[j  ] = b[i-k] & \wedge & j   \ge 1 & \wedge & i-k \ge 1 \\
+	\mathrm{dp}[i-1][j][k-1]   &, b[i-j] = a[k  ] & \wedge & i-j \ge 1 & \wedge & k   \ge 1 \\
+	\mathrm{dp}[i-1][j][k]     &, b[i-j] = b[i-k] & \wedge & i-j \ge 1 & \wedge & i-k \ge 1 \\
+\end{cases}
+$$
+
+初始值除了`dp[0][0][0] = 1`以外，其余均为`dp[*][*][*] = 0`。为了防止爆空间，需要用滚动数组。
+
+```c++
+const int N_MAX = 500, M_MAX = 500, MOD = 1024523;
+int n, m; char a[1 + N_MAX + 1], b[1 + M_MAX + 1];
+int dp[2][N_MAX + 1][N_MAX + 1];
+int main() { 
+    std::cin >> n >> m >> *(reinterpret_cast<char (*)[N_MAX + 1]>(a + 1)) >> *(reinterpret_cast<char (*)[M_MAX + 1]>(b + 1)); 
+    dp[0 & 1][0][0] = 1;
+    for(int i = 1; i <= n + m; ++i) {
+        for(int j = 0; j <= n; ++j) {
+            for(int k = 0; k <= n; ++k) {
+                dp[i & 1][j][k]  = (j >= 1 && k >= 1         && a[j] == a[k] ? dp[(i - 1) & 1][j - 1][k - 1] : 0); dp[i & 1][j][k] %= MOD;
+                dp[i & 1][j][k] += (j >= 1 && i - k >= 1     && a[j] == b[i - k] ? dp[(i - 1) & 1][j - 1][k] : 0); dp[i & 1][j][k] %= MOD;
+                dp[i & 1][j][k] += (i - j >= 1 && k >= 1     && b[i - j] == a[k] ? dp[(i - 1) & 1][j][k - 1] : 0); dp[i & 1][j][k] %= MOD;
+                dp[i & 1][j][k] += (i - j >= 1 && i - k >= 1 && b[i - j] == b[i - k] ? dp[(i - 1) & 1][j][k] : 0); dp[i & 1][j][k] %= MOD;
+            }
+        }
+    }
+    std::cout << dp[(n + m) & 1][n][n];
+}
+```
+
+
 > [洛谷P6434](https://www.luogu.com.cn/problem/P6434)：给定`n<=2e6`个价值分别为`a[i]<=1e9`的互异物品，从中挑选出`k`个物品，重新排列后形成长度为`k`的、任意相邻元素满足$\frac{\text{dp}[i+1]}{\text{dp}[i]}\in[l,r]\subseteq[\mathbb{N}^+,\mathbb{N}^+]$的新数组`b[i]`。试求：（1）符合条件的数组`b[i]`的种类总数；（2）数组`b[]`的总价值最大值。答案均对`MOD`取模后输出。
 
 注意到$l\ge 1$，所以数组`b[i]`是递增的。这提醒我们预先对`a[i]`进行升序排序。本题的数据范围十分刁钻。乍一看本题设计状态的思路与[洛谷P2193](https://www.luogu.com.cn/problem/P2193)相同，但是`a[i]<=1e9`，这导致我们不能将价值作为状态的一部分，而是使用物品的下标表示价值。
