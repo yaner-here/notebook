@@ -1,0 +1,14 @@
+perl -i -pe 's/## §3\.6(?=[\.\s])/## §3.7/g' ./ACM.md
+perl -i -pe 's/## §3\.5(?=[\.\s])/## §3.6/g' ./ACM.md
+perl -i -pe 's/## §7\.1(?=[\.\s])/## §3.5/g' ./ACM.md
+perl -i -pe 's/## §7\.2(?=[\.\s])/## §7.1/g' ./ACM.md
+perl -i -pe 's/## §7\.3(?=[\.\s])/## §7.2/g' ./ACM.md
+perl -i -pe 's/## §7\.4(?=[\.\s])/## §7.3/g' ./ACM.md
+perl -i -pe 's/## §7\.5(?=[\.\s])/## §7.4/g' ./ACM.md
+perl -i -pe 's/## §7\.6(?=[\.\s])/## §7.5/g' ./ACM.md
+perl -i -pe 's/## §7\.7(?=[\.\s])/## §7.6/g' ./ACM.md
+perl -i -pe 's/## §7\.8(?=[\.\s])/## §7.7/g' ./ACM.md
+perl -i -pe 's/## §7\.9(?=[\.\s])/## §7.8/g' ./ACM.md
+perl -i -pe 's/## §7\.10(?=[\.\s])/## §7.9/g' ./ACM.md
+perl -i -pe 's/## §7\.11(?=[\.\s])/## §7.10/g' ./ACM.md
+perl -i -pe 's/## §7\.12(?=[\.\s])/## §7.11/g' ./ACM.md
