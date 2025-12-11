@@ -9132,6 +9132,52 @@ int main() {
 }
 ```
 
+## §3.8 双指针
+
+> [洛谷P1493](https://www.luogu.com.cn/problem/P1493)：给定常数`c1/c2/c3`与`n<=2e3`个物品，第`i`个物品含有属性`a[i]`与`b[i]`。如果一个物品集合$S$满足$\forall s\in S, c_1\left(a_s - \displaystyle\min_{\forall i\in S}{a_i}\right) + c_2\left(b_s - \displaystyle\min_{\forall i\in S}{b_i}\right) \le c_3$，则称其为合法集合。求合法集合中的物品数量最大值。
+
+令`f[i] = c1 * a[i] + c2 * b[1]`，原条件可以改写成$\forall s\in S, f[s] \le c_1\cdot\displaystyle\min_{\forall i\in S}{a_i} + c_2\cdot\displaystyle\min_{\forall i\in S}{b_i} + c_3$。容易想到暴力做法：枚举`n`个物品的`a[]`值作为`a_min`（$\displaystyle\min_{\forall i\in S}{a_i}$）、枚举`n`个物品的`b[]`值作为`b_min`（$\displaystyle\min_{\forall i\in S}{b_i}$），遍历`n`个物品并统计出所有满足`s:1->n, a[s]>=a_min && b[s]>=b_min && f[s] <= c1 * a_min + c2 * b_min`的个数，时间复杂度为$O(n^3)$。
+
+同样是枚举`a_min`和`b_min`，不如从小到大进行枚举。容易发现，当第一层循环确定下来`a_min`后，随着第二层循环`b_min`的增加，符合条件的第三层循环就类似于按`x[]`排序后得到的序列上的滑动窗口。一方面，随着`b_min`的增加，有更多的`s`可以不超过阈值`1 * a_min + c2 * b_min`；另一方面，有更多的`s`不再满足`b[s]>=b_min`的条件。我们在第二层循环内部维护一个计数桶，用于统计给定`b_min`时，有多少个`b[]`值恰好为给定值的合法物品。
+
+```c++
+const int N_MAX = 2000;
+int n, ans; int64_t c1, c2, c3, b[N_MAX + 1], f[N_MAX + 1];
+struct Stuff { int64_t a, b, f; } x[N_MAX + 1]; std::unordered_map<int64_t, int> b_count_map;
+int main() {
+    std::cin >> n >> c1 >> c2 >> c3;
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i].a >> x[i].b; x[i].f = c1 * x[i].a + c2 * x[i].b; b[i] = x[i].b; }
+    std::sort(b + 1, b + n + 1);
+    std::sort(x + 1, x + n + 1, [](const Stuff &lhs, const Stuff &rhs) { return lhs.f < rhs.f; });
+
+    for(int i = 1; i <= n; ++i) { // 任意顺序枚举a_min
+        int64_t &a_min = x[i].a;
+        for(int j = 1, r = 1, ans_temp = 0; j <= n; ++j) { // 升序枚举b_min
+            int64_t &b_min = b[j], thres = c1 * a_min + c2 * b_min + c3;
+            
+            // 右指针右移，元素入队时维护合法元素数量
+            while(r <= n && x[r].f <= thres) {
+                if(x[r].a >= a_min && x[r].b >= b_min) {
+                    ++ans_temp;
+                    b_count_map[x[r].b]++;
+                }
+                ++r;
+            }
+
+            // 左指针右移，旧元素(<b[j])出队
+            if(j >= 2 && b[j] > b[j - 1]) {
+                ans_temp -= b_count_map[b[j - 1]];
+                b_count_map[b[j - 1]] = 0;
+            }
+
+            // 维护ans
+            ans = std::max(ans, ans_temp);
+        }
+    }
+    std::cout << ans;
+}
+```
+
 # §4 字符串
 
 ## §4.1 KMP算法
@@ -21535,7 +21581,6 @@ void trie_clear() {
     trie_count = 0;
 }
 
-
 int main() {
     std::cin >> t;
     while(t--) {
@@ -21669,6 +21714,59 @@ int main() {
     }
     dfs(0);
     std::cout << dp[0];
+}
+```
+
+### §7.11.1 可持久化字典树
+
+> [洛谷P4735](https://www.luogu.com.cn/problem/P4735)：给定初始序列`x[1->n<=3e5]<=1e7`，执行`q<=3e5`次操作——（1）给定`x_temp`，插入到序列`x[]`的末尾，使其长度`n += 1`；（2）给定`l`、`r`、`x`，输出$\displaystyle\max_{p\in[l, r]}\bigoplus_{i=p}^{n}a[i]$。
+
+首先容易构建`x[]`的异或意义下的前缀和`x_presum[]`，于是$\displaystyle\bigoplus_{i=p}^{n}a[i] = \mathrm{x\_presum}[n] \oplus \mathrm{x\_presum}[p-1]$。这样我们就将问题等价地转化为求解$\displaystyle\max_{i\in[l-1, r-1]}\left(\mathrm{x\_presum}[n] \oplus y\right) \oplus \mathrm{x\_presum}[i]$。容易想到在字典树上进行二进制贪心，然而传统的字典树只能表示所有二进制字符串构成的集合$\{\mathrm{x\_presum}[i]\}_{i=0}^{n}$，无法满足我们对`i∈[l-1,r-1]`的动态子区间查询。这意味着我们需要构建多个字典树，这就是可持久化字典树。
+
+具体来说，我们令`persist_trie[i]`表示`x_presum[0->i]`构成的二进制字符串集合$\{\mathrm{x\_presum}[i]\}_{i=0}^{n}$构建的字典树根节点。在插入字符串的过程中，如果需要进入子节点作为下一次`dfs()`的根节点，则应该为当前子节点额外分配一个空间；如果未进入，则只需复用子节点即可。我们已知`persist_trie_root[i]`表示$\{\mathrm{x\_presum}[i]\}_{i=0}^{i}$，则对`persist_trie_root[r]`与`persist_trie_root[l - 1]`所对应的两颗字典树上相同拓扑位置的节点`v_pass`值做差，即可现场计算$\{\mathrm{x\_presum}[i]\}_{i=l}^{r}$对应的字典树信息。
+
+查询最大异或和，等价于在字典树上对$\mathrm{x\_presum}[n] \oplus y$的反码做贪心运算。如果能贪，就加上这个二进制位，再移动到下一个低位Bit做`dfs()`；如果贪不了，则直接`dfs()`到下一个低位Bit上继续贪。
+
+```c++
+const int Q_MAX = 3e5, N_MAX = 3e5 + Q_MAX, X_MAX = 1e7, X_LOG2_FLOOR_MAX = 24;
+int n, q, x[N_MAX + 1], x_presum[N_MAX + 1], l, r, y; char op_temp;
+struct PersistTrie { int next[2], v_pass; } persist_trie[(N_MAX + 1) * X_LOG2_FLOOR_MAX + 1]; int persist_trie_root[N_MAX + 1], persist_trie_count = 0;
+void persist_trie_insert(int root_a, int root_b, int s, int i) {
+    if(i < 0) { return; } bool v = (s >> i) & 1;
+    persist_trie[root_a].next[!v] = persist_trie[root_b].next[!v];
+    persist_trie[root_a].next[v] = ++persist_trie_count;
+    persist_trie[persist_trie[root_a].next[v]].v_pass = persist_trie[persist_trie[root_b].next[v]].v_pass + 1;
+    persist_trie_insert(persist_trie[root_a].next[v], persist_trie[root_b].next[v], s, i - 1);
+}
+
+int solve(int root_a, int root_b, int s, int i) {
+    if(i < 0) { return 0; } bool v = (s >> i) & 1;
+    if(persist_trie[persist_trie[root_a].next[v]].v_pass > persist_trie[persist_trie[root_b].next[v]].v_pass) {
+        return (1 << i) + solve(persist_trie[root_a].next[v], persist_trie[root_b].next[v], s, i - 1);
+    } else {
+        return solve(persist_trie[root_a].next[!v], persist_trie[root_b].next[!v], s, i - 1);
+    }
+}
+int main() {
+    std::cin >> n >> q;
+    persist_trie_root[0] = ++persist_trie_count;
+    persist_trie_insert(persist_trie_root[0], 0, 0, X_LOG2_FLOOR_MAX);
+    for(int i = 1; i <= n; ++i) {
+        std::cin >> x[i]; 
+        x_presum[i] = x_presum[i - 1] ^ x[i];
+        persist_trie_insert(persist_trie_root[i] = ++persist_trie_count, persist_trie_root[i - 1], x_presum[i], X_LOG2_FLOOR_MAX);
+    }
+
+    for(int i = 1; i <= q; ++i) {
+        std::cin >> op_temp;
+        if(op_temp == 'A') {
+            std::cin >> x[++n]; x_presum[n] = x_presum[n - 1] ^ x[n];
+            persist_trie_insert(persist_trie_root[n] = ++persist_trie_count, persist_trie_root[n - 1], x_presum[n], X_LOG2_FLOOR_MAX);
+        } else if(op_temp == 'Q') {
+            std::cin >> l >> r >> y;
+            std::cout << solve(persist_trie_root[r - 1], persist_trie_root[l - 2], ~(x_presum[n] ^ y), X_LOG2_FLOOR_MAX) << '\n';
+        }
+    }
 }
 ```
 
