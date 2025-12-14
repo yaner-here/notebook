@@ -10747,7 +10747,7 @@ int main() {
 
 # §5 树
 
-## §5.1 树的遍历
+## §5.1 遍历
 
 > [洛谷P1229](https://www.luogu.com.cn/problem/P1229)：我们直到，前序遍历和后续遍历不能唯一确定一颗二叉树。给定前序遍历`std::string a`和后续遍历`std::string b`，求满足这两种遍历顺序的二叉树数量。
 
@@ -10793,7 +10793,7 @@ int main() {
 }
 ```
 
-## §5.2 树的重心
+## §5.2 重心
 
 给定一颗无根树（即树上的任意节点都可以作为根节点）。任取一个节点作为根节点，可以得到与其相邻的各个子节点及其子树。这些子树有着各自的节点总数。当这些节点总数的最大值达到理论下界时，称所选的这个根节点为数的中心。显然一棵无根树只可能有一个或两个重心。
 
@@ -10855,7 +10855,7 @@ int main() {
 }
 ```
 
-## §5.3 树的直径
+## §5.3 直径
 
 树的直径指的是树上两点之间路径的最大长度，这两个点称为树的最远点对。我们介绍两种方式来求解，时间复杂度均为$O(n)$。
 
@@ -10923,6 +10923,72 @@ int main() {
     }
     dfs(1, 0);
     std::cout << dp_diameter;
+}
+```
+
+## §5.4 最近公共祖先(LCA)
+
+> [洛谷P3379](https://www.luogu.com.cn/problem/P3379)：给定一颗含有`n<=5e5`个节点的树，其中第`s`个点为根节点。执行`q<=5e5`次查询，每次查询给定两个点的编号`u_temp, v_temp`，求两个节点的最近共同祖先编号。
+
+我们的思路是——第一步让两个节点中深度较大的那个，向上跳跃，直到两个节点深度相同；第二步让两个节点同时向上跳跃，直到相遇为止。这两个步骤都可以用倍增来加速实现。具体来说，我们维护一个`father[i][j]`数组，表示从第`i`个节点向上跳跃`1<<j`次后到达的节点编号。该数组可以通过恒等式`father[i][j] = father[father[i][j-1]][j-1]`以$O(n\log_2 n)$的视线复杂度预处理得到。
+
+```c++
+const int N_MAX = 5e5, Q_MAX = 5e5, M_MAX = (N_MAX - 1) * 2, N_LOG2_CEIL_MAX = 19;
+int n, q, s, u_temp, v_temp;
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count;
+inline void edge_add(const int &u, const int &v) {
+    edge_to[++edge_count] = v;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+}
+int vertex_depth[N_MAX + 1], father[N_MAX + 1][N_LOG2_CEIL_MAX + 1], father_temp; std::queue<std::pair<int, int>> queue;
+inline int lca(int u, int v) {
+    if(vertex_depth[u] < vertex_depth[v]) { std::swap(u, v); }
+    for(int i = N_LOG2_CEIL_MAX; i >= 0; --i) {
+        if(vertex_depth[father[u][i]] >= vertex_depth[v]) { 
+            u = father[u][i]; 
+        }
+    }
+    if(u == v) { return u; }
+    for(int i = N_LOG2_CEIL_MAX; i >= 0; --i) {
+        if(father[u][i] != father[v][i]) {
+            u = father[u][i];
+            v = father[v][i];
+        }
+    }
+    return father[u][0];
+}
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> n >> q >> s;
+    for(int i = 1; i <= n - 1; ++i) { std::cin >> u_temp >> v_temp; edge_add(u_temp, v_temp); edge_add(v_temp, u_temp); }
+
+    // 求解vertex_depth[]与father[*][0]
+    vertex_depth[s] = 1; queue.emplace(s, 0);
+    while(!queue.empty()) {
+        std::tie(u_temp, father_temp) = queue.front(); queue.pop();
+        father[u_temp][0] = father_temp;
+        father[u_temp][0] = father_temp;
+        for(int i = edge_first[u_temp]; i != 0; i = edge_next[i]) {
+            v_temp = edge_to[i];
+            if(v_temp == father_temp) { continue; }
+            vertex_depth[v_temp] = vertex_depth[u_temp] + 1;
+            queue.emplace(v_temp, u_temp);
+        }
+    }
+
+    // 求解father[*][*]
+    for(int j = 1; (1 << j) <= n; ++j) {
+        for(int i = 1; i <= n; ++i) {
+            father[i][j] = father[father[i][j - 1]][j - 1];
+        }
+    }
+
+    // 倍增查询LCA
+    while(q--) {
+        std::cin >> u_temp >> v_temp;
+        std::cout << lca(u_temp, v_temp) << '\n';
+    }
 }
 ```
 
@@ -21717,7 +21783,66 @@ int main() {
 }
 ```
 
-### §7.11.1 可持久化字典树
+### §7.11.1 最大异或和
+
+#### §7.11.1.1 树上路径最大异或和
+
+> [洛谷P4551](https://www.luogu.com.cn/problem/P4551)：给定一棵含有`n<=1e5`个节点的边权树，边权`<2^31`。从树上任意选出两个节点，求两者构成的树上简单路径的所有边权的异或最大值。
+
+默认以`1`号节点为根，构建有根树。令`vertex_presum[i]`表示根节点到第`i`个节点的简单路径的所有边权的异或值。令`f(i,j)`表示`i`号节点到`j`号节点的简单路径的所有边权的异或值，显然`f(1,i) = vertex_presum[i]`。**注意到有恒等式`f(i,j) = f(1,i) ^ f(1,j)`**，于是我们通过枚举的方式，外层循环$O(n)$枚举`f(1,i)`，使用字典树$O(32)$来贪心地寻找`~f(1,i)`为目标的`f(1,j)`。
+
+```c++
+const int N_MAX = 1e5, M_MAX = N_MAX - 1, A_LOG2_MAX = 32;
+int n, u_temp, v_temp, w_temp; int ans;
+int edge_first[N_MAX + 1], edge_next[M_MAX + 1], edge_to[M_MAX + 1], edge_weight[M_MAX + 1], edge_count, vertex_presum[N_MAX + 1]; std::queue<int> queue;
+inline void edge_add(const int &u, const int &v, const int &w) {
+    edge_to[++edge_count] = v;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_weight[edge_count] = w;
+}
+struct Trie { int next[2], v_pass, v_end; } trie[N_MAX * A_LOG2_MAX + 1]; int trie_count = 1;
+void trie_insert(const int x) {
+    int root = 1;
+    for(int i = A_LOG2_MAX - 1; i >= 0; --i) {
+        ++trie[root].v_pass;
+        if(trie[root].next[(x >> i) & 1] == 0) {
+            trie[root].next[(x >> i) & 1] = ++trie_count;
+        }
+        root = trie[root].next[(x >> i) & 1];
+    }
+    ++trie[root].v_pass; ++trie[root].v_end;
+}
+int trie_find_max(const int q) {
+    int root = 1, ans = 0;
+    for(int i = A_LOG2_MAX - 1; i >= 0; --i) {
+        bool v = (q >> i) & 1;
+        if(trie[root].next[v] != 0) { ans += (1 << i); root = trie[root].next[v]; continue; }
+        if(trie[root].next[v] == 0 && trie[root].next[!v] != 0) { root = trie[root].next[!v]; continue; }
+        if(trie[root].next[v] == 0 && trie[root].next[!v] == 0) { assert(false); break; } // Trie深度不足,说明建树有异常,不可能发生
+    }
+    return ans;
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n - 1; ++i) { std::cin >> u_temp >> v_temp >> w_temp; edge_add(u_temp, v_temp, w_temp); }
+    
+    queue.push(1); vertex_presum[1] = 0;
+    while(!queue.empty()) {
+        u_temp = queue.front(); queue.pop();
+        for(int i = edge_first[u_temp]; i != 0; i = edge_next[i]) {
+            v_temp = edge_to[i]; queue.push(v_temp);
+            vertex_presum[v_temp] = vertex_presum[u_temp] ^ edge_weight[i];
+        }
+    }
+
+    for(int i = 1; i <= n; ++i) { trie_insert(vertex_presum[i]); }
+    for(int i = 1; i <= n; ++i) { ans = std::max(ans, trie_find_max(~vertex_presum[i])); }
+    std::cout << ans;
+}
+```
+
+#### §7.11.1.2 区间最大异或和
 
 > [洛谷P4735](https://www.luogu.com.cn/problem/P4735)：给定初始序列`x[1->n<=3e5]<=1e7`，执行`q<=3e5`次操作——（1）给定`x_temp`，插入到序列`x[]`的末尾，使其长度`n += 1`；（2）给定`l`、`r`、`x`，输出$\displaystyle\max_{p\in[l, r]}\bigoplus_{i=p}^{n}a[i]$。
 
@@ -21726,6 +21851,8 @@ int main() {
 具体来说，我们令`persist_trie[i]`表示`x_presum[0->i]`构成的二进制字符串集合$\{\mathrm{x\_presum}[i]\}_{i=0}^{n}$构建的字典树根节点。在插入字符串的过程中，如果需要进入子节点作为下一次`dfs()`的根节点，则应该为当前子节点额外分配一个空间；如果未进入，则只需复用子节点即可。我们已知`persist_trie_root[i]`表示$\{\mathrm{x\_presum}[i]\}_{i=0}^{i}$，则对`persist_trie_root[r]`与`persist_trie_root[l - 1]`所对应的两颗字典树上相同拓扑位置的节点`v_pass`值做差，即可现场计算$\{\mathrm{x\_presum}[i]\}_{i=l}^{r}$对应的字典树信息。
 
 查询最大异或和，等价于在字典树上对$\mathrm{x\_presum}[n] \oplus y$的反码做贪心运算。如果能贪，就加上这个二进制位，再移动到下一个低位Bit做`dfs()`；如果贪不了，则直接`dfs()`到下一个低位Bit上继续贪。
+
+注意：起始时就要为$\{\mathrm{x\_presum}[i]\}_{i=0}^{0} = \{0\}$构建一颗根为`persist_trie_root[0]`的字典树。这意味着我们的可持久化线段树最多有`1+n+q`个版本，每个版本中的字符串长度与最大值都是$\lfloor\log_2{\mathrm{X\_MAX}}\rfloor+1 = 24$。因此需要为其开辟`1 + (1+n+q)*24`个空间，千万不要开少了。
 
 ```c++
 const int Q_MAX = 3e5, N_MAX = 3e5 + Q_MAX, X_MAX = 1e7, X_LOG2_FLOOR_MAX = 24;
@@ -21769,6 +21896,10 @@ int main() {
     }
 }
 ```
+
+#### §7.11.1.3 子树最大异或和
+
+
 
 # §8 数学
 
