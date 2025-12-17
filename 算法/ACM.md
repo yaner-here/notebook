@@ -3488,6 +3488,35 @@ int main() {
 }
 ```
 
+### §2.2.6 序列删除元素
+
+> [洛谷P1799](https://www.luogu.com.cn/problem/P1799)：给定数组`a[1->n<=1e3]`，运载匀速从中删除任意多（包括`0`）个元素，形成新数组`a'[]`，求满足`a'[i] = i`的下标`i`的数量的最大值。
+
+令`dp[i][j]`表示给定`a[1->i]`，从中删除`j`个元素，形成的新数组`a'[1->i-j]`中满足`a'[i] = i`的下标`i`的数量的最大值。
+
+对于`a[i]`而言，我们有两种选择：
+- 删除`a[i]`：`dp[i-1][j-1] -> dp[i][j]`。
+- 不删除`a[i]`：我们需要考虑元素`a[i]`能否满足`a'[?] = ?`。显然`a[i]`对应着`a'[i-j]`，我们只需判断`a[i] == i - j`即可。也就是说`dp[i-1][j] + (a[i] == i-j) -> dp[i][j]`。
+
+综上所述，我们有状态转移方程：`dp[i][j] = std::max(dp[i-1][j-1], dp[i-1][j] + (a[i] == i - j))`。答案为`dp[n][0->n]`的最大值。这里我们也可以使用滚动数组把`dp[][]`压缩一行`dp[]`，本题略。
+
+```c++
+const int N_MAX = 1e3;
+int n, a[N_MAX + 1], dp[N_MAX + 1][N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for(int i = 1; i <= n; ++i) { dp[i][0] = dp[i - 1][0] + (a[i] == i); }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= i; ++j) {
+            dp[i][j] = std::max(dp[i - 1][j] + (a[i] == i - j), dp[i - 1][j - 1]);
+        }
+    }
+    std::cout << *std::max_element(dp[n] + 1, dp[n] + n + 1);
+}
+```
+
 ## §2.3 棋盘DP
 
 ### §2.3.1 棋盘路径DP
@@ -4640,7 +4669,8 @@ len==5  [100]01 ~ [999]99    900 = 9 * 100
 len==6  [100]001 ~ [999]999  900 = 9 * 100
 ```
 
-对于所有长度`l'==l`且本身小于等于`n`的数字来说，
+对于所有长度`l'==l`且本身小于等于`n`的数字来说，TODO：？？？
+
 ## §2.5 计数DP
 
 ### §2.5.1 环上计数
@@ -7436,6 +7466,82 @@ int main() {
 }
 ```
 
+> [洛谷P1633]()：给定三个整数`int x[1->3]<=2^30`及其二进制字符串长度`x_bin_len[1->3]`。请构造三个整数`y[1->3]`及其二进制字符串长度`y_bin_len[1->3]`，使得`popcount(x[i]) == popcount(y[i])`、`y_bin_len[i] <= x_bin_len_max`、`y[1] + y[2] == y[3]`。求`y[3]`的最小值，如果不存在这样的`y[1->3]`则输出`-1`。
+
+令`dp[i][a][b][c][0/1]`表示满足`y[1] + y[2] == y[3]`的、只考虑二进制形式的低`i`位的`y[1]/y[2]/y[3]`的二进制形式含有`a/b/c`个`1`Bit的、`y[1] + y[2]`是否会向低`i+1`位进位的三个整数`y[1->3]`的`y[3]`最小值。
+
+例如，如果`y[1]`的第`i`个Bit为`0`，`y[2]`的第`i`个Bit为1，第`i-1`位产生了一次进位，则`y[3]`的第`i`个Bit一定为`0`，同时在第`i`位产生了一次进位，**由于此时我们只考虑`dp[i][][][][]`的情景，所以`y[3]`无需加上这个进位**。如果砍去第`i`个Bit，则`popcount(y[1])`自减`0`、`popcount(y[2])`自减`1`、`popcount(y[3])`自减`0`。于是存在状态转移：`dp[i-1][a][b-1][c][1] + (1<<(i-1)) -> dp[i][a][b][c][1]`。这里的`(1<<(i-1))`表示第`i-1`个Bit产生的进位。
+
+以此类推，`y[1]`的第`i`个Bit为`0`、`y[2]`的第`i`个Bit、第`i-1`位是否产生进位，总共会产生`2×2×2=8`种情景，于是我们有状态转移方程：
+
+$$
+\begin{align}
+	& \mathrm{dp}[i][a][b][c][0] = \begin{cases}
+		\begin{array}{cccl}
+			\mathrm{bit}(y[1])_i & \mathrm{bit}(y[2])_i & 进位 & 状态转移 \\ \hline
+			0 & 0 & 0 & \hline \mathrm{dp}[i-1][a][b][c][0] \\
+			0 & 0 & 1 & \hline \mathrm{dp}[i-1][a][b][c-1][1] + 2^{i-1} \\
+			0 & 1 & 0 & \hline \mathrm{dp}[i-1][a][b-1][c-1][0] \\
+			1 & 0 & 0 & \hline \mathrm{dp}[i-1][a-1][b][c-1][0] \\
+		\end{array}
+	\end{cases}
+	\\
+	& \mathrm{dp}[i][a][b][c][1] = \begin{cases}
+		\begin{array}{cccl}
+			\mathrm{bit}(y[1])_i & \mathrm{bit}(y[2])_i & 进位 & 状态转移 \\ \hline
+			0 & 1 & 1 & \hline \mathrm{dp}[i-1][a][b-1][c][1] + 2^{i-1} \\
+			1 & 0 & 1 & \hline \mathrm{dp}[i-1][a-1][b][c][1] + 2^{i-1} \\
+			1 & 1 & 0 & \hline \mathrm{dp}[i-1][a-1][b-1][c][0] \\
+			1 & 1 & 1 & \hline \mathrm{dp}[i-1][a-1][b-1][c-1][1] + 2^{i-1} \\
+		\end{array}
+	\end{cases}
+\end{align}
+$$
+
+初始时除了`dp[0][0][0][0][0] = 0`以外，其余`dp[*][*][*][*][*] = +∞`。答案即为`dp[x_bin_len_max][x_popcount[1]][x_popcount[2]][x_popcount[3]][0]`，这里要确保不再进位，从而满足`y_bin_len[i] <= x_bin_len_max`。**这里的DP第一个维度要加一，因为`2^30`的二进制字符串最高可达`31`**。时间复杂度为$O(32^4\times 2)\approx O(2\times 10^6)$。
+
+```c++
+const int T_MAX = 10, X_ARRAY_LEN_MAX = 3, X_LOG2_MAX = 30, X_MAX = 2 << X_LOG2_MAX; const int64_t INF = 1e18;
+int t; int64_t x[X_ARRAY_LEN_MAX + 1]; int x_popcount[X_ARRAY_LEN_MAX + 1], x_bin_len[X_ARRAY_LEN_MAX + 1], x_bin_len_max; 
+int64_t dp[1 + X_LOG2_MAX + 1][X_LOG2_MAX + 1][X_LOG2_MAX + 1][X_LOG2_MAX + 1][2], ans;
+int main() {
+    std::cin >> t;
+    while(t--) {
+        for(int i = 1; i <= X_ARRAY_LEN_MAX; ++i) { 
+            std::cin >> x[i]; 
+            x_popcount[i] = popcount(x[i]); 
+            x_bin_len[i] = std::format("{:b}", x[i]).length();
+        }
+        x_bin_len_max = std::max({x_bin_len[1], x_bin_len[2], x_bin_len[3]});
+
+        std::fill(&(dp[0][0][0][0][0]), &(dp[X_LOG2_MAX][X_LOG2_MAX][X_LOG2_MAX][X_LOG2_MAX][1]) + 1, INF);
+        dp[0][0][0][0][0] = 0;
+        for(int i = 1; i <= x_bin_len_max; ++i) {
+            for(int a = 0; a <= x_popcount[1]; ++a) {
+                for(int b = 0; b <= x_popcount[2]; ++b) {
+                    for(int c = 0; c <= x_popcount[3]; ++c) {
+                        dp[i][a][b][c][0] = std::min({
+                            dp[i - 1][a][b][c][0],
+                            c >= 1 ?dp[i - 1][a][b][c - 1][1] + (1 << (i - 1)) : INF,
+                            b >= 1 && c >= 1 ? dp[i - 1][a][b - 1][c - 1][0] + (1 << (i - 1)) : INF,
+                            a >= 1 && c >= 1 ? dp[i - 1][a - 1][b][c - 1][0] + (1 << (i - 1)) : INF
+                        });
+                        dp[i][a][b][c][1] = std::min({
+                            b >= 1 ? dp[i - 1][a][b - 1][c][1] : INF,
+                            a >= 1 ? dp[i - 1][a - 1][b][c][1] : INF,
+                            a >= 1 && b >= 1 ? dp[i - 1][a - 1][b - 1][c][0] : INF,
+                            a >= 1 && b >= 1 && c >= 1 ? dp[i - 1][a - 1][b - 1][c - 1][1] + (1 << (i - 1)) : INF
+                        });
+                    }
+                }
+            }
+        }
+        ans = dp[x_bin_len_max][x_popcount[1]][x_popcount[2]][x_popcount[3]][0];
+        std::cout << (ans >= INF ? -1 : ans) << '\n';
+    }
+}
+```
+
 ## §2.C 刷表法与填表法
 
 DP的转移方式可以分为两种，一种是填表法（`dp[i] = f(dp[i - 1])`），另一种是刷表法`dp[i + g(i)] += h(dp[i])`。具体应用哪种，取决于`f()`和`g()`/`h()`两者哪个更容易确定。
@@ -9175,6 +9281,32 @@ int main() {
         }
     }
     std::cout << ans;
+}
+```
+
+## §3.9 分治
+
+> [洛谷P1769](https://www.luogu.com.cn/problem/P1769)：已知`n_log2<=10`与`n = 1 << n_log2`。现有`n`个人参加1VS1比赛，赛制可以表示为深度为`n_log2`的完全二叉树，`double p[i][j]`表示第`i`个人与第`j`个人比赛时`i`胜出的概率，数据保证`p[i][j] + p[j][i] = 1`，最终在决赛决出一个冠军。求获得冠军的最大的人的编号，如果有多个人均获得最大胜率，则输出编号最小的。
+
+注意到完全二叉树一共有`n_log + 1`层，令`dp[d][i]`表示第`d`层中第`i`个人获胜的概率，记`dp[i][]`对应的两个以子节点为根的子树分别为A与B，其中A包含了`i`的来时路，则它必然要与B中的所有对手进行加权对战。这非常适合使用分治算法，时间复杂度为$O(n^2\log_2{n})$：
+
+```c++
+const int N_LOG2_MAX = 10, N_MAX = 1 << N_LOG2_MAX;
+int n_log2, n; double ans; int ans_i;
+double p[N_MAX + 1][N_MAX + 1], dp[N_LOG2_MAX + 1][N_MAX + 1];
+void dfs(int l, int r, int d) {
+    if(l == r) { assert(d <= n_log2); dp[d][l] = 1; return; }
+    int m = (l + r) / 2; dfs(l, m, d + 1); dfs(m + 1, r, d + 1);
+    for(int i = l; i <= m; ++i) { for(int j = m + 1; j <= r; ++j) { dp[d][i] += dp[d + 1][i] * dp[d + 1][j] * p[i][j]; } }
+    for(int i = m + 1; i <= r; ++i) { for(int j = l; j <= m; ++j) { dp[d][i] += dp[d + 1][i] * dp[d + 1][j] * p[i][j]; } }
+}
+int main() {
+    std::cin >> n_log2; n = 1 << n_log2;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cin >> p[i][j]; p[i][j] /= 100; } }
+
+    dfs(1, n, 0);
+    for(int i = 1; i <= n; ++i) { if(ans < dp[0][i]) { ans = dp[0][i]; ans_i = i; } }
+    std::cout << ans_i;
 }
 ```
 
@@ -22756,6 +22888,43 @@ int main() {
         dp[i] = dp[i].unsafe_simplify(A_MAX);
     }
     std::cout << dp[s_len].a << '/' << dp[s_len].b << '\n';
+}
+```
+
+#### §8.2.2.4 期望函数
+
+> [洛谷P1654](https://www.luogu.com.cn/problem/P1654)：给定`bool a[1->n<=1e5]`，其中第`i`个Bit为`1`的概率为`p[i]`。在一次采样中，将其拆分成若干个连续为`1`的极长子序列，长度分别记作为$l_i$，求$E\left(\displaystyle\sum l_i^3\right)$。例如对于`a[] = {1,1,0,1}`来说，它的`l[] = {2, 1}`，于是$\displaystyle\sum l_i^3 = 9$。
+
+令$x_p[i]$表示给定子序列`a[1->i]`，以`a[i]`为结尾的、连续为`1`的子序列的长度期望记为$l_i$，则$x_p[i] = l_i^p$。
+
+- 当$p=1$时，$x_1[i] = \underset{当a[i]=1时}{\underbrace{E(x_1[i-1] + 1) \times p[i]}} + \underset{当a[i]=0时}{\underbrace{E(0) \times (1 - p[i])}} = (x_1[i-1] + 1) \times p[i]$。
+- 当$p=2$时，$x_2[i] = \underset{当a[i]=1时}{\underbrace{E((x_1[i-1] + 1)^2)} \times p_i} + \underset{当a[i]=0时}{\underbrace{E(0) \times (1-p[i])}} = (x_2[i-1] + 2x_1[i-1] + 1) \times p[i]$。
+- 当$p=3$时，$x_3[i] = \underset{当a[i]=1时}{\underbrace{E((x_1[i-1] + 1)^3)} \times p[i]} + \underset{当a[i]=1时}{\underbrace{E(0) \times (1-p[i])}} = (x_3[i-1] + 3x_2[x-1] + 3x_1[x-1] + 1) \times p[i]$。
+令$\mathrm{dp}[i]$表示给定子序列`a[1->i]`，求题目所求的$E\left(\displaystyle\sum l_i^3\right)$。于是我们有：
+
+$$
+\begin{align}
+	\mathrm{dp}[i] & = \underset{当a[i]=1时}{\underbrace{E(\Delta x_1[i-1]^3 + 1) \times p[i]}} + \underset{当a[i]=0时}{\underbrace{\mathrm{dp}[i-1] \times (1-p[i])}} \\
+	& = E((x_1[i-1]+1)^3 - x_1[i-1]^3) \times p[i] + \mathrm{dp}[i-1] \\
+	& = (3x_2[i-1] + 3x_1[i-1] + 1) \times p[i] + \mathrm{dp}[i-1] \\
+\end{align}
+$$
+
+$O(n)$转移即可算出`dp[n]`。
+
+```c++
+const int N_MAX = 1e5;
+int n; double p[N_MAX + 1], x1, x2, dp;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> p[i]; }
+
+    for(int i = 1; i <= n; ++i) {
+        dp = (3 * x2 + 3 * x1 + 1) * p[i] + dp;
+        x2 = (x2 + 2 * x1 + 1) * p[i];
+        x1 = (x1 + 1) * p[i];
+    }
+    std::cout << std::fixed << std::setprecision(1) << dp;
 }
 ```
 
