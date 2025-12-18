@@ -7659,7 +7659,7 @@ int main() {
 }
 ```
 
-## §2.C 刷表法与填表法
+## §2.C 填表法与刷表法
 
 DP的转移方式可以分为两种，一种是填表法（`dp[i] = f(dp[i - 1])`），另一种是刷表法`dp[i + g(i)] += h(dp[i])`。具体应用哪种，取决于`f()`和`g()`/`h()`两者哪个更容易确定。
 
@@ -22349,7 +22349,7 @@ int main() {
 ```
 
 ## §8.2 概率论
-### §8.2.1 排列组合与概率
+### §8.2.1 排列组合
 #### §8.2.1.1 组合数
 
 为了计算组合数$C_{n}^m$，我们常用恒等式$C_{n}^{m}=C_{n-1}^{m}+C_{n-1}^{m-1}$递推求得。具体证明详见组合计数章节。恒等式证明如下：
@@ -22451,8 +22451,6 @@ int main() {
 第3张格子纸条长度为1  [4]
 ```
 
-##### §8.2.1.3.1 勾长
-
 定义杨氏矩阵中的某个格子$x\in Y$的**勾长**$\text{hook}(x)$为：该格子右边和下边（包含自己）的格子总数。**勾长公式**指出：将$\displaystyle\sum_{i=1}^{k}l[i]$个互异数字填入杨氏矩阵中，总共的方案数为$\displaystyle\frac{n!}{\displaystyle\prod_{\forall x\in Y}\text{hook}(x)}$。
 
 > [洛谷P2132](https://www.luogu.com.cn/problem/P2132)：给定总共包含`k<=5`行的、每行长度为`l[]`的杨氏矩阵$Y$。现要求将数字`1~n`（$n=\displaystyle\sum_{i=1}^{k}l[i]\le 30$）填入$Y$，求方案总数。
@@ -22532,62 +22530,114 @@ int main() {
 }
 ```
 
-#### §8.2.1.4 图上概率DP
+#### §8.2.1.4 排列与组合
 
-> [洛谷P4316]：给定一个由`n<=1e5`个点和`m<=2e5`条边构成的有向无环边权图。求从起点`1`到终点`n`的所有路径的边权之和的期望值，四舍五入保留两位小数输出。
+排列是组合的有序版本。
 
-令`dp_p[i]`表示路径包含第`i`个节点的概率，`dp_e[i]`为从起点`1`到终点`n`的所有路径的边权之和按概率加权的期望值，所以`E[n] = dp_e[n]/dp_p[n]`就是我们所求的结果，又因为`dp_p[n]=1`，所以只需输出`dp_e[n]`。于是我们有：
+> [洛谷2182](https://www.luogu.com.cn/problem/P2182)：记一枚正面朝上为`1`，反面朝上为`0`。给定`n`个排成一行的硬币及其正反序列`bool s1[1->n]`，每回合允许从中任选`m`枚硬币（`m<=n`）进行翻转。请问经过`t`回合后，硬币序列恰好为目标序列`bool s2[1->n]`的翻转方法数有多少种？答案模`1e9+7`输出。
+
+**这道题需要我们注意到，与其关注序列本身，不如关注序列中的`0`/`1`数量**。这里我们可以对题目进行等价改写——硬币初始全部为`0`，经过`t`回合后变成序列`s[] = s1[] ^ s2[]`，求翻转方法数。本题有三种解法，对应两种不同的`dp`状态设计与转移方式。
+
+第一种方法是使用**组合**与**填表**的思想：令`dp[i][j]`表示经过了`i`个回合后形成的序列，有`j`枚硬币与**目标序列**相同，`n-j`枚硬币与目标序列不同的翻转方案数。**由于与目标序列完全相同的序列只有一种，所以答案`ans`就是`dp[t][n]`本身**。然后考虑状态转移：设未知数`x,y`，`dp[i-1][x]`为原先有`x`枚与目标相同的硬币、`y=n-x`枚与目标相反的硬币。现在在某一回合中翻转`k`枚与目标相同的硬币、`m-k`枚与目标序列相反的硬币，变成了`dp[i][j]`状态。解方程易得`x = j + 2*k - m`，`y = n + m - j - 2*k`。于是有状态转移方程。DP初始值`dp[0][s_same] = 1`，其余`dp[0][*] = 0`。
 
 $$
-\begin{cases}
-	\mathrm{dp}_{p}[v] = 
-		\displaystyle\frac{\displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \mathrm{dp}_{p}[u] \right)}{\mathrm{outdeg}[u]} 
-		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \frac{\mathrm{dp}_{p}[u]}{\mathrm{outdeg}[u]} \right) \\
-	\mathrm{dp}_e[v] 
-		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( 
-			\frac{\mathrm{dp}_e[u] + \mathrm{dp}_p[u] \cdot \mathrm{weight}[e]}{\mathrm{outdeg}[u]}
-		\right) 
-\end{cases}
+\begin{align}
+	\mathrm{dp}[i][j] & = \sum_{\begin{cases}0\le k\le j + 2k - m \\ 0\le m-k\le n+m-j-2k\end{cases}} \mathrm{dp}[i-1][j+2k-m] \times C_{j+2k-m}^{k} \times C_{n+m-j-2k}^{m-k} \\
+	& = \sum_{k\in[\max(0,m-j),\min(m,n-j)]} \mathrm{dp}[i-1][j+2k-m] \times C_{j+2k-m}^{k} \times C_{n+m-j-2k}^{m-k} \\
+\end{align}
 $$
-
-这里的`dp_e[v]`运用到了条件概率的思想，先从起点`1`到`u`，然后再考虑转移的可能。
 
 ```c++
-const int N_MAX = 1e5, M_MAX = 2 * N_MAX;
-int n, m; int u_temp, v_temp; double w_temp;
-int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count; double edge_weight[M_MAX + 1];
-int vertex_indeg[N_MAX + 1], vertex_outdeg[N_MAX + 1];
-int root, child; std::queue<int> queue;
-double dp_p[N_MAX + 1], dp_e[N_MAX + 1];
-inline void add_edge(const int &root, const int &child, const double &edge_weight_temp) {
-    ++edge_count;
-    edge_next[edge_count] = edge_first[root];
-    edge_first[root] = edge_count;
-    edge_to[edge_count] = child;
-    edge_weight[edge_count] = edge_weight_temp;
-    ++vertex_outdeg[root]; ++vertex_indeg[child];
-}
+const int N_MAX = 1e2, T_MAX = 1e2, M_MAX = N_MAX; const int64_t MOD = 1e9 + 7;
+int n, t, m; char s1[1 + N_MAX + 1], s2[1 + N_MAX + 1], s[1 + N_MAX + 1]; int s_same, s_diff;
+int64_t C[1 + N_MAX][1 + N_MAX], dp[1 + T_MAX][1 + N_MAX];
 int main() {
-    std::cin >> n >> m;
-    for(int i = 1; i <= m; ++i) {
-        std::cin >> u_temp >> v_temp >> w_temp;
-        add_edge(u_temp, v_temp, w_temp);
-    }
-    queue.emplace(1); dp_p[1] = 1;
-    while(queue.empty() == false) {
-        root = queue.front(); queue.pop();
-        for(int j = edge_first[root]; j != 0; j = edge_next[j]) {
-            child = edge_to[j];
-            dp_p[child] += dp_p[root] / vertex_outdeg[root];
-            dp_e[child] += (dp_e[root] + dp_p[root] * edge_weight[j]) / vertex_outdeg[root];
-            --vertex_indeg[child]; if(vertex_indeg[child] == 0) { queue.emplace(child); }
+    std::cin >> n >> t >> m >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s1 + 1)) >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s2 + 1));
+    for(int i = 1; i <= n; ++i) { s[i] = (s1[i] - '0') ^ (s2[i] - '0'); s_same += !s[i]; s_diff += s[i]; }
+    for(int i = 0; i <= n; ++i) { C[i][0] = C[i][i] = 1; for(int j = 1; j < i; ++j) { C[i][j] = (C[i - 1][j] + C[i - 1][j - 1]) % MOD; } }
+
+    dp[0][s_same] = 1;
+    for(int i = 1; i <= t; ++i) {
+        for(int j = 0; j <= n; ++j) {
+            for(int k = std::max(0, m - j); k <= std::min(m, n - j); ++k) {
+                dp[i][j] += mul_mod(
+                    mul_mod( dp[i - 1][j + 2 * k - m],  C[j + 2 * k - m][k],  MOD),
+                    C[n + m - j - 2 * k][m - k],
+                    MOD
+                ); dp[i][j] %= MOD;
+            }
         }
     }
-    std::cout << std::fixed << std::setprecision(2) << dp_e[n];
+    std::cout << dp[t][n];
 }
 ```
 
-#### §8.2.1.5 排列组合计数
+第二种方法是使用**排列**与**填表**的思想。令`dp[i][j]`表示经过`i`个回合后，有`j`枚硬币与**起始序列**不同，有`n-j`枚硬币与起始序列相同的翻转方案数。**由于与原始序列有`s_diff`枚硬币不同的序列有$C_{n}^{\mathrm{s\_diff}}$种，它们之间完全同构，所以答案`ans`需要在`dp[t][s_diff]`的基础上除以`C[n][s_diff]`，在本题的模意义下需要乘以逆元**。然后考虑状态转移，逻辑与第一种方案完全相同，状态转移方程也一样。DP初始值`dp[0][0] = 1`，其余`dp[0][*] = 0`。
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j] & = \sum_{\begin{cases}0\le k\le j + 2k - m \\ 0\le m-k\le n+m-j-2k\end{cases}} \mathrm{dp}[i-1][j+2k-m] \times C_{j+2k-m}^{k} \times C_{n+m-j-2k}^{m-k} \\
+	& = \sum_{k\in[\max(0,m-j),\min(m,n-j)]} \mathrm{dp}[i-1][j+2k-m] \times C_{j+2k-m}^{k} \times C_{n+m-j-2k}^{m-k} \\
+\end{align}
+$$
+
+```c++
+const int N_MAX = 1e2, T_MAX = 1e2, M_MAX = N_MAX; const int64_t MOD = 1e9 + 7;
+int n, t, m; char s1[1 + N_MAX + 1], s2[1 + N_MAX + 1], s[1 + N_MAX + 1]; int s_same, s_diff;
+int64_t C[1 + N_MAX][1 + N_MAX], dp[1 + T_MAX][1 + N_MAX];
+int main() {
+    std::cin >> n >> t >> m >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s1 + 1)) >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s2 + 1));
+    for(int i = 1; i <= n; ++i) { s[i] = (s1[i] - '0') ^ (s2[i] - '0'); s_same += !s[i]; s_diff += s[i]; }
+    for(int i = 0; i <= n; ++i) { C[i][0] = C[i][i] = 1; for(int j = 1; j < i; ++j) { C[i][j] = (C[i - 1][j] + C[i - 1][j - 1]) % MOD; } }
+
+    dp[0][0] = 1;
+    for(int i = 1; i <= t; ++i) {
+        for(int j = 0; j <= n; ++j) {
+            for(int k = std::max(0, m - j); k <= std::min(m, n - j); ++k) {
+                dp[i][j] += mul_mod(
+                    mul_mod( dp[i - 1][j + 2 * k - m],  C[j + 2 * k - m][k],  MOD),
+                    C[n + m - j - 2 * k][m - k],
+                    MOD
+                ); dp[i][j] %= MOD;
+            }
+        }
+    }
+    std::cout << mul_mod(dp[t][s_diff], inv_mod(C[n][s_diff], MOD), MOD);
+}
+```
+
+第三种方法是使用**组合**与**刷表**的思想。令`dp[i][j]`表示经过`i`个回合后，有`j`枚硬币与**起始序列**不同，有`n-j`枚硬币与起始序列相同的**任意某个特定序列**的翻转方案数。我们知道，由于有`j`枚硬币与**起始序列**不同，有`n-j`枚硬币与起始序列相同的序列互相之间同构，所以**到达**它们的操作方法数都是一致的。这要求我们不再考虑旧序列会转移到**哪些**新序列，而是**某个**新序列从哪些旧序列转移而来，等价于从**某个**新序列出发，进行逆操作可以到达多少旧序列。也就是说，我们不再考虑旧状态的出度，而是考虑新状态的入度。初始时DP中的`dp[0][0] = 1`，其余`dp[0][*] = 0`。输出`dp[t][s_diff]`即可。
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j] & = \sum_{\begin{cases}0\le k\le j + 2k - m \\ 0\le m-k\le n+m-j-2k\end{cases}} \mathrm{dp}[i-1][j+2k-m] \times C_{n-j}^{k} \times C_{j}^{m-k} \\
+	& = \sum_{k\in[\max(0,m-j),\min(m,n-j)]} \mathrm{dp}[i-1][j+2k-m] \times C_{n-j}^{k} \times C_{j}^{m-k} \\
+\end{align}
+$$
+
+```c++
+const int N_MAX = 1e2, T_MAX = 1e2, M_MAX = N_MAX; const int64_t MOD = 1e9 + 7;
+int n, t, m; char s1[1 + N_MAX + 1], s2[1 + N_MAX + 1], s[1 + N_MAX + 1]; int s_same, s_diff;
+int64_t C[1 + N_MAX][1 + N_MAX], dp[1 + T_MAX][1 + N_MAX];
+int main() {
+    std::cin >> n >> t >> m >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s1 + 1)) >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s2 + 1));
+        for(int i = 1; i <= n; ++i) { s[i] = (s1[i] - '0') ^ (s2[i] - '0'); s_same += !s[i]; s_diff += s[i]; }
+    for(int i = 0; i <= n; ++i) { C[i][0] = C[i][i] = 1; for(int j = 1; j < i; ++j) { C[i][j] = (C[i - 1][j] + C[i - 1][j - 1]) % MOD; } }
+
+    dp[0][0] = 1;
+    for(int i = 1; i <= t; ++i) {
+        for(int j = 0; j <= n; ++j) {
+            for(int k = std::max(0, m - j); k <= std::min(m, n - j); ++k) {
+                // 修改这里的组合数: C(j, m-k) * C(n-j, k)
+                dp[i][j] += mul_mod(mul_mod(dp[i - 1][j + 2 * k - m], C[j][m - k], MOD), C[n - j][k], MOD);
+            }
+        }
+    }
+    std::cout << dp[t][s_diff];
+}
+```
+
+### §8.2.2 期望
 
 > [洛谷P3802](https://www.luogu.com.cn/problem/P3802)：给定`n=7`种正整数`1, 2, ..., n`，其中数字`i`有`0<=a[i]<=1e9`个。将这`m=∑a[i]`个数字排成一个序列`b[]`。求`b[]`中有期望有多少个连续的、长度为`n`、恰好包含`[1, n]`内所有正整数的区间？答案四舍五入保留三位小数。
 
@@ -22614,228 +22664,6 @@ int main() {
     for(int i = 1; i <= n; ++i) { ans = ans * a[i] / (m - i + 1); }
 
     std::cout << std::fixed << std::setprecision(3) << ans;
-}
-```
-
-> [洛谷P10514](https://www.luogu.com.cn/problem/P10514)：给定`n<=1e5`个学生，做同一套具有`m<=1e5`道题的卷子，第`i`道题有`a[i]`人做错。现在从`n`个学生中随机选出`k`个，求他们均考取满分的概率，模`998244353`输出。
-
-已知对于第`i`道题，`n`个人对了`n - a[i]`个人，恰好选出的`k`个人均做对了第`i`道题，显然这是一个超几何分布，概率为$\displaystyle\frac{C_{n-a[i]}^{k}C_{a[i]}^{0}}{C_{n}^{k}}=\frac{(n-a[i])!}{(n-a[i]-k)!}\cdot\frac{(n-k)!}{n!}$。注意到每道题之间都是相互独立的，答案即为`m`道题对应概率的乘积$\displaystyle\prod_{i=1}^{m}\left(\frac{(n-a[i])!}{(n-a[i]-k)!}\right)\cdot\left(\frac{(n-k)!}{n!}\right)^m$。计算时要特殊判断`n - a[i] - k < 0`对应的阶乘值`frac[]`一旦为`0`，则说明概率为`0`，需要停止计算，防止`frac[]`下标越界。
-
-```c++
-inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
-    int64_t ans = 1;
-    for(a = a % p; b > 0; a = (a * a) % p, b /= 2) { if(b % 2) { ans = (ans * a) % p; } }
-    return ans;
-}
-int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
-int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
-inline int64_t inv(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
-constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
-inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
-
-
-const int N_MAX = 1e5, M_MAX = 1e5;
-const int64_t MOD = 998244353;
-int n, m, k; int64_t a[M_MAX + 1], fact[N_MAX + 1], fact_inv[N_MAX + 1], ans;
-int main() {
-    std::cin >> n >> m >> k;
-    for(int i = 1; i <= m; ++i) { std::cin >> a[i]; }
-    fact[0] = 1; for(int i = 1; i <= n; ++i) { fact[i] = fact[i - 1] * i % MOD; }
-    fact_inv[n] = inv(fact[n], MOD); for(int i = n - 1; i >= 0; --i) { fact_inv[i] = fact_inv[i + 1] * (i + 1) % MOD; }
-
-    ans = 1;
-    for(int i = 1; i <= m; ++i) {
-        if(n - a[i] - k < 0) { ans = 0; continue; }
-        ans = mul_mod(mul_mod(ans, fact[n - a[i]], MOD),  fact_inv[n - a[i] - k],  MOD);
-        ans %= MOD;
-    }
-    ans = mul_mod(ans, fast_pow(fact_inv[n], m, MOD), MOD);
-    ans = mul_mod(ans, fast_pow(fact[n - k], m, MOD), MOD);
-    std::cout << ans;
-}
-```
-
-### §8.2.2 期望
-
-> [洛谷P8229](https://www.luogu.com.cn/problem/P8229)：初始时筐里有`1`枚硬币，每个回合有概率`p<=1e9`让筐里的硬币数量变成`k<=1e9`倍，有`1-p`的概率收获筐里的所有硬币，并重置硬币数量为`1`。给定`n<=1e18`回合操作，求期望收获的硬币总数。给定`T<=1e5`次这样的查询，答案模`998244353`输出。
-
-令`r[i]`表示第`i`回合后的筐内硬币数量期望值，`s[i]`表示第`i`回合后收获的硬币总数，于是显然有递推关系，矩阵快速幂即可。
-
-$$
-\begin{align}
-	& \begin{cases}
-		r_i = (p) \cdot kr_{i-1} + (1-p) \cdot 1 \\
-		s_i = s_{i-1} + (1-p) \cdot r_{i-1}
-	\end{cases}, \begin{cases}
-		r_0 = 1 \\
-		s_0 = 0
-	\end{cases} \\
-	\Rightarrow & \left[\begin{matrix}r_i\\s_i\end{matrix}\right] = \left[ \begin{matrix}
-		kp & 0 \\ 1-p & 1
-	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\end{matrix}\right] + \left[\begin{matrix}1-p \\ 0\end{matrix}\right] \\
-	\Rightarrow & \left[\begin{matrix}r_i\\s_i\\1\end{matrix}\right] = \left[ \begin{matrix}
-		kp & 0 & 1-p \\
-		1-p & 1 & 0 \\
-		0 & 0 & 1
-	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\\1\end{matrix}\right] = \mathbf{A}^{i} \left[\begin{matrix}r_{0}\\s_{0}\\1\end{matrix}\right] = \mathbf{A}^{i}\left[\begin{matrix}1\\0\\1\end{matrix}\right]
-\end{align}
-
-$$
-
-注意：**`1-p`可能是负值，因此需要预先对负数取模，才能使用取模意义下的快速幂！**
-
-```c++
-inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
-    int64_t result = 1;
-    a %= p;
-    while(b > 0) {
-        if(b % 2) { result = (result * a) % p; }
-        a = (a * a) % p;
-        b /= 2;
-    }
-    return result;
-}
-int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
-int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
-constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
-
-template<typename T> class Matrix {
-  public:
-    const static int N_MAX = 3, M_MAX = 3;
-    int n, m;
-    T data[N_MAX + 1][M_MAX + 1];
-    Matrix() {
-        n = N_MAX;
-        m = M_MAX;
-        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
-    }
-    Matrix(int n, int m) {
-        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
-        this->n = n;
-        this->m = m;
-        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
-    }
-    static Matrix eye(int n) {
-        assert(n <= N_MAX && n <= M_MAX && n >= 1);
-        Matrix ans(n, n);
-        for(int i = 1; i <= n; ++i) {
-            for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }
-        }
-        for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
-        return ans;
-    }
-    T (&operator[](int i)) [M_MAX + 1] { return data[i]; } const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
-    friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
-        assert(lhs.n == rhs.n && lhs.m == rhs.m);
-        Matrix ans(lhs.n, lhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }
-        }
-        return ans;
-    }
-    Matrix &operator+=(const Matrix &rhs) {
-        assert(this->n == rhs.n && this->m == rhs.m);
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }
-        }
-        return *this;
-    }
-    friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
-        assert(lhs.n == rhs.n && lhs.m == rhs.m);
-        Matrix ans(lhs.n, lhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }
-        }
-        return ans;
-    }
-    Matrix &operator-=(const Matrix &rhs) {
-        assert(this->n == rhs.n && this->m == rhs.m);
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }
-        }
-        return *this;
-    }
-    Matrix multiply(const Matrix &rhs, const T &mod) {
-        assert(this->m == rhs.n);
-        Matrix ans(this->n, rhs.m);
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= rhs.m; ++j) {
-                ans[i][j] = 0;
-                for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }
-            }
-        }
-        return ans;
-    }
-    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
-        assert(lhs.m == rhs.n);
-        Matrix ans(lhs.n, rhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= rhs.m; ++j) {
-                ans[i][j] = 0;
-                for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }
-            }
-        }
-        return ans;
-    }
-    Matrix &operator*=(const Matrix &rhs) {
-        *this = (*this) * rhs;
-        return *this;
-    }
-    friend Matrix operator%(const Matrix &lhs, const T &mod) {
-        Matrix ans(lhs.n, lhs.m);
-        for(int i = 1; i <= lhs.n; ++i) {
-            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }
-        }
-        return ans;
-    }
-    Matrix &operator%=(const T &mod) {
-        for(int i = 1; i <= this->n; ++i) {
-            for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }
-        }
-        return *this;
-    }
-    inline Matrix fast_pow(int64_t power) {
-        assert(this->n == this->m);
-        Matrix base(*this), ans = Matrix::eye(this->n);
-        while(power > 0) {
-            if(power % 2) { ans *= base; }
-            base *= base;
-            power /= 2;
-        }
-        return ans;
-    }
-    inline Matrix fast_pow(int64_t power, const T &mod) {
-        assert(this->n == this->m);
-        Matrix base(*this), ans = Matrix::eye(this->n);
-        base %= mod;
-        while(power > 0) {
-            if(power % 2) { ans = ans.multiply(base, mod); }
-            base = base.multiply(base, mod);
-            power /= 2;
-        }
-        return ans;
-    }
-};
-
-const int64_t N_MAX = 1e18, T_MAX = 1e5, MOD = 998244353;
-int t; int64_t n, k, p;
-int main() {
-    std::cin >> t;
-    while(t--) {
-        std::cin >> n >> k >> p;
-        
-        Matrix<int64_t> A(3, 3);
-        A[1][1] = mod(k * p, MOD); A[1][2] = 0; A[1][3] = mod(1 - p, MOD);
-        A[2][1] = mod(1 - p, MOD); A[2][2] = 1; A[2][3] = 0;
-        A[3][1] = 0; A[3][2] = 0; A[3][3] = 1;
-
-        Matrix<int64_t> ans(3, 1);
-        ans[1][1] = 1; ans[2][1] = 0; ans[3][1] = 1;
-
-        ans = A.fast_pow(n, MOD).multiply(ans, MOD);
-        
-        std::cout << ans[2][1] << '\n';
-    }
 }
 ```
 
@@ -23029,6 +22857,188 @@ int main() {
 }
 ```
 
+> [洛谷P8229](https://www.luogu.com.cn/problem/P8229)：初始时筐里有`1`枚硬币，每个回合有概率`p<=1e9`让筐里的硬币数量变成`k<=1e9`倍，有`1-p`的概率收获筐里的所有硬币，并重置硬币数量为`1`。给定`n<=1e18`回合操作，求期望收获的硬币总数。给定`T<=1e5`次这样的查询，答案模`998244353`输出。
+
+令`r[i]`表示第`i`回合后的筐内硬币数量期望值，`s[i]`表示第`i`回合后收获的硬币总数，于是显然有递推关系，矩阵快速幂即可。
+
+$$
+\begin{align}
+	& \begin{cases}
+		r_i = (p) \cdot kr_{i-1} + (1-p) \cdot 1 \\
+		s_i = s_{i-1} + (1-p) \cdot r_{i-1}
+	\end{cases}, \begin{cases}
+		r_0 = 1 \\
+		s_0 = 0
+	\end{cases} \\
+	\Rightarrow & \left[\begin{matrix}r_i\\s_i\end{matrix}\right] = \left[ \begin{matrix}
+		kp & 0 \\ 1-p & 1
+	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\end{matrix}\right] + \left[\begin{matrix}1-p \\ 0\end{matrix}\right] \\
+	\Rightarrow & \left[\begin{matrix}r_i\\s_i\\1\end{matrix}\right] = \left[ \begin{matrix}
+		kp & 0 & 1-p \\
+		1-p & 1 & 0 \\
+		0 & 0 & 1
+	\end{matrix} \right] \left[\begin{matrix}r_{i-1}\\s_{i-1}\\1\end{matrix}\right] = \mathbf{A}^{i} \left[\begin{matrix}r_{0}\\s_{0}\\1\end{matrix}\right] = \mathbf{A}^{i}\left[\begin{matrix}1\\0\\1\end{matrix}\right]
+\end{align}
+
+$$
+
+注意：**`1-p`可能是负值，因此需要预先对负数取模，才能使用取模意义下的快速幂！**
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t result = 1;
+    a %= p;
+    while(b > 0) {
+        if(b % 2) { result = (result * a) % p; }
+        a = (a * a) % p;
+        b /= 2;
+    }
+    return result;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+
+template<typename T> class Matrix {
+  public:
+    const static int N_MAX = 3, M_MAX = 3;
+    int n, m;
+    T data[N_MAX + 1][M_MAX + 1];
+    Matrix() {
+        n = N_MAX;
+        m = M_MAX;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    Matrix(int n, int m) {
+        assert(n <= N_MAX && n >= 1 && m <= M_MAX && m >= 1);
+        this->n = n;
+        this->m = m;
+        for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { data[i][j] = 0; } }
+    }
+    static Matrix eye(int n) {
+        assert(n <= N_MAX && n <= M_MAX && n >= 1);
+        Matrix ans(n, n);
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= n; ++j) { ans[i][j] = 0; }
+        }
+        for(int i = 1; i <= n; ++i) { ans[i][i] = 1; }
+        return ans;
+    }
+    T (&operator[](int i)) [M_MAX + 1] { return data[i]; } const T (&operator[](int i) const)[M_MAX + 1] { return data[i]; }
+    friend Matrix operator+(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.n == rhs.n && lhs.m == rhs.m);
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] + rhs[i][j]; }
+        }
+        return ans;
+    }
+    Matrix &operator+=(const Matrix &rhs) {
+        assert(this->n == rhs.n && this->m == rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] += rhs[i][j]; }
+        }
+        return *this;
+    }
+    friend Matrix operator-(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.n == rhs.n && lhs.m == rhs.m);
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] - rhs[i][j]; }
+        }
+        return ans;
+    }
+    Matrix &operator-=(const Matrix &rhs) {
+        assert(this->n == rhs.n && this->m == rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] -= rhs[i][j]; }
+        }
+        return *this;
+    }
+    Matrix multiply(const Matrix &rhs, const T &mod) {
+        assert(this->m == rhs.n);
+        Matrix ans(this->n, rhs.m);
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                ans[i][j] = 0;
+                for(int k = 1; k <= this->m; ++k) { ans[i][j] = (ans[i][j] + this->data[i][k] * rhs[k][j]) % mod; }
+            }
+        }
+        return ans;
+    }
+    friend Matrix operator*(const Matrix &lhs, const Matrix &rhs) {
+        assert(lhs.m == rhs.n);
+        Matrix ans(lhs.n, rhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= rhs.m; ++j) {
+                ans[i][j] = 0;
+                for(int k = 1; k <= lhs.m; ++k) { ans[i][j] += lhs[i][k] * rhs[k][j]; }
+            }
+        }
+        return ans;
+    }
+    Matrix &operator*=(const Matrix &rhs) {
+        *this = (*this) * rhs;
+        return *this;
+    }
+    friend Matrix operator%(const Matrix &lhs, const T &mod) {
+        Matrix ans(lhs.n, lhs.m);
+        for(int i = 1; i <= lhs.n; ++i) {
+            for(int j = 1; j <= lhs.m; ++j) { ans[i][j] = lhs[i][j] % mod; }
+        }
+        return ans;
+    }
+    Matrix &operator%=(const T &mod) {
+        for(int i = 1; i <= this->n; ++i) {
+            for(int j = 1; j <= this->m; ++j) { this->data[i][j] = this->data[i][j] % mod; }
+        }
+        return *this;
+    }
+    inline Matrix fast_pow(int64_t power) {
+        assert(this->n == this->m);
+        Matrix base(*this), ans = Matrix::eye(this->n);
+        while(power > 0) {
+            if(power % 2) { ans *= base; }
+            base *= base;
+            power /= 2;
+        }
+        return ans;
+    }
+    inline Matrix fast_pow(int64_t power, const T &mod) {
+        assert(this->n == this->m);
+        Matrix base(*this), ans = Matrix::eye(this->n);
+        base %= mod;
+        while(power > 0) {
+            if(power % 2) { ans = ans.multiply(base, mod); }
+            base = base.multiply(base, mod);
+            power /= 2;
+        }
+        return ans;
+    }
+};
+
+const int64_t N_MAX = 1e18, T_MAX = 1e5, MOD = 998244353;
+int t; int64_t n, k, p;
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> n >> k >> p;
+        
+        Matrix<int64_t> A(3, 3);
+        A[1][1] = mod(k * p, MOD); A[1][2] = 0; A[1][3] = mod(1 - p, MOD);
+        A[2][1] = mod(1 - p, MOD); A[2][2] = 1; A[2][3] = 0;
+        A[3][1] = 0; A[3][2] = 0; A[3][3] = 1;
+
+        Matrix<int64_t> ans(3, 1);
+        ans[1][1] = 1; ans[2][1] = 0; ans[3][1] = 1;
+
+        ans = A.fast_pow(n, MOD).multiply(ans, MOD);
+        
+        std::cout << ans[2][1] << '\n';
+    }
+}
+```
+
 > [洛谷P3334](https://www.luogu.com.cn/problem/P3334)：给定一枚硬币，正面朝上（记为`H`）的概率为$p_1=\displaystyle\frac{a}{b}$，反面朝上（记为`T`）的概率为$p_0\displaystyle 1-\frac{a}{b}$，其中`1<=a, b<=100`。给定一个序列`char s[1->S<=1e3]`，求首次抛出该序列所需的硬币抛掷次数的期望值。
 
 令`dp[i]`表示首次抛出子序列`s[1->i]`所需的硬币抛掷次数的期望值，显然`dp[0] = 0`。考虑从`dp[i]`的转移来源：
@@ -23044,6 +23054,7 @@ $$
 $$
 
 直接DP转移即可。注意本题要求输出高精度约分的分数。**由于本题的`1<=a, b<=100`，因此不必使用`gcd(a, b)`进行严格约分，只需试除`[2, 100]`内的所有整数即可，否则会被卡常**。
+
 ```c++
 /* 省略分数Frac、高精度整数BigInteger的代码 */
 
@@ -23125,6 +23136,101 @@ int main() {
         x1 = (x1 + 1) * p[i];
     }
     std::cout << std::fixed << std::setprecision(1) << dp;
+}
+```
+
+#### §8.2.2.5 图上期望
+
+> [洛谷P4316]：给定一个由`n<=1e5`个点和`m<=2e5`条边构成的有向无环边权图。求从起点`1`到终点`n`的所有路径的边权之和的期望值，四舍五入保留两位小数输出。
+
+令`dp_p[i]`表示路径包含第`i`个节点的概率，`dp_e[i]`为从起点`1`到终点`n`的所有路径的边权之和按概率加权的期望值，所以`E[n] = dp_e[n]/dp_p[n]`就是我们所求的结果，又因为`dp_p[n]=1`，所以只需输出`dp_e[n]`。于是我们有：
+
+$$
+\begin{cases}
+	\mathrm{dp}_{p}[v] = 
+		\displaystyle\frac{\displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \mathrm{dp}_{p}[u] \right)}{\mathrm{outdeg}[u]} 
+		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( \frac{\mathrm{dp}_{p}[u]}{\mathrm{outdeg}[u]} \right) \\
+	\mathrm{dp}_e[v] 
+		= \displaystyle\sum_{\forall e = \langle u,v \rangle \in \mathcal{E}} \left( 
+			\frac{\mathrm{dp}_e[u] + \mathrm{dp}_p[u] \cdot \mathrm{weight}[e]}{\mathrm{outdeg}[u]}
+		\right) 
+\end{cases}
+$$
+
+这里的`dp_e[v]`运用到了条件概率的思想，先从起点`1`到`u`，然后再考虑转移的可能。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 2 * N_MAX;
+int n, m; int u_temp, v_temp; double w_temp;
+int edge_first[N_MAX + 1], edge_to[M_MAX + 1], edge_next[M_MAX + 1], edge_count; double edge_weight[M_MAX + 1];
+int vertex_indeg[N_MAX + 1], vertex_outdeg[N_MAX + 1];
+int root, child; std::queue<int> queue;
+double dp_p[N_MAX + 1], dp_e[N_MAX + 1];
+inline void add_edge(const int &root, const int &child, const double &edge_weight_temp) {
+    ++edge_count;
+    edge_next[edge_count] = edge_first[root];
+    edge_first[root] = edge_count;
+    edge_to[edge_count] = child;
+    edge_weight[edge_count] = edge_weight_temp;
+    ++vertex_outdeg[root]; ++vertex_indeg[child];
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        add_edge(u_temp, v_temp, w_temp);
+    }
+    queue.emplace(1); dp_p[1] = 1;
+    while(queue.empty() == false) {
+        root = queue.front(); queue.pop();
+        for(int j = edge_first[root]; j != 0; j = edge_next[j]) {
+            child = edge_to[j];
+            dp_p[child] += dp_p[root] / vertex_outdeg[root];
+            dp_e[child] += (dp_e[root] + dp_p[root] * edge_weight[j]) / vertex_outdeg[root];
+            --vertex_indeg[child]; if(vertex_indeg[child] == 0) { queue.emplace(child); }
+        }
+    }
+    std::cout << std::fixed << std::setprecision(2) << dp_e[n];
+}
+```
+
+### §8.2.3 概率
+
+> [洛谷P10514](https://www.luogu.com.cn/problem/P10514)：给定`n<=1e5`个学生，做同一套具有`m<=1e5`道题的卷子，第`i`道题有`a[i]`人做错。现在从`n`个学生中随机选出`k`个，求他们均考取满分的概率，模`998244353`输出。
+
+已知对于第`i`道题，`n`个人对了`n - a[i]`个人，恰好选出的`k`个人均做对了第`i`道题，显然这是一个超几何分布，概率为$\displaystyle\frac{C_{n-a[i]}^{k}C_{a[i]}^{0}}{C_{n}^{k}}=\frac{(n-a[i])!}{(n-a[i]-k)!}\cdot\frac{(n-k)!}{n!}$。注意到每道题之间都是相互独立的，答案即为`m`道题对应概率的乘积$\displaystyle\prod_{i=1}^{m}\left(\frac{(n-a[i])!}{(n-a[i]-k)!}\right)\cdot\left(\frac{(n-k)!}{n!}\right)^m$。计算时要特殊判断`n - a[i] - k < 0`对应的阶乘值`frac[]`一旦为`0`，则说明概率为`0`，需要停止计算，防止`frac[]`下标越界。
+
+```c++
+inline int64_t fast_pow(int64_t a, int64_t b, int64_t p) {
+    int64_t ans = 1;
+    for(a = a % p; b > 0; a = (a * a) % p, b /= 2) { if(b % 2) { ans = (ans * a) % p; } }
+    return ans;
+}
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+inline int64_t inv(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
+
+const int N_MAX = 1e5, M_MAX = 1e5;
+const int64_t MOD = 998244353;
+int n, m, k; int64_t a[M_MAX + 1], fact[N_MAX + 1], fact_inv[N_MAX + 1], ans;
+int main() {
+    std::cin >> n >> m >> k;
+    for(int i = 1; i <= m; ++i) { std::cin >> a[i]; }
+    fact[0] = 1; for(int i = 1; i <= n; ++i) { fact[i] = fact[i - 1] * i % MOD; }
+    fact_inv[n] = inv(fact[n], MOD); for(int i = n - 1; i >= 0; --i) { fact_inv[i] = fact_inv[i + 1] * (i + 1) % MOD; }
+
+    ans = 1;
+    for(int i = 1; i <= m; ++i) {
+        if(n - a[i] - k < 0) { ans = 0; continue; }
+        ans = mul_mod(mul_mod(ans, fact[n - a[i]], MOD),  fact_inv[n - a[i] - k],  MOD);
+        ans %= MOD;
+    }
+    ans = mul_mod(ans, fast_pow(fact_inv[n], m, MOD), MOD);
+    ans = mul_mod(ans, fast_pow(fact[n - k], m, MOD), MOD);
+    std::cout << ans;
 }
 ```
 
