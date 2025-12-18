@@ -1048,8 +1048,10 @@ int main(){
 
 在传统的背包问题中，物品的顺序不会影响最终答案。然而在本题中不是这样。考虑最简单的情况——只有两种物品，则两者的先后选择顺序对应的背包总价值分别为：
 $$
-\text{value}_{1,2} = (a[1] - c[1] \times b[1]) + (a[2] - (c[1] + c[2]) \times b[2]) \\
-\text{value}_{2,1} = (a[2] - c[2] \times b[2]) + (a[1] - (c[1] + c[2]) \times b[1]) \\
+\begin{align}
+	\text{value}_{1,2} = (a[1] - c[1] \times b[1]) + (a[2] - (c[1] + c[2]) \times b[2]) \\
+	\text{value}_{2,1} = (a[2] - c[2] \times b[2]) + (a[1] - (c[1] + c[2]) \times b[1]) \\
+\end{align}
 $$
 我们不禁思考——到底哪种排列方式才是最优的呢？解不等式$\text{value}_{1,2}>\text{value}_{2,1}$可知$c[1]b[2]<c[2]b[1]$，即$\frac{c[1]}{b[1]}<\frac{c[2]}{b[2]}$。更进一步，给定含有`n`个物品的序列，对于其中任意的两个物品，将$\frac{c[i]}{b[i]}$更小的放在前面，总是能获得更大的价值。这提示我们尽可能将$\frac{c[i]}{b[i]}$更小的物品放在前面进行挑选，使用一轮排序即可。
 
@@ -1081,6 +1083,37 @@ int main(){
         }
     }
     std::cout << *(std::max_element(dp + 1, dp + t + 1));
+}
+```
+
+> [洛谷P1987](https://www.luogu.com.cn/problem/P1987)：给定`n<=100`个物品，每个物品在第`j`天收入囊中的价值为`std::max(0, tree[i].a - (j - 1) * tree[i].b)`。现在给定`m<=100`，每天最多只能选择一个物品进入背包。求总价值最大值。
+
+这个问题可以拆分成两个子问题——如何选择物品？按照什么时间顺序来取？后者容易回答，因为如果确定了选择的物品集合，那么`∑tree[i].a`是固定的，我们只希望每天的损失尽可能小，于是容器想到贪心策略，也就是先取`tree[i].b`最大的物品。基于此，我们为原先的物品按照`tree[i].b`降序排序。这样选出来的物品序列一定满足第二个问题，于是第一个问题转化为在排序物品序列上的0/1背包问题。其中背包容量为`j`、物品体积为`1`。
+
+令`dp[i][j]`表示给定前`i`个物品、选出其中`j`个物品、且第`j`个选出的物品是在第`j`天选出的总价值最大值。**这里我们要注意：`dp[i][j]`不能解释为给定前`i`个物品，给定容量为`j`的背包的总价值最大值，这会导致出现`j > i`的情况，从而：（1）物品`i`不一定是在第`j`天取得的，使得价值表达式`tree[i].a - (j - 1) * tree[i].b`不成立；（2）不选第`i`个物品时，`dp[i - 1][j]`无法转移到`dp[i][j]`**。
+
+然后考虑如何输出答案。你可能注意到了`n`与`m`的大小关系并不固定，所以可能草率地输出`dp[n][std::min(n, m)]`，然而这样是错误的。**由于本题的特殊性质，我们当然希望获取的物品越多越好，再不济物品的价值最低也是`0`。然而，我们的DP是给物品排过序的。以`tree[]={{10, 10}, {100, 50}}`这两个物品为例，排序后顺序不变，如果只选一个，那么显然选择第二个物品可以获得最高价值`100`，但是如果选择两个物品，那么第二个物品就只能在第二天选，价值为`10 + 50 = 60`**。在本题中，`dp[][j]`中的`j`不仅表示着选择的物品数量，还表示物品的选择顺序。**因此，我们要输出的是`std::max(dp[n][1->std::min(n, m)])`**
+
+```c++
+const int Q_MAX = 10, N_MAX = 1e3, M_MAX = 1e3, A_MAX = 1e5, B_MAX = 1e3;
+int n, m; struct Tree { int a, b; } tree[1 + N_MAX]; int dp[1 + N_MAX][1 + M_MAX], ans;
+int main() {
+    while((std::cin >> n >> m) && !(n == 0 && m == 0)) {
+        for(int i = 1; i <= n; ++i) { std::cin >> tree[i].a; }
+        for(int i = 1; i <= n; ++i) { std::cin >> tree[i].b; }
+        std::sort(tree + 1, tree + n + 1, [](const Tree &lhs, const Tree &rhs){ return lhs.b > rhs.b; });
+
+        std::fill((&dp[0][0]), &(dp[N_MAX][M_MAX]) + 1, 0);
+        for(int i = 1; i <= n ; ++i) {
+            for(int j = 1; j <= m; ++j) {
+                dp[i][j] = std::max(dp[i - 1][j], dp[i - 1][j - 1] + std::max(0, tree[i].a - (j - 1) * tree[i].b));
+            }
+        }
+
+        ans = 0;
+        for(int i = 1; i <= std::min(n, m); ++i) { ans = std::max(ans, dp[n][i]); }
+        std::cout << ans << '\n';
+    }
 }
 ```
 
@@ -4209,6 +4242,41 @@ int main() {
 }
 ```
 
+> [洛谷P2188](https://www.luogu.com.cn/problem/P2188)：求`1 <= [l, r] <= 1e18`内有多少十进制数字，满足任意两个相邻位的数字之差的绝对值`<=k`。
+
+与[洛谷P2657](https://www.luogu.com.cn/problem/P2657)非常类似。本处省略解析。
+
+```c++
+const int64_t L_MAX = 1e18, R_MAX = 1e18, K_MAX = 8, DIGIT_LOG10_MAX = 18, INF = 1e18;
+int64_t l, r; int k, digit[1 + DIGIT_LOG10_MAX + 1], digit_len;
+int64_t dp[1 + DIGIT_LOG10_MAX + 1][11][2][2];
+int64_t dfs(int digit[], int pos, int pre, bool zero, bool free) {
+    if(dp[pos][pre][zero][free] != -INF) { return dp[pos][pre][zero][free]; }
+    if(pos == 0) { return dp[pos][pre][zero][free] = 1; }
+    int64_t ans = 0, i_min = (zero ? 1 : 0), i_max = (free ? 9 : digit[pos]);
+    for(int i = i_min; i <= i_max; ++i) {
+        if(pre == 10 || std::abs(i - pre) <= k) {
+            ans += dfs(digit, pos - 1, i, false, free || i < i_max);
+        }
+    }
+    return dp[pos][pre][zero][free] = ans;
+}
+int64_t solve(int64_t x) {
+    if(x == 0) { return 0; }
+    digit_len = 0; std::fill(&(dp[0][0][0][0]), &(dp[DIGIT_LOG10_MAX + 1][10][true][true]) + 1, -INF);
+    while(x > 0) { digit[++digit_len] = x % 10; x /= 10; }
+    int64_t ans = 0;
+    for(int i = 1; i <= digit_len; ++i) {
+        ans += dfs(digit, i, 10, true, i < digit_len);
+    }
+    return ans;
+}
+int main() {
+    std::cin >> l >> r >> k;
+    std::cout << solve(r) - solve(l - 1);
+}
+```
+
 > [洛谷P4124](https://www.luogu.com.cn/problem/P4124)：给定$\mathbb{N}^+$上的闭区间`[l, r]`，求其中的十进制长度恰好为`11`的、至少有`3`个相邻数字相同的、`4`和`8`不能同时出现的正整数数量。数据保证`l, r`的长度均为`11`。
 
 在DFS中额外维护当前位`i`与之前数码构成的连续长度`seq`与历史最大长度`seq_max`、维护`4`和`8`是否出现过的`exist4`和`exist8`。
@@ -5128,6 +5196,55 @@ int main() {
         }
     }
     ans = (ans + n) % MOD;
+    std::cout << ans;
+}
+```
+
+### §2.5.8 伪状压计数
+
+> [洛谷P2051](https://www.luogu.com.cn/problem/P2051)：给定一个`n×m<=100×100`的格子棋盘，每个格子都可以放置一个中国象棋的炮，于是棋盘总共有$2^{nm}$种状态。求其中有多少个状态，使得不存在任何两个棋子能互相攻击。
+
+中国象棋的炮能隔子打子，容易发现本题条件等价于任意行与列的棋子数量都必须`<=2`。令`dp[i:1->n][j:1->m][k:1->m]`表示给定前`i`行、已经有`j`列不包含任何棋子、有`k`列仅包含一个棋子、有`m-j-k`列仅包含两个棋子的合法拜访方式总数。于是有状态转移方程：
+
+$$
+\mathrm{dp}[i][j][k] = \sum\begin{cases}
+	\mathrm{dp}[i - 1][j][k] & 第i行含有0个棋子 \\
+	\mathrm{dp}[i - 1][j + 1][k - 1] \times C_{j+1}^{1} & 第i行含有1个棋子,摆放在j \\
+	\mathrm{dp}[i - 1][j][k + 1] \times C_{k+1}^{1} & 第i行含有1个棋子,摆放在k \\
+	\mathrm{dp}[i - 1][j + 2][k - 2] \times C_{j+2}^{2} & 第i行含有2个棋子,摆放在jj \\
+	\mathrm{dp}[i - 1][j + 1][k] \times C_{j+1}^{1} \times C_{k}^{1} & 第i行含有2个棋子,摆放在jk \\
+	\mathrm{dp}[i - 1][j][k + 2] \times C_{k+2}^{2} & 第i行含有2个棋子,摆放在kk \\
+\end{cases}
+$$
+
+初始值`dp[0][m][0] = 1`，其余`dp[0][*][*] = 0`。这里我们使用的是填表法，要防止数组越界。
+
+```c++
+const int N_MAX = 100, M_MAX = 100; const int64_t MOD = 9999973;
+int n, m; int64_t C[M_MAX + 1][M_MAX + 1], dp[N_MAX + 1][M_MAX + 1][M_MAX + 1], ans;
+int main() {
+    std::cin >> n >> m;
+    for(int i = 0; i <= std::max(n, m); ++i) {
+        C[i][0] = C[i][i] = 1;
+        for(int j = 1; j < i; ++j) {
+            C[i][j] = (C[i - 1][j] + C[i - 1][j - 1]) % MOD;
+        }
+    }
+
+    dp[0][m][0] = 1;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 0; j <= m; ++j) {
+            for(int k = 0; k <= m - j; ++k) {
+                dp[i][j][k] += dp[i - 1][j][k]; dp[i][j][k] %= MOD;
+                dp[i][j][k] += k >= 1 ? dp[i - 1][j + 1][k - 1] * C[j + 1][1] : 0; dp[i][j][k] %= MOD;
+                dp[i][j][k] += j + k + 1 <= m ? dp[i - 1][j][k + 1] * C[k + 1][1] : 0; dp[i][j][k] %= MOD;
+                dp[i][j][k] += k >= 2 ? dp[i - 1][j + 2][k - 2] * C[j + 2][2] : 0; dp[i][j][k] %= MOD;
+                dp[i][j][k] += j + 1 + k <= m ? dp[i - 1][j + 1][k] * C[j + 1][1] * C[k][1] : 0; dp[i][j][k] %= MOD;
+                dp[i][j][k] += j + k + 2 <= m ? dp[i - 1][j][k + 2] * C[k + 2][2] : 0; dp[i][j][k] %= MOD;
+            }
+        }
+    }
+    for(int j = 0; j <= m; ++j) { for(int k = 0; k <= m - j; ++k) { ans += dp[n][j][k]; ans %= MOD; } }
     std::cout << ans;
 }
 ```
@@ -9307,6 +9424,89 @@ int main() {
     dfs(1, n, 0);
     for(int i = 1; i <= n; ++i) { if(ans < dp[0][i]) { ans = dp[0][i]; ans_i = i; } }
     std::cout << ans_i;
+}
+```
+
+> [洛谷P2101](https://www.luogu.com.cn/problem/P2101)：平地上有`n<=5e3`个高度分别为`h[i:1->n]<=1e9`的方柱。现在需要为它的正面的每一个格子都刷上漆。每次刷漆选择两个位于同一条横线/竖线的格子作为起点和终点（可以是同一个格子），刷满这个宽度为`1`的闭区间。求最小刷漆次数。
+
+把玩一下本题，我们容易发现以下引理：
+
+```
+例: 给定h[] = {4, 4, 2, 3, 3}
+
+	□□
+	□□ □□
+	■■■■■
+```
+
+1. 引理一：如果存在一种最佳刷漆方案，不包含横刷，只包含竖刷，则答案为`n`，表示`n`个方柱都竖刷一遍。
+2. 引理二：如果存在一种最佳刷漆方案A，包含横刷，则一定存在另一种最佳刷漆方案B，使得所有横刷一定会贪婪的向左/右延伸到极限。这是显然成立的，我们希望通过一次横刷覆盖的格子越多越好，而且还不会增加刷漆次数，所以仍然为最佳刷漆方案。
+3. 引理三：如果存在一种最佳刷漆方案A，包含横刷，则一定存在另一种最佳刷漆方案C，包含一次贯穿最底层横条的横刷。**这里的贯穿指的是覆盖从最左到最右的区间`[1, n]`，下文同理**。使用反证法，如果不存在这样的刷漆，则考虑最底层的横条中的所有格子：
+	- 不包含横刷：这意味着只包含竖刷，那么这次横刷就是浪费次数，不是最佳方案，与假设矛盾。
+	- 包含横刷：根据引理二，一定存在一种最佳刷漆方案C，可以让这次横刷贪婪地贯穿底层横条，所以存在这样的刷漆，与假设矛盾。
+- 引理四：如果存在一种最佳刷漆方案C，包含`h`次高度为`1->h`的、贯穿横条的横刷，如果`h+1`也能横穿`[1, n]`的话，则一定存在另一种最佳刷漆方案D，在C的基础上还包含一次高度为`h+1`的、贯穿横条的横刷。使用反证法，我们将`<=h`的部分拦腰砍掉，单独考虑第`h+1`行上各个格子的刷漆情况：
+	- 不包含横刷：说明仅包含竖刷，那么之前的`h`次横刷就没有必要，笔试最佳方案，与假设矛盾。
+	- 包含横刷：根据引理三，一定存在另一种最佳刷漆方案D，包含一次贯穿当前最底层横条（也就是`h+1`层）的横刷，与假设矛盾。
+- 引理五：由引理三与引理四可知，如果存在一种最佳刷漆方案A，包含横刷，则一定存在`min(h[1->n])`次贯穿高度为`1->h`的横层的横刷。这会使得尚未刷漆的部分分裂成两个互不连通的部分。
+
+于是，我们可以对当前方柱排列`h[l->r]`做如下操作：
+1. 假设任意最佳刷漆方案，都不包含横刷，则答案为`r - l + 1`。
+2. 假设存在最佳刷漆方案，包含横刷，则横刷`min(h[l->r])`次，**拆成两个部分，分别执行以上步骤**，最后将这三个部分的刷漆次数加起来得到答案。
+
+取两种假设情况的最小值即可。为了快速查询区间最小值及其位置，我们用线段树来维护RMQ查询。时间复杂度为$O(n\log_2{n})$。
+
+```c++
+const int N_MAX = 5e3, H_MAX = 1e9, INF = 2e9;
+int n, h[1 + N_MAX];
+
+struct SegTree { int l, r, v_min, v_min_i; } segtree[1 + N_MAX * 4];
+inline void segtree_pushup(const int &root) {
+    const SegTree &segtree_l = segtree[root * 2], &segtree_r = segtree[root * 2 + 1];
+    segtree[root].v_min = std::min(segtree_l.v_min, segtree_r.v_min);
+    segtree[root].v_min_i = (segtree_l.v_min <= segtree_r.v_min ? segtree_l.v_min_i : segtree_r.v_min_i);
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { segtree[root].v_min = h[l]; segtree[root].v_min_i = l; return; }
+    int m = (l + r) / 2; segtree_init(root * 2, l, m); segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+SegTree segtree_query_range_min(const int root, const int &l, const int &r) {
+    if(l <= segtree[root].l && segtree[root].r <= r) { return segtree[root]; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    SegTree query {.l = std::max(l, segtree[root].l), .r = std::min(r, segtree[root].r), .v_min = INF, .v_min_i = -1};
+    if(l <= m) {
+        SegTree query_l = segtree_query_range_min(root * 2, l, r);
+        if(query.v_min > query_l.v_min) {
+            query.v_min = query_l.v_min; 
+            query.v_min_i = query_l.v_min_i;
+        }
+    }
+    if(r > m) {
+        SegTree query_r = segtree_query_range_min(root * 2 + 1, l, r);
+        if(query.v_min > query_r.v_min) {
+            query.v_min = query_r.v_min; 
+            query.v_min_i = query_r.v_min_i;
+        }
+    }
+    return query;
+}
+
+int dfs(const int l, const int r, const int h_cut) {
+    if(l > r) { return 0; }
+    SegTree segtree_q = segtree_query_range_min(1, l, r);
+    int ans = 0;
+    ans += segtree_q.v_min - h_cut;
+    ans += dfs(l, segtree_q.v_min_i - 1, segtree_q.v_min);
+    ans += dfs(segtree_q.v_min_i + 1, r, segtree_q.v_min);
+    return std::min(r - l + 1, ans);
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> h[i]; }
+    segtree_init(1, 1, n);
+    
+    std::cout << dfs(1, n, 0);
 }
 ```
 
