@@ -22548,6 +22548,14 @@ $$
 $$
 
 ```c++
+template<typename T> inline T fast_pow(T a, int64_t b) { T ans = 1; for(; b > 0; a = a * a, b /= 2) { if(b % 2) { ans = ans * a; } } return ans; }
+template<typename T> inline T fast_pow(T a, int64_t b, const int64_t &p) { T ans = 1; for(a = a % p; b > 0; a = (a * a) % p, b /= 2) { if(b % 2) { ans = (ans * a) % p; } } return ans; }
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+inline int64_t inv_mod(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
 const int N_MAX = 1e2, T_MAX = 1e2, M_MAX = N_MAX; const int64_t MOD = 1e9 + 7;
 int n, t, m; char s1[1 + N_MAX + 1], s2[1 + N_MAX + 1], s[1 + N_MAX + 1]; int s_same, s_diff;
 int64_t C[1 + N_MAX][1 + N_MAX], dp[1 + T_MAX][1 + N_MAX];
@@ -22582,6 +22590,14 @@ $$
 $$
 
 ```c++
+template<typename T> inline T fast_pow(T a, int64_t b) { T ans = 1; for(; b > 0; a = a * a, b /= 2) { if(b % 2) { ans = ans * a; } } return ans; }
+template<typename T> inline T fast_pow(T a, int64_t b, const int64_t &p) { T ans = 1; for(a = a % p; b > 0; a = (a * a) % p, b /= 2) { if(b % 2) { ans = (ans * a) % p; } } return ans; }
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+inline int64_t inv_mod(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
 const int N_MAX = 1e2, T_MAX = 1e2, M_MAX = N_MAX; const int64_t MOD = 1e9 + 7;
 int n, t, m; char s1[1 + N_MAX + 1], s2[1 + N_MAX + 1], s[1 + N_MAX + 1]; int s_same, s_diff;
 int64_t C[1 + N_MAX][1 + N_MAX], dp[1 + T_MAX][1 + N_MAX];
@@ -22616,6 +22632,14 @@ $$
 $$
 
 ```c++
+template<typename T> inline T fast_pow(T a, int64_t b) { T ans = 1; for(; b > 0; a = a * a, b /= 2) { if(b % 2) { ans = ans * a; } } return ans; }
+template<typename T> inline T fast_pow(T a, int64_t b, const int64_t &p) { T ans = 1; for(a = a % p; b > 0; a = (a * a) % p, b /= 2) { if(b % 2) { ans = (ans * a) % p; } } return ans; }
+int64_t frac_mod(int64_t a, int64_t b, int64_t p) { return ((a % p) * fast_pow(b, p - 2, p)) % p; }
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+inline int64_t inv_mod(const int64_t a, const int64_t p) { return fast_pow(a, p - 2, p); }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
 const int N_MAX = 1e2, T_MAX = 1e2, M_MAX = N_MAX; const int64_t MOD = 1e9 + 7;
 int n, t, m; char s1[1 + N_MAX + 1], s2[1 + N_MAX + 1], s[1 + N_MAX + 1]; int s_same, s_diff;
 int64_t C[1 + N_MAX][1 + N_MAX], dp[1 + T_MAX][1 + N_MAX];
