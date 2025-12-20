@@ -4197,6 +4197,36 @@ int main() {
 }
 ```
 
+> [洛谷P1239](https://www.luogu.com.cn/problem/P1239)：求`[1, n<=1e9]`内的所有正整数的十进制形式中，`0`~`9`这十个数码分别出现了多少次。
+
+[洛谷P2602](https://www.luogu.com.cn/problem/P2602)的数据弱化版。本题解改善了代码风格。
+
+```c++
+const int64_t N_MAX = 1e9; const int N_DEC_LEN_MAX = 10;
+int64_t n; int n_dec[1 + N_DEC_LEN_MAX], n_dec_len;
+int64_t dp[1 + N_DEC_LEN_MAX][1 + N_DEC_LEN_MAX][2][2], ans[10];
+int64_t dfs(int target, int pos, int target_cnt, bool zero, bool free) {
+    if(pos == 0) { return dp[pos][target_cnt][zero][free] = target_cnt; }
+    if(dp[pos][target_cnt][zero][free] != -1) { return dp[pos][target_cnt][zero][free]; }
+    int64_t ans = 0; int i_min = zero ? 1 : 0, i_max = free ? 9 : n_dec[pos];
+    for(int i = i_min; i <= i_max; ++i) {
+        ans += dfs(target, pos - 1, target_cnt + (i == target), false, free || i < i_max);
+    }
+    if(zero) { ans += dfs(target, pos - 1, target_cnt, true, true); }
+    return dp[pos][target_cnt][zero][free] = ans;
+}
+int main() {
+    std::cin >> n;
+    for(int64_t n_temp = n; n_temp > 0; n_temp /= 10) { n_dec[++n_dec_len] = n_temp % 10; }
+
+    for(int i = 0; i <= 9; ++i) {
+        std::fill(&(dp[0][0][0][0]), &(dp[N_DEC_LEN_MAX][N_DEC_LEN_MAX][true][true]) + 1, -1);
+        ans[i] = dfs(i, n_dec_len, 0, true, false);
+        std::cout << ans[i] << '\n';
+    }
+}
+```
+
 > [洛谷P2657](https://www.luogu.com.cn/problem/P2657)：给定$\mathbb{N}^+$上的闭区间`[a, b]`，求其中不含前导零且相邻两个数字之差至少为`2`的正整数个数。
 
 本题可以使用记忆化搜索。具体来说，我们对`[1, x]`中的数，按照十进制长度`digit_tmp_len`划分成`digit_tmp_len`种情况分类讨论。`dfs()`中的`pos`表示从高位向低位遍历，遍历到了从低位开始数的第`pos`位；`pre`表示上一个数码（特殊地，令`pre==10`表示什么也没选，甚至不是前导`0`）；`is_limit`表示前面的`[pos+1, digit_tmp_len]`数位是否与`x`保持一致；`has_prefix0`表示是否有前导`0`。本题添加了“相邻数字之差”的限制条件。这说明我们在`dfs()`要传递上一位选的数`pre`。
@@ -4429,6 +4459,90 @@ bool check(char s[]) { // 是否包含长度>=2的回文子串
 int main() {
     std::cin >> s_l >> s_r;
     std::cout << ((solve(s_r) - solve(s_l) + check(s_l)) % MOD + MOD) % MOD;  
+}
+```
+
+> [洛谷P3286](https://www.luogu.com.cn/problem/P3286)：定义$f(x,\mathrm{base})$：给定`x<=1e15`，将`x`转换成`base`进制下的、长度为`x_base_len`的、经过逆序处理的字符串`x_base[1->x_base_len]`，选择其中一个数码下标作为轴`to`，计算其它数码下标到`to`的具体，乘以其它数码本身的数字，将得到的乘积累加起来，能取得的最小值就是**代价**，也就是$f(x,\mathrm{base})$，可以形式化地表示为$f(x,\mathrm{base}) = \displaystyle\min_{\forall \mathrm{to}\in[1, \mathrm{x\_base\_len}]}\left( \sum_{i=1}^{\mathrm{x\_base\_len}} \mathrm{x\_base}[i] \times |i - \mathrm{to}| \right)$。例如计算$f(12321, 10)$，显然以`to = 3`为轴，可以得到所求的最小值$1\times 2 + 2 \times 1 + 3\times 0 + 2 + \times 1 + 1 \times 2 = 8$。给定`l,r<=1e15`与`2<=base<=20`，求$\displaystyle\sum_{x=l}^{r}f(x, \mathrm{base})$。
+
+本题的思路是：先通过`dfs_1()`求出`to = 1`时的答案，再通过`dfs_2()`不断地尝试从`to`转移到`to + 1`来**降低代价**。
+
+`dfs_1()`很好写，就是一个普通的数位DP，统计`[l, r]`内所有数字到最低位（`to = 1`）的代价之和。其中`sum`表示前面的`n_base[pos+1->n_base_len]`位置上的数码造成的代价之和。
+
+```c++
+int64_t dfs_1(int n_base[], int pos, int sum, bool zero, bool free) { // 求出所有数位之和
+    if(pos == 0) { return dp[pos][sum][zero][free] = sum; }
+    if(dp[pos][sum][zero][free] != -1) { return dp[pos][sum][zero][free]; }
+    int64_t ans = 0;
+    for(int i = (zero ? 1 : 0); i <= (free ? base - 1 : n_base[pos]); ++i) {
+        ans += dfs_1(n_base, pos - 1, sum + i * (pos - 1), false, free || i < n_base[pos]);
+    }
+    if(zero) { ans += dfs_1(n_base, pos - 1, sum, true, true); }
+    return dp[pos][sum][zero][free] = ans;
+}
+```
+
+这里需要注意DP数组开多大空间：
+- DP的第一维`pos`：显然当`base = 2`时，转换得到的字符串长度$f_1(x, \mathrm{base}) = \lceil\log_{base}{x + 1}\rceil$最大，带入`N_MAX = 1e15`得到$\mathrm{N\_BASE\_LEN\_MAX} = \mathrm{N\_BASE2\_LEN\_MAX} = f_1(10^{15}, 2) = 50$。
+- DP的第二位`sum`：每个数位的最大值为`base - 1`，于是单个数字`x`的最大代价为$f_2(x,\mathrm{base}) = \displaystyle\sum_{i\in[1, f_1(x,\mathrm{base})]}|\mathrm{x\_base}[i] \times |i-1|| \overset{等差数列求和}{=} (\mathrm{base - 1}) \times \frac{f_1(x,\mathrm{base} \cdot (f_1(x,\mathrm{base}) - 1))}{2}$。我们只需求出$\displaystyle\max_{\mathrm{base}\in[2, 20]}{f_2(10^{15}, \mathrm{base})} = 1254$，这个最优化函数并不是随`base`单调变化的，因此需要打表才能求出。
+
+然后考虑`dfs_2()`，它表示从`to-1 -> to`的过程中最多能减少多少`[l, r]`中每个数字的代价之和。注意到满足`pos>=to`的数码，都会因为`to-1->to`而距离`to`更近了，于是这一部分的代价会减少$\displaystyle\sum_{i=\mathrm{to}}^{\mathrm{n\_base\_len}}\mathrm{n\_base}[i]$；满足`pos<to`的数码，都会因为`to-1->to`而距离`to`更远了，于是这一部分的代价会增加$\displaystyle\sum_{i=1}^{\mathrm{to}-1}\mathrm{n\_base}[i]$。因此总代价会减少$g(\mathrm{to}) = \displaystyle\sum_{i=\mathrm{to}}^{\mathrm{n\_base\_len}}\mathrm{n\_base}[i] - \displaystyle\sum_{i=1}^{\mathrm{to}-1}\mathrm{n\_base}[i]$。注意到$g(\mathrm{to})$是单峰函数，随着`to`的增加会先增加后减少。**当$g(\mathrm{to}) < 0$时，将`to - 1 -> to`已经无法减少代价，因此这时我们直接返回`0`，用这种方式来表示对于`[l, r]`中使得`g(to)`最后一次大于等于`0`的数字`x`对应的最优解`to`，并且之后返回`0`，表示一直停留在最优解**。同理，由于这是一个单峰函数，因此当我们第一次检测到`sum_delta < 0`时，说明随着`pos`减小，`sum_delta`也会一直减小，从而永远`< 0`，因此没有计算的必要了，可以提前剪枝。
+
+```c++
+int64_t dfs_2(int n_base[], int to, int pos, int sum_delta, bool zero, bool free) {
+    if(sum_delta < 0) { return 0; } // 从第to-1位移动到第to位无法减少代价,直接判定为非法,也能防止数组越界
+    if(pos == 0) { return dp[pos][sum_delta][zero][free] = sum_delta; }
+    if(dp[pos][sum_delta][zero][free] != -1) { return dp[pos][sum_delta][zero][free]; }
+    int64_t ans = 0;
+    for(int i = (zero ? 1 : 0); i <= (free ? base - 1 : n_base[pos]); ++i) {
+        ans += dfs_2(n_base, to, pos - 1, sum_delta + (pos >= to ? i : -i), false, free || i < n_base[pos]);    
+    }
+    if(zero) { ans += dfs_2(n_base, to, pos - 1, sum_delta, true, true); }
+    return dp[pos][sum_delta][zero][free] = ans;
+}
+```
+
+合在一起就能得到最终代码。注意每次调用`dfs_1()`或`dfs_2()`前都要清空`dp`数组。
+
+```c++
+const int64_t N_MAX = 1e15; const int N_BASE2_LEN_MAX = 49 + 1, N_BASE_LEN_MAX = N_BASE2_LEN_MAX; // f_1(base) = ceil(log(base, N_MAX + 1))
+const int BASE_MAX = 20, N_BASE_SUM_MAX = 1254; // max(base:2->20, (base-1) * (f_1(base) * (f_1(base) - 1) / 2))
+int64_t l, r; int base, n_base[1 + N_BASE_LEN_MAX], n_base_len;
+int64_t dp[1 + N_BASE_LEN_MAX][1 + N_BASE_SUM_MAX][2][2];
+int64_t dfs_1(int n_base[], int pos, int sum, bool zero, bool free) { // 求出所有数位之和
+    if(pos == 0) { return dp[pos][sum][zero][free] = sum; }
+    if(dp[pos][sum][zero][free] != -1) { return dp[pos][sum][zero][free]; }
+    int64_t ans = 0;
+    for(int i = (zero ? 1 : 0); i <= (free ? base - 1 : n_base[pos]); ++i) {
+        ans += dfs_1(n_base, pos - 1, sum + i * (pos - 1), false, free || i < n_base[pos]);
+    }
+    if(zero) { ans += dfs_1(n_base, pos - 1, sum, true, true) ; }
+    return dp[pos][sum][zero][free] = ans;
+}
+int64_t dfs_2(int n_base[], int to, int pos, int sum_delta, bool zero, bool free) {
+    if(sum_delta < 0) { return 0; } // 从第to-1位移动到第to位无法减少代价,直接判定为非法,也能防止数组越界
+    if(pos == 0) { return dp[pos][sum_delta][zero][free] = sum_delta; }
+    if(dp[pos][sum_delta][zero][free] != -1) { return dp[pos][sum_delta][zero][free]; }
+    int64_t ans = 0;
+    for(int i = (zero ? 1 : 0); i <= (free ? base - 1 : n_base[pos]); ++i) {
+        ans += dfs_2(n_base, to, pos - 1, sum_delta + (pos >= to ? i : -i), false, free || i < n_base[pos]);    
+    }
+    if(zero) { ans += dfs_2(n_base, to, pos - 1, sum_delta, true, true); }
+    return dp[pos][sum_delta][zero][free] = ans;
+}
+int64_t solve(int64_t n, int base) {
+    if(n == 0) { return 0; }
+    n_base_len = 0; for(int64_t n_temp = n; n_temp > 0; n_temp /= base) { n_base[++n_base_len] = n_temp % base; }
+    int64_t ans = 0;
+    for(int to = 1; to <= n_base_len; ++to) {
+        std::fill(&(dp[0][0][false][false]), &(dp[N_BASE_LEN_MAX][N_BASE_SUM_MAX][true][true]) + 1, -1);
+        if(to == 1) { ans += dfs_1(n_base, n_base_len, 0, true, false); }
+        if(to >= 2) { ans -= dfs_2(n_base, to, n_base_len, 0, true, false); }
+    }
+    return ans;
+}
+int main() {
+    std::cin >> l >> r >> base;
+    std::cout << solve(r, base) - solve(l - 1, base);
 }
 ```
 
@@ -8449,8 +8563,99 @@ $$
 
 均解得$a_ib_i\ge a_{i+1}b_{i+1}$。反过来就是序列满足$a_ib_i\le a_{i+1}b_{i+1}$时取得最优解。
 
+#### §3.3.2.4 拆分子问题
 
+这种方法的思路是：确定最佳操作方式中必然存在的一个步骤，考虑执行这个步骤之后的子问题，对子问题进行如法炮制的分析。
 
+> [洛谷P1031](https://www.luogu.com.cn/problem/P1031)：给定`n`个人排成一**行**，每个人初始时持有`a[i]`个苹果，数据保证苹果之和恰好为人数的倍数，记为`a_avg = ∑a[i] / n`。给定以下两个子问题：
+> （1）每回合只能让左右相邻的两个人传递一个苹果；
+> （2）每回合只能让左右相邻的两个人传递任意个苹果；
+> 求最少经过多少回合，才能让每个人均持有`a_avg`个苹果？只需输出（2）的答案即可。
+
+先看（1）的答案。首先考虑`a[1->n]`中最左侧的第`1`个人，他手里初始时持有`a[i]`个苹果，如果最后要变成`a_avg`个，必须经过`std::abs(a[1] - a_avg)`个回合，将手里多的/缺的苹果通过若干次传递来送出去/补回来，也就是说这`std::abs(a[1] - a_avg)`个回合是必须花费的。花费之后，问题转换为`a[2->n]`中最左侧的第`2`个人，也必定需要以上步骤才能把自己的苹果数量转变为`a_avg`。依此类次，递推贪心，将每次交换的次数累加得到`ans_1`即可，时间复杂度为$O(n)$。
+
+再看（2）的答案，显然只需要判定是否需要交换即可，每次交换为答案`ans_2`自增加`1`。
+
+```c++
+const int N_MAX = 100, A_MAX = 10000;
+int n, a[1 + N_MAX], a_sum, a_avg, ans_1, ans_2;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_sum += a[i]; }
+    a_avg = a_sum / n;
+
+    for(int i = 1; i < n; ++i) {
+        ans_1 += (a[i] != a_avg);
+        ans_2 += std::abs(a[i] - a_avg);
+        a[i + 1] += a[i] - a_avg;
+    }
+    std::cout << ans_1;
+}
+```
+
+> [洛谷P2512](https://www.luogu.com.cn/problem/P2512)：给定`n<=1e6`个人排成一**圈**，每个人初始时持有`a[i]`个苹果，数据保证苹果之和恰好为人数的倍数，记为`a_avg = ∑a[i] / n`。每回合只能让左右相邻的两个人传递一个苹果，求最少经过多少回合，才能让每个人均持有`a_avg`个苹果？
+
+在[洛谷P1031](https://www.luogu.com.cn/problem/P1031)中，我们讨论了`n`个人排成一**行**的情景。在本题中，我们需要使用更普适的方法来解决一**圈**的问题。令$x_i$表示第`i`个人向第`i+1`个人传递的苹果数量，特殊地，如果值为负，则表示第`i+1`个人向第`i`个人传递苹果。由于苹果的总数保持不变，因此$\displaystyle\sum_{i=1}^{n}x_i = 0$，且存在以下等式成立：
+
+$$
+\begin{aligned}
+	& a_i - x_{i-1} + x_i = a_{\mathrm{a\_avg}} \\
+	& \left( \begin{cases}
+		a_{1} + x_{n} - x_{1} = a_{\mathrm{avg}} \\
+		a_{2} + x_{1} - x_{2} = a_{\mathrm{avg}} \\
+		a_{3} + x_{2} - x_{3} = a_{\mathrm{avg}} \\
+		\cdots \\
+		a_{n-1} + x_{n-2} - x_{n-1} = a_{\mathrm{avg}} \\
+		a_{n} + x_{n-1} - x_{n} = a_{\mathrm{avg}} \\
+	\end{cases} \right)
+\end{aligned}
+\Longleftrightarrow
+\begin{aligned}
+	& x_{i} = x_{i-1} + a_\mathrm{avg} - a_{i} \\
+	& \left( \begin{cases}
+		x_{1} = x_{n} + a_\mathrm{avg} - a_{1} \\
+		x_{2} = x_{1} + a_\mathrm{avg} - a_{2} \\
+		x_{3} = x_{2} + a_\mathrm{avg} - a_{3} \\
+		\cdots \\
+		x_{n-1} = x_{n-2} + a_\mathrm{avg} - a_{n-1} \\
+		x_{n} = x_{n-1} + a_\mathrm{avg} - a_{n} \\
+	\end{cases} \right)
+\end{aligned}
+\Longleftrightarrow
+\begin{aligned}
+	x_{i} & = x_{i-1} + (a_\mathrm{avg} - a_i) \\
+	& = x_{i-2} + (a_\mathrm{avg} - a_{i-1}) + (a_{\mathrm{avg}} - a_i) \\
+	& = x_{i-3} + (a_\mathrm{avg} - a_{i-2}) + (a_\mathrm{avg} - a_{i-1}) + (a_{\mathrm{avg}} - a_i) \\
+	& \cdots \\
+	& = x_{1} + \textcolor{red}{\sum_{j=2}^{i}(a_{\mathrm{avg}} - a_j)} \\ 
+	& = x_{1} - \textcolor{red}{\sum_{j=2}^{i}(a_j - a_{\mathrm{avg}})} = x_i - \textcolor{red}{b_i} \\
+\end{aligned}
+$$
+
+而题目所求的表达式为：
+
+$$
+	\min_{\begin{aligned}&x_1, x_2, \cdots, x_n \in \mathbb{Z}\\ &\sum_{i=1}^{n}x_i=0\end{aligned}} \left(\sum_{i=1}^{n}|x_i|\right)
+	= \min_{x_1 \in \mathbb{Z}}\left(\sum_{i=1}^{n}|x_1 - b_i|\right) 
+	= \sum_{i=1}^{n}|x_{1} - b_i| \Bigg|_{x_1 = \{b_i\}_{i=1}^{n}的中位数}
+$$
+
+```c++
+const int N_MAX = 1e6; const int64_t A_MAX = 1.5e9;
+int n; int64_t a[1 + N_MAX], a_sum, a_avg, b[1 + N_MAX], b_mid, ans;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_sum += a[i]; }
+    a_avg = a_sum / n;
+    
+    b[1] = 0; for(int i = 2; i <= n; ++i) { b[i] = b[i - 1] + (a[i] - a_avg); }
+    std::nth_element(b + 1, b + 1 + n / 2, b + n + 1);
+    b_mid = b[1 + n / 2];
+
+    for(int i = 1; i <= n; ++i) { ans += std::abs(b_mid - b[i]); }
+    std::cout << ans;
+}
+```
 
 ### §3.3.3 区间调度问题
 
@@ -8491,10 +8696,6 @@ int main() {
     std::cout << ans;
 }
 ```
-
-> [力扣452](https://leetcode.cn/problems/minimum-number-of-arrows-to-burst-balloons/description/)：给定`n`个闭区间$s_i=[l_i, r_i]$构成的集合$S$，显然必定存在集合$X$，使得$\forall s_i\in S, \exists x_j\in X$，使得$x_j\in s_i$。求$\min{\#(X)}$。
-
-
 
 #### §3.3.3.2 最少区间覆盖问题
 
@@ -8601,6 +8802,30 @@ int main() {
     }
     std::cout << start_temp << ' ' << end_temp << '\n';
 }
+```
+
+> [力扣452](https://leetcode.cn/problems/minimum-number-of-arrows-to-burst-balloons/description/)：给定`n`个闭区间$s_i=[l_i, r_i]$构成的集合$S$，显然必定存在集合$X$，使得$\forall s_i\in S, \exists x_j\in X$，使得$x_j\in s_i$。求$\min{\#(X)}$。
+
+```c++
+class Solution {
+public:
+    int findMinArrowShots(vector<vector<int>>& points) {
+        std::sort(points.begin(), points.end(), [](const vector<int> &lhs, const vector<int> &rhs){
+            return lhs[1] != rhs[1] ? lhs[1] < rhs[1] : lhs[0] < rhs[0];
+        });
+        int ans = 0, r_cur = points[0][1];
+        for(int i = 0; i < points.size();) {
+            ++ans;
+            while(i < points.size() && points[i][0] <= r_cur) {
+                ++i;
+            }
+            if(i < points.size()) {
+                r_cur = points[i][1];
+            }
+        }
+        return ans;
+    }
+};
 ```
 
 #### §3.3.3.3 最大区间重合问题
@@ -11321,6 +11546,81 @@ int main() {
         std::cin >> u_temp >> v_temp;
         std::cout << lca(u_temp, v_temp) << '\n';
     }
+}
+```
+
+## §5.5 基环树
+
+基环树有以下定义方式，它们对应了不同的视角。
+
+- 给任意树额外添加一条边，一定会形成一个环，得到的新图称为**基环树**。
+- 给定任意棵有根子树构成的森林，我们将这些子树的根节点用环来连起来，得到的新图就是**基环树**。
+- 我们知道，含有`n`个点与`n-1`条边的弱连通图为树，那么含有含有`n`个点与`n`条边的弱连通的、含有一个强联通分量的图就是**基环树**。
+
+根据边的有向性，我们可以将基环树分为三类：无向基环树、节点入度均为`1`的外向树、节点出度均为`1`的内向树。
+
+> [洛谷P2607](https://www.luogu.com.cn/problem/P2607)：给定`n`个人，第`i`个人具有价值`v[i]`，并且讨厌第`a[i]`个人。请你从中挑选任意数量的人，来组建一个团队，求价值之和的最大值。
+
+在树中，一个根节点可以对应多个子节点。在本题中，一个人可以被多个人讨厌。因此我们需要反向建图——将“`i`讨厌`j`”表示成有向边`j -> i`。容易发现，这会形成**若干个互不连通**的**外向**基环树。我们只需要将它们的答案加起来就可以了。
+
+如果建成的这个图只是一个树，我们当然可以选择任意一个节点为根，来一波DFS的树形DP，其中`dp[i][0/1]`表示在第`i`个节点对应的子树中，是否选择第`i`个节点对应的最大价值。然而这是基环树，本质上是一个图，因此我们思路就是断环成树：
+
+1. 对于每个基环树，通过`dfs_circle()`来找到在环上相邻的两个节点`circle_1, circle_2`。`dfs_circle(u, root)`内部使用为`vis[]`用于判定`root`节点是否在环上：
+	- 如果仍未找到环，且`root`在环上，则沿外向搜索路径做DFS，一定能在某次搜索`u -> v`中再次遇到环上的`v = root`节点。令`circle_1 = u, circle_2 = root`即可终止。
+	- 如果仍未找到环，且`root`不在环上，则`root`在某个子树分支上，沿外向搜索路径一定会遇到死胡同，从而让答案`circle_1`与`circle_2`一直为`-1`。调用`dfs_circle()`后对答案特判一下即可。
+	- 如果已经找到环，则所有节点一定已经在外向DFS中被访问过，包括这次的`root`，调用`dfs_circle()`之前特判一下，跳过即可。
+2. 给定环上的两点`u, v`，分别以`u`/`v`为根节点，跑一遍树型DP。令`dp[i][0/1]`表示给定根节点后，节点`i`所在子树对应的所有人、符合条件的、选择/不选择第`i`个节点的点权之和最大值。然而这样求得的树型DP会认为`u`和`v`是可以同时选择的，我们不希望包含这种情况。既然以`u`为根时，我们无法判断`dp[u][0/1]`是否包含`v`，那么我们逆向思考，只考虑`dp[u][0]`，这样不选`u`节点，就一定不会造成`u`与`v`同时选的局面。以`v`为根时也同理。单个基环树的最终答案为`std::max(以u为根的dfs得到的dp[u][0], 以v为根的dfs得到的dp[v][0])`。
+3. 最后将所有基环树的最终答案相加即可。
+
+```c++
+const int N_MAX = 1e6, M_MAX = 1e6;
+int n, a[1 + N_MAX]; bool vis[1 + N_MAX]; int64_t v[1 + N_MAX], dp[1 + M_MAX][2], ans;
+
+int edge_first[1 + N_MAX], edge_next[1 + M_MAX], edge_to[1 + M_MAX], m;
+inline void edge_add(const int &u, const int &v) {
+    edge_to[++m] = v;
+    edge_next[m] = edge_first[u];
+    edge_first[u] = m;
+}
+
+int circle_1, circle_2;
+void dfs_circle(int u, int root) {
+    vis[u] = true;
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(v == root) { circle_1 = u; circle_2 = v; continue; }
+        if(vis[v] == true) { continue; }
+        dfs_circle(v, root);
+    }
+}
+int64_t dfs_dp(int u, int root) {
+    dp[u][0] = 0; dp[u][1] = v[u];
+    for(int i = edge_first[u]; i; i = edge_next[i]) {
+        int v = edge_to[i];
+        if(v == root) { continue; }
+        dfs_dp(v, root);
+        dp[u][0] += std::max(dp[v][0], dp[v][1]);
+        dp[u][1] += dp[v][0];
+    }
+    return dp[u][0];
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> v[i] >> a[i]; edge_add(a[i], i); }
+    
+    for(int i = 1; i <= n; ++i) {
+        if(vis[i] == true) { continue; }
+        
+        circle_1 = circle_2 = -1; dfs_circle(i, i);
+        if(circle_1 == -1) { continue; }
+        
+        ans += std::max(
+            dfs_dp(circle_1, circle_1), 
+            dfs_dp(circle_2, circle_2)
+        );
+    }
+    std::cout << ans;
 }
 ```
 
@@ -16377,7 +16677,7 @@ int main() {
 
 > [洛谷P4280](https://www.luogu.com.cn/problem/P4280)：给定长度为`n`的序列`a[]`（`1<=a[i]<=k`或`a[i]==-1`）。当`a[i]==-1`时，说明这个元素是未知的，可以为`[1, k<=100]`中的任意一个正整数。求逆序对数量的最小值。
 
-本题中的逆序对由三部分构成：**第一部分**是已知元素之间构成的逆序对，**第二部分**是已知元素与未知元素构成的逆序对，**第三部分**是位置元素直接构成的逆序对。
+本题中的逆序对由三部分构成：**第一部分**是已知元素之间构成的逆序对，**第二部分**是已知元素与未知元素构成的逆序对，**第三部分**是未知元素直接构成的逆序对。
 
 我们选取`a[1->n]`中的两个"相邻"的未知元素`a[i]`/`a[j]`（`i<j`），它们之间不包含未知元素，只包含`l_2`个已知元素。**令左侧未知元素的左边`l_1`个元素全部固定下来，右侧未知元素的右边`l_3`个元素全部固定下来**。这里的`l_1`、`l_2`、`l_3`均可以为`0`，取决于具体的输入。
 
@@ -23215,6 +23515,116 @@ int main() {
         }
     }
     std::cout << std::fixed << std::setprecision(2) << dp_e[n];
+}
+```
+
+#### §8.2.2.6 生存函数积分
+
+我们知道，期望的定义是$\displaystyle\sum_{x_i\in\Omega}x_i\cdot P(X=x_i)$。事实上，它还有一种等价的计算方式，称为生存函数积分。
+
+$$
+\begin{align}
+	E(X) & = \sum_{x_i\in\Omega}x_i\cdot P(X=x_i) \\
+	& = \sum\begin{cases}
+		1\cdot P(X=1) \\ 
+		2\cdot P(X=2) \\ 
+		3\cdot P(X=3) \\ 
+		\cdots
+	\end{cases}
+	= \sum\begin{cases}
+		P(X=1) \\
+		P(X=2) + P(X=2) \\
+		P(X=3) + P(X=3) + P(X=3) \\
+		\cdots
+	\end{cases} \\
+	& = \sum_{x_i\in\Omega} P(X \ge x_i)
+\end{align}
+$$
+
+该公式的特殊之处在于：我们求期望时并不需要准确地求出$P(X=x_i)$，而是只需要求出$P(X\ge x_i)$即可。在某些情景下，这非常有利于降低计算难度。
+
+> [洛谷P6046](https://www.luogu.com.cn/problem/P6046)：给定`n`个战斗力为`a[i:1->n<=50]`的选手排成一行。每个回合从当前队列中随机取出两个相邻选手，移除掉战斗力较低的选手。经过`n-1`个回合后决出冠军。求这`n`个选手期望存活的回合数，由于答案可能为分数，只需模`MOD`输出即可。
+
+现在只考虑第`i`个选手的期望存活的回合数$E(X_i)$。要求出$P(X_i=j)$的概率是很难的，但是求出$P(X\ge j)$的概率可以通过以下方式：
+
+如果第`i`个选手被淘汰，只能是被左侧/右侧最近一个战斗力恰好大于`a[i]`的选手淘汰。于是我们可以先使用单调栈求出左右两侧符合该条件的选手的位置`l[i]`/`r[i]`。在这`n-1`回合对应的`n-1`次战斗中，如果`[l[i], i]`区间内发生`d_l[i] = i - l[i]`次战斗，或`[i, r[i]]`区间内发生`d_r[i] = r[i] - l`次战斗，那么一定会导致`i`被淘汰。前者记为事件$A$，后者记为事件$B$，我们不希望两者中的任何一个事件发生。根据概率公式$P(A\cup B) = P(A) + P(B) - P(AB)$可得：
+
+$$
+\begin{align}
+	P(X_i \ge j) & = 1 - P(A\cup B) \\
+	& = 1 - P(A) - P(B) + P(AB) \\
+	& = 1 - 
+		\frac{C_{d_l[i]}^{d_l[i]} \cdot C_{n-1-d_l[i]}^{j-d_l[i]}}{C_{n-1}^{j}} - 
+		\frac{C_{d_r[i]}^{d_r[i]} \cdot C_{n-1-d_r[i]}^{j-d_r[i]}}{C_{n-1}^{j}} + 
+		\frac{C_{d_l[i] + d_r[i]}^{d_l[i] + d_r[i]} \cdot C_{n-1-d_l[i]-d_r[i]}^{j-d_l[i]-d_r[i]}}{C_{n-1}^{j}}
+\end{align}
+$$
+
+到了这一步，我们已经可以使用$O(n^2)$的时间复杂度通过本题了。然而我们观察上式，不妨令$f(x) = \displaystyle\sum_{j=0}^{n-1}\frac{C_x^x \cdot C_{n-1-x}^{j-x}}{C_{n-1}^{j}}$，注意到：
+
+$$
+\begin{align}
+	f(x) & = \sum_{j=0}^{n-1}\frac{C_x^x \cdot C_{n-1-x}^{j-x}}{C_{n-1}^{j}} \\
+	& = \sum_{j=0}^{n-1} \frac{j! \cdot (n-1-x)!}{(j-x)!\cdot(n-1)!} \\
+	& = \frac{(n-1-x)!}{(n-1)!} \sum_{j=0}^{n-1} \frac{j!}{(j-x)!} & (提取公因式) \\
+	& = \frac{(n-1-x)!}{(n-1)!} \sum_{j=0}^{n-1} x!\cdot\frac{j!}{(j-x)!\cdot x!} & (凑组合数) \\
+	& = \left(\frac{(n-1-x)!}{(n-1)!} \cdot x!\right) \cdot \sum_{j=0}^{n-1} C_{j}^{x} & (提供公因数) \\
+	& = \left(\frac{1}{C_{n-1}^{x}}\right) \cdot C_{n}^{x+1},x\ge 1 & (凑组合数,朱世杰恒等式) \\
+	& = \begin{cases}\displaystyle\frac{n}{x+1}&,x\ge 1\\n-1 &,x=0\end{cases} & (展开化简)
+\end{align}
+$$
+
+于是：
+
+$$
+\begin{align}
+	E(X_i) & = \sum_{j=0}^{n-1} P(X_i \ge j) \\
+	& = \sum_{j=0}^{n-1}\left( 1 - 
+		\frac{C_{d_l[i]}^{d_l[i]} \cdot C_{n-1-d_l[i]}^{j-d_l[i]}}{C_{n-1}^{j}} - 
+		\frac{C_{d_r[i]}^{d_r[i]} \cdot C_{n-1-d_r[i]}^{j-d_r[i]}}{C_{n-1}^{j}} + 
+		\frac{C_{d_l[i] + d_r[i]}^{d_l[i] + d_r[i]} \cdot C_{n-1-d_l[i]-d_r[i]}^{j-d_l[i]-d_r[i]}}{C_{n-1}^{j}} \right) \\
+	& = f(0) + f(d_l[i]) + f(d_r[i]) + f(d_l[i] + d_r[i]) \\
+	& = n -1 + \frac{n}{d_l[i] + 1} + \frac{n}{d_r[i] + 1} + \frac{n}{d_l[i] + d_r[i] + 1}
+	
+\end{align}
+$$
+
+特殊地，当`d_l[i] == 0`或`d_r[i] == 0`时，说明事件A或时间B发生的概率为`0`，需要特判一下。这样，时间复杂度降低到了$O(n)$，通过本题的$n\le 50$绰绰有余。
+
+```c++
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return ((x % p) * (y % p)) % p; }
+
+const int N_MAX = 50; const int64_t MOD = 998244353;
+int n, inv[1 + N_MAX], a[1 + N_MAX];
+int stack[1 + N_MAX], stack_i[1 + N_MAX], stack_top; // (o, stack_top]
+int l[1 + N_MAX], r[1 + N_MAX], d_l[1 + N_MAX], d_r[1 + N_MAX];
+int64_t ans;
+int main() {
+    std::cin >> n; 
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    inv[1] = 1; for(int i = 2; i <= n && i <= MOD - 1; ++i) { inv[i] = (MOD - MOD / i) * inv[MOD % i] % MOD; }
+
+    stack_top = 0;
+    for(int i = 1; i <= n; ++i) {
+        while(stack_top > 0 && stack[stack_top] < a[i]) { --stack_top; }
+        l[i] = stack_top > 0 ? stack_i[stack_top] : i; d_l[i] = i - l[i];
+        stack[++stack_top] = a[i]; stack_i[stack_top] = i;
+    }
+    stack_top = 0;
+    for(int i = n; i >= 1; --i) {
+        while(stack_top > 0 && stack[stack_top] < a[i]) { --stack_top; }
+        r[i] = stack_top > 0 ? stack_i[stack_top] : i; d_r[i] = r[i] - i;
+        stack[++stack_top] = a[i]; stack_i[stack_top] = i;
+    }
+
+    for(int i = 1; i <= n; ++i) {
+        ans = n - 1;
+        if(d_l[i] > 0) { ans -= mul_mod(n, inv[d_l[i] + 1], MOD); ans = mod(ans, MOD); }
+        if(d_r[i] > 0) { ans -= mul_mod(n, inv[d_r[i] + 1], MOD); ans = mod(ans, MOD); }
+        if(d_l[i] > 0 && d_r[i] > 0) { ans += mul_mod(n, inv[d_l[i] + d_r[i] + 1], MOD); ans = mod(ans, MOD); }
+        std::cout << ans << ' ';
+    }
 }
 ```
 
