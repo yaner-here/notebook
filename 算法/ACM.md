@@ -4667,7 +4667,7 @@ int main() {
 }
 ```
 
-> [洛谷P4127](https://www.luogu.com.cn/problem/P4127)/[洛谷P10959(数据加强版)](https://www.luogu.com.cn/problem/P10959)：求闭区间`[l, r]⊆[1, 1e18]`/`[l, r]⊆[1, 2^31)`中有多少个正整数`x`，使得`x`恰好是`x`的所有十进制数位之和`x_dec_sum`的倍数？输入给定`1`个/`<=3000`个查询。
+> [洛谷P4127](https://www.luogu.com.cn/problem/P4127)/[洛谷P10959(数据加强版)](https://www.luogu.com.cn/problem/P10959)：执行`1`次/`q<=3000`次查询。每次查询求闭区间`[l, r]⊆[1, 1e18]`/`[l, r]⊆[1, 2^31)`中有多少个正整数`x`，使得`x`恰好是`x`的所有十进制数位之和`x_dec_sum`的倍数？
 
 容易想到令`dp[pos][x_dec_part][x_dec_sum][zero][free]`表示从高位向低位枚举、低位还剩`pos`位未确定、已确定的高位数字为`x_dec_part`、之和为`x_dec_sum`、是否有前导零、是否已经脱离上界对应的合法数字总数。注意到`x`与`x_dec_part`的状态空间高达`1e18`，因此不妨让`x_dec_part`对`x_dec_sum`取模，这样就能存储了。既然如此，那么我们根本不用记录完整的`x_dec_part`，只需要递归地维护`x_dec_part`取模的结果`x_part = (x_part * 10 + i) % x_dec_sum`即可。本题的关键在于：不枚举到最后一位，我们根本不知道`x_dec_sum`到底是多少，而我们设计的DP状态要求必须在每次转移时，都使用`x_dec_sum`进行取模。因此这是一个有后效性数位DP问题。
 
@@ -4704,13 +4704,13 @@ int main() {
 
 现在考虑数据加强版。如果每次查询都使用单次查询的逻辑，则意味着我们需要计算`q<=3000`次`dp[pos][x_dec_part][s_dec_sum][2][2]`，总时间复杂度高达$O(3000\times 11 \times 91 \times 90 \times 2 \times 2)\approx O(1.08\times 10^9)$，显然无法接受。
 
-虽然我们的`dp`数组虽然与每次`solve(n)`传入的`n`紧密相关，不同的`n`对应的`dp`值并不一致，**但是注意到`free==true`的`dp`值是总是完全一致的**。这个结论显然成立，因为`n`影响`dp`值的唯一途径就是限制每一位的上界`i_max = free ? 0 : n_dec[pos]`，如果`free==true`，则我们的状态转移路径就不会再受`n`的影响。**这意味着我们可以面向全体不同的`n`值，为`free==true`的DP状态提供全局的记忆化搜索**。在代码实现中，我们只需不为`free==false`的DP状态提供记忆化搜索即可。这样我们就平摊了`q`次查询时间成本，近似成`1`次查询。
+虽然我们的`dp`数组虽然与每次`solve(n)`传入的`n`紧密相关，不同的`n`对应的`dp`值并不一致，**但是注意到`free==true`的`dp`值是总是完全一致的**。因为`n`影响`dp`值的唯一途径就是限制每一位的上界`i_max = free ? 0 : n_dec[pos]`，如果`free==true`，则我们的状态转移路径就不会再受`n`的影响。**这意味着我们可以面向全体不同的`n`值，为`free==true`的DP状态提供全局的记忆化搜索**。在代码实现中，我们只需不为`free==false`的DP状态提供记忆化搜索即可。这样我们就平摊了`q`次查询时间成本，近似成`1`次查询。
 
 ```c++
 const int64_t N_MAX = INT32_MAX, N_DEC_LEN_MAX = 10, N_DEC_SUM = N_DEC_LEN_MAX * 9;
 int64_t l, r; int n_dec[1 + N_DEC_LEN_MAX], n_dec_len; int64_t dp[1 + N_DEC_LEN_MAX][N_DEC_SUM][1 + N_DEC_SUM][2][2][N_DEC_SUM];
 int64_t dfs(int p, int pos, int x_dec_part, int x_dec_sum, bool zero, bool free) {
-    if(x_dec_sum > p) { return dp[pos][x_dec_part][x_dec_sum][zero][free][p] = 0;}
+    if(x_dec_sum > p) { return dp[pos][x_dec_part][x_dec_sum][zero][free][p] = 0;} // 剪枝
     if(pos == 0) { return x_dec_sum == p && x_dec_part == 0 ? 1 : 0; }
     if(free == true && dp[pos][x_dec_part][x_dec_sum][zero][free][p] != -1) { return dp[pos][x_dec_part][x_dec_sum][zero][free][p]; }
     int64_t ans = 0; int i_min = zero ? 1 : 0, i_max = free ? 9 : n_dec[pos];
@@ -4955,6 +4955,65 @@ int main() {
     ans = mod(ans + can_free, MOD);
 
     std::cout << ans;
+}
+```
+
+### §2.4.5 特殊函数数位DP
+
+传统的计数数位DP通常求的是$\displaystyle\sum_{x=l}^{r} \mathbb{1}_{f(x)=\mathrm{true}}$。然而国内比赛（OI、ICPC）经常喜欢考察$\displaystyle\sum_{x=l}^{r}f(x)$。
+
+> [洛谷P4067](https://www.luogu.com.cn/problem/P4067)：执行`q<=5e3`次查询。每次查询给定`n, m, k <= 1e18`，求$\mathcal{L}(n,m) = \displaystyle\sum_{i\in[0, n)}\sum_{j\in[1, m)}\max\begin{cases}(i\oplus j) - k\\ 0\end{cases}$。答案模`p<=1e9`输出。
+
+显然`k`可以看作$f(i,j)=i\oplus j$的“斩杀线”。很自然的，我们想统计出未被斩杀的`(i, j)`二元对数量`dp_cnt`，及其对应的$f(i,j)$之和`dp_sum`。这两个值都可以使用数位DP来维护。
+
+具体来说，我们逐Bit地计算$(i\oplus j) - k$的值，将每个Bit的结果加起来就是最终所求的$\mathcal{L}(n,m)$。于是我们分别令`dp_cnt[pos][free_i][free_j][free_k]`与`dp_sum[pos][free_i][free_j][free_k]`表示已确定`n,m,k`的高位Bit的、尚未确定低`pos`位Bit的、是否已脱离`i`的**上限**、是否已脱离`j`的**上限**、是否已脱离`k`的**下限**时，所对应的尚未触发“斩杀线”的数字总数，及其低`pos`位造成的$f(i,j)$之和。
+
+在下文中，我们使用`i`/`j`来表示枚举`[0, n)`/`[0, m)`数字的第`pos`位Bit值。我们已经知道，在传统数位DP中，我们用`free_i`和`free_j`来保证我们在这一Bit枚举的数字，不会导致得到的数字超过上界`n-1`/`m-1`，于是我们可以把`n-1`和`m-1`称为**斩杀线**。这里我们重点介绍`free_k`是如何转移的——我们希望在这一Bit枚举的数字`i ^ j`，同样不会低于`k`在这一BIt的数字。例如给定前面高位的若干Bit异或结果为`101?`，给定`k=1011`，那么我们肯定不希望`?=0`，这样才能大于等于`k`。如果`is_free == false`，我们仍需警惕异或结果小于`k`这个下限，因此我们把`k`也称作**斩杀线**。
+- 如果`is_free == true`，那么我们就放心了。例如`11?`与`k=101`，此处无论`?`是什么，都不会低于`k`斩杀线。
+- 如果`is_free == false && (i ^ j) == k_bin[pos]`，那么我们仍需警惕。例如`11?`与`111`，我们的`?`仍然不自由，还是不能随便选，这回约束`i^j`结果的合法性。
+- 如果`is_free == false && (i ^ j) < k_bin[pos]`，则说明越过了斩杀线，直接判定为非法，剪枝即可。例如`10?`与`k=110`，无论`?`是什么都是非法状态。
+
+`dp_cnt[]`的转移非常经典，就是一个普通的计数数位DP。这里我们重点讨论如何转移`dp_sum[]`。对于每一次`dfs()`返回的`{dp_cnt_tmp, dp_sum_tmp}`：
+- 当前第`pos`位Bit：正负为`(i ^ j) - k_bin[pos]`，绝对值为`1 << (pos - 1)`，剩下的低`pos-1`个Bit总共含有`dp_cnt_tmp`种情况，三者相乘后，对于每一次`dfs()`累加即可。**这里可能是负数，要警惕对负数取模**。
+- 剩下的低`pos-1`个Bit：`dp_sum_tmp`，直接累加即可。
+
+```c++
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t mul_mod(const int64_t &x, const int64_t &y, const int64_t &p) { return (mod(x, p) * mod(y, p)) % p; }
+
+const int64_t N_MAX = 1e18, M_MAX = 1e18, K_MAX = 1e18, P_MAX = 1e9, BIN_LEN_MAX = 60;
+int q; int64_t n, m, k, p; int n_bin[1 + BIN_LEN_MAX], m_bin[1 + BIN_LEN_MAX], k_bin[1 + BIN_LEN_MAX], n_bin_len, m_bin_len, k_bin_len;
+int64_t pow2[1 + BIN_LEN_MAX], dp_cnt[1 + BIN_LEN_MAX][2][2][2], dp_sum[1 + BIN_LEN_MAX][2][2][2];
+std::pair<int64_t, int64_t> dfs(const int64_t &p, int pos, bool free_n, bool free_m, bool free_k) {
+    if(pos == 0) { return {dp_cnt[pos][free_n][free_m][free_k] = 1, dp_sum[pos][free_n][free_m][free_k] = 0}; }
+    if(dp_cnt[pos][free_n][free_m][free_k] != -1) { return {dp_cnt[pos][free_n][free_m][free_k], dp_sum[pos][free_n][free_m][free_k]}; }
+    int64_t dp_cnt_ans = 0, dp_sum_ans = 0; int i_min = 0, i_max = free_n ? 1 : n_bin[pos], j_min = 0, j_max = free_m ? 1 : m_bin[pos];
+    for(int i = i_min; i <= i_max; ++i) {
+        for(int j = j_min; j <= j_max; ++j) {
+            if(free_k == false && (i ^ j) < k_bin[pos]) { continue; } // 小于斩杀线，剪枝
+            auto [dp_cnt_tmp, dp_sum_tmp] = dfs(p, pos - 1, free_n || i < i_max, free_m || j < j_max, free_k || (i ^ j) > k_bin[pos]);
+            dp_cnt_ans += dp_cnt_tmp; dp_cnt_ans %= p;
+            dp_sum_ans += mod(((i ^ j) - k_bin[pos]) * mul_mod(dp_cnt_tmp, pow2[pos - 1], p), p) + dp_sum_tmp; dp_sum_ans %= p;
+        }
+    }
+    return {dp_cnt[pos][free_n][free_m][free_k] = dp_cnt_ans, dp_sum[pos][free_n][free_m][free_k] = dp_sum_ans};
+}
+int64_t solve(int64_t n, int64_t m, int64_t k, const int64_t &p) {
+    n_bin_len = 0; std::fill(n_bin + 1, n_bin + 1 + BIN_LEN_MAX, 0); for(int64_t n_temp = n; n_temp > 0; n_temp /= 2) { n_bin[++n_bin_len] = n_temp % 2; }
+    m_bin_len = 0; std::fill(m_bin + 1, m_bin + 1 + BIN_LEN_MAX, 0); for(int64_t m_temp = m; m_temp > 0; m_temp /= 2) { m_bin[++m_bin_len] = m_temp % 2; }
+    k_bin_len = 0; std::fill(k_bin + 1, k_bin + 1 + BIN_LEN_MAX, 0); for(int64_t k_temp = k; k_temp > 0; k_temp /= 2) { k_bin[++k_bin_len] = k_temp % 2; }
+    pow2[0] = 1; for(int i = 1; i <= BIN_LEN_MAX; ++i) { pow2[i] = (pow2[i - 1] * 2) % p; }
+    std::fill(&(dp_cnt[0][false][false][false]), &(dp_cnt[BIN_LEN_MAX][true][true][true]) + 1, -1);
+    std::fill(&(dp_sum[0][false][false][false]), &(dp_sum[BIN_LEN_MAX][true][true][true]) + 1, -1);
+
+    return dfs(p, std::max({n_bin_len, m_bin_len, k_bin_len}), false, false, false).second;
+}
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> n >> m >> k >> p;
+        std::cout << solve(n - 1, m - 1, k, p) << '\n';
+    }
 }
 ```
 
@@ -8759,6 +8818,74 @@ int main() {
 
     for(int i = 1; i <= n; ++i) { ans += std::abs(b_mid - b[i]); }
     std::cout << ans;
+}
+```
+
+> [洛谷P3817](https://www.luogu.com.cn/problem/P3817)：给定`n`个人排成一**行**，每个人初始时持有`a[i]`个苹果。每个回合允许一个人吃掉自己的一个苹果，**吃完为止**。求最少经过多少回合，才能让每两个相邻的人持有的苹果数量之和`<=x`？。
+
+最终的序列既然能保证任意两个相邻的人持有的苹果数量之和`<=x`，那么也包括第一个人与第二个人，具体可分类讨论：
+
+1. 如果`a[1] + a[2] <= x`，那么符合条件，无需操作`a[1]`，问题转化为子问题`a[2->n]`。
+2. 如果`a[1] + a[2] > x`，要解决这两个不符合条件的人，那么显然应该贪心地先扣减`a[2]`，因为这样做也有利于让`a[2] + a[3] <= x`。我们必定需要扣减`ans_temp = x - a[1] - a[2]`次。
+	- **如果`a[2] >= ans_temp`，那么我们只需操作`a[2]`即可**。
+	- **如果`a[2] < ans_temp`，那么我们才需要继续操作`a[1]`**。
+	操作完毕后，`a[1] + a[2] == x`，回到了第一种情况，问题转化为子问题`a[2->n]`。
+
+按以上步骤线性贪心即可。
+
+```c++
+const int N_MAX = 1e5; const int64_t A_MAX = 1e9;
+int n; int64_t a[1 + N_MAX], x, ans;
+int main() {
+    std::cin >> n >> x;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    
+    for(int i = 2; i <= n; ++i) {
+        if(a[i - 1] + a[i] <= x) { continue; } // 复合条件，无需操作，跳过
+        
+        ans += a[i - 1] + a[i] - x;
+        a[i] = std::max(x - a[i - 1], static_cast<int64_t>(0ll)); // 优先减右边
+        a[i - 1] -= std::max(static_cast<int64_t>(0), x - a[i]); // 如果仍然a[i-1]+a[i]>=x，则最后减左边
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P1106](https://www.luogu.com.cn/problem/P1106)：给定一个使用字符串表示的正整数`char n[1->n<=250]`，请从中删除`k`个字符，使得剩下的字符按原顺序拼在一起得到的正整数取得最小值（允许存在前导零），并输出这个最小值（不要输出前导零）。
+
+为了输出最小值，我们容易想到从高位向低位贪心——只要不择手段地让高位尽量小，则低位再怎么大都不重要。我们先计算最高位，显然要在`n[1->n-k+1]`中删除`n-k`个数字，选出一个最靠前的、最小的值，这能既能保证贪心地最小，又能保证最后可以完成删除剩余`k-1`个数字的任务，于是我们就确定了第一位，问题转化为了确定第二位的子问题。模拟上述过程，我们很容易写出$O(n^2)$的朴素解法，本处略。
+
+现在考虑如何加速这个过程。我们原本想遍历出最靠前的、最小的值，**该问题等价于向右查找第一个小于自己的元素**，这正是单调栈的用途之一。事实上，以上过程可以使用非严格递增的单调栈，以$O(n)$的时间复杂度来实现，其中把元素踢出单调栈的次数不得大于`k`。
+
+- 如果单调栈中的元素数量恰好等于`n-k`，直接输出即可。
+- 如果单调栈中的元素数量大于`n-k`，由于栈内元素单调递增，所以只需贪心地输出前`n-k`个字符即可。
+- 如果单调栈中的元素数量小于`n-k`，这是不可能发生的，因为把元素踢出单调栈的次数不得大于`k`。
+
+```c++
+const int N_LEN_MAX = 250;
+char n[1 + N_LEN_MAX + 1]; int n_len, k; 
+char stack[1 + N_LEN_MAX]; int stack_top; // (0, stack_top]
+int main() {
+    std::cin >> *(reinterpret_cast<char(*)[N_LEN_MAX + 1]>(n + 1)) >> k;
+    n_len = std::strlen(n + 1);
+    
+    for(int i = 1, stack_pop_count = 0; i <= n_len; ++i) {
+        while(stack_top >= 1 && stack[stack_top] > n[i] && stack_pop_count < k) {
+            --stack_top;
+            ++stack_pop_count;
+        }
+        stack[++stack_top] = n[i];
+    }
+
+    if(stack_top == 1) { 
+        std::cout << stack[1]; // 特判答案为0，此时必须输出"前导零"
+    } else if(stack_top >= 1) {
+        int i = 1;
+        while(stack[i] == '0') { ++i; } // 过滤前导零
+        for(; i <= std::min(n_len - k, stack_top); ++i) { 
+            std::cout << stack[i]; 
+        }
+    }
 }
 ```
 
@@ -28398,6 +28525,14 @@ n & (2 << k); // 等价于 n % K
 int ans, a; bool flag_a, flag_b;
 ans = a + (flag_a && flag_b); // √
 ans = a + flag_a && flag_b; // ×
+```
+
+### §A.5.2 `^`与`+`
+
+```c++
+bool i, j, k;
+ans = i ^ j - k; // ×
+ans = (i ^ j) - k; // √
 ```
 
 ## §A.6 现代C++
