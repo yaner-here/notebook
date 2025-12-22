@@ -4667,6 +4667,76 @@ int main() {
 }
 ```
 
+> [洛谷P4127](https://www.luogu.com.cn/problem/P4127)/[洛谷P10959(数据加强版)](https://www.luogu.com.cn/problem/P10959)：求闭区间`[l, r]⊆[1, 1e18]`/`[l, r]⊆[1, 2^31)`中有多少个正整数`x`，使得`x`恰好是`x`的所有十进制数位之和`x_dec_sum`的倍数？输入给定`1`个/`<=3000`个查询。
+
+容易想到令`dp[pos][x_dec_part][x_dec_sum][zero][free]`表示从高位向低位枚举、低位还剩`pos`位未确定、已确定的高位数字为`x_dec_part`、之和为`x_dec_sum`、是否有前导零、是否已经脱离上界对应的合法数字总数。注意到`x`与`x_dec_part`的状态空间高达`1e18`，因此不妨让`x_dec_part`对`x_dec_sum`取模，这样就能存储了。既然如此，那么我们根本不用记录完整的`x_dec_part`，只需要递归地维护`x_dec_part`取模的结果`x_part = (x_part * 10 + i) % x_dec_sum`即可。本题的关键在于：不枚举到最后一位，我们根本不知道`x_dec_sum`到底是多少，而我们设计的DP状态要求必须在每次转移时，都使用`x_dec_sum`进行取模。因此这是一个有后效性数位DP问题。
+
+注意到`x_dec_sum`的取值范围是有限的，`1e18`最多有`19`位十进制数字，考虑每个位均为`9`的极端情况，`x_dec_sum`的上界为`19 × 9 = 171`，会产生`x_dec_part`落在区间`(0, 171)`范围内的`170`种情况。因此我们直接假设`x_dec_sum`就为枚举的某个值`p`，统计所有`x_dec_sum`恰好为`p`的、`x_dec_part`恰好为`0`的数字个数即可。最后将`p∈(0, 171)`的答案累加起来。
+
+```c++
+const int64_t N_MAX = 1e18, N_DEC_LEN_MAX = 19, N_DEC_SUM = N_DEC_LEN_MAX * 9;
+int64_t l, r; int n_dec[1 + N_DEC_LEN_MAX], n_dec_len; int64_t dp[1 + N_DEC_LEN_MAX][N_DEC_SUM][1 + N_DEC_SUM][2][2];
+int64_t dfs(int p, int pos, int x_dec_part, int x_dec_sum, bool zero, bool free) {
+    if(pos == 0) { return x_dec_sum == p && x_dec_part == 0 ? 1 : 0; }
+    if(dp[pos][x_dec_part][x_dec_sum][zero][free] != -1) { return dp[pos][x_dec_part][x_dec_sum][zero][free]; }
+    int64_t ans = 0; int i_min = zero ? 1 : 0, i_max = free ? 9 : n_dec[pos];
+    for(int i = i_min; i <= i_max; ++i) {
+        ans += dfs(p, pos - 1, (x_dec_part * 10 + i) % p, x_dec_sum + i, false, free || i < i_max);
+    }
+    if(zero) { assert(x_dec_part == 0 && x_dec_sum == 0); ans += dfs(p, pos - 1, 0, 0, true, true); }
+    return dp[pos][x_dec_part][x_dec_sum][zero][free] = ans;
+}
+int64_t solve(int64_t n) {
+    if(n == 0) { return 0; }
+    n_dec_len = 0; for(int64_t n_temp = n; n_temp > 0; n_temp /= 10) { n_dec[++n_dec_len] = n_temp % 10; }
+    int64_t ans = 0;
+    for(int p = 1; p < N_DEC_SUM; ++p) {
+        std::fill(&(dp[0][0][0][false][false]), &(dp[N_DEC_LEN_MAX][N_DEC_SUM - 1][N_DEC_SUM][true][true]) + 1, -1);
+        ans += dfs(p, n_dec_len, 0, 0, true, false);
+    }
+    return ans;
+}
+int main() {
+    std::cin >> l >> r;
+    std::cout << solve(r) - solve(l - 1);
+}
+```
+
+现在考虑数据加强版。如果每次查询都使用单次查询的逻辑，则意味着我们需要计算`q<=3000`次`dp[pos][x_dec_part][s_dec_sum][2][2]`，总时间复杂度高达$O(3000\times 11 \times 91 \times 90 \times 2 \times 2)\approx O(1.08\times 10^9)$，显然无法接受。
+
+虽然我们的`dp`数组虽然与每次`solve(n)`传入的`n`紧密相关，不同的`n`对应的`dp`值并不一致，**但是注意到`free==true`的`dp`值是总是完全一致的**。这个结论显然成立，因为`n`影响`dp`值的唯一途径就是限制每一位的上界`i_max = free ? 0 : n_dec[pos]`，如果`free==true`，则我们的状态转移路径就不会再受`n`的影响。**这意味着我们可以面向全体不同的`n`值，为`free==true`的DP状态提供全局的记忆化搜索**。在代码实现中，我们只需不为`free==false`的DP状态提供记忆化搜索即可。这样我们就平摊了`q`次查询时间成本，近似成`1`次查询。
+
+```c++
+const int64_t N_MAX = INT32_MAX, N_DEC_LEN_MAX = 10, N_DEC_SUM = N_DEC_LEN_MAX * 9;
+int64_t l, r; int n_dec[1 + N_DEC_LEN_MAX], n_dec_len; int64_t dp[1 + N_DEC_LEN_MAX][N_DEC_SUM][1 + N_DEC_SUM][2][2][N_DEC_SUM];
+int64_t dfs(int p, int pos, int x_dec_part, int x_dec_sum, bool zero, bool free) {
+    if(x_dec_sum > p) { return dp[pos][x_dec_part][x_dec_sum][zero][free][p] = 0;}
+    if(pos == 0) { return x_dec_sum == p && x_dec_part == 0 ? 1 : 0; }
+    if(free == true && dp[pos][x_dec_part][x_dec_sum][zero][free][p] != -1) { return dp[pos][x_dec_part][x_dec_sum][zero][free][p]; }
+    int64_t ans = 0; int i_min = zero ? 1 : 0, i_max = free ? 9 : n_dec[pos];
+    for(int i = i_min; i <= i_max; ++i) {
+        ans += dfs(p, pos - 1, (x_dec_part * 10 + i) % p, x_dec_sum + i, false, free || i < i_max);
+    }
+    if(zero) { assert(x_dec_part == 0 && x_dec_sum == 0); ans += dfs(p, pos - 1, 0, 0, true, true); }
+    return dp[pos][x_dec_part][x_dec_sum][zero][free][p] = ans;
+}
+int64_t solve(int64_t n) {
+    if(n == 0) { return 0; }
+    n_dec_len = 0; for(int64_t n_temp = n; n_temp > 0; n_temp /= 10) { n_dec[++n_dec_len] = n_temp % 10; }
+    int64_t ans = 0;
+    for(int p = 1; p < N_DEC_SUM; ++p) {
+        ans += dfs(p, n_dec_len, 0, 0, true, false);
+    }
+    return ans;
+}
+int main() {
+    std::fill(&(dp[0][0][0][false][false][0]), &(dp[N_DEC_LEN_MAX][N_DEC_SUM - 1][N_DEC_SUM][true][true][N_DEC_SUM - 1]) + 1, -1);
+    while(std::cin >> l >> r) {
+        std::cout << solve(r) - solve(l - 1) << '\n';
+    }
+}
+```
+
 ### §2.4.2 找规律数位DP
 
 > [洛谷P2235](https://www.luogu.com.cn/problem/P2235)：定义函数$f(x)$为：$\begin{cases}f(1)=1,f(3)=3\\f(2n)=f(n)\\f(4n+1)=2f(2n+1)-f(n)\\f(4n+3)=3f(2n+1)-2f(n)\end{cases}$。求闭区间`[1, n]`中有多少正整数满足方程$f(x)=x$？数据范围满足$n\le 10^{100}$。
@@ -4837,21 +4907,56 @@ int main() {
 
 ### §2.4.3 分段数位DP
 
-> [洛谷P3383](https://www.luogu.com.cn/problem/B3883)：求闭区间`[1, n]`中十进制形式为回文串的正整数数量。
+> [洛谷P3883](https://www.luogu.com.cn/problem/B3883)：求闭区间`[1, n<=1e100]`中十进制形式为回文串的正整数数量。
 
 假设`n`的十进制长度为`l`，则对`[1, n]`中的某个正整数`i`做分类讨论。
 
-对于所有长度`l'<l`的数字`i`来说，这部分的回文数数量就是`100...001`至`999...999`。尝试打表找规律，容易发现通项。于是这一部分的回文数数量为$\displaystyle\sum_{l'\in[1, l)}9\cdot 10^{\lfloor\frac{l'+1}{2}\rfloor}$。
+对于所有长度`l'<l`的数字`i`来说，这部分的回文数数量就是`100...001`至`999...999`。尝试打表找规律，容易发现通项。于是这一部分的回文数数量为$\displaystyle\sum_{l'\in[1, l)}9\cdot 10^{\lceil\frac{l'}{2}\rceil - 1}$。
 ```
-len==1  [1] ~ [9]            9 = 9 * 1
-len==2  [1]1 ~ [9]9          9 = 9 * 1
-len==3  [10]1 ~ [99]9        90 = 9 * 10
-len==4  [10]01 ~ [99]99      90 = 9 * 10
-len==5  [100]01 ~ [999]99    900 = 9 * 100
-len==6  [100]001 ~ [999]999  900 = 9 * 100
+len==1  [1] ~ [9]            9 = 9 * 1     ceil(len/2) - 1 = 0
+len==2  [1]1 ~ [9]9          9 = 9 * 1     ceil(len/2) - 1 = 0
+len==3  [10]1 ~ [99]9        90 = 9 * 10   ceil(len/2) - 1 = 1
+len==4  [10]01 ~ [99]99      90 = 9 * 10   ceil(len/2) - 1 = 1
+len==5  [100]01 ~ [999]99    900 = 9 * 100 ceil(len/2) - 1 = 2
+len==6  [100]001 ~ [999]999  900 = 9 * 100 ceil(len/2) - 1 = 2
 ```
 
-对于所有长度`l'==l`且本身小于等于`n`的数字来说，TODO：？？？
+对于所有长度`l'==l`且本身小于等于`n`的数字来说，我们考虑`n`的高位半部分。例如`n = 421`时，我们取其高位半部分`n_high_half = 42`。给定一个长度同样为`l`的数字`x`，只要它的`x_high_half < n_high_half`，则显然`x`也可以通过高位半部分构建一个`< n`的回文数；如果`x_high_half == n_high_half`，则需要额外判断构建的回文数是否超过`n`。
+
+```c++
+const int N_LOG100_MAX = 100, N_LEN_MAX = 101; const int64_t MOD = 20091119;
+char n[1 + N_LEN_MAX + 1]; int n_len;
+int64_t pow10[1 + N_LOG100_MAX], n_high_half, ans;
+int main() {
+    pow10[0] = 1; for(int i = 1; i <= N_LOG100_MAX; ++i) { pow10[i] = mul_mod(pow10[i - 1], 10, MOD);}
+
+    std::cin >> *(reinterpret_cast<char(*)[N_LEN_MAX + 1]>(n + 1));
+    n_len = std::strlen(n + 1);
+
+    // 统计l'>=l的情况
+    for(int i = 1; i < n_len; ++i) { ans += mul_mod(9, pow10[(i - 1) / 2], MOD); }
+    
+    // 统计l'==l且free==true的情况
+    for(int i = 1; i <= (1 + n_len) / 2; ++i) { n_high_half = mod(mul_mod(n_high_half, 10, MOD) + (n[i] - '0'), MOD); }
+    ans += mod(n_high_half - pow10[(1 + n_len) / 2 - 1], MOD);
+
+    // 统计l'==l且free==false的情况
+    bool can_free = true; // 初始时假设一直紧贴n_high_half上限，合法
+    for(int i = (1 + n_len) / 2; i >= 1 ; --i) {
+        if(n[i] - '0' < n[n_len - i + 1] - '0') { // 超出n_high_half限制，判定为非法
+            can_free = true; 
+            break; 
+        }
+        if(n[i] - '0' > n[n_len - i + 1] - '0') { // 小于n_high_half限制，判定为free==true，合法
+            can_free = false;
+            break;
+        }
+    }
+    ans = mod(ans + can_free, MOD);
+
+    std::cout << ans;
+}
+```
 
 ## §2.5 计数DP
 
@@ -25276,7 +25381,8 @@ int main() {
 
 ### §8.3.2 取整
 
-若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以用`(a - 1) / b + 1`表示。**该式在`a==0`时不适用**。
+若`a`、`b`均为正整数，则$\displaystyle\lceil\frac{a}{b}\rceil$可以等价地表示成：
+- `(a - 1) / b + 1`，**该式在`a==0`时不适用**。
 
 ### §8.3.3 逆元
 
