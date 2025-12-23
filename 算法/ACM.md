@@ -3521,7 +3521,42 @@ int main() {
 }
 ```
 
-### §2.2.6 序列删除元素
+### §2.2.6 最大子段和
+
+> [洛谷P2642](https://www.luogu.com.cn/problem/P2642)：给定`a[1->n<=1e6]`，请从中选择两个非空、非重叠的子段，使得两个段的段内元素之和取得最大值。
+
+我们已经知道了选择单个子段该怎么算。本题需要我们求出正向和反向对应的单段最大子段和DP，枚举两个字段的分隔点即可。
+
+```c++
+const int N_MAX = 1e6;
+long long int n, a[N_MAX + 1], dp[N_MAX + 1], summax_lr[N_MAX + 2], summax_rl[N_MAX + 2];
+long long int max_temp, result;
+int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { dp[i] = std::max(a[i], dp[i - 1] + a[i]); }
+    max_temp = -1e18;
+    for(int i = 1; i <= n; ++i) {
+        max_temp = std::max(max_temp, dp[i]);
+        summax_lr[i] = max_temp;
+    }
+    for(int i = n; i >= 1; --i) { dp[i] = std::max(a[i], dp[i + 1] + a[i]); }
+    max_temp = -1e18;
+    for(int i = n; i >= 1; --i) {
+        max_temp = std::max(max_temp, dp[i]);
+        summax_rl[i] = max_temp;
+    }
+    result = -1e18;
+    for(int i = 2; i < n; ++i) { result = std::max(result, summax_lr[i - 1] + summax_rl[i + 1]); }
+    std::cout << result;
+
+}
+```
+
+### §2.2.A 杂项
 
 > [洛谷P1799](https://www.luogu.com.cn/problem/P1799)：给定数组`a[1->n<=1e3]`，运载匀速从中删除任意多（包括`0`）个元素，形成新数组`a'[]`，求满足`a'[i] = i`的下标`i`的数量的最大值。
 
@@ -8714,7 +8749,7 @@ int main() {
 }
 ```
 
-> [洛谷P1080](https://www.luogu.com.cn/problem/P1080)：给定`n+1`个排成一行的格子，每个格子携带两个正整数权重`a[i:0->n]`和`b[i:0->n]`，定义第`i`个格子的价值为$f(i)=\displaystyle\sum_{i=1}^{n}\left(\frac{\prod_{j=0}^{i-1}a_j}{b_i}\right)$。现在允许任意重新排列后`n`个格子的次序，求$\displaystyle\min_{i\in[1,n]}f(i)$。
+> [洛谷P1080](https://www.luogu.com.cn/problem/P1080)：给定`n+1`个排成一行的格子，每个格子携带两个正整数权重`a[i:0->n]`和`b[i:0->n]`，定义第`i`个格子的价值为$f(i)=\displaystyle\left\lfloor\frac{\prod_{j=0}^{i-1}a_j}{b_i}\right\rfloor$。现在允许任意重新排列后`n`个格子的次序，求$\displaystyle\min_{i\in[1,n]}f(i)$。
 
 假设当前次序交换第`i`个和第`i+1`个格子后，恰好能取到最小值。注意到此时只有$f(i)$和$f(i+1)$的值发生了变化，因此目标函数在交换前等于$\displaystyle\max\left(\frac{\prod_{j=0}^{i-1}a_j}{b_i},\frac{\prod_{j=0}^{i}a_j}{b_{i+1}}\right)$，在交换后等于$\displaystyle\max\left(\frac{\prod_{j=0}^{i-1}a_j}{b_{i+1}},\frac{\prod_{j=0}^{i-1}a_j\cdot a_{i+1}}{b_{i}}\right)$，我们的不等式约束要求后者更小。注意到显然有$\displaystyle\frac{\prod_{j=0}^{i-1}a_j}{b_i}\le \frac{\prod_{j=0}^{i-1}a_j\cdot a_{i+1}}{b_{i}}$和$\displaystyle\frac{\prod_{j=0}^{i}a_j}{b_{i+1}}\ge\frac{\prod_{j=0}^{i-1}a_j}{b_{i+1}}$。如果要使得前者更大，后者更小，我们肯定不希望目标函数在交换前取$\displaystyle\frac{\prod_{j=0}^{i-1}a_j}{b_i}$，否则按照前文的显然结论，必不可能满足不等式约束。因此我们希望目标函数在交换前等于$\displaystyle\frac{\prod_{j=0}^{i}a_j}{b_{i+1}}$，这就引入了第二个不等式约束。
 
@@ -8725,7 +8760,7 @@ $$
 \end{cases}
 $$
 
-均解得$a_ib_i\ge a_{i+1}b_{i+1}$。反过来就是序列满足$a_ib_i\le a_{i+1}b_{i+1}$时取得最优解。
+均解得$a_ib_i\ge a_{i+1}b_{i+1}$。反过来就是序列满足$a_ib_i < a_{i+1}b_{i+1}$时取得最优解。
 
 #### §3.3.2.4 拆分子问题
 
@@ -8851,41 +8886,26 @@ int main() {
 }
 ```
 
-> [洛谷P1106](https://www.luogu.com.cn/problem/P1106)：给定一个使用字符串表示的正整数`char n[1->n<=250]`，请从中删除`k`个字符，使得剩下的字符按原顺序拼在一起得到的正整数取得最小值（允许存在前导零），并输出这个最小值（不要输出前导零）。
+> [洛谷P5019](https://www.luogu.com.cn/problem/P5019)/[洛谷P1969](https://www.luogu.com.cn/problem/P1969)/[洛谷P3078](https://www.luogu.com.cn/problem/P3078)：给定一个数组`a[1->n<=1e5]∈[0,1e4/1e4/1e5]`。每回合可以选择一个闭区间`[l, r]`，将`a[l->r]`全部自减`1`。最终要让`a[1->n]`全部变成`0`，求所需的最少回合数。
 
-为了输出最小值，我们容易想到从高位向低位贪心——只要不择手段地让高位尽量小，则低位再怎么大都不重要。我们先计算最高位，显然要在`n[1->n-k+1]`中删除`n-k`个数字，选出一个最靠前的、最小的值，这能既能保证贪心地最小，又能保证最后可以完成删除剩余`k-1`个数字的任务，于是我们就确定了第一位，问题转化为了确定第二位的子问题。模拟上述过程，我们很容易写出$O(n^2)$的朴素解法，本处略。
+要让`a[i->n]`全部变成`0`，一定也会让`a[i]`变成`0`，这一定会耗费`a[i]`个回合。现在我们考虑对`a[i]`操作的时候，能不能顺带操作`a[i+1]`：
 
-现在考虑如何加速这个过程。我们原本想遍历出最靠前的、最小的值，**该问题等价于向右查找第一个小于自己的元素**，这正是单调栈的用途之一。事实上，以上过程可以使用非严格递增的单调栈，以$O(n)$的时间复杂度来实现，其中把元素踢出单调栈的次数不得大于`k`。
+- 如果`a[i] >= a[i+1]`，则`a[i]`耗费的`a[i]`个回合就能覆盖`a[i+1]`变成`0`的需求。
+- 如果`a[i] < a[i+1]`，则显然需要**多耗费`a[i+1] - a[i]`个回合**。
 
-- 如果单调栈中的元素数量恰好等于`n-k`，直接输出即可。
-- 如果单调栈中的元素数量大于`n-k`，由于栈内元素单调递增，所以只需贪心地输出前`n-k`个字符即可。
-- 如果单调栈中的元素数量小于`n-k`，这是不可能发生的，因为把元素踢出单调栈的次数不得大于`k`。
+于是问题转化为`a[i+1->n]`变为`0`的子问题。不妨令`a[0] = 0`，**初始时耗费的操作显然为`0`**。重复上述操作，将**多耗费的回合**累加起来，就能得到最终答案。
 
 ```c++
-const int N_LEN_MAX = 250;
-char n[1 + N_LEN_MAX + 1]; int n_len, k; 
-char stack[1 + N_LEN_MAX]; int stack_top; // (0, stack_top]
+const int N_MAX = 1e5, A_MAX = 1e5;
+int n, a[1 + N_MAX]; int64_t ans;
 int main() {
-    std::cin >> *(reinterpret_cast<char(*)[N_LEN_MAX + 1]>(n + 1)) >> k;
-    n_len = std::strlen(n + 1);
+    std::cin >> n;
+    a[0] = 0; for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
     
-    for(int i = 1, stack_pop_count = 0; i <= n_len; ++i) {
-        while(stack_top >= 1 && stack[stack_top] > n[i] && stack_pop_count < k) {
-            --stack_top;
-            ++stack_pop_count;
-        }
-        stack[++stack_top] = n[i];
+    for(int i = 0; i < n; ++i) {
+        ans += std::max(0, a[i + 1] - a[i]);
     }
-
-    if(stack_top == 1) { 
-        std::cout << stack[1]; // 特判答案为0，此时必须输出"前导零"
-    } else if(stack_top >= 1) {
-        int i = 1;
-        while(stack[i] == '0') { ++i; } // 过滤前导零
-        for(; i <= std::min(n_len - k, stack_top); ++i) { 
-            std::cout << stack[i]; 
-        }
-    }
+    std::cout << ans;
 }
 ```
 
@@ -9292,9 +9312,9 @@ int main() {
 }
 ```
 
-### §3.3.5 位运算贪心
+### §3.3.5 数位贪心
 
-位运算贪心的题型常常求一个位运算的结果最大值。我们知道，只要最高位Bit为`1`，则我们根本不用考虑低位Bit的情况，因为低位Bit已经无法推翻当前最高位形成的最大值了。这提示我们从高位向低位贪心。
+数位贪心的题型常常求一个位运算的结果最大值。我们知道，只要最高位Bit为`1`，则我们根本不用考虑低位Bit的情况，因为低位Bit已经无法推翻当前最高位形成的最大值了。这提示我们从高位向低位贪心。
 
 > [洛谷P10512](https://www.luogu.com.cn/problem/P10512)：给定序列`int a[1->n<=2e5]<(2^30)`，现在允许`k<n`次操作，每次操作取出序列中的两个数`a[i]`、`a[j]`，将其或运算`a[i] | a[j]`放回序列中。最终序列中只有`n - k`个元素，求这`n - k`个元素的与运算最大值。
 
@@ -9331,6 +9351,44 @@ int main() {
         if(k_temp <= k) { ans = ans_temp; }
     }
     std::cout << ans;
+}
+```
+
+> [洛谷P1106](https://www.luogu.com.cn/problem/P1106)：给定一个使用字符串表示的正整数`char n[1->n<=250]`，请从中删除`k`个字符，使得剩下的字符按原顺序拼在一起得到的正整数取得最小值（允许存在前导零），并输出这个最小值（不要输出前导零）。
+
+为了输出最小值，我们容易想到从高位向低位贪心——只要不择手段地让高位尽量小，则低位再怎么大都不重要。我们先计算最高位，显然要在`n[1->n-k+1]`中删除`n-k`个数字，选出一个最靠前的、最小的值，这能既能保证贪心地最小，又能保证最后可以完成删除剩余`k-1`个数字的任务，于是我们就确定了第一位，问题转化为了确定第二位的子问题。模拟上述过程，我们很容易写出$O(n^2)$的朴素解法，本处略。
+
+现在考虑如何加速这个过程。我们原本想遍历出最靠前的、最小的值，**该问题等价于向右查找第一个小于自己的元素，检查该元素是否存在**，这正是单调栈的用途之一。事实上，以上过程可以使用非严格递增的单调栈，以$O(n)$的时间复杂度来实现，其中把元素踢出单调栈的次数不得大于`k`。
+
+- 如果单调栈中的元素数量恰好等于`n-k`，直接输出即可。
+- 如果单调栈中的元素数量大于`n-k`，由于栈内元素单调递增，所以只需贪心地输出前`n-k`个字符即可。
+- 如果单调栈中的元素数量小于`n-k`，这是不可能发生的，因为把元素踢出单调栈的次数不得大于`k`。
+
+```c++
+const int N_LEN_MAX = 250;
+char n[1 + N_LEN_MAX + 1]; int n_len, k; 
+char stack[1 + N_LEN_MAX]; int stack_top; // (0, stack_top]
+int main() {
+    std::cin >> *(reinterpret_cast<char(*)[N_LEN_MAX + 1]>(n + 1)) >> k;
+    n_len = std::strlen(n + 1);
+    
+    for(int i = 1, stack_pop_count = 0; i <= n_len; ++i) {
+        while(stack_top >= 1 && stack[stack_top] > n[i] && stack_pop_count < k) {
+            --stack_top;
+            ++stack_pop_count;
+        }
+        stack[++stack_top] = n[i];
+    }
+
+    if(stack_top == 1) { 
+        std::cout << stack[1]; // 特判答案为0，此时必须输出"前导零"
+    } else if(stack_top >= 1) {
+        int i = 1;
+        while(stack[i] == '0') { ++i; } // 过滤前导零
+        for(; i <= std::min(n_len - k, stack_top); ++i) { 
+            std::cout << stack[i]; 
+        }
+    }
 }
 ```
 
@@ -9373,6 +9431,43 @@ int main() {
 }
 ```
 
+> [洛谷P4447](https://www.luogu.com.cn/problem/P4447)：给定`int a[1->n<=1e5] ∈ [-1e9, 1e9]`这`n`个，将其划分成若干个组，每个组内的元素必须在数值上连续。例如`{-1, 0, 1, 2, 3}`是一个合法的组，而`{-1, 1, 2}`、`{1, 2, 3, 3}`都是非法的组。这些组包含的元素数量会有一个最小值，请找到一种划分方式，使得这个最小值取得最大值，并直接输出所求最大值。
+
+题目中所给的组是无序的，不妨假设组内的元素递增排列。每次给定一个新元素，如果它能加入到某个组内，则说明它要么是组内最小值减`1`，要么是组内最大值加`1`。**同时考虑这两种情况太麻烦了，不如对`a[1->n]`升序排序，让每次给定的新元素越来越大，于是它只能是组内最大值加`1`**。
+
+经过以上预处理后，我们可以分类讨论给定一个新元素`a[i]`的情况：
+- 如果恰好存在一个组，它的组内最大值`+1`等于`a[i]`，则直接把`a[i]`放在该组内即可。
+- 如果存在若干个组，它们的组内最大值`+1`都等于`a[i]`，则**按照贪心思想，优先把元素加入到元素数量更少的组中，也就是优先扶持更可能成为最小值的组**。
+- 如果不存在组，使得它的组内最大值`+1`等于`a[i]`，则只能让`a[i]`独占一组。
+
+为了快速查找组内最大值为`a[i]-1`的、元素数量最少的组，我们可以使用`std::map<int, std::priority_queue>`来通过组内最大值获取小根堆，从小根堆中获取最小值。最终输出所有小根堆中的栈顶元素最小值即可。时间复杂度为$O(n\log_2{n})$。
+
+```c++
+const int N_MAX = 1e5;
+int n, a[1 + N_MAX], ans = INT32_MAX;
+std::map<int, std::priority_queue<int, std::vector<int>, std::greater<int>>> queue_map;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    std::sort(a + 1, a + n + 1);
+
+    for(int i = 1; i <= n; ++i) {
+        auto &queue_pre = queue_map[a[i] - 1], &queue_cur = queue_map[a[i]];
+        if(queue_pre.empty() == false) {
+            queue_cur.push(queue_pre.top() + 1);
+            queue_pre.pop();
+        } else if(queue_pre.empty() == true) {
+            queue_cur.push(1);
+        }
+    }
+
+    for(auto &[i, q] : queue_map) {
+        if(q.empty()) { continue; }
+        ans = std::min(ans, q.top());
+    }
+    std::cout << ans;
+}
+```
 ## §3.4 差分
 
 
@@ -9770,6 +9865,42 @@ int main() {
 > [炼码399]：给定数组`U a[1->n]`和`V a[1->n]`，以及一个用于比较大小的、返回`-1`/`0`/`1`（表示`<`/`=`/`>`）的函数`compare(U u, V v)`。已知每个`u[i]`都有一个唯一的`v[j]`满足`comp(u[i], v[j]) == 0`，每个`v[i]`都有一个唯一的`u[j]`满足`comp(v[i], u[j]) == 0`。求每个`v[i: 1->n]`对应的`u'[]`。
 
 TODO：？？？？
+
+### §3.6.2 合并排序
+
+> [洛谷P1631](https://www.luogu.com.cn/problem/solution/P1631)：给定两个已经升序排序的数组`a[1->n<=1e5]`、`b[1->n<=1e5]`，分别取出一个元素`a[i]`、`b[j]`，显然会产生$n^2$种选择方式，对应$n^2$个`a[i] + b[j]`的值。请输出这$n^2$个值的前`n`小的值，升序输出。
+
+我们将这$n^2$个值列举出来：
+
+$$
+\begin{array}{ccccc}
+	& a[1]+b[1] & a[1]+b[2] & a[1]+b[3] & \cdots & a[1]+b[n] \\
+	& a[2]+b[1] & a[2]+b[2] & a[2]+b[3] & \cdots & a[2]+b[n] \\
+	& a[3]+b[1] & a[3]+b[2] & a[3]+b[3] & \cdots & a[3]+b[n] \\
+	& \vdots & \vdots & \vdots& \ddots& \vdots \\
+	& a[n]+b[1] & a[n]+b[2] & a[n]+b[3] & \cdots & a[n]+b[n] \\
+\end{array}
+$$
+
+我们可以将其视为`n`个队列的归并排序，用小根堆维护`n`个队头元素的最小值，每次从小根堆中取出一个元素，就把这个元素原先所在的队列`pop_front()`一下。以此类推，取出`n`个元素即为答案。
+
+```c++
+const int N_MAX = 1e5, A_MAX = 1e9, B_MAX = 1e9;
+int n, a[1 + N_MAX], b[1 + N_MAX]; int p[1 + N_MAX], ans_cnt; // (0, p[i]]已加入优先队列
+std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::function<bool(const std::pair<int, int>&, const std::pair<int, int>&)>> queue([](const std::pair<int, int> &child, const std::pair<int, int> &root){ return child.first > root.first; });
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = 1; i <= n; ++i) { std::cin >> b[i]; }
+
+    for(int i = 1; i <= n; ++i) { queue.emplace(a[i] + b[++p[i]], i); }
+    while(!queue.empty() && ans_cnt < n) {
+        std::pair<int, int> x = queue.top(); queue.pop();
+        std::cout << x.first << ' '; ++ans_cnt;
+        if(p[x.second] <= n) { queue.emplace(a[x.second] + b[++p[x.second]], x.second); }
+    }
+}
+```
 
 ## §3.7 倍增
 
