@@ -16506,6 +16506,45 @@ int main(){
 }
 ```
 
+> [洛谷P1419](https://www.luogu.com.cn/problem/P1419)：给定数组`a[1->n]`，请选出一个包含元素数量在`[p, q]`范围内的非空闭区间`[l, r]`，使得`a[l->r]`这`r-l+1∈[p,q]`个元素的平均值取得最大值，并输出这个最大值，保留三位小数。
+
+记题目所求值为`x`。首先注意到题目所给条件$\displaystyle\frac{\displaystyle\sum_{i=l}^{r}a[i]}{r-l+1}\le x$可以等价地表示为$\displaystyle\sum_{i=l}^{r}(a[i] - x)\le 0$。不妨令`b[i] = a[i] - x`，于是题目等价地转化为：求出值`x`，使得数列`b[i] = a[i] - x`在任意闭区间上的子段和恰好均小于等于`0`。显然`x`具有二分性质，对于单个`x`，我们可以用单调队列来快速判别。
+
+具体来说，我们预处理一个`b[]`的前缀和`b_presum[]`，于是二分判定条件可以改写为：如果不存在`[l, r]`，使得$\mathrm{b\_presum}[r] - \mathrm{b\_presum}[l-1] > 0$，则我们认为`x`合法。当我们固定`r`时，根据闭区间长度约束条件$p \le r - l + 1 \le q$，可解得$l\in[r+1-q, r+1-p]$。这意味着我们只需判别`b_presum[r-q->r-p]`的最小值是否总是大于等于`b_presum[r]`即可，而这种滑动窗口最小值正是单调队列所擅长求解的。
+
+```c++
+const int N_MAX = 1e5, A_MAX = 1e4, A_MIN = -1e4;
+int n, a[1 + N_MAX], p, q; double b_presum[1 + N_MAX]; double x, x_l, x_r; 
+double queue_b[1 + N_MAX]; int queue_i[1 + N_MAX], queue_head, queue_tail; // [head, tail)
+bool check(double x) {
+    for(int i = 1; i <= n; ++i) { b_presum[i] = b_presum[i - 1] + a[i] - x; }
+
+    queue_head = queue_tail = 0;
+    for(int r = 1; r <= n; ++r) {
+        while(queue_head < queue_tail && r - p >= 0 && queue_b[queue_tail - 1] > b_presum[r - p]) { --queue_tail; }
+        if(r - p >= 0 && r - p <= n) { queue_b[queue_tail] = b_presum[r - p]; queue_i[queue_tail] = r - p; ++queue_tail; }
+        while(queue_head < queue_tail && queue_i[queue_head] < r - q) { ++queue_head; }
+        if(queue_head < queue_tail && b_presum[r] - queue_b[queue_head] > 0) { return false; }
+    }
+    return true;
+}
+int main() {
+    std::cin >> n >> p >> q;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    x_r = A_MAX, x_l = A_MIN;
+    while(x_r - x_l >= 1e-6) {
+        x = (x_l + x_r) / 2;
+        if(check(x)) {  // 判别max(avg)<=x，x太小导致false，x太大导致true
+            x_r = x;
+        } else {
+            x_l = x;
+        }
+    }
+    std::cout << std::fixed << std::setprecision(3) << x;
+}
+```
+
 ## §7.3 树状数组
 
 **树状数组是一种维护前缀和的数据结构**。其支持的运算$f(\cdot)$需要满足结合律$f(f(x,y),z)=f(x,f(y,z))$、支持差分$y=f^{-1}(f(x,y),x)$，例如加法、乘法、异或等。然而$\max(\cdot)$、$\gcd(\cdot)$等函数不支持差分，因此无法直接用于树状数组。
