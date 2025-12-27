@@ -1979,7 +1979,7 @@ int main() {
 
 ### §2.1.17 物品选择策略
 
-要输出最优策略下的物品选择策略，我们只需定义一个新的布尔数组`is_selected[i][j]`，表示给定前`i`个物品、代价预算为`j`的最优决策是否会选择第`i`个物品，在状态转移的时候更新这个数组，最后在输出方案时依照下列逻辑读取：
+要输出**一种**最优策略下的物品选择策略，我们只需定义一个新的布尔数组`is_selected[i][j]`，表示给定前`i`个物品、代价预算为`j`的最优决策是否会选择第`i`个物品，在状态转移的时候更新这个数组，最后在输出方案时依照下列逻辑读取：
 
 ```c++
 /* 伪代码 */
@@ -1989,6 +1989,68 @@ for(int i = n; i >= 1; --i){
         std::cout << i << ' '; // 从大到小依次输出选择物品的序号
         budget_temp -= cost[i];
     }
+}
+```
+
+要输出**多种**复合条件的物品选择策略，我们需要使用DFS进行DP状态转移，转移时向栈中压入或取出操作步骤。
+
+> [洛谷P1329](https://www.luogu.com.cn/problem/P1329)：给定数列`a[1->n<=1e2]`与目标值`int64_t s`，其中`a[1] == 0`、相邻两项（`a[i]`和`a[i+1]`）之差为`1`或`-1`。求满足$\displaystyle\sum_{i=1}^{n}a_i = s$的数列`a[]`有多少种？答案对`2^64`取模后输出，并输出任意`100`符合条件的`a[]`序列。
+
+设$x_i = a[i + 1] - a[i] \in \{1, -1\}$，于是我们有：
+
+$$
+\begin{cases}
+	a_1 = 0 \\
+	a_2 = a_1 + x_1 = x_1 \\
+	a_2 = a_1 + x_2 = x_1 + x_2 \\
+	a_3 = a_2 + x_3 = x_1 + x_2 + x_3 \\
+	\cdots \\
+	a_n = x_1 + x_2 + x_3 + \cdots + x_{n-1} = \displaystyle\sum_{i=1}^{n-1}x_i
+\end{cases} \Longrightarrow
+\begin{align}
+	\sum_{i=1}^{n}a_i & = (n-1)x_1 + (n-2)x_2 + \cdots + (1)x_{n-1} \\
+	& = \sum_{i=1}^{n-1}(n-i)x_i
+\end{align}
+$$
+
+至此，我们的问题转化为有多少种符合条件的`x[1->n-1]`序列，使得$\displaystyle\sum_{i=1}^{n-1}(n-i)x_i = s$。这个问题有点像背包，我们在决定是否选中`x[i]`物品，选中的价值是`n-i`，不选的价值是`-(n-i)`。令`dp[i][j]`表示给定前`i`个物品，能让总价值恰好为`j`的选择方法数。由于价值可能是负数，因此要给`j`加上`OFFSET`，`j`的取值范围极值为选中/不选所有物品对应的情况。
+
+然后考虑第二问，使用DFS与`x_stack[]`来保存临时路径。其中`dfs(i, presum)`表示已经对`[1, i)`区间内的物品进行决策，及其决策后得到的总价值`presum`，现在要决定是否选择第`i`个物品。这里还需要引入两个剪枝：
+- 如果`[i, n-1]`区间内的所有物品，不足以弥补当前差距`std::abs(presum - s)`，则直接判定为非法，剪枝即可。
+- 如果当前输出的答案数量`ans_cnt > 100`，则无需再寻找答案了，剪枝即可。
+
+```c++
+const int N_MAX = 1e2, M_MAX = N_MAX * (N_MAX + 1) / 2, OFFSET = M_MAX;
+int n, m_max; int64_t s; uint64_t dp[2][1 + M_MAX * 2];
+int x_stack[1 + (N_MAX - 1)], a[1 + N_MAX], ans_cnt;
+void dfs(int i, int presum) {
+    if(i == n) {
+        if(presum != s) { return; }
+        if(++ans_cnt > 100) { return; }
+        a[1] = 0; for(int i = 2; i <= n; ++i) { a[i] = a[i - 1] + x_stack[i - 1]; }
+        for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; } std::cout << '\n';
+        return;
+    }
+    if((n - i) * (n - i + 1) / 2 < std::abs(presum - s)) { return; } // 剪枝
+    if(ans_cnt > 100) { return; } // 剪枝
+    x_stack[i] = 1; dfs(i + 1, presum + (n - i));
+    x_stack[i] = -1; dfs(i + 1, presum - (n - i));
+}
+int main() {
+    std::cin >> n >> s; m_max = n * (n + 1) / 2;
+
+    if(std::abs(s) > n * (n - 1) / 2) {  }
+    dp[0 & 1][OFFSET] = 1;
+    for(int i = 1; i <= n - 1; ++i) {
+        for(int j = -m_max; j <= m_max; ++j) {
+            dp[i & 1][j + OFFSET] = 0;
+            dp[i & 1][j + OFFSET] += (j + (n - i) <= m_max ? dp[(i - 1) & 1][j + (n - i) + OFFSET] : 0);
+            dp[i & 1][j + OFFSET] += (j - (n - i) >= -m_max ? dp[(i - 1) & 1][j - (n - i) + OFFSET] : 0);
+        }
+    }
+    std::cout << dp[(n - 1) & 1][s + OFFSET] << '\n';
+
+    dfs(1, 0);
 }
 ```
 
@@ -20806,6 +20868,70 @@ int main(){
     }
     std::cout << delete_count << '\n';
     for(int i = 1; i <= delete_count; ++i) { std::cout << delete_pos[i] << ' '; }
+}
+```
+
+> [洛谷P1503](https://www.luogu.com.cn/problem/P1503)：给定初始值均为`true`的`bool a[1->n<=5e4]`与`q<=5e4`次查询，支持两种操作：（1）单点修改`a[x_temp] = false`，将`x_temp`推入操作记录栈中；（2）从操作记录栈中取出`x_temp`，单点修改`a[x_temp] = true`；（3）查询以`a[i]`为起点，向左右延伸均为`true`的闭区间包含元素数量，特殊地，如果`a[i] = false`，则输出`0`。
+
+使用线段树维护`a[l->r]`区间的`v_l`/`v_r`，表示以`a[l]`/`a[r]`为起点，向区间中心扩散，**同时不超出`[l, r]`的**连续`true`数量。
+
+考虑如何设计`segtree_pushup()`的合并逻辑：
+- `segtree[root].v_l`存在一种情况，就是如果左子树均为`true`，则`segtree[root].v_l`会接触到右子树。即`segtree[root].v_l = (segtree[root * 2].v_l == segtree[root * 2].r - segtree[root * 2].l + 1 ? segtree[root * 2].v_l + segtree[root * 2 + 1].v_l`
+- `segtree[root].v_l`同样存在一种情况，就是如果就是如果右子树均为`true`，则`segtree[root].v_r`会接触到左子树。代码逻辑同理可得。
+
+考虑如何设计`segtree_query()`的查询逻辑：
+- 如果`x_temp`恰好在左右子树交界处形成的全`true`区间内，则直接返回`segtree[root * 2].v_r + segtree[root * 2 + 1].v_l`即可。
+- 如果`x_temp`不属于左右子树交界处形成的全`true`区间，则只可能独属于左区间或右区间。按照`x_temp`所属的左子树/右子树，直接递归即可。
+
+```c++
+const int N_MAX = 5e4, Q_MAX = 5e4;
+int n, q; char op_temp; int x_temp; std::stack<int> history;
+
+struct SegTree { int l, r, v_l, v_r; } segtree[1 + N_MAX * 4];
+inline void segtree_pushup(const int &root) {
+    segtree[root].v_l = (segtree[root * 2].v_l == segtree[root * 2].r - segtree[root * 2].l + 1 ? segtree[root * 2].v_l + segtree[root * 2 + 1].v_l : segtree[root * 2].v_l);
+    segtree[root].v_r = (segtree[root * 2 + 1].v_r == segtree[root * 2 + 1].r - segtree[root * 2 + 1].l + 1 ? segtree[root * 2 + 1].v_r + segtree[root * 2].v_r : segtree[root * 2 + 1].v_r);
+}
+void segtree_init(const int root, const int l, const int r) {
+    segtree[root].l = l; segtree[root].r = r;
+    if(l == r) { segtree[root].v_l = segtree[root].v_r = 1; return; }
+    int m = (l + r) / 2;
+    segtree_init(root * 2, l, m);
+    segtree_init(root * 2 + 1, m + 1, r);
+    segtree_pushup(root);
+}
+void segtree_reset(const int root, const int &x, const int &v) {
+    if(segtree[root].l == segtree[root].r) { segtree[root].v_l = segtree[root].v_r = v; return; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(x <= m) { segtree_reset(root * 2, x, v); }
+    if(x > m) { segtree_reset(root * 2 + 1, x, v); }
+    segtree_pushup(root);
+}
+int segtree_query(const int root, const int &x) {
+    if(segtree[root].l == segtree[root].r) { return segtree[root].v_l; }
+    int m = (segtree[root].l + segtree[root].r) / 2;
+    if(segtree[root * 2].r - segtree[root * 2].v_r + 1 <= x && x <= segtree[root * 2 + 1].l + segtree[root * 2 + 1].v_l - 1) { return segtree[root * 2].v_r + segtree[root * 2 + 1].v_l; }
+    if(x <= m) { return segtree_query(root * 2, x); }
+    if(x > m) { return segtree_query(root * 2 + 1, x); }
+    assert(false);
+}
+
+int main() {
+    std::cin >> n >> q;
+    segtree_init(1, 1, n);
+    while(q--) {
+        std::cin >> op_temp;
+        if(op_temp == 'D') {
+            std::cin >> x_temp; history.push(x_temp);
+            segtree_reset(1, x_temp, 0);
+        } else if(op_temp == 'R') {
+            x_temp = history.top(); history.pop();
+            segtree_reset(1, x_temp, 1);
+        } else if(op_temp == 'Q') {
+            std::cin >> x_temp;
+            std::cout << segtree_query(1, x_temp) << '\n';
+        }
+    }
 }
 ```
 
