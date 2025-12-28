@@ -769,6 +769,53 @@ int main(){
 - 以价值最大化问题为例，我们希望不合法的状态全为负无穷大，这样在$\max(\cdot)$的各参数大小竞争中，非法状态就会不起作用，等价于不存在。于是`dp[0][0]`为0，而`dp[0][1->n]`均为负无穷大。
 - 以统计方案数问题为例，我们希望不合法的状态不对应任何方案，也就是0。于是`dp[0][0]`反而是一种合法的方案，因为什么都不选也能填满容量为0的背包，而`dp[0][1->n]`均为0。
 
+> [洛谷P1284](https://www.luogu.com.cn/problem/P1284)：给定`n<=40`个长度分别为`a[i]<=40`的木棍，请用**所有的**木棍拼成三条边，且恰好能构成三角形。求三角形最大面积`ans`。如果三角形不存在则输出`-1`，如果存在则输出`(int64_t)(ans * 100)`。
+
+预处理关于`a[]`的前缀和数组`a_presum[]`。令`bool dp[i][j][k]`表示给定前`i`个木棍，能否拼成三条长度分别为`j`、`k`、`a_presum[i] - j - k`的边，**注意这三条边不一定非要组成三角形**。于是给定一条新木棍`a[i]`，我们有三种选择：
+
+- 把`a[i]`拼在长度为`j`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j - a[i]][k]`，前提是`j >= a[i]`。
+- 把`a[i]`拼在长度为`k`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j][k - a[i]]`，前提是`k >= a[i]`。
+- 把`a[i]`拼在长度为`a_presum[i] - j - k`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j][k]`，前提是`a_presum[i] - j - k >= a[i]`。
+
+以上三种情况进行或运算即可。初始值`dp[0][0][0] = true`，其余`dp[0][*][*] = false`。注意到以上状态转移方程可以用滚动数组优化，把第一维砍成一行。
+
+计算得到`dp[n][*][*]`后，只需遍历所有可以取到的三条边长度组合情况，带入海伦公式$\begin{cases}p = \displaystyle\frac{a+b+c}{2}\\S=\sqrt{p(p-a)(p-b)(p-c)}\end{cases}$求**能组成三角形**的所有情况的最大值即可。
+
+```c++
+const int N_MAX = 40, A_MAX = 40; const double INF = 1e18;
+int n, a[1 + N_MAX], a_presum[1 + N_MAX]; bool dp[1 + N_MAX * A_MAX][1 + N_MAX * A_MAX]; double ans = -INF;
+double calc_triangle_area(double a, double b, double c) {
+    if(!(a + b > c && a + c > b && b + c > a)) { return -INF; }
+    double p = (a + b + c) / 2;
+    return std::sqrt(p * (p - a) * (p - b) * (p - c));
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_presum[i] = a_presum[i - 1] + a[i]; }
+
+    dp[0][0] = true;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = a_presum[i]; j >= 0; --j) {
+            for(int k = a_presum[i]; k >= 0; --k) {
+                dp[j][k] = std::ranges::any_of(std::initializer_list<bool>{
+                    j >= a[i] ? dp[j - a[i]][k] : false,
+                    k >= a[i] ? dp[j][k - a[i]] : false,
+                    a_presum[i] - j - k >= 0 ? dp[j][k] : false
+                }, std::identity{});
+            }
+        }
+    }
+    for(int j = 0; j <= a_presum[n]; ++j) {
+        for(int k = 0; k <= a_presum[n]; ++k) {
+            if(dp[j][k] == true) {
+                ans = std::max(ans, calc_triangle_area(j, k, a_presum[n] - j - k));
+            }
+        }
+    }
+    std::cout << (ans == -INF ? -1ll : (int64_t)(ans * 100));
+}
+```
+
 ### §2.1.7 依赖背包
 
 > [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定`m`个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个子物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$n$的约束条件下，求物品价值之和的最大值。
@@ -5742,7 +5789,7 @@ TODO\：？？？？需要用到逆元！
 
 TODO\：？？？？
 
-## §2.6 状压DP
+	## §2.6 状压DP
 
 状压DP的核心是用`bitset`描述表示一个用整数表示的集合状态。
 
@@ -13158,7 +13205,6 @@ int main() {
 本题显然是要多次求最小生成树。如果对`i`按`1->m`进行升序遍历，则每次判断新增的第`i`条边是否在新的最小生成树内，都必须重跑一次最小生成树，时间开销过大。
 
 不妨对`i`按`m->1`进行降序遍历，如果第`i+1`条边原先在最小生成树中，且在当前回合中被删除，才需要重跑一次最小生成树。
-
 
 ### §6.3.2 Prim算法
 
