@@ -1332,11 +1332,11 @@ int main(){
 }
 ```
 
-> [洛谷P2851](https://www.luogu.com.cn/problem/P2851)：现在有`n`种面额分别为`value[i]`的硬币，给定要购买的商品价格`t`。买方对于每种硬币只有`buyer_count[i]`枚，而卖方有无穷多硬币。定义找零金额`k`等于支付金额`k+t`减商品价格`t`。令`dp_buyer[i]`和`dp_sellor[i]`分别表示买方和卖方恰好凑出`i`元所需硬币的最少数量，求$\forall k\in[0,+\infin)$，`dp_buyer[k+t]+dp_seller[k]`的最小值。如果无解则输出-1。
+> [洛谷P2851](https://www.luogu.com.cn/problem/P2851)：现在有`n`种面额分别为`value[i]`的硬币，给定要购买的商品价格`t`。买方对于每种硬币只有`buyer_count[i]`枚，而卖方有无穷多硬币。定义找零金额`k`等于支付金额`k+t`减商品价格`t`。令`dp_buyer[i]`和`dp_sellor[i]`分别表示买方和卖方恰好凑出`i`元所需硬币的最少数量，求$\forall k\in[0,+\infty)$，`dp_buyer[k+t]+dp_seller[k]`的最小值。如果无解则输出-1。
 
 本题的买方`dp_buyer`数组是二进制优化的多重背包，卖方`dp_sellor`数组是完全背包。分别求出即可。
 
-本题的难点在于$\forall k\in[0,+\infin)$，我们肯定无法真正的求出$k\rightarrow+\infin$的情况，这样的话数组空间和计算耗时都撑不住，所以我们要给`k`的遍历指定一个上界。问题是：上界怎么求？
+本题的难点在于$\forall k\in[0,+\infty)$，我们肯定无法真正的求出$k\rightarrow+\infty$的情况，这样的话数组空间和计算耗时都撑不住，所以我们要给`k`的遍历指定一个上界。问题是：上界怎么求？
 
 在求解之前，我们先介绍以下引理：
 
@@ -6454,6 +6454,52 @@ int main() {
     }
     for(int i = 1; i <= m; ++i) { if(dp[1][n][i]) { std::cout << m_inv_map.at(i); } }
     if(std::none_of(&dp[1][n][0] + 1, &dp[1][n][0] + m + 1, [](const bool &x) { return x; })) { std::cout << "The name is wrong!"; }
+}
+```
+
+> [洛谷P1430](https://www.luogu.com.cn/problem/P1430)：执行`q<=10`次查询。每次查询给定一个数组`a[1->n<=1e3]`，甲乙二人玩一种回合制游戏——如果当前回合轮到某个人，那么他可以选择从队列左边，或队列右边开始，连续取若干个（`>=1`）数，直到队列被取完为止。甲先手，求双方在最佳策略下，甲能获得的元素之和最大值。
+
+令`dp_l[i][j]`表示在当前回合时，队列中只剩`a[i->j]`，当前人在最优策略下，**从队列左边**开始选，能获得的元素之和最大值。`dp_r[i][j]`同理，只不过是**从队列右边**开始选。
+
+以`dp_l[i][j]`为例考虑转移方程，当前方有三种策略：
+1. 选完`a[i]`后，接着选`a[i+1]`，于是`a[i] + dp_l[i+1][j] -> dp_l[i][j]`。
+2. 选完`a[i]`后，把回合让给对方，对方从队列左边开始选。对方选了之后才能轮到我们，此时我们的选择余地需要通过总量减对方选择量才能得到。于是`a[i] + (∑a[i+1->j] - dp_l[i+1][j]) -> dp_l[i][j]`。
+3. 选完`a[i]`后，把回合让给对方，对方从队列右边开始选。同理可得，`a[i] + (∑a[i+1->j] - dp_r[i+1][j])`。
+这是一个零和博弈，一旦我们把回合让给对方，对方跟定会让我们的剩余收益最小化，这意味着我们要对第2、3种情况取最小值。
+
+`dp_r[i][j]`同理，此处略。于是我们就得到了状态转移方程：
+
+$$
+\begin{align}
+	& \mathrm{dp}_l[i][j] = \max\begin{cases}
+		a[i] + \mathrm{dp}_l[i+1][j] \\
+		a[i] + \min\left(\displaystyle\sum_{k=i+1}^{j}a[k] - \mathrm{dp}_l[i+1][j], \sum_{k=i+1}^{j}a[k] - \mathrm{dp}_r[i+1][j] \right)
+	\end{cases} \\
+	& \mathrm{dp}_r[i][j] = \max\begin{cases}
+		a[j] + \mathrm{dp}_r[i][j-1] \\
+		a[j] + \min\left(\displaystyle\sum_{k=i}^{j-1}a[k] - \mathrm{dp}_l[i][j-1], \sum_{k=i}^{j-1}a[k] - \mathrm{dp}_r[i][j-1] \right)
+	\end{cases} \\
+\end{align}
+$$
+
+```c++
+const int Q_MAX = 10, N_MAX = 1e3;
+int q, n, a[1 + N_MAX], a_presum[1 + N_MAX], dp_l[1 + N_MAX][1 + N_MAX], dp_r[1 + N_MAX][1 + N_MAX];
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> n;
+        for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_presum[i] = a_presum[i - 1] + a[i]; }
+
+        for(int i = 1; i <= n; ++i) { dp_l[i][i] = dp_r[i][i] = a[i]; }
+        for(int l = 2; l <= n; ++l) {
+            for(int i = 1, j = i + l - 1; j <= n; ++i, ++j) {
+                dp_l[i][j] = a[i] + std::max(dp_l[i + 1][j], a_presum[j] - a_presum[i] - std::max(dp_l[i + 1][j], dp_r[i + 1][j]));
+                dp_r[i][j] = a[j] + std::max(dp_r[i][j - 1], a_presum[j - 1] - a_presum[i - 1] - std::max(dp_l[i][j - 1], dp_r[i][j - 1]));
+            }
+        }
+        std::cout << std::max(dp_l[1][n], dp_r[1][n]) << '\n';
+    }
 }
 ```
 
@@ -24429,7 +24475,7 @@ class CipollaPolynomial {
 		for(int i = 0; i <= 1; ++i) { ans.power[i] %= p; }
 		return ans;
 	}
-	CipollaPolynomial& operator%=(const int64_t &mod) {
+	CipollaPolynomial& operator%=(const int64_t &p) {
 		for(int i = 0; i <= 1; ++i) { this->power[i] %= p; }
 		return *this;
 	}
@@ -28885,7 +28931,7 @@ C++20起，移除了`std::cin >> char*`的用法，这意味着给定一个字�
 
 ```c++
 const int N_MAX = 100;
-char s[1 + N_MAX +1];
+char s[1 + N_MAX + 1];
 int main() {
 	std::cin >> s; // √
 	std::cin >> (s + 1); // ×, C++20后废弃
