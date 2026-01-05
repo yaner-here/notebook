@@ -10100,6 +10100,26 @@ int main() {
 
 ## §3.8 双指针
 
+双指针有很多种写法，有些看似正确，实则暗藏大坑。
+
+- 以下是一种总体正确的写法。例外是：**如果条件从一开始就是满足的**，那么分支①不可能被触发，右指针不移动，导致分支②也不可能被触发，从而造成死循环。
+```c++
+for(int i = 1, j = 1; j <= n;) { // [i, j)
+	for(; 条件未满足 && j <= n; ++j) { 维护条件的判定值; } // ①
+	for(; 条件已满足 && i < j; ++i) { 维护条件的判定值; 计入ans; } // ②
+}
+```
+- 以下是一种总体正确的写法。例外是：**如果空区间也满足条件**，那么这种写法无法处理这种区间长度为`0`的情况。**因此需要特判**。
+```c++
+for(int i = 1, j = 1; j <= n; ++j) { // [i, j]
+	维护条件的判定值;
+	for(; 条件已满足 && i <= j; ++i) { 维护条件的判定值; 计入ans; }
+}
+```
+
+
+洛谷P1291
+
 > [洛谷P1493](https://www.luogu.com.cn/problem/P1493)：给定常数`c1/c2/c3`与`n<=2e3`个物品，第`i`个物品含有属性`a[i]`与`b[i]`。如果一个物品集合$S$满足$\forall s\in S, c_1\left(a_s - \displaystyle\min_{\forall i\in S}{a_i}\right) + c_2\left(b_s - \displaystyle\min_{\forall i\in S}{b_i}\right) \le c_3$，则称其为合法集合。求合法集合中的物品数量最大值。
 
 令`f[i] = c1 * a[i] + c2 * b[1]`，原条件可以改写成$\forall s\in S, f[s] \le c_1\cdot\displaystyle\min_{\forall i\in S}{a_i} + c_2\cdot\displaystyle\min_{\forall i\in S}{b_i} + c_3$。容易想到暴力做法：枚举`n`个物品的`a[]`值作为`a_min`（$\displaystyle\min_{\forall i\in S}{a_i}$）、枚举`n`个物品的`b[]`值作为`b_min`（$\displaystyle\min_{\forall i\in S}{b_i}$），遍历`n`个物品并统计出所有满足`s:1->n, a[s]>=a_min && b[s]>=b_min && f[s] <= c1 * a_min + c2 * b_min`的个数，时间复杂度为$O(n^3)$。
