@@ -4736,3 +4736,157 @@ public class JucMain {
 	1 2 3 4 5 6 7 8 9 10 
 */
 ```
+
+# §9 C++实现
+
+```java
+/* YanerThread.java */
+package com.yaner.lib;
+
+import java.util.concurrent.atomic.AtomicInteger;
+import java.io.File;
+
+public abstract class YanerThread {
+    protected static AtomicInteger atomicInteger = new AtomicInteger();
+    public int threadId;
+    private native void _start();
+
+    static {
+        System.load(String.join(File.separator, System.getProperty("user.dir"), "src", "main", "java", "com", "yaner", "lib", "com_yaner_lib_YanerThread.dll"));
+    }
+
+    public YanerThread() { this.threadId = atomicInteger.incrementAndGet(); }
+    abstract public void run();
+    public void start() { _start(); }
+}
+```
+
+```java
+/* YanerThreadTest.java */
+package com.yaner.lib;
+
+public class YanerThreadTest {
+    public static void main(String[] args) {
+        new YanerThread() {
+            @Override
+            public void run() {
+                System.out.printf("[Java] Hello world!\n");
+                System.err.printf("[Java] YanerThread.threadId = %d\n", this.threadId);
+            }
+        }.start();
+    }
+}
+```
+
+```c++
+/* com_yaner_lib_YanerThread.cpp */
+#include "com_yaner_lib_YanerThread.h"
+#include <cassert>
+#include <cstdint>
+#include <format>
+#include <iostream>
+#include <map>
+#include <mutex>
+
+class Parker {
+  private:
+    std::mutex mutex;
+    std::condition_variable cond;
+    bool notified = false;
+  public:
+    void park(int64_t milliseconds) {
+        std::unique_lock<std::mutex> lock(mutex);
+        if(notified) { notified = false; return; }
+        cond.wait_for(lock, std::chrono::milliseconds(milliseconds));
+        notified = false;
+    }
+    void unpark() {
+        std::unique_lock<std::mutex> lock(mutex);
+        notified = true;
+        cond.notify_one();
+    }
+};
+
+class JavaThread {
+  public:
+    JavaVM *jvm;
+    jobject jThreadObjectRef;
+    bool interruptState = false;
+    JavaThread(JNIEnv *env, jobject jThreadObject) {
+        env->GetJavaVM(&(this->jvm));
+        this->jThreadObjectRef = env->NewGlobalRef(jThreadObject);
+    }
+    ~JavaThread() {
+        jvm->DetachCurrentThread();
+    }
+    void execRunMethod() {
+        JNIEnv *env; bool status = false;
+        status = jvm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr); if(status != 0) { std::cerr << std::format("[C++] [{}] Failed to attch JVM.\n", __FUNCTION__); };
+        jclass cls = env->GetObjectClass(jThreadObjectRef);
+        jmethodID runId = env->GetMethodID(cls, "run", "()V"); if(runId == nullptr) { std::cerr << std::format("[C++] [{}] Method run() not found.\n", __FUNCTION__); };
+        env->CallVoidMethod(jThreadObjectRef, runId);
+        env->DeleteGlobalRef(jThreadObjectRef);
+    }
+};
+
+class OSThread {
+  private:
+    JavaThread *javaThread;
+  public:
+    OSThread(JavaThread *javaThread): javaThread(javaThread) {}
+    void call_os_thread() {
+        std::thread t(&OSThread::thread_entry_function, this->javaThread);
+        std::cerr << std::format("[C++] [{}] Created STL thread, id = ", __FUNCTION__) << t.get_id() << '\n';
+        t.detach();
+    }
+    static void thread_entry_function(void *args) {
+        JavaThread *jt = static_cast<JavaThread *>(args);
+        jt->execRunMethod();
+        delete jt;
+    }
+};
+
+std::map<jint, JavaThread*> threads;
+
+JNIEXPORT void JNICALL Java_com_yaner_lib_YanerThread__1start(JNIEnv *env, jobject jThreadObject) {
+    JavaThread *javaThread = new JavaThread(env, jThreadObject);
+    jclass cls = env->GetObjectClass(javaThread->jThreadObjectRef);
+    jfieldID fID = env->GetFieldID(cls, "threadId", "I");
+    jint threadId = env->GetIntField(javaThread->jThreadObjectRef, fID);
+    threads[threadId] = javaThread;
+    std::cerr << std::format("[C++] [{}] Created JavaThread, threadId = {}\n", __FUNCTION__, threadId);
+
+    OSThread osThread(javaThread);
+    osThread.call_os_thread();
+}
+```
+
+```shell
+$ pwd
+	~/yaner-lib/src/main/java/com/yaner/lib
+
+$ ls ./
+	YanerThread.java 
+	com_yaner_lib_YanerThread.cpp
+
+$ javac -h ./ ./YanerThread.jav
+$ g++ -fPIC -std=c++20 -c .\com_yaner_lib_YanerThread.cpp -I"C:/lib/jdk/openjdk-25/include" -I"C:/lib/jdk/openjdk-25/include/win32"
+$ g++ -shared -o .\com_yaner_lib_YanerThread.dll .\com_yaner_lib_YanerThread.o
+
+$ ls ./
+	com_yaner_lib_YanerThread.cpp 
+	com_yaner_lib_YanerThread.dll 
+	com_yaner_lib_YanerThread.h 
+	com_yaner_lib_YanerThread.o 
+	YanerThread.java
+
+$ cd ../../../../../../ && pwd
+	~/yaner-lib/src/main/java/com/yaner/lib
+	
+$ javac -d out src\main\java\com\yaner\lib\YanerThread.java src\test\java\com\yaner\lib\YanerThreadTest.java
+$ java -cp out com.yaner.lib.YanerThreadTest
+	[C++] [Java_com_yaner_lib_YanerThread__1start] Created JavaThread, threadId = 1
+	[C++] [call_os_thread] Created STL thread, id = 0x4ac
+	[Java] Hello world!
+	[Java] YanerThread.threadId = 1
+```
