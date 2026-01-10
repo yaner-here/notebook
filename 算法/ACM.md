@@ -6633,6 +6633,50 @@ int main() {
 }
 ```
 
+> [洛谷P1220](https://www.luogu.com.cn/problem/P1220)：给定`n<=50`个位置分别为`x[i]`的、功率分别为`a[i]`的路灯排成一行，初始时在`x[s]`位置。现在需要关闭所有路灯，必须走到`x[i]`才能瞬间关闭路灯，行走速度为`1`。求耗费的焦耳数最小值。
+
+令`dp[i][j][0/1]`表示目前只关闭了`[i, j]`闭区间内的路灯，且目前在区间最左/右侧时，已经耗费的焦耳数最小值。下一回合，我们既可以关闭左侧尚未关闭的路灯，也可以惯有右侧的。于是有状态转移方程：
+
+$$
+\begin{align}
+	\mathrm{dp}[i][j][0] = \min\begin{cases}
+		\displaystyle \mathrm{dp}[i+1][j][0] + (x[i+1] - x[i]) \cdot \left(\sum_{k\in[1,i]\cup[j+1,n]} a[k]\right) \\
+		\displaystyle \mathrm{dp}[i+1][j][1] + (x[j] - x[i]) \cdot \left(\sum_{k\in[1,i]\cup[j+1,n]} a[k]\right) \\
+	\end{cases} \\
+	\mathrm{dp}[i][j][1] = \min\begin{cases}
+		\displaystyle \mathrm{dp}[i][j-1][1] + (x[j] - x[j-1]) \cdot \left(\sum_{k\in[1,i-1]\cup[j,n]} a[k]\right) \\
+		\displaystyle \mathrm{dp}[i][j-1][0] + (x[j] - x[i]) \cdot \left(\sum_{k\in[1,i-1]\cup[j,n]} a[k]\right) \\
+	\end{cases}
+\end{align}
+$$
+
+初始时除了`dp[s][s][0] = dp[s][s][1] = 0`以外，其余`dp[i][i][0] = dp[i][i][1] = +∞`。最后输出`std::min(dp[1][n][0], dp[1][n][1])`即为答案。
+
+```c++
+const int N_MAX = 50, A_MAX = 100; const int64_t INF = 1e18;
+int n, s, x[1 + N_MAX], a[1 + N_MAX], a_presum[1 + N_MAX];
+int64_t dp[1 + N_MAX][1 + N_MAX][2];
+int main() {
+    std::cin >> n >> s;
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i] >> a[i]; a_presum[i] = a_presum[i - 1] + a[i]; }
+
+    for(int i = 1; i <= n; ++i) { dp[i][i][0] = dp[i][i][1] = INF; } dp[s][s][0] = dp[s][s][1] = 0;
+    for(int l = 2; l <= n; ++l) {
+        for(int i = 1, j = i + l - 1; j <= n; ++i, ++j) {
+            dp[i][j][0] = std::min(
+                dp[i + 1][j][0] + (x[i + 1] - x[i]) * (a_presum[i] - a_presum[0] + a_presum[n] - a_presum[j]),
+                dp[i + 1][j][1] + (x[j] - x[i]) * (a_presum[i] - a_presum[0] + a_presum[n] - a_presum[j])
+            );
+            dp[i][j][1] = std::min(
+                dp[i][j - 1][1] + (x[j] - x[j - 1]) * (a_presum[i - 1] - a_presum[0] + a_presum[n] - a_presum[j - 1]),
+                dp[i][j - 1][0] + (x[j] - x[i]) * (a_presum[i - 1] - a_presum[0] + a_presum[n] - a_presum[j - 1])
+            );
+        }
+    }
+    std::cout << std::min(dp[1][n][0], dp[1][n][1]);
+}
+```
+
 ### §2.9.3 二维区间DP
 
 > [洛谷P1436]()：给定一个`n × n`的棋盘（`n==8`），每个格子上都有值`x[1->n][1->n]∈[0, 100]`。接下来进行`m<=15`个回合，每回合沿横线或竖线，将棋盘切成两个矩形非空子棋盘，选择其中的一个作为下一回合要切割的棋盘，最终会得到`m+1`块矩形子棋盘。将每个子棋盘上的`x[][]`相加并平方作为分数值，求`m`个分数值相加得到的最小值。
@@ -8315,6 +8359,48 @@ bool dfs(int i, int l1, int l2, int l3, int l4){
 1. 将所有木棍的长度加起来，记为`sum`。如果`sum % 4 != 0`，那么从一开始就不可能构成四个长度相同的长木棍，不必启动搜索过程。
 2. 如果某个长木棍（`l1`、`l2`、`l1`、`l4`）的长度大于`sum / 4`，则该木棍的长度不可能与其它木棍长度相同，即“一山不容二虎”。
 3. 为了让第二条更快地触及“一山不容二虎”，我们想一开始就让各个长木棍的长度冲破`sum / 4`这个上线。为此可以将`n`个木棍长度降序排序。
+
+> [洛谷P1363](https://www.luogu.com.cn/problem/P1363)：给定一个二维网格上的无限棋盘，由`n×m <= 1.5e3×1.5e3`的循环节`bool map[n][m]`密铺而成，其中`false`表示墙壁，`true`表示道路。给定起点坐标，从此出发任意游走，请判定能否从起点到达无穷远处。
+
+这里我们直接给出结论：本题等价于判定无穷棋盘上是否存在两个可达点，它们的横纵坐标模`n`/`m`后相等。设计BFS状态时，令`vis[x%n][y%m][0/1/2]`表示是否经过/第一次经过时的横坐标/第二次经过时的纵坐标。如果某个点`vis[x%n][y%m][0] == false`未被访问过，或者已经被访问过但是两次经过的横纵坐标都相等，则剪枝，不加入到队列中。
+
+**本题数据量较大，因此每次向队列插入后，都必须打上`vis`标记，以供后续紧接着的入队请求来剪枝。**
+
+```c++
+const int N_MAX = 1500, M_MAX = 1500;
+int n, m; char s_temp; bool map[N_MAX][M_MAX]; int vis[N_MAX][M_MAX][3]; bool ans;
+struct Point { int x, y; };
+int main() {
+    while(std::cin >> n >> m) {
+        std::queue<Point> q; ans = false;
+        for(int i = 0; i < n; ++i) {
+            for(int j = 0; j < m; ++j) {
+                std::cin >> s_temp;
+                vis[i][j][0] = 0;
+                if(s_temp == '#') { map[i][j] = false; }
+                if(s_temp == '.' || s_temp == 'S') { map[i][j] = true; }
+                if(s_temp == 'S') { q.emplace(i, j); }
+            }
+        }
+        while(!q.empty()) {
+            Point p = q.front(); q.pop(); // 取出的点一定是尚未访问的/已经访问但坐标不同的非墙点
+            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 1 && (p.x != vis[mod(p.x, n)][mod(p.y, m)][1] || p.y != vis[mod(p.x, n)][mod(p.y, m)][2])) { ans = true; break; }
+            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 0) {  vis[mod(p.x, n)][mod(p.y, m)][0] = 1; vis[mod(p.x, n)][mod(p.y, m)][1] = p.x; vis[mod(p.x, n)][mod(p.y, m)][2] = p.y; }
+            const std::function<void(const int &, const int &)> queue_push_check = [&q](const int &x, const int &y) {
+                int x_mod = mod(x, n), y_mod = mod(y, m);
+                if(map[x_mod][y_mod] == false || (vis[x_mod][y_mod][0] == 1 && x == vis[x_mod][y_mod][1] && y == vis[x_mod][y_mod][2])) { return; }
+                if(vis[x_mod][y_mod][0] == 0) { vis[x_mod][y_mod][0] = 1; vis[x_mod][y_mod][1] = x; vis[x_mod][y_mod][2] = y; } // 提前打vis标记，以供后续queue_push_check()剪枝，否则超吃
+                q.emplace(x, y);
+            };
+            queue_push_check(p.x + 1, p.y);
+            queue_push_check(p.x - 1, p.y);
+            queue_push_check(p.x, p.y + 1);
+            queue_push_check(p.x, p.y - 1);
+        }
+        std::cout << (ans ? "Yes" : "No") << '\n';
+    }
+}
+```
 
 ### §3.1.3 棋盘搜索
 
