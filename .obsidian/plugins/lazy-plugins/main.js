@@ -30,7 +30,7 @@ var require_manifest = __commonJS({
     module2.exports = {
       id: "lazy-plugins",
       name: "Lazy Plugin Loader",
-      version: "1.0.18",
+      version: "1.0.21",
       minAppVersion: "1.6.0",
       description: "Load plugins with a delay on startup, so that you can get your app startup down into the sub-second loading time.",
       author: "Alan Grainger",
@@ -58,6 +58,7 @@ var DEFAULT_DEVICE_SETTINGS = {
   // milliseconds
   defaultStartupType: null,
   showDescriptions: true,
+  enableDependencies: false,
   plugins: {}
 };
 var DEFAULT_SETTINGS = {
@@ -75,12 +76,15 @@ var SettingsTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.dropdowns = [];
+    this.pluginSettings = {};
     this.app = app;
     this.lazyPlugin = plugin;
+    this.pluginSettings = this.lazyPlugin.settings.plugins;
   }
   async display() {
     const { containerEl } = this;
     this.containerEl = containerEl;
+    this.lazyPlugin.updateManifests();
     await this.lazyPlugin.loadSettings();
     this.buildDom();
   }
@@ -88,7 +92,6 @@ var SettingsTab = class extends import_obsidian.PluginSettingTab {
    * Build the Settings modal DOM elements
    */
   buildDom() {
-    const pluginSettings = this.lazyPlugin.settings.plugins;
     this.containerEl.empty();
     new import_obsidian.Setting(this.containerEl).setName("Separate desktop/mobile configuration").setDesc(`Enable this if you want to have different settings depending whether you're using a desktop or mobile device. All of the settings below can be configured differently on desktop and mobile. You're currently using the ${this.lazyPlugin.device} settings.`).addToggle((toggle) => {
       toggle.setValue(this.lazyPlugin.data.dualConfigs).onChange(async (value) => {
@@ -128,7 +131,7 @@ var SettingsTab = class extends import_obsidian.PluginSettingTab {
       this.addDelayOptions(dropdown);
       dropdown.onChange(async (value) => {
         this.lazyPlugin.manifests.forEach((plugin) => {
-          pluginSettings[plugin.id] = { startupType: value };
+          this.pluginSettings[plugin.id] = { startupType: value };
         });
         this.dropdowns.forEach((dropdown2) => dropdown2.setValue(value));
         dropdown.setValue("");
@@ -139,11 +142,22 @@ var SettingsTab = class extends import_obsidian.PluginSettingTab {
       this.addFilterButton(setting.descEl, "All");
       Object.keys(LoadingMethods).forEach((key) => this.addFilterButton(setting.descEl, LoadingMethods[key], key));
     });
+    new import_obsidian.Setting(this.containerEl).addText((text) => text.setPlaceholder("Type to filter list").onChange((value) => {
+      this.filterString = value;
+      this.buildPluginList();
+    }));
+    this.pluginListContainer = this.containerEl.createEl("div");
+    this.buildPluginList();
+  }
+  buildPluginList() {
+    this.pluginListContainer.textContent = "";
     this.lazyPlugin.manifests.forEach((plugin) => {
       const currentValue = this.lazyPlugin.getPluginStartup(plugin.id);
-      if (this.filter && currentValue !== this.filter)
+      if (this.filterMethod && currentValue !== this.filterMethod)
         return;
-      new import_obsidian.Setting(this.containerEl).setName(plugin.name).addDropdown((dropdown) => {
+      if (this.filterString && !plugin.name.toLowerCase().includes(this.filterString.toLowerCase()))
+        return;
+      new import_obsidian.Setting(this.pluginListContainer).setName(plugin.name).addDropdown((dropdown) => {
         this.dropdowns.push(dropdown);
         this.addDelayOptions(dropdown);
         dropdown.setValue(currentValue).onChange(async (value) => {
@@ -172,8 +186,8 @@ var SettingsTab = class extends import_obsidian.PluginSettingTab {
     const link = el.createEl("button", { text });
     link.addClass("lazy-plugin-filter");
     link.onclick = () => {
-      this.filter = value;
-      this.buildDom();
+      this.filterMethod = value;
+      this.buildPluginList();
     };
   }
 };
@@ -188,8 +202,7 @@ var LazyPlugin = class extends import_obsidian2.Plugin {
   }
   async onload() {
     await this.loadSettings();
-    this.manifests = Object.values(this.app.plugins.manifests).filter((plugin) => plugin.id !== lazyPluginId && // Filter out the Lazy Loader plugin
-    !(import_obsidian2.Platform.isMobile && plugin.isDesktopOnly)).sort((a, b) => a.name.localeCompare(b.name));
+    this.updateManifests();
     await this.setInitialPluginsConfiguration();
     this.addSettingTab(new SettingsTab(this.app, this));
     this.manifests.forEach((plugin) => this.setPluginStartup(plugin.id));
@@ -247,7 +260,7 @@ var LazyPlugin = class extends import_obsidian2.Plugin {
     this.data.desktop = Object.assign({}, DEFAULT_DEVICE_SETTINGS, this.data.desktop);
     if (this.data.dualConfigs && import_obsidian2.Platform.isMobile) {
       if (!this.data.mobile) {
-        this.data.mobile = Object.assign({}, this.data.desktop);
+        this.data.mobile = JSON.parse(JSON.stringify(this.data.desktop));
       } else {
         this.data.mobile = Object.assign({}, DEFAULT_DEVICE_SETTINGS, this.data.mobile);
       }
@@ -280,6 +293,13 @@ var LazyPlugin = class extends import_obsidian2.Plugin {
   async updatePluginSettings(pluginId, startupType) {
     this.settings.plugins[pluginId] = { startupType };
     await this.saveSettings();
+  }
+  updateManifests() {
+    this.manifests = Object.values(this.app.plugins.manifests).filter((plugin) => (
+      // Filter out the Lazy Loader plugin
+      plugin.id !== lazyPluginId && // Filter out desktop-only plugins from mobile
+      !(import_obsidian2.Platform.isMobile && plugin.isDesktopOnly)
+    )).sort((a, b) => a.name.localeCompare(b.name));
   }
   /*
    * Originally this was set up so that when the plugin unloaded, it would enablePluginAndSave()
