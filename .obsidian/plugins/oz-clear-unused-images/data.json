@@ -1,5 +1,5 @@
 {
-  "deleteOption": ".trash",
+  "deleteOption": "system-trash",
   "logsModal": true,
   "excludedFolders": "",
   "ribbonIcon": true,
