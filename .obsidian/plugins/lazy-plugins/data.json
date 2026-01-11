@@ -7,24 +7,28 @@
     "delayBetweenPlugins": 40,
     "defaultStartupType": null,
     "showDescriptions": true,
+    "enableDependencies": false,
     "plugins": {
       "tldraw": {
         "startupType": "short"
       },
       "surfing": {
-        "startupType": "instant"
+        "startupType": "short"
       },
       "d2-obsidian": {
-        "startupType": "instant"
+        "startupType": "short"
       },
       "fix-callout": {
         "startupType": "instant"
       },
       "better-export-pdf": {
-        "startupType": "instant"
+        "startupType": "short"
       },
       "obsidian-plugin-toc": {
         "startupType": "instant"
+      },
+      "oz-clear-unused-images": {
+        "startupType": "long"
       }
     }
   }
