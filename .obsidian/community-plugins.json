@@ -1,8 +1,4 @@
 [
   "lazy-plugins",
-  "surfing",
-  "d2-obsidian",
-  "fix-callout",
-  "better-export-pdf",
-  "oz-clear-unused-images"
+  "fix-callout"
 ]
