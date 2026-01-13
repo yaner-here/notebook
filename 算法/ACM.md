@@ -93,37 +93,6 @@ STL提供了以下预置的比较函数：
 - 给定递增容器`int a[5] = {0, 1, 2, 3, 4}`，使用`std::lower_bound(a, a + 5, 2)`的效果。首先函数或Lambda表达式没有指定，因此缺省为`std::less<int>()`。序列的首部元素值能满足`iter_value < 2`，末尾元素值不能满足`iter_value < 2`，因此符合`std::lower_bound()`对容器的元素排序要求。容易发现，第一个能让`iter_value < 2`为`false`的元素就是`a[2]`本身，因此返回`(int*)(a+2)`。
 - 给定递减容器`int a[5] = {4, 3, 2, 1, 0}`，使用`std::upper_bound(a, a + 5, 2, std::greater<int>())`的效果。序列的首部元素`iter_value`较大，能使得`2 > iter_value`返回`false`；末尾元素的`2 > iter_value`为`true`，因此符合`std::upper_bound()`对容器的元素排序要求。容易发现，最后一个能让`iter_value > 2`为`true`的元素是`a[3]`，因此返回`(int*)(a+3)`。
 
-如果要在不使用STL的情况下，或者无法使用迭代器时，为了查找二分查找的左指针和右指针，我们给出以下模版：
-
-$$
-\begin{array}{c|c|c|c|c|c|c|}
-	\hline \text{valid()}返回值 & \text{true} & \text{true} & \text{true} & \text{false} & \text{false} & \text{false} \\
-	\hline & & & \underset{\text{左指针}}{\uparrow} & \underset{\text{右指针}}{\uparrow} & & \\
-	\hline
-\end{array}
-$$
-
-```c++
-bool valid(int x){
-	return ...;
-}
-
-int left = 0, right = 9;
-int left_pointer = left - 1, right_pointer = right + 1; // 若while()不满足，则直接返回区间外的数，表示查找失败
-while(left <= right) {
-    int mid = (left + right) / 2;
-    if(valid(mid)) {
-        left_pointer = mid;
-        left = mid + 1;
-    } else {
-        right_pointer = mid;
-        right = mid - 1;
-    }
-}
-std::cout << left_pointer << '\n';
-std::cout << right_pointer << '\n';
-```
-
 ### §1.2.3 `std::*_heap()`
 
 C++11提供了一系列关于二叉堆的算法。传统二叉堆并不使用容器的第一个空间`heap[0]`，因此使用`2*i`和`2*i+1`获取`i`的左右子节点，然而STL提供的算法并不浪费任何空间，使用`2*i+1`和`2*i+2`获取`i`的左右子节点，因此额外引入了一次加法的时间常数。
@@ -8536,6 +8505,37 @@ int main(){
 ## §3.2 二分
 
 有些题目满足这些特征：要直接求解答案很难，但是验证某个答案是否正确却很简单。**二分的魅力在于：我们不直接求解答案，而是用二分猜答案**。由于二分是对数级别的时间复杂度，因此我们可以猜很大的范围。
+
+### §3.2.1 整数域二分
+
+为了查找二分查找的左指针和右指针，我们给出以下模版。这种模版要求值较小时符合条件，较大时不符合。`[left, right]`的初始值是闭区间，不会受到`mid = (left + right) / 2`向零取整的影响，且最终`right`指向最后一个满足`check()`的位置，`left`指向第一个不满足`check()`的位置，`assert(left == right + 1)`严格成立。
+
+$$
+\begin{array}{c|c|c|c|c|c|c|}
+	\hline \text{check()}返回值 & \text{true} & \text{true} & \text{true} & \text{false} & \text{false} & \text{false} \\
+	\hline & & & \underset{\text{right}}{\uparrow} & \underset{\text{left}}{\uparrow} & & \\
+	\hline
+\end{array}
+$$
+
+```c++
+inline bool check(int64_t x) {
+    // ......
+}
+int main() {
+    int left = 0, right = 9, mid;
+    while(left <= right) {
+        mid = (left + right) / 2;
+        if(check(mid)) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    assert(left == right + 1);
+    std::cout << right << ' ' << left;
+}
+```
 
 > [洛谷P1281](https://www.luogu.com.cn/problem/P1281)：给定序列`int a[1->n<=5e2]`，将其划分成互不相交的、连续的`k`段子序列（允许子序列为空）。将每个子序列中的元素相加，得到`k<=5e2`个总和。求一种划分策略，使得这`k`个总和的最大值取得最小值，并输出对应的区间端点。**如果有多种划分方式均能取得最小值，则选择使得靠前区间的元素总和更小的方案**。
 
