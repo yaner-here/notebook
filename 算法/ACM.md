@@ -152,9 +152,7 @@ Iter<T> unique_last = std::unique(Iter first, Iter last, BinaryPred pred(T &lhs,
 
 ## §1.3 `<iostream>`
 
-### §1.3.1 `std::cin`
-
-#### §1.3.1.1 动态截断输入
+### §1.3.1 动态截断输入
 
 设想题目的`STDIN`给定了`n`个数，但是没有给定`n`的具体值。这时我们可以将`std::cin >> a[i++]`放在`while()`中。
 
@@ -167,14 +165,13 @@ while(std::cin >> a[i++]){
 
 之所以能这么做，是因为我们可以将这个流输入表达式转换成`bool`值。具体来说，在C++中，`std::cin`的继承关系如下图所示：
 
-```mermaid
-graph TB
-	ios_base["xiosbase: <br> explicit operator ios_base::bool() const noexcept"] -->
-	basic_ios["ios: <br>class basic_ios : public ios_base"] -->
-	basic_istream["istream: <br>class basic_istream : virtual public basic_ios&lt;_Elem, _Traits&gt;"] -->
-	istream["iosfwd: <br>using istream = basic_istream&lt;char, char_traits&lt;char&gt;&gt;"] -->
-	istream_extern["iostream: <br>extern &quot;extern c++&quot; istream cin"] -->
-	cin["main.cpp: <br>while(std::cin >> ...)"]
+```
+main.cpp: while(std::cin >> ...)
+	iostream: extern "extern c++" istream cin
+		iosfwd: using istream = basic_istream<char, char_traits<char>>
+			istream: class basic_istream : virtual public basic_ios<_Elem, _Traits>
+				ios: class basic_ios : public ios_base
+					xiosbase: explicit operator ios_base::bool() const noexcept
 ```
 
 `std::cin`的数据类型是`std::basic_istream<char, std::char_traits<char>>`，`std::cin >>`操作符返回的还是它自己的引用（`std::basic_istream&`）。沿着泛型实例化与静态类继承关系，一步步向上找，我们找到了这个关键的`bool()`类型转换函数：
@@ -201,6 +198,13 @@ extern "C++" class ios_base : public _Iosb<int> {
 | `explicit T func() { ... }`          | C++20及以后 |
 
 当`std::cin`读到EOF或不符合格式的数据时，其`fail()`会返回`true`，于是`bool(std::cin)`返回`false`，可以作为终止输入的依据。
+
+### §1.5.2 浮点数格式化输出
+
+无论是`printf("%lf")`，还是`std::cout << double(...)`，默认情况下只会输出`6`位**有效数字（不是小数！）**。
+
+- `std::fixed`：禁止使用科学计数法，一律使用定点表示法。
+- `std::setprecision(...)`：设置数字输出时的有效数字（无`std::fixed`时），或小数点后位数（有`std::fixed`时）。
 
 ## §1.4 `<queue>`
 
@@ -8537,6 +8541,110 @@ int main() {
 }
 ```
 
+> [洛谷P2855](https://www.luogu.com.cn/problem/P2855)/[洛谷P3853](https://www.luogu.com.cn/problem/P3853)：给定数轴上`n+2`个位置`x[]<=1e9`，现在允许从中间的`n<=5e4`个位置中删除/添加`m`个位置，求新序列中的`n+2-m`个/`n+2+m`位置之间间隔的最小值的最大值/最大值的最小值。
+
+先看[洛谷P2855](https://www.luogu.com.cn/problem/P2855)。令删除位置后的序列为`x'[]`，设最小值为`ans`，于是一个合法的删除方案恒有不等式成立$\forall i, x'[i]-x'[i-1]\ge \mathrm{ans}$。问题转化为判定`ans`是否为合法的最小值，`ans`较小则显然合法，较大则不合法，因此可以二分查找`ans`。在每次查找中，我们使用贪心策略——一旦发现有两个相邻位置的间隔小于`ans`，则删除后者，维护删除计数器`m_cnt++`。若`m_cnt++ >= m`，则判定为无法通过删除来做到要求，即非法。
+
+再看[洛谷P3853](https://www.luogu.com.cn/problem/P3853)。我们在每次查找中同样使用贪心策略，不断地在`d_last`与`d[i]`之间补充位置，直到`d[i] - d_last <= ans`位置，**最后记得还要更新`d_last <- d[i]`**。
+
+```c++
+/* 洛谷P2885 */
+const int L_MAX = 1e9, N_MAX = 5e4;
+int l, n, m, d[1 + N_MAX + 1];
+inline bool check(const int &ans_mid) {
+    for(int i = 1, d_last = d[0], m_cnt = 0; i <= n + 1; ++i) {
+        if(d[i] - d_last >= ans_mid) { 
+            d_last = d[i]; 
+        } else if(d[i] - d_last < ans_mid) {
+            if(m_cnt++ >= m) { return false; }
+        }
+    }
+    return true;
+}
+int main() {
+    std::cin >> l >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> d[i]; } d[0] = 0; d[n + 1] = l; std::sort(d, d + n + 2);
+
+    int ans_left = 0, ans_right = l, ans_mid;
+    while(ans_left <= ans_right) {
+        ans_mid = (ans_left + ans_right) / 2;
+        if(check(ans_mid)) {
+            ans_left = ans_mid + 1;
+        } else {
+            ans_right = ans_mid - 1;
+        }
+    }
+    std::cout << ans_right;   
+}
+```
+
+```c++
+/* 洛谷P3853 */
+const int L_MAX = 1e7, N_MAX = 1e5, K_MAX = 1e5;
+int l, n, k, d[1 + N_MAX + 1];
+inline bool check(const int &ans_mid) {
+    for(int i = 0, d_last = d[0], k_cnt = 0; i <= n + 1; ++i) {
+        while(d[i] - d_last > ans_mid) {
+            if(++k_cnt > k) { return false; }
+            d_last += ans_mid;
+        }
+        d_last = d[i];
+    }
+    return true;
+}
+int main() {
+    std::cin >> l >> n >> k;
+    for(int i = 1; i <= n; ++i) { std::cin >> d[i]; } d[0] = 0; d[n + 1] = l; std::sort(d, d + n + 2);
+
+    int ans_left = 0, ans_right = l, ans_mid;
+    while(ans_right >= ans_left) {
+        ans_mid = (ans_left + ans_right) / 2;
+        if(check(ans_mid)) {
+            ans_right = ans_mid - 1;
+        } else {
+            ans_left = ans_mid + 1;
+        }
+    }
+    std::cout << ans_left;
+}
+```
+
+> [洛谷P1314](https://www.luogu.com.cn/problem/P1314)：给定`n<=2e5`及数组`v[1->n]<=1e6`，`m<=2e5`及数组`w[1->n]<=1e6, l[1->n]<=n, r[1->n]<=n`，`s<=1e12`。令$f(x) = \displaystyle\sum_{i=1}^{m}\left(\left(\sum_{j=l[i]}^{r[i]}{\mathbb{1}_{w[j]\ge x}}\right) \times \left(\sum_{j=l[i]}^{r[i]}{\mathbb{1}_{w[j]\ge x}\cdot v[i]}\right)\right)$，求$\min |f(x) - s|$。
+
+首先注意到$f(x)$单调递减，于是我们可以对`x`进行二分搜索，找到恰好满足与恰好不满足$f(x)\ge s$的两个位置$x_1, x_2$，它们构成了$g(x)=f(x)-x$的零点所在的范围，因此我们只需输出$\min(g(x_1), g(x_2))$即为答案。
+
+然后考虑如何高效地计算$f(x)$。面对这种阈值计数问题，我们首先想到树状数组，但是我们要查询`m`次，所以单次查询$O(n\log_2{w} + m\log_2{w})$的时间复杂度无法承受，因此不如现场打个前缀和数组，单次查询的时间复杂度仅为$O(n+m)$。
+
+```c++
+const int N_MAX = 2e5, M_MAX = 2e5, W_MAX = 1e6, V_MAX = 1e6; const int64_t S_MAX = 1e12;
+int n, m, l[1 + M_MAX], r[1 + M_MAX]; int64_t s, w[1 + N_MAX], v[1 + N_MAX];
+int64_t f1_presum[1 + N_MAX], f2_presum[1 + N_MAX];
+int64_t calc(const int64_t &ans_mid) {
+    for(int i = 1; i <= n; ++i) {
+        f1_presum[i] = f1_presum[i - 1] + (w[i] >= ans_mid);
+        f2_presum[i] = f2_presum[i - 1] + (w[i] >= ans_mid ? v[i] : 0);
+    }
+    int64_t res = 0; for(int i = 1; i <= m; ++i) { res += (f1_presum[r[i]] - f1_presum[l[i] - 1]) * (f2_presum[r[i]] - f2_presum[l[i] - 1]); }
+    return res;
+}
+int main() {
+    std::cin >> n >> m >> s;
+    for(int i = 1; i <= n; ++i) { std::cin >> w[i] >> v[i]; }
+    for(int i = 1; i <= m; ++i) { std::cin >> l[i] >> r[i]; }
+
+    int64_t ans_left = 0, ans_right = W_MAX, ans_mid;
+    while(ans_left <= ans_right) {
+        ans_mid = (ans_left + ans_right) / 2;
+        if(calc(ans_mid) >= s) {
+            ans_left = ans_mid + 1;
+        } else {
+            ans_right = ans_mid - 1;
+        }
+    }
+    std::cout << std::min(std::abs(calc(ans_left) - s), std::abs(calc(ans_right) - s));
+}
+```
+
 > [洛谷P1281](https://www.luogu.com.cn/problem/P1281)：给定序列`int a[1->n<=5e2]`，将其划分成互不相交的、连续的`k`段子序列（允许子序列为空）。将每个子序列中的元素相加，得到`k<=5e2`个总和。求一种划分策略，使得这`k`个总和的最大值取得最小值，并输出对应的区间端点。**如果有多种划分方式均能取得最小值，则选择使得靠前区间的元素总和更小的方案**。
 
 如果使用区间DP，令`dp[1][i][j]`表示区间`[1, i]`内划分`j`段互不相交的连续子序列对应的答案，则需要固定区间左端点为`1`，枚举右端点`i`，枚举`[1, i]`内的分割点`t`，枚举划分区间数`j`，所以时间复杂度为$O(n^2k)$，**虽然本题数据范围非常宽松，但不是时间上最优的解法**。
@@ -8707,6 +8815,90 @@ int main() {
 显然对`q`在`[1, q]`范围内二分。
 
 接下来考虑单次二分的判定函数。令`master_q[i:1->n]`表示`a[i]`已经被哪条规则限制。这些最小值限制条件在什么情况下会产生矛盾呢？**我们敏锐地观察到：如果某个条件规定的`[l[i], r[i]]`内的所有元素，都已经被前面的某条规则限制，且前面的规则都不会出现**
+
+TODO：？？？
+
+### §3.2.2 浮点数域二分
+
+做法类似于整数域二分，但是无需`left = mid + 1`，而是通过`right - left >= 1e-9`来判定退出。Linux-X86-64指令集支持`long double`的`80`Bit浮点数，很多题目会卡`double`的精度，所以推荐使用`long double`。
+
+```c++
+long double left = 0, right = 100.00, mid;
+while(right - left >= EPS) {
+	mid = (left + right) / 2;
+	if(check(mid)) {
+		left = mid;
+	} else {
+		right = mid;
+	}
+}
+```
+
+> [洛谷P1570](https://www.luogu.com.cn/problem/P1570)：给定`n<=200`个物品，每个物品都有自己的价值`v[i]`与代价`c[i]`。从中选出`m`个物品，求它们构成的$\max\left(\displaystyle\frac{\sum v_i}{\sum c_i}\right)$，保留三位小数。
+
+令`ans`为所求答案，于是显然有不等式成立：$\displaystyle\frac{\sum v_i}{\sum c_i}\ge \mathrm{ans}$，即$\sum{v_i} - \mathrm{ans}\cdot\sum{c_i}\ge 0$。显然`ans`可以二分，`ans`较小则满足不等式，较大则不满足，于是令`w[i] = v[i] - ans * c[i]`，选出前`m`大个`w[]`值，累加判断是否大于等于`0`即可。
+
+```c++
+const int N_MAX = 200, M_MAX = 200, C_MAX = 1e4, V_MAX = 1e4; const double ANS_MAX = 1e3, EPS = 1e-9;
+int n, m, c[1 + N_MAX], v[1 + N_MAX]; double w[1 + N_MAX];
+inline bool check(const double &ans_mid) {
+    for(int i = 1; i <= n; ++i) { w[i] = v[i] - c[i] * ans_mid; }
+    std::sort(w + 1, w + 1 + n, [](const double &lhs, const double &rhs){ return lhs > rhs; });
+    return std::accumulate(w + 1, w + 1 + m, static_cast<double>(0)) >= 0;
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> v[i]; }
+    for(int i = 1; i <= n; ++i) { std::cin >> c[i]; }
+
+    double ans_left = 0, ans_right = ANS_MAX, ans_mid;
+    while(ans_right - ans_left >= EPS) {
+        ans_mid = (ans_left + ans_right) / 2;
+        if(check(ans_mid)) {
+            ans_left = ans_mid;
+        } else {
+            ans_right = ans_mid;
+        }
+    }
+    std::cout << std::fixed << std::setprecision(3) << ans_right;
+}
+```
+
+### §3.2.3 三分
+
+> [洛谷P3382](https://www.luogu.com.cn/problem/P3382)：给定一个多项式函数$f(x)$，求其在`[l, r]`区间内唯一的极大值点位置。
+
+本题可以使用二分来做。具体来说，我们比较$f(x-\epsilon)$与$f(x+\epsilon)$的大小，来近似计算$f'(x)$的正负，据此来更新二分区间，时间复杂度为$O(\log_{\textcolor{red}{2}}(r-l))$。
+
+```c++
+const int N_MAX = 13; const double L_MIN = -10, R_MAX = 10, EPS = 1e-9;
+int n; double l, r, a[1 + N_MAX]; 
+inline double calc(const double &x_mid) {
+    double res = 0, x_pow_cur = 1;
+    for(int i = 0; i <= n; ++i) {
+        res += a[i] * x_pow_cur;
+        x_pow_cur *= x_mid;
+    }
+    return res;
+}
+int main() {
+    std::cin >> n >> l >> r;
+    for(int i = 0; i <= n; ++i) { std::cin >> a[i]; } std::reverse(a, a + 1 + n);
+
+    double ans_left = l, ans_right = r, ans_mid;
+    while(ans_right - ans_left >= EPS) {
+        ans_mid = (ans_left + ans_right) / 2;
+        if(calc(ans_mid - EPS) < calc(ans_mid + EPS)) {
+            ans_left = ans_mid;
+        } else {
+            ans_right = ans_mid;
+        }
+    }
+    std::cout << std::fixed << std::setprecision(10) << ans_left;
+}
+```
+
+三分的思想是类似的。我们在查询区间内取两个中间点`lmid`/`rmid`，让`r <- rmid`或`l <- lmid`来缩小区间。如果两个中间点在区间三等分点的位置，那么时间复杂度为$O(2\log_{\textcolor{red}{3}}(r-l))$。在上面的作法中，我们可以认为`x-ε`与`x+ε`分别为`lmid`与`r_mid`，同时让`ans_left = x-ε`、`ans_right = x+ε`即可。
 
 ## §3.3 贪心
 
@@ -28087,9 +28279,53 @@ int main() {
 }
 ```
 
-# §10 思维与经典题型
+# §10 计算几何
 
-## §10.1 接雨水
+## §10.1 半平面交
+
+半平面可以由不等式$y \ge kx + b$或$y \le kx + b$表示。为求解多个半平面的交集，通常先考虑$x, y$中的其中一个(例如$y$)使用二分查找，每次查找时都能将其固定下来，然后转化为另一个变量（例如$x$）的一元不等式组问题。
+
+> [洛谷P1663](https://www.luogu.com.cn/problem/P1663)：按横坐标严格递增的顺序，给定`n<=500`个点`(x[i], y[i])`（坐标值均`<=1e5`），构成一座山脉的轮廓线。现在要在半空中放置一盏灯，使得轮廓线的每个位置都能看到（灯与斜坡重合时也认为能看到），求灯的纵坐标最小值。
+
+`n`个点产生`n-1`条直线，对应`n-1`个不等式组$y \ge k_1[i]x + k_2[i]$，对`y`进行二分查找，判定给定当前`y`，这`n-1`个关于`x`的不等式组是否有解即可。
+
+```c++
+const int N_MAX = 5000; const double ANS_MAX = 1e6, INF = 1e18, EPS = 1e-9;
+int n; double x[1 + N_MAX], y[1 + N_MAX], k1[1 + N_MAX], k2[1 + N_MAX];
+inline bool check(const double &y_tmp) {
+    double l = -INF, r = INF; // x的解集初始为[l, r]
+    for(int i = 2; i <= n; ++i) {
+        if(k1[i] > 0) { r = std::min(r, (y_tmp - k2[i]) / k1[i]); }
+        if(k1[i] < 0) { l = std::max(l, (y_tmp - k2[i]) / k1[i]); }
+        if(k1[i] == 0 && y_tmp < k2[i]) { return false; }
+        if(l > r) { return false; }
+    }
+    return true;
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> x[i] >> y[i]; }
+    for(int i = 2; i <= n; ++i) {
+        k1[i] = (y[i] - y[i - 1]) / (x[i] - x[i - 1]);
+        k2[i] = y[i - 1] - k1[i] * x[i - 1];
+    }
+
+    double ans_left = 0, ans_right = ANS_MAX, ans_mid;
+    while(ans_right - ans_left >= EPS) {
+        ans_mid = (ans_left + ans_right) / 2;
+        if(check(ans_mid)) {
+            ans_right = ans_mid;
+        } else {
+            ans_left = ans_mid;
+        }
+    }
+    std::cout << std::fixed << std::setprecision(10) << ans_left;
+}
+```
+
+# §11 思维与经典题型
+
+## §11.1 接雨水
 
 > [洛谷P1318](https://www.luogu.com.cn/problem/P1318)：接雨水。
 
@@ -28110,7 +28346,7 @@ int main() {
 }
 ```
 
-### §10.1.1 二维接雨水
+### §11.1.1 二维接雨水
 
 > [洛谷P5930](https://www.luogu.com.cn/problem/P5930)：二维接雨水。
 
@@ -28157,7 +28393,7 @@ int main() {
 }
 ```
 
-### §10.1.2 全排列接雨水
+### §11.1.2 全排列接雨水
 
 > [洛谷P6345](https://www.luogu.com.cn/problem/P6345)：接雨水。给定`n`个高度分别为`h[i]`的柱子，有$A_n^n$种排列方式，将所有排列的接水量存入集合去重，升序输出该集合。
 
@@ -28195,9 +28431,9 @@ int main() {
 }
 ```
 
-## §10.2 表达式计算
+## §11.2 表达式计算
 
-### §10.2.1 计算后缀表达式
+### §11.2.1 计算后缀表达式
 
 后缀表达式的计算尤其简单：遇到操作数就压入栈，遇到操作符则`pop`出两个操作数，计算后再压入栈。
 
@@ -28253,7 +28489,7 @@ int main() {
 }
 ```
 
-### §10.2.2 中缀表达式转后缀表达式
+### §11.2.2 中缀表达式转后缀表达式
 
 1. 初始化两个栈：运算符栈`op_stack`和操作数栈`num_stack`。
 2. 从左到右扫描中缀表达式。
@@ -28310,7 +28546,7 @@ int main() {
 }
 ```
 
-### §10.2.3 计算中缀表达式
+### §11.2.3 计算中缀表达式
 
 在“中缀表达式转后缀表达式”中，运算符不入操作数栈，而是直接转化为“计算后缀表达式”的步骤。
 
