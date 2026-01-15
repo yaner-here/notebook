@@ -8196,9 +8196,7 @@ int main() {
 
 ## §3.1 搜索
 
-### §3.1.1 搜索算法
-
-#### §3.1.1.1 深度优先搜索（DFS）
+### §3.1.1 深度优先搜索（DFS）
 
 深度优先搜索板子：
 
@@ -8249,134 +8247,6 @@ int main(){
 }
 ```
 
-#### §3.1.1.2 广度优先搜索（BFS）
-
-广度优先搜素板子：
-
-```c++
-const long long int N_MAX = 1e3, M_MAX = 1e5;
-char map[N_MAX][N_MAX];
-long long int n, m;
-bool visited[N_MAX][N_MAX];
-const long long int direction[4][2] = {
-    {1, 0}, {-1, 0}, {0, 1}, {0, -1}
-};
-
-void bfs_floodfill(long long int i, long long int j){
-    if(visited[i][j]){
-        return;
-    }
-    std::queue<std::pair<long long int, long long int>> queue;
-    queue.push({i, j});
-    while(!queue.empty()){
-        const auto point = queue.front(); queue.pop();
-        if(visited[point.first][point.second]){
-            continue;
-        }
-        visited[point.first][point.second] = true;
-        for(long long int k = 0 ; k < 4 ; ++k){
-            if(!isInRange(point.first + direction[k][0], point.second + direction[k][1], n, n)){
-                continue;
-            }
-            queue.emplace(point.first + direction[k][0], point.second + direction[k][1]);
-        }      
-    }
-}
-```
-
-#### §3.1.1.3 双向广度优先搜索（BBFS）
-
-设BFS进行`x`次迭代的时间复杂度为$O(f(x))$，则BBFS的时间复杂度为$O\left(2f\left(\displaystyle\frac{x}{2}\right)\right)$，$f(x)$增长越快，BBFS就优化得越明显。
-
-#### §3.1.1.4 `A*`搜索
-
-给定起始状态$s_1$，则当前状态$x$到目标状态$s_2$的代价可以表示为$f(x)=g(x)+h(x)$，其中$g(x)$表示起始状态到当前状态的代价，$h(x)$表示当前状态到目标状态的代价。在实际的搜索过程中，我们只知道$g(x)$，而不知道$h(x)$的确切表达式，所以我们常用自定义的$h^*(x)$估计。
-
-| 大小关系          | 搜索范围 | 搜索效率 | 能否保证最优解 |
-| ------------- | ---- | ---- | ------- |
-| $h(x)>h^*(x)$ | 大    | ❌    | ✔       |
-| $h(x)=h^*(x)$ | 中    | ✔    | ✔       |
-| $h(x)<h^*(x)$ | 小    | ✔    | ❌       |
-
-我们常设计$h^*(x)\le h(x)$，以保证绝对能找到最优解，又让$h^*(x)$尽可能地大，以提高搜索效率。在实际编程中，我们可以给自定义函数乘以一个系数，使得同时满足上面的两点要求。
-
-> [洛谷P5507](https://www.luogu.com.cn/problem/P5507)：给定模`m`意义的序列`int a[1->n]`。现允许执行若干次单点操作，每次针对`a[i]`的单点操作都会让`a[i]`和`a[trans_table[i][a[i]]]`同时自增`1`后对`m`取模。请问至少要经过多少次这样的操作，才能让`a[1->n]`全都是`0`？请输出每次单点操作的元素下标，保证答案存在，且答案长度小于等于`PATH_LEN_MAX == 17`。
-
-考虑如何设计$h^*(x)$函数。在不考虑`++a[trans_table[i][a[i]]]`的情况下，每次让一个元素`a[i]`变成`0`，需要进行`(m - a[i]) % m`次操作。现在考虑`++a[trans_table[i][a[i]]]`的存在，颇有"一虎杀两羊"的效果，一次操作造成两个元素自增。因此，最优情况下，即$h(x)$的下确界为$\displaystyle\frac{1}{2}\displaystyle\sum_{i=1}^{12}(m-a[i])\%m$，令该式为$h^*(x)$即可。
-
-### §3.1.2 剪枝
-
-剪枝是DFS中常用的一种技术。当DFS进入到一种不可能触及目标的状态时，就可以舍弃掉该状态下的子树代表的状态空间。
-
-> [洛谷2383](https://www.luogu.com.cn/problem/P2383)：给定`n`个长度分别为`l[i]`的木棍，要求全部利用完这些木棍，拼成四个长度相同的长木棍。请判断这`n`个木棍能否实现该目标。
-
-本题适用DFS来保存中间状态。容易写出以下代码：
-
-```c++
-/* 伪代码 */
-int l[N];
-bool dfs(int i, int l1, int l2, int l3, int l4){
-    if(i >= n){
-        return l1 == l2 && l2 == l3 && l3 == l4;
-    }else{
-        dfs(i + 1, l1 + l[i], l2, l3, l4);
-        dfs(i + 1, l1, l2 + l[i], l3, l4);
-        dfs(i + 1, l1, l2, l3 + l[i], l4);
-        dfs(i + 1, l1, l2, l3, l4 + l[i]);
-    }
-}
-```
-
-这样做的时间复杂度是$O(4^n)$，显然是无法接受的。为此，我们可以根据以下原则进行剪枝：
-
-1. 将所有木棍的长度加起来，记为`sum`。如果`sum % 4 != 0`，那么从一开始就不可能构成四个长度相同的长木棍，不必启动搜索过程。
-2. 如果某个长木棍（`l1`、`l2`、`l1`、`l4`）的长度大于`sum / 4`，则该木棍的长度不可能与其它木棍长度相同，即“一山不容二虎”。
-3. 为了让第二条更快地触及“一山不容二虎”，我们想一开始就让各个长木棍的长度冲破`sum / 4`这个上线。为此可以将`n`个木棍长度降序排序。
-
-> [洛谷P1363](https://www.luogu.com.cn/problem/P1363)：给定一个二维网格上的无限棋盘，由`n×m <= 1.5e3×1.5e3`的循环节`bool map[n][m]`密铺而成，其中`false`表示墙壁，`true`表示道路。给定起点坐标，从此出发任意游走，请判定能否从起点到达无穷远处。
-
-这里我们直接给出结论：本题等价于判定无穷棋盘上是否存在两个可达点，它们的横纵坐标模`n`/`m`后相等。设计BFS状态时，令`vis[x%n][y%m][0/1/2]`表示是否经过/第一次经过时的横坐标/第二次经过时的纵坐标。如果某个点`vis[x%n][y%m][0] == false`未被访问过，或者已经被访问过但是两次经过的横纵坐标都相等，则剪枝，不加入到队列中。
-
-**本题数据量较大，因此每次向队列插入后，都必须打上`vis`标记，以供后续紧接着的入队请求来剪枝。**
-
-```c++
-const int N_MAX = 1500, M_MAX = 1500;
-int n, m; char s_temp; bool map[N_MAX][M_MAX]; int vis[N_MAX][M_MAX][3]; bool ans;
-struct Point { int x, y; };
-int main() {
-    while(std::cin >> n >> m) {
-        std::queue<Point> q; ans = false;
-        for(int i = 0; i < n; ++i) {
-            for(int j = 0; j < m; ++j) {
-                std::cin >> s_temp;
-                vis[i][j][0] = 0;
-                if(s_temp == '#') { map[i][j] = false; }
-                if(s_temp == '.' || s_temp == 'S') { map[i][j] = true; }
-                if(s_temp == 'S') { q.emplace(i, j); }
-            }
-        }
-        while(!q.empty()) {
-            Point p = q.front(); q.pop(); // 取出的点一定是尚未访问的/已经访问但坐标不同的非墙点
-            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 1 && (p.x != vis[mod(p.x, n)][mod(p.y, m)][1] || p.y != vis[mod(p.x, n)][mod(p.y, m)][2])) { ans = true; break; }
-            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 0) {  vis[mod(p.x, n)][mod(p.y, m)][0] = 1; vis[mod(p.x, n)][mod(p.y, m)][1] = p.x; vis[mod(p.x, n)][mod(p.y, m)][2] = p.y; }
-            const std::function<void(const int &, const int &)> queue_push_check = [&q](const int &x, const int &y) {
-                int x_mod = mod(x, n), y_mod = mod(y, m);
-                if(map[x_mod][y_mod] == false || (vis[x_mod][y_mod][0] == 1 && x == vis[x_mod][y_mod][1] && y == vis[x_mod][y_mod][2])) { return; }
-                if(vis[x_mod][y_mod][0] == 0) { vis[x_mod][y_mod][0] = 1; vis[x_mod][y_mod][1] = x; vis[x_mod][y_mod][2] = y; } // 提前打vis标记，以供后续queue_push_check()剪枝，否则超吃
-                q.emplace(x, y);
-            };
-            queue_push_check(p.x + 1, p.y);
-            queue_push_check(p.x - 1, p.y);
-            queue_push_check(p.x, p.y + 1);
-            queue_push_check(p.x, p.y - 1);
-        }
-        std::cout << (ans ? "Yes" : "No") << '\n';
-    }
-}
-```
-
-### §3.1.3 棋盘搜索
-
 > [洛谷P1123](https://www.luogu.com.cn/problem/P1123)：给定`n×m`个数字，要求上下左右斜向不相邻地选出若干个数字，使其之和最大。
 
 本题我们按照从左到右、从上到下的顺序遍历每一个格子。若选择当前格子，就要给周围`3×3`范围内的所有`visited[i][j]`加一，作为是否能被选择的依据。
@@ -8423,17 +8293,136 @@ int main() {
 
 除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
 
-### §3.1.4 表达式插入运算符
+> [洛谷P1363](https://www.luogu.com.cn/problem/P1363)：给定一个二维网格上的无限棋盘，由`n×m <= 1.5e3×1.5e3`的循环节`bool map[n][m]`密铺而成，其中`false`表示墙壁，`true`表示道路。给定起点坐标，从此出发任意游走，请判定能否从起点到达无穷远处。
 
-> [洛谷P1874]()：给定一个十进制数字字符串`s`，可以在任意字符之间添加`+`号，使最后的表达式计算结果恰好为`n`。请输出需要添加`+`号的最少数量，如果不存在这样的添加方法，则输出`-1`。本题中的所有数字均可以携带任意个前导零。
+这里我们直接给出结论：本题等价于判定无穷棋盘上是否存在两个可达点，它们的横纵坐标模`n`/`m`后相等。设计BFS状态时，令`vis[x%n][y%m][0/1/2]`表示是否经过/第一次经过时的横坐标/第二次经过时的纵坐标。如果某个点`vis[x%n][y%m][0] == false`未被访问过，或者已经被访问过但是两次经过的横纵坐标都相等，则剪枝，不加入到队列中。
 
-TODO：？？？？
+**本题数据量较大，因此每次向队列插入后，都必须打上`vis`标记，以供后续紧接着的入队请求来剪枝。**
 
-> [洛谷P1473](https://www.luogu.com.cn/problem/P1473)：给定一个从首字符`1`起向后数字逐渐递增至`n`的字符串（即`"1234...n"`），其中$3\le n\le 9$。每两个数字之间可以添加`+`或`-`号，添加空格表示相邻两个数字构成一个更大的十进制数。按字典序输出最后构造的所有表达式，使其运算结果恰为0。
+```c++
+const int N_MAX = 1500, M_MAX = 1500;
+int n, m; char s_temp; bool map[N_MAX][M_MAX]; int vis[N_MAX][M_MAX][3]; bool ans;
+struct Point { int x, y; };
+int main() {
+    while(std::cin >> n >> m) {
+        std::queue<Point> q; ans = false;
+        for(int i = 0; i < n; ++i) {
+            for(int j = 0; j < m; ++j) {
+                std::cin >> s_temp;
+                vis[i][j][0] = 0;
+                if(s_temp == '#') { map[i][j] = false; }
+                if(s_temp == '.' || s_temp == 'S') { map[i][j] = true; }
+                if(s_temp == 'S') { q.emplace(i, j); }
+            }
+        }
+        while(!q.empty()) {
+            Point p = q.front(); q.pop(); // 取出的点一定是尚未访问的/已经访问但坐标不同的非墙点
+            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 1 && (p.x != vis[mod(p.x, n)][mod(p.y, m)][1] || p.y != vis[mod(p.x, n)][mod(p.y, m)][2])) { ans = true; break; }
+            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 0) {  vis[mod(p.x, n)][mod(p.y, m)][0] = 1; vis[mod(p.x, n)][mod(p.y, m)][1] = p.x; vis[mod(p.x, n)][mod(p.y, m)][2] = p.y; }
+            const std::function<void(const int &, const int &)> queue_push_check = [&q](const int &x, const int &y) {
+                int x_mod = mod(x, n), y_mod = mod(y, m);
+                if(map[x_mod][y_mod] == false || (vis[x_mod][y_mod][0] == 1 && x == vis[x_mod][y_mod][1] && y == vis[x_mod][y_mod][2])) { return; }
+                if(vis[x_mod][y_mod][0] == 0) { vis[x_mod][y_mod][0] = 1; vis[x_mod][y_mod][1] = x; vis[x_mod][y_mod][2] = y; } // 提前打vis标记，以供后续queue_push_check()剪枝，否则超吃
+                q.emplace(x, y);
+            };
+            queue_push_check(p.x + 1, p.y);
+            queue_push_check(p.x - 1, p.y);
+            queue_push_check(p.x, p.y + 1);
+            queue_push_check(p.x, p.y - 1);
+        }
+        std::cout << (ans ? "Yes" : "No") << '\n';
+    }
+}
+```
 
-TODO：？？？？
+#### §3.1.1.1 剪枝
 
-### §3.1.5 正则匹配
+剪枝是DFS中常用的一种技术。当DFS进入到一种不可能触及目标的状态时，就可以舍弃掉该状态下的子树代表的状态空间。
+
+> [洛谷P2383](https://www.luogu.com.cn/problem/P2383)：给定`n`个长度分别为`l[i]`的木棍，要求全部利用完这些木棍，拼成四个长度相同的长木棍。请判断这`n`个木棍能否实现该目标。
+
+本题适用DFS来保存中间状态。容易写出以下代码：
+
+```c++
+/* 伪代码 */
+int l[N];
+bool dfs(int i, int l1, int l2, int l3, int l4){
+    if(i >= n){
+        return l1 == l2 && l2 == l3 && l3 == l4;
+    }else{
+        dfs(i + 1, l1 + l[i], l2, l3, l4);
+        dfs(i + 1, l1, l2 + l[i], l3, l4);
+        dfs(i + 1, l1, l2, l3 + l[i], l4);
+        dfs(i + 1, l1, l2, l3, l4 + l[i]);
+    }
+}
+```
+
+这样做的时间复杂度是$O(4^n)$，显然是无法接受的。为此，我们可以根据以下原则进行剪枝：
+
+1. 将所有木棍的长度加起来，记为`sum`。如果`sum % 4 != 0`，那么从一开始就不可能构成四个长度相同的长木棍，不必启动搜索过程。
+2. 如果某个长木棍（`l1`、`l2`、`l1`、`l4`）的长度大于`sum / 4`，则该木棍的长度不可能与其它木棍长度相同，即“一山不容二虎”。
+3. 为了让第二条更快地触及“一山不容二虎”，我们想一开始就让各个长木棍的长度冲破`sum / 4`这个上线。为此可以将`n`个木棍长度降序排序。
+
+```c++
+const long long int N_MAX = 20;
+int t, n, sum, l[N_MAX];
+bool dfs(int i, int l1, int l2, int l3, int l4) {
+    if(i >= n) { return l1 == l2 && l2 == l3 && l3 == l4; }
+    if(l1 > sum / 4 || l2 > sum / 4 || l3 > sum / 4 || l4 > sum / 4) {
+        return false;
+    }
+    return dfs(i + 1, l1 + l[i], l2, l3, l4) ||
+           dfs(i + 1, l1, l2 + l[i], l3, l4) ||
+           dfs(i + 1, l1, l2, l3 + l[i], l4) ||
+           dfs(i + 1, l1, l2, l3, l4 + l[i]);
+}
+int main() {
+    std::cin >> t;
+    while(t--) {
+        std::cin >> n;
+        for(int i = 0; i < n; ++i) { std::cin >> l[i]; }
+        sum = std::accumulate(l, l + n, 0ll);
+        std::sort(l, l + n, std::greater<int>());
+        std::cout << (dfs(0, 0, 0, 0, 0) ? "yes" : "no") << '\n';
+    }
+    return 0;
+}
+```
+
+#### §3.1.1.2 回溯
+
+回溯是一种特殊的DFS。普通DFS将当前所有状态全部传给下一层的DFS，**状态转移是单向的**。而回溯会有选择性地转移部分状态，如果没有搜索到，就撤销当前DFS对状态的改动，**状态转义是可以撤销的**。
+
+> [洛谷P11041](https://www.luogu.com.cn/problem/solution/P11041)：给定一个`n×n`（`n<=20`）的棋盘，从左上角`(0, 0)`处出发，每次只能在上下左右任选其中一个方向前进一步，且不能超出棋盘范围，每个格子最多只能访问一次，最终到达右下角`(n-1, n-1)`。已知存在一种路径，使得第`i`行/第`j`列的`n`个格子中，恰好有`x_max[i]`/`y_max[j]`个格子在路径中，求这个路径按顺序经过的各个格子。数据保证答案存在且唯一。
+
+本题我们DFS递归时，如果每个状态均携带`n`个行/列的路径格子信息，与当前坐标`(x, y)`，则每个状态均需要`2n+2`个变量储存。不妨使用递归，每次进入一个格子时，如果合法，则直接编辑`x_max`和`y_max`本身；如果当前DFS分支搜索失败，则撤销对`x_max`和`y_max`的编辑。
+
+```c++
+const int N_MAX = 20, directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+int n, x_max[N_MAX], y_max[N_MAX], stack[N_MAX * N_MAX + 1], stack_top = 0;
+bool visited[N_MAX][N_MAX];
+void dfs(int x, int y){
+    if(x < 0 || y < 0 || x >= n || y >= n) { return; }
+    if(visited[x][y] == true) { return; }
+    if(x_max[x] <= 0 || y_max[y] <= 0) { return; }
+    --x_max[x]; --y_max[y]; visited[x][y] = true; stack[++stack_top] = x * n + y;
+    if(x == n - 1 && y == n - 1 && std::all_of(x_max, x_max + n, [](int &x){ return x == 0; }) && std::all_of(y_max, y_max + n, [](int &y){ return y == 0; })) {
+        for(int i = 1; i <= stack_top; ++i) { std::cout << stack[i] << ' '; }
+        exit(0);
+    }
+    for(int i = 0; i < 4; ++i) { dfs(x + directions[i][0], y + directions[i][1]); }
+    ++x_max[x]; ++y_max[y]; visited[x][y] = false; --stack_top;
+}
+int main(){
+    std::cin >> n;
+    for(int i = 0; i < n; ++i){ std::cin >> y_max[i]; }
+    for(int i = 0; i < n; ++i){ std::cin >> x_max[i]; }
+    dfs(0, 0);
+}
+```
+
+#### §3.1.1.3 正则匹配
 
 > [洛谷P8650](https://www.luogu.com.cn/problem/solution/P8650)：给定一个只由`x`、`(`、`)`、`|`构成的正则表达式`s`，求其能匹配的最长字符串的长度。例如`x((x|xx)|xxx)`的最长匹配字符串长度为`4`。
 
@@ -8474,35 +8463,127 @@ int main() {
 }
 ```
 
-### §3.1.6 回溯
+#### §3.1.1.4 表达式插入运算符
 
-回溯是一种特殊的DFS。普通DFS将当前所有状态全部传给下一层的DFS，**状态转移是单向的**。而回溯会有选择性地转移部分状态，如果没有搜索到，就撤销当前DFS对状态的改动，**状态转义是可以撤销的**。
+> [洛谷P1874]()：给定一个十进制数字字符串`s`，可以在任意字符之间添加`+`号，使最后的表达式计算结果恰好为`n`。请输出需要添加`+`号的最少数量，如果不存在这样的添加方法，则输出`-1`。本题中的所有数字均可以携带任意个前导零。
 
-> [洛谷P11041](https://www.luogu.com.cn/problem/solution/P11041)：给定一个`n×n`（`n<=20`）的棋盘，从左上角`(0, 0)`处出发，每次只能在上下左右任选其中一个方向前进一步，且不能超出棋盘范围，每个格子最多只能访问一次，最终到达右下角`(n-1, n-1)`。已知存在一种路径，使得第`i`行/第`j`列的`n`个格子中，恰好有`x_max[i]`/`y_max[j]`个格子在路径中，求这个路径按顺序经过的各个格子。数据保证答案存在且唯一。
+TODO：？？？？
 
-本题我们DFS递归时，如果每个状态均携带`n`个行/列的路径格子信息，与当前坐标`(x, y)`，则每个状态均需要`2n+2`个变量储存。不妨使用递归，每次进入一个格子时，如果合法，则直接编辑`x_max`和`y_max`本身；如果当前DFS分支搜索失败，则撤销对`x_max`和`y_max`的编辑。
+> [洛谷P1473](https://www.luogu.com.cn/problem/P1473)：给定一个从首字符`1`起向后数字逐渐递增至`n`的字符串（即`"1234...n"`），其中$3\le n\le 9$。每两个数字之间可以添加`+`或`-`号，添加空格表示相邻两个数字构成一个更大的十进制数。按字典序输出最后构造的所有表达式，使其运算结果恰为0。
+
+TODO：？？？？
+
+### §3.1.2 广度优先搜索（BFS）
+
+广度优先搜素板子：
 
 ```c++
-const int N_MAX = 20, directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
-int n, x_max[N_MAX], y_max[N_MAX], stack[N_MAX * N_MAX + 1], stack_top = 0;
+const long long int N_MAX = 1e3, M_MAX = 1e5;
+char map[N_MAX][N_MAX];
+long long int n, m;
 bool visited[N_MAX][N_MAX];
-void dfs(int x, int y){
-    if(x < 0 || y < 0 || x >= n || y >= n) { return; }
-    if(visited[x][y] == true) { return; }
-    if(x_max[x] <= 0 || y_max[y] <= 0) { return; }
-    --x_max[x]; --y_max[y]; visited[x][y] = true; stack[++stack_top] = x * n + y;
-    if(x == n - 1 && y == n - 1 && std::all_of(x_max, x_max + n, [](int &x){ return x == 0; }) && std::all_of(y_max, y_max + n, [](int &y){ return y == 0; })) {
-        for(int i = 1; i <= stack_top; ++i) { std::cout << stack[i] << ' '; }
-        exit(0);
+const long long int direction[4][2] = {
+    {1, 0}, {-1, 0}, {0, 1}, {0, -1}
+};
+
+void bfs_floodfill(long long int i, long long int j){
+    if(visited[i][j]){
+        return;
     }
-    for(int i = 0; i < 4; ++i) { dfs(x + directions[i][0], y + directions[i][1]); }
-    ++x_max[x]; ++y_max[y]; visited[x][y] = false; --stack_top;
+    std::queue<std::pair<long long int, long long int>> queue;
+    queue.push({i, j});
+    while(!queue.empty()){
+        const auto point = queue.front(); queue.pop();
+        if(visited[point.first][point.second]){
+            continue;
+        }
+        visited[point.first][point.second] = true;
+        for(long long int k = 0 ; k < 4 ; ++k){
+            if(!isInRange(point.first + direction[k][0], point.second + direction[k][1], n, n)){
+                continue;
+            }
+            queue.emplace(point.first + direction[k][0], point.second + direction[k][1]);
+        }      
+    }
 }
-int main(){
-    std::cin >> n;
-    for(int i = 0; i < n; ++i){ std::cin >> y_max[i]; }
-    for(int i = 0; i < n; ++i){ std::cin >> x_max[i]; }
-    dfs(0, 0);
+```
+
+#### §3.1.2.1 双向广度优先搜索（BBFS）
+
+设BFS进行`x`次迭代的时间复杂度为$O(f(x))$，则BBFS的时间复杂度为$O\left(2f\left(\displaystyle\frac{x}{2}\right)\right)$，$f(x)$增长越快，BBFS就优化得越明显。
+
+### §3.1.3 `A*`搜索
+
+给定起始状态$s_1$，则当前状态$x$到目标状态$s_2$的代价可以表示为$f(x)=g(x)+h(x)$，其中$g(x)$表示起始状态到当前状态的代价，$h(x)$表示当前状态到目标状态的代价。在实际的搜索过程中，我们只知道$g(x)$，而不知道$h(x)$的确切表达式，所以我们常用自定义的$h^*(x)$估计。
+
+| 大小关系          | 搜索范围 | 搜索效率 | 能否保证最优解 |
+| ------------- | ---- | ---- | ------- |
+| $h(x)>h^*(x)$ | 大    | ❌    | ✔       |
+| $h(x)=h^*(x)$ | 中    | ✔    | ✔       |
+| $h(x)<h^*(x)$ | 小    | ✔    | ❌       |
+
+我们常设计$h^*(x)\le h(x)$，以保证绝对能找到最优解，又让$h^*(x)$尽可能地大，以提高搜索效率。在实际编程中，我们可以给自定义函数乘以一个系数，使得同时满足上面的两点要求。
+
+> [洛谷P5507](https://www.luogu.com.cn/problem/P5507)：给定模`m`意义的序列`int a[1->n]`。现允许执行若干次单点操作，每次针对`a[i]`的单点操作都会让`a[i]`和`a[trans_table[i][a[i]]]`同时自增`1`后对`m`取模。请问至少要经过多少次这样的操作，才能让`a[1->n]`全都是`0`？请输出每次单点操作的元素下标，保证答案存在，且答案长度小于等于`PATH_LEN_MAX == 17`。
+
+考虑如何设计$h^*(x)$函数。在不考虑`++a[trans_table[i][a[i]]]`的情况下，每次让一个元素`a[i]`变成`0`，需要进行`(m - a[i]) % m`次操作。现在考虑`++a[trans_table[i][a[i]]]`的存在，颇有"一虎杀两羊"的效果，一次操作造成两个元素自增。因此，最优情况下，即$h(x)$的下确界为$\displaystyle\frac{1}{2}\displaystyle\sum_{i=1}^{12}(m-a[i])\%m$，令该式为$h^*(x)$即可。
+
+```c++
+const int N_MAX = 12, M_MAX = 4, PATH_LEN_MAX = 17;
+int n = N_MAX, m = M_MAX, trans_table[N_MAX][M_MAX], status_digit_temp[N_MAX];
+uint32_t m_temp;
+struct Status {
+    uint32_t hash;
+    int path_len, cost;
+    int path[1 + PATH_LEN_MAX + 1];
+    friend bool operator<(const Status &a, const Status &b) { return a.cost > b.cost; }
+} status_temp;
+std::priority_queue<Status> queue;
+std::set<uint32_t> set;
+
+int get_cost(const uint32_t &hash) {
+    int cost = 0;
+    for(int i = 0; i < n; ++i) {
+        int status_i = hash >> (2 * i) & 0b11;
+        cost += (m - status_i) % m;
+    }
+    return cost / 3;
+}
+
+int main() {
+    for(int i = 0; i < n; ++i) {
+        std::cin >> m_temp; --m_temp;
+        status_temp.hash |= (m_temp << (2 * i));
+        for(int j = 0; j < m; ++j) {
+            std::cin >> trans_table[i][j]; --trans_table[i][j];
+        }
+    }
+    status_temp.cost = get_cost(status_temp.hash);
+    queue.push(status_temp);
+    while(queue.empty() == false) {
+        status_temp = queue.top(); queue.pop();
+        if(set.count(status_temp.hash) == 1) { continue; }
+        set.insert(status_temp.hash);
+        if(status_temp.hash == 0) {
+            std::cout << status_temp.path_len << '\n';
+            for(int i = 1; i <= status_temp.path_len; ++i) {
+                std::cout << status_temp.path[i] << ' ';
+            }
+            return 0;
+        }
+        for(int i = 0; i < n; ++i) {
+            for(int j = 0; j < n; ++j) { status_digit_temp[j] = status_temp.hash >> (2 * j) & 0b11; }
+            int pending_trans_digit = trans_table[i][status_digit_temp[i]];
+            status_digit_temp[i] = (status_digit_temp[i] + 1) % m;
+            status_digit_temp[pending_trans_digit] = (status_digit_temp[pending_trans_digit] + 1) % m;
+            uint32_t hash_temp = 0;
+            for(int j = 0; j < n; ++j) { hash_temp |= (status_digit_temp[j] << (2 * j)); }
+            Status pending_status_temp = {hash_temp, status_temp.path_len + 1, status_temp.cost +get_cost(hash_temp)};
+            std::copy(status_temp.path + 1, status_temp.path + 1 + status_temp.path_len, pending_status_temp.path + 1);
+            pending_status_temp.path[status_temp.path_len + 1] = i + 1;
+            queue.push(pending_status_temp);
+        }
+    }
 }
 ```
 
@@ -8541,14 +8622,14 @@ int main() {
 }
 ```
 
-> [洛谷P2855](https://www.luogu.com.cn/problem/P2855)/[洛谷P3853](https://www.luogu.com.cn/problem/P3853)：给定数轴上`n+2`个位置`x[]<=1e9`，现在允许从中间的`n<=5e4`个位置中删除/添加`m`个位置，求新序列中的`n+2-m`个/`n+2+m`位置之间间隔的最小值的最大值/最大值的最小值。
+> [洛谷P2855](https://www.luogu.com.cn/problem/P2855)&[洛谷P2678](https://www.luogu.com.cn/problem/P2678)/[洛谷P3853](https://www.luogu.com.cn/problem/P3853)：给定数轴上`n+2`个位置`x[]<=1e9`，现在允许从中间的`n<=5e4`个位置中删除/添加`m`个位置，求新序列中的`n+2-m`个/`n+2+m`位置之间间隔的最小值的最大值/最大值的最小值。
 
-先看[洛谷P2855](https://www.luogu.com.cn/problem/P2855)。令删除位置后的序列为`x'[]`，设最小值为`ans`，于是一个合法的删除方案恒有不等式成立$\forall i, x'[i]-x'[i-1]\ge \mathrm{ans}$。问题转化为判定`ans`是否为合法的最小值，`ans`较小则显然合法，较大则不合法，因此可以二分查找`ans`。在每次查找中，我们使用贪心策略——一旦发现有两个相邻位置的间隔小于`ans`，则删除后者，维护删除计数器`m_cnt++`。若`m_cnt++ >= m`，则判定为无法通过删除来做到要求，即非法。
+先看[洛谷P2855](https://www.luogu.com.cn/problem/P2855)&[洛谷P2678](https://www.luogu.com.cn/problem/P2678)。令删除位置后的序列为`x'[]`，设最小值为`ans`，于是一个合法的删除方案恒有不等式成立$\forall i, x'[i]-x'[i-1]\ge \mathrm{ans}$。问题转化为判定`ans`是否为合法的最小值，`ans`较小则显然合法，较大则不合法，因此可以二分查找`ans`。在每次查找中，我们使用贪心策略——一旦发现有两个相邻位置的间隔小于`ans`，则删除后者，维护删除计数器`m_cnt++`。若`m_cnt++ >= m`，则判定为无法通过删除来做到要求，即非法。
 
 再看[洛谷P3853](https://www.luogu.com.cn/problem/P3853)。我们在每次查找中同样使用贪心策略，不断地在`d_last`与`d[i]`之间补充位置，直到`d[i] - d_last <= ans`位置，**最后记得还要更新`d_last <- d[i]`**。
 
 ```c++
-/* 洛谷P2885 */
+/* 洛谷P2885 & 洛谷P2678 */
 const int L_MAX = 1e9, N_MAX = 5e4;
 int l, n, m, d[1 + N_MAX + 1];
 inline bool check(const int &ans_mid) {
@@ -28279,6 +28360,28 @@ int main() {
 }
 ```
 
+## §9.2 金融
+
+### §9.2.1 等额本息
+
+在等额本息中，每个周期的还款金额固定不变。假设每个周期开始前的欠款为$x_{i-1}$，则本周期先按利率$p$产生利息，然后还固定金额$a$，于是本周期结束时的欠款总数变为$x_{i}=(1+p)y_{i-1}-a$，作为下一个周期开始前的欠款总数。假设
+
+$$
+\begin{align}
+    y_0 & = x \\
+    y_1 & = (1 + p) x - a \\
+    y_2 & = (1 + p) ((1 + p) x - a) - a \\
+        & = (1 + p)^2x - (1 + p) a - a \\
+    y_3 & = (1 + p)((1 + p)^2x - (1 + p) a - a) - a \\
+        & = (1 + p)^3x - (1 + p)^2 a - (1 + p) a - a \\
+    \vdots \\
+    y_n & = (1 + p)^nx - a\sum_{i=0}^{n-1}{(1-p)^i} \\
+        & = (1+p)^nx - a\frac{(1+p)^{n}-1}{p}
+
+\end{align}
+$$
+
+### §9.2.2 等额本金
 # §10 计算几何
 
 ## §10.1 半平面交
