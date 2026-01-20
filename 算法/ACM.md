@@ -8148,7 +8148,7 @@ int main() {
 
 DP的转移方式可以分为两种，一种是填表法（`dp[i] = f(dp[i - 1])`），另一种是刷表法`dp[i + g(i)] += h(dp[i])`。具体应用哪种，取决于`f()`和`g()`/`h()`两者哪个更容易确定。
 
-> [洛谷P2182](https://www.luogu.com.cn/problem/solution/P2182)：给定`n<=100`个硬币，其中有`diff`个反面朝上，`n - diff`个正面朝上。每次操作选择其中`p`枚硬币翻转，则经过`m<=100`次操作后所有硬币恰好均正面朝上的方案数量是多少？答案模`1e9+7`输出。
+> [洛谷P2182](https://www.luogu.com.cn/problem/P2182)：给定`n<=100`个硬币，其中有`diff`个反面朝上，`n - diff`个正面朝上。每次操作选择其中`p`枚硬币翻转，则经过`m<=100`次操作后所有硬币恰好均正面朝上的方案数量是多少？答案模`1e9+7`输出。
 
 令`dp[i][j]`表示经过`i`次操作后恰好有`j`枚硬币朝上的方案总数，显然初始化条件`dp[0][n - diff] = 1`，其余为`0`。使用刷表法容易得出DP递推式：
 
@@ -8156,7 +8156,71 @@ $$
 \mathrm{dp}[i][j] = \sum_{k=\max(0, j - p)}^{n, j + p} \left( \mathrm{dp}[i][k] \cdot C_{k}^{\frac{p+j-k}{2}} C_{n-k}^{\frac{p-j+k}{2}} \right)
 $$
 
-然而，并不是所有范围内的`k`都能让`dp[i][k]`转移到`dp[i][j]`。比如`n=10, j=10, p=5`时，`k`的范围是`[5, 10]`，而`dp[][6]`无法转移到`dp[][10]`，这是因为此时$C_{k}^{\frac{p+j-k}{2}}$会得到小数，并且`6/10`枚正面硬币翻转`5`个硬币后只能得到的正面硬币结果有`1/10`、`3/10`、`5/10`、`7/10`、`9/10`等等，不可能得到`10/10`。
+然而，并不是所有范围内的`k`都能让`dp[i][k]`转移到`dp[i][j]`。比如`n=10, j=10, p=5`时，`k`的范围是`[5, 10]`，而`dp[][6]`无法转移到`dp[][10]`，这是因为此时$C_{k}^{\frac{p+j-k}{2}}$会得到小数，并且`6/10`枚正面硬币翻转`5`个硬币后只能得到的正面硬币结果有`1/10`、`3/10`、`5/10`、`7/10`、`9/10`等等，不可能得到`10/10`。因此这里使用刷表法更合适。
+
+```c++
+const int N_MAX = 1e2, T_MAX = 1e2, M_MAX = N_MAX; const int64_t MOD = 1e9 + 7;
+int n, t, m; char s1[1 + N_MAX + 1], s2[1 + N_MAX + 1], s[1 + N_MAX + 1]; int s_same, s_diff;
+int64_t C[1 + N_MAX][1 + N_MAX], dp[1 + T_MAX][1 + N_MAX];
+
+int main() {
+    std::cin >> n >> t >> m >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s1 + 1)) >> *(reinterpret_cast<char(*)[N_MAX + 1]>(s2 + 1));
+    for(int i = 1; i <= n; ++i) { s[i] = (s1[i] - '0') ^ (s2[i] - '0'); s_same += !s[i]; s_diff += s[i]; }
+    for(int i = 0; i <= n; ++i) { C[i][0] = C[i][i] = 1; for(int j = 1; j < i; ++j) { C[i][j] = (C[i - 1][j] + C[i - 1][j - 1]) % MOD; } }
+
+    dp[0][s_same] = 1;
+    for(int i = 1; i <= t; ++i) {
+        for(int j = 0; j <= n; ++j) {
+            for(int k = std::max(0, m - j); k <= std::min(m, n - j); ++k) {
+                dp[i][j] += mul_mod(
+                    mul_mod( dp[i - 1][j + 2 * k - m],  C[j + 2 * k - m][k],  MOD),
+                    C[n + m - j - 2 * k][m - k],
+                    MOD
+                ); dp[i][j] %= MOD;
+            }
+        }
+    }
+    std::cout << dp[t][n];
+}
+```
+
+> [洛谷P1773](https://www.luogu.com.cn/problem/P1773)：给定一个正整数`n<=1e1000`与模数`m<=50`，现在可以在相邻数位中添加`k`个乘号，最终得到模`m`意义下的乘积`s`。求`s`的最小值与最大值，以及对应的乘号个数最小值。
+
+令`dp[i:0->n][j:0->m-1]`表示给定正整数的`n[1->i]`部分，得到乘积`j`所需的乘法操作数数量最小值，其值减`1`即为所求的乘号数量最小值。考虑最后一个乘法操作数的起点`k+1`，显然有状态转移方程：
+
+$$
+\mathrm{dp}[i][j\times(n_{k+1\rightarrow j}) \% m] = \min \left\{
+	\mathrm{dp}[i][j\times(n_{k+1\rightarrow j}) \% m],
+	\mathrm{dp}[k][j]
+\right\}
+$$
+
+其中$n_{i\rightarrow j}$表示`n`的十进制字符串的第`i`位到第`j`位构成的数字（模`m`意义下），可以通过$O(n^2)$打表预处理得到，这里使用刷表法非常直观。`dp[*][*]`初值为`+∞`，`dp[0][1] = 0`除外。时间复杂度为$O(n^2m)$。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 50, INF = 2e9;
+int n, m; char s[1 + N_MAX + 1]; int s_mod[1 + N_MAX][1 + N_MAX];
+int dp[1 + N_MAX][M_MAX];
+int main() {
+    std::cin >> *reinterpret_cast<char(*)[1 + N_MAX]>(s + 1) >> m; n = std::strlen(s + 1);
+    for(int i = 1; i <= n; ++i) {
+        for(int j = i; j <= n; ++j) {
+            s_mod[i][j] = (s_mod[i][j - 1] * 10 + s[j] - '0') % m;
+        }
+    }
+
+    std::fill(&(dp[0][0]), &(dp[N_MAX][M_MAX - 1]) + 1, INF); dp[0][1] = 0;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 0; j < m; ++j) {
+            for(int k = 0; k < i; ++k) {
+                dp[i][j * s_mod[k + 1][i] % m] = std::min(dp[i][j * s_mod[k + 1][i] % m], dp[k][j] + 1);
+            }
+        }
+    }
+    for(int i = 0; i < m; ++i) { if(dp[n][i] != INF) { std::cout << i << ' ' << dp[n][i] - 1 << ' '; break; } }
+    for(int i = m - 1; i >= 0; --i) { if(dp[n][i] != INF) { std::cout << i << ' ' << dp[n][i] - 1 << ' '; break; } }
+}
+```
 
 ## §2.D 经典问题
 
@@ -8291,50 +8355,6 @@ int main() {
 }
 ```
 
-除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
-
-> [洛谷P1363](https://www.luogu.com.cn/problem/P1363)：给定一个二维网格上的无限棋盘，由`n×m <= 1.5e3×1.5e3`的循环节`bool map[n][m]`密铺而成，其中`false`表示墙壁，`true`表示道路。给定起点坐标，从此出发任意游走，请判定能否从起点到达无穷远处。
-
-这里我们直接给出结论：本题等价于判定无穷棋盘上是否存在两个可达点，它们的横纵坐标模`n`/`m`后相等。设计BFS状态时，令`vis[x%n][y%m][0/1/2]`表示是否经过/第一次经过时的横坐标/第二次经过时的纵坐标。如果某个点`vis[x%n][y%m][0] == false`未被访问过，或者已经被访问过但是两次经过的横纵坐标都相等，则剪枝，不加入到队列中。
-
-**本题数据量较大，因此每次向队列插入后，都必须打上`vis`标记，以供后续紧接着的入队请求来剪枝。**
-
-```c++
-const int N_MAX = 1500, M_MAX = 1500;
-int n, m; char s_temp; bool map[N_MAX][M_MAX]; int vis[N_MAX][M_MAX][3]; bool ans;
-struct Point { int x, y; };
-int main() {
-    while(std::cin >> n >> m) {
-        std::queue<Point> q; ans = false;
-        for(int i = 0; i < n; ++i) {
-            for(int j = 0; j < m; ++j) {
-                std::cin >> s_temp;
-                vis[i][j][0] = 0;
-                if(s_temp == '#') { map[i][j] = false; }
-                if(s_temp == '.' || s_temp == 'S') { map[i][j] = true; }
-                if(s_temp == 'S') { q.emplace(i, j); }
-            }
-        }
-        while(!q.empty()) {
-            Point p = q.front(); q.pop(); // 取出的点一定是尚未访问的/已经访问但坐标不同的非墙点
-            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 1 && (p.x != vis[mod(p.x, n)][mod(p.y, m)][1] || p.y != vis[mod(p.x, n)][mod(p.y, m)][2])) { ans = true; break; }
-            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 0) {  vis[mod(p.x, n)][mod(p.y, m)][0] = 1; vis[mod(p.x, n)][mod(p.y, m)][1] = p.x; vis[mod(p.x, n)][mod(p.y, m)][2] = p.y; }
-            const std::function<void(const int &, const int &)> queue_push_check = [&q](const int &x, const int &y) {
-                int x_mod = mod(x, n), y_mod = mod(y, m);
-                if(map[x_mod][y_mod] == false || (vis[x_mod][y_mod][0] == 1 && x == vis[x_mod][y_mod][1] && y == vis[x_mod][y_mod][2])) { return; }
-                if(vis[x_mod][y_mod][0] == 0) { vis[x_mod][y_mod][0] = 1; vis[x_mod][y_mod][1] = x; vis[x_mod][y_mod][2] = y; } // 提前打vis标记，以供后续queue_push_check()剪枝，否则超吃
-                q.emplace(x, y);
-            };
-            queue_push_check(p.x + 1, p.y);
-            queue_push_check(p.x - 1, p.y);
-            queue_push_check(p.x, p.y + 1);
-            queue_push_check(p.x, p.y - 1);
-        }
-        std::cout << (ans ? "Yes" : "No") << '\n';
-    }
-}
-```
-
 #### §3.1.1.1 剪枝
 
 剪枝是DFS中常用的一种技术。当DFS进入到一种不可能触及目标的状态时，就可以舍弃掉该状态下的子树代表的状态空间。
@@ -8387,6 +8407,118 @@ int main() {
         std::cout << (dfs(0, 0, 0, 0, 0) ? "yes" : "no") << '\n';
     }
     return 0;
+}
+```
+
+> [洛谷P1120](https://www.luogu.com.cn/problem/P1120)：给定`n<=65`个长度为`a[1->n]∈[1,50]`的木条，现在需要将其划分成若干组，并将组内的木条首尾相接形成一个粘木条。要求所有粘木条的长度均相等，求粘木条长度的最小值。**时间限制为`260ms`**。
+
+令`bool dfs(const int &ans, int i, int l_cur)`表示已经使用了`a[1->n]`中的`i-1`个木条，并尝试进行配对，剩余的所有未能凑成一个总长度恰好为`ans`的粘木条的总长度为`l_cur`时，能否满足题目的要求。注意到答案`ans`一定大于等于木条长度的最大值`a_max`，也一定小于等于所有木条长度之和`a_sum`，于是我们得以确定`dfs()`中`ans`实参的遍历范围`[a_max, a_sum]`。容易写出以下朴素DFS代码：
+
+```c++
+const int N_MAX = 65, A_MAX = 50;
+int n, a[1 + N_MAX], a_sum, a_max; bool vis[1 + N_MAX];
+bool dfs(const int &ans, int i, int l_cur) {
+    if(i > n && l_cur == ans) { return true; }
+    if(i <= n && l_cur == ans) { return dfs(ans, i, 0); }
+    for(int j = 1; j <= n; ++j) {
+        if(vis[j] || l_cur + a[j] > ans) { continue; }
+        vis[j] = true;
+        if(dfs(ans, i + 1, l_cur + a[j])) { return true; }
+        vis[j] = false;
+    }
+    return false;
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    a_sum = std::accumulate(a + 1, a + 1 + n, 0);
+    a_max = *std::max_element(a + 1, a + 1 + n);
+
+    for(int ans = a_max; ans <= a_sum; ++ans) {
+        std::fill(vis + 1, vis + 1 + n, false);
+        if(dfs(ans, 1, 0)) { std::cout << ans; return 0; }
+    }
+}
+```
+
+**本题是剪枝的集大成之作**，在时间上卡的很死，需要使用大量剪枝技巧：
+
+1. 由于最终的答案`ans`会使得每组的粘木条长度均相等，而粘木条的长度之和`a_sum`保持不变，因此必须满足`a_sum % ans == 0`。
+	1. 在代码实现上，我们计算`dfs(ans: a_max -> a_sum)`前需要先判断`a_sum % ans == 0`是否成立。
+	2. 可以进一步优化，不去枚举`ans: a_max -> a_sum`，而是枚举`a_sum / ans: 1 -> n`。
+2. 在每轮`dfs(i)`中，我们之前已经取出了`i-1`个木条，现在要决定取出哪个木条作为第`i`个。在这个决定过程中，我们朴素的策略是从头开始查找，扫描`a[1->n]`范围内所有未被选择过的、选择后不会超出`ans`限制的的合法木条，做了很多重复的计算。在代码实现上，我们可以向`dfs()`传入一个变量`j_used`，表示`[1, j_used)`内的木条都已被选择过，这次只需要遍历`s[j_used->n]`即可。
+3. 如果某个`dfs()`最终会返回`false`，那么我们希望它尽快地返回`false`。显然如果选择了长木条，则留给`l_cur + a[j] <= ans`的`j`取值范围会急剧缩小，从而减少向下递归的`dfs()`次数，尽快返回`false`。在代码实现上，我们可以先给`a[1->n]`从大到小排序，让较长的木条排在前面，被优先选择。
+4. 如果两个合法木条的长度相同，已经通过一次`dfs()`证明了前面的木条不满足条件，则无需再计算后面木条对应的`dfs()`，直接同样判定为不满足条件即可。
+5. 主函数`main()`每次执行`dfs()`前都要清空`vis[]`数组，这是因为我们的`dfs()`并不能保证严格回溯，而是一旦查找到合法方案后就一路`return`，不会重置`vis[j] = false;`。在代码实现上，我们可以为每个`dfs()`维护一个`bool res`，初始时为`false`，一旦查找到合法方案就更新为`true`，以此为依据`break`掉后续的遍历。
+6. 如果`dfs()`检测到还没选第`i`个木条时，就满足了`l_cur == ans`，则不必再递归调用一次`dfs(ans, i, l_cur=0)`，而是直接将`l_cur = 0`，从而省下一次递归调用。
+7. 由于优化3的存在，我们的`a[1->n]`现在已经是递减的了。我们希望找到的`j`满足`l_cur + a[j] <= ans`，这意味这我们可以使用二分查找，得到一个恰好能使`l_cur + a[j] <= ans`成立的位置`j_start`，作为遍历的起点。与优化2结合，我们的二分查找起始位置可以移动到`a + j_left`。
+8. 在某次`dfs(i)`中，如果我们选出的第`i`个木条为`a[j]`，之后的`dfs(i+1)`判定为失败，则说明`a[j]`添加到`l_cur`所在的组后，无法让所有的组能形成一个长度为`ans`的粘木条。
+	1. 如果此时``ans - l_cur == a[j]``，则我们不得不使用更多的短木条来填补`ans - l_cur`的空隙。那么补完`l_cur`的这一组后，剩下的木条总长度不变，但是数量减少，这不利于最终目的。以上结论显然成立，使用贪心+反证即可得证。因此没有继续搜索的必要了，直接`break`跳出循环，`return false;`即可。
+	2. 如果此时`l_cur == 0`，则说明只要有`a[j]`参与，那么就无法满足要求。而`a[j]`又是必须参与的，因此没有继续搜索的必要了，直接`break`跳出循环，`return false;`即可。
+9. DFS缓存记忆化搜索。这里我们使用的缓存表`std::unordered_set`标记某个状态是否访问过。这里需要注意：只有`l_cur == 0`时才可以使用缓存表，这是因为如果`l_cur != 0`，则我们不知道`l_cur`具体由哪些木条组成，而这会影响最终能否满足题目要求。如果`l_cur == 0`，则我们就知道了——`l_cur`不由任何木条组成。
+10. 由于优化3与优化7的存在，我们还可以使用`j_fail`变量维护二分查找的起点。如果`l_cur + a[j] == ans`，则我们下一轮需要从第一个未使用的较长木条开始尝试；如果`l_cur + a[j] < ans`，那么由于`a[j<]`的更长木条已验证行不通，那么我们只需从`a[j>]`处开始搜索即可。
+
+```c++
+const int N_MAX = 65, A_MAX = 50;
+int n, a[1 + N_MAX], a_sum, a_max; 
+bool vis[1 + N_MAX]; uint64_t vis_hash; std::unordered_set<uint64_t> vis_cache(1000); // 优化9
+
+bool dfs(const int &ans, int i, int l_cur, int j_used, int j_fail) { // 优化2
+    if(i > n && l_cur == ans) { return true; }
+    if(l_cur == ans) { l_cur = 0; } // 优化6
+    if(l_cur == 0 && vis_cache.count(vis_hash) == 1) { return false; } // 优化9
+    if(l_cur == 0) { vis_cache.insert(vis_hash); } // 优化9
+
+    int j_start = std::lower_bound(a + j_fail, a + n + 1, ans - l_cur, std::greater<>()) - a; // 优化7 + 优化10
+    for(int j = j_start, j_invalid = -1; j <= n; ++j) { // 优化2 + 优化7
+        if(vis[j] || l_cur + a[j] > ans) { continue; }
+        // if(j_invalid != -1 && a[j_invalid] == a[j]) { continue; } // 优化4.1
+        if(j_invalid != -1 && a[j_invalid] == a[j]) { continue; } // 优化4.2
+        
+        vis[j] = true;
+        vis_hash ^= (1ull << j); // 优化9
+        bool is_found = dfs(
+            ans, 
+            i + 1, 
+            l_cur + a[j], 
+            j_used + (j == j_used),
+            (l_cur + a[j] == ans) ? (j_used + (j == j_used)) : (j + 1) // 优化10
+        );
+        vis[j] = false; // 优化5
+        vis_hash ^= (1ull << j); // 优化9
+
+        if(is_found) { // 优化2
+            return true; // 优化5
+        } else {
+            j_invalid = j; // 优化4
+            if(ans - l_cur == a[j]) { break; } // 优化8.1
+            if(l_cur == 0) { break; } // 优化8.2
+        }
+    }
+    return false; // 优化5
+}
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    a_sum = std::accumulate(a + 1, a + 1 + n, 0);
+    a_max = *std::max_element(a + 1, a + 1 + n);
+    std::sort(a + 1, a + 1 + n, std::greater<>()); // 优化3
+
+    // for(int ans = a_max; ans <= a_sum; ++ans) { // 优化1.1
+    //     if(a_sum % ans != 0) { continue; } // 优化1.1
+    //     std::fill(vis + 1, vis + 1 + n, false); // (未)优化5
+    //     if(dfs(ans, 1, 0, 1)) {
+    //          std::cout << ans; return 0; 
+    //     }
+    // }
+    for(int i = n; i >= 1; --i) { // 优化1.2
+        if(a_sum % i != 0) { continue; } // 优化1.2
+        if(a_sum / i < a_max) { continue; }
+        int ans = a_sum / i;
+        vis_cache.clear();
+        if(dfs(ans, 1, 0, 1, 1)) { std::cout << ans; return 0; }
+    }
 }
 ```
 
@@ -8504,6 +8636,50 @@ void bfs_floodfill(long long int i, long long int j){
             }
             queue.emplace(point.first + direction[k][0], point.second + direction[k][1]);
         }      
+    }
+}
+```
+
+除了上面给出的通用做法以外，注意到本题的各项条件都较为优良，例如格子的遍历顺序具有明显的顺序性。因此我们可以简化`visited`状态。要判断一个新格子是否能被选中，我们只需要判断左、左上、上、右上这四个方向是否有格子存在即可，于是`visited[i][j]`可以从`long long int`渐弱为`bool`，可以省空间；也可以在更新状态时只检查上述四个方向、只更新所在的一个格子，可以省常数时间。本题略。
+
+> [洛谷P1363](https://www.luogu.com.cn/problem/P1363)：给定一个二维网格上的无限棋盘，由`n×m <= 1.5e3×1.5e3`的循环节`bool map[n][m]`密铺而成，其中`false`表示墙壁，`true`表示道路。给定起点坐标，从此出发任意游走，请判定能否从起点到达无穷远处。
+
+这里我们直接给出结论：本题等价于判定无穷棋盘上是否存在两个可达点，它们的横纵坐标模`n`/`m`后相等。设计BFS状态时，令`vis[x%n][y%m][0/1/2]`表示是否经过/第一次经过时的横坐标/第二次经过时的纵坐标。如果某个点`vis[x%n][y%m][0] == false`未被访问过，或者已经被访问过但是两次经过的横纵坐标都相等，则剪枝，不加入到队列中。
+
+**本题数据量较大，因此每次向队列插入后，都必须打上`vis`标记，以供后续紧接着的入队请求来剪枝。**
+
+```c++
+const int N_MAX = 1500, M_MAX = 1500;
+int n, m; char s_temp; bool map[N_MAX][M_MAX]; int vis[N_MAX][M_MAX][3]; bool ans;
+struct Point { int x, y; };
+int main() {
+    while(std::cin >> n >> m) {
+        std::queue<Point> q; ans = false;
+        for(int i = 0; i < n; ++i) {
+            for(int j = 0; j < m; ++j) {
+                std::cin >> s_temp;
+                vis[i][j][0] = 0;
+                if(s_temp == '#') { map[i][j] = false; }
+                if(s_temp == '.' || s_temp == 'S') { map[i][j] = true; }
+                if(s_temp == 'S') { q.emplace(i, j); }
+            }
+        }
+        while(!q.empty()) {
+            Point p = q.front(); q.pop(); // 取出的点一定是尚未访问的/已经访问但坐标不同的非墙点
+            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 1 && (p.x != vis[mod(p.x, n)][mod(p.y, m)][1] || p.y != vis[mod(p.x, n)][mod(p.y, m)][2])) { ans = true; break; }
+            if(vis[mod(p.x, n)][mod(p.y, m)][0] == 0) {  vis[mod(p.x, n)][mod(p.y, m)][0] = 1; vis[mod(p.x, n)][mod(p.y, m)][1] = p.x; vis[mod(p.x, n)][mod(p.y, m)][2] = p.y; }
+            const std::function<void(const int &, const int &)> queue_push_check = [&q](const int &x, const int &y) {
+                int x_mod = mod(x, n), y_mod = mod(y, m);
+                if(map[x_mod][y_mod] == false || (vis[x_mod][y_mod][0] == 1 && x == vis[x_mod][y_mod][1] && y == vis[x_mod][y_mod][2])) { return; }
+                if(vis[x_mod][y_mod][0] == 0) { vis[x_mod][y_mod][0] = 1; vis[x_mod][y_mod][1] = x; vis[x_mod][y_mod][2] = y; } // 提前打vis标记，以供后续queue_push_check()剪枝，否则超吃
+                q.emplace(x, y);
+            };
+            queue_push_check(p.x + 1, p.y);
+            queue_push_check(p.x - 1, p.y);
+            queue_push_check(p.x, p.y + 1);
+            queue_push_check(p.x, p.y - 1);
+        }
+        std::cout << (ans ? "Yes" : "No") << '\n';
     }
 }
 ```
@@ -26385,7 +26561,7 @@ int main() {
 
 埃氏筛的一个显著缺点是它会重复标记同一个值。线性筛（又称欧式筛）在此基础上进行了优化，完全避免了这种无意义的步骤，将时间复杂度将至$O(n)$。
 
-特别感谢[Bilibili @Doger哔哔](https://www.bilibili.com/video/BV1Pt421G7Xc/?p=2)的解释。具体来说，我们维护两个数组：`bool is_prime[i]`表示`i`是否为质数，`std::vector<int> prime`用于升序存储`[1, i]`内的所有质数。令$n=\displaystyle\prod_{i=1}^{\omega(n)}p_{i}^{a_i}$，在埃氏筛中，重复标记同一个值的原因就是$\{p_1, p_2, \cdots, p_{\omega(n)}\}$均会标记`is_prime[n]`，于是我们的思路是只让最小质因数$p_{\mathrm{min}}=\min\{p_i\}$来标记`is_prime[n]`。
+特别感谢[Bilibili @Doger哔哔](https://www.bilibili.com/video/BV1Pt421G7Xc/?p=2)的讲解。具体来说，我们维护两个数组：`bool is_prime[i]`表示`i`是否为质数，`std::vector<int> prime`用于升序存储`[1, i]`内的所有质数。令$n=\displaystyle\prod_{i=1}^{\omega(n)}p_{i}^{a_i}$，在埃氏筛中，重复标记同一个值的原因就是$\{p_1, p_2, \cdots, p_{\omega(n)}\}$均会标记`is_prime[n]`，于是我们的思路是只让最小质因数$p_{\mathrm{min}}=\min\{p_i\}$来标记`is_prime[n]`。
 
 于是，$n$可以表示为$\displaystyle n = p_{\mathrm{min}} \cdot \frac{n}{p_\mathrm{min}}$，我们在外层循环`for(int i = 2; i <= n; ++i)`遍历$i = \displaystyle\frac{n}{p_{\mathrm{min}}}$，在内层循环`for(int j : prime)`遍历$j = p_{\mathrm{min}}$。如果某一时刻发现`i % j == 0`，则说明此时存在一个因数$p’ = \displaystyle\frac{i}{j}$满足$j \mid i$。那么遍历到后面更大的`j'`时，`j'`就不再是最小的质因数了，$j\mid i$导致`i`中包含的质因数`j`才是最小的，需要立刻`break;`。
 
