@@ -12727,6 +12727,99 @@ for(int i = 1; i <= n; ++i){
 
 在此基础上，我们还可以为第`i`条边指定起点`edge_from[i]`。
 
+### §6.1.A 反向建边
+
+反向建边可以将“多源到单点”问题转化为“单源到多点”的问题。
+
+> [洛谷P3916](https://www.luogu.com.cn/problem/P3916)：给定含有`n<=1e5`个点与`m<=1e5`条有向边的图$\mathcal{G}$，令$f(i)$表示从`i`出发能到达的点的编号最大值，求$f(1), f(2), \cdots, f(n)$的值。
+
+如果正向建边，则需要`n`次DFS，显然会超时。不妨考虑贪心性质——我们先选中第`n`个点$v_n$，判断有哪些点$v_i$可以到达$v_n$，然后标记答案`ans[i] = n`；然后选中第`n-1`个点、第`n-2`个点......，以此类推。如果DFS时已经发现`ans[i] <= 当前DFS的起点编号`，则说明已经被自己或编号更大的点占据了，直接剪枝即可。
+
+容易发现此时我们是从$v_n$出发，主动去寻找$v_i$，因此可以反向建边。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 1e5;
+int n, m, u_tmp, v_tmp, ans[1 + N_MAX];
+
+int edge_count, edge_first[1 + N_MAX], edge_next[1 + M_MAX], edge_to[1 + M_MAX];
+std::set<std::pair<int, int>> edge_set;
+inline void edge_add(const int &u, const int &v) {
+    ++edge_count;
+    edge_to[edge_count] = v;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+}
+
+void dfs(int root, int u) {
+    for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+        const int &v = edge_to[i];
+        if(root <= ans[v]) { continue; } ans[v] = root;
+        dfs(root, v);
+    }
+}
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> u_tmp >> v_tmp; edge_add(v_tmp, u_tmp); }
+
+    std::iota(ans + 1, ans + 1 + n, 1);
+    for(int i = n; i >= 1; --i) {
+        dfs(i, i);
+    }
+    for(int i = 1; i <= n; ++i) { std::cout << ans[i] << ' '; }
+}
+```
+
+> [洛谷P1629](https://www.luogu.com.cn/problem/P1629)：给定含有`n<=1e3`个点与`m<=1e5`条带权有向边的有向图$\mathcal{G}$，边权`w<=1e4`。令$f(i,j)$表示从点$v_i$到点$v_j$的最短路，求$\displaystyle\sum_{i=2}^{n}\left(f(1,i)+f(i,1)\right)$。
+
+注意到原式可拆分成两个部分：$\displaystyle\sum_{i=2}^{n}f(1,i)$与$\displaystyle\sum_{i=2}^{n}f(i,1)$。前者是标准的“单源到多点”最短路问题，后者是“多点到单源”问题，因此只需正着与反着建两次边，分别跑一次Dijkstra算法即可。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e5, W_MAX = 1e4, INF = 1e9 + 1;
+int n, m, u_temp, v_temp, w_temp, dp[2][1 + N_MAX], vis[2][1 + N_MAX]; int64_t ans;
+struct Point { int i, w; };
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> q([](const Point &child, const Point &root){ return root.w < child.w; });
+
+int edge_count[2], edge_first[2][1 + N_MAX], edge_to[2][1 + M_MAX], edge_next[2][1 + M_MAX], edge_weight[2][1 + M_MAX];
+inline void edge_add(int k, const int &u, const int &v, const int &w) {
+    edge_to[k][++edge_count[k]] = v;
+    edge_next[k][edge_count[k]] = edge_first[k][u];
+    edge_first[k][u] = edge_count[k];
+    edge_weight[k][edge_count[k]] = w;
+}
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp >> w_temp;
+        edge_add(0, u_temp, v_temp, w_temp);
+        edge_add(1, v_temp, u_temp, w_temp);
+    }
+
+    std::fill(&(dp[0][0]), &(dp[1][N_MAX]) + 1, INF);
+    for(int k = 0; k <= 1; ++k) {
+        dp[k][1] = 0; q.emplace(1, dp[k][1]);
+        while(!q.empty()) {
+            Point point = q.top(); q.pop(); const int &u = point.i;
+            if(vis[k][u] == true) { continue; } vis[k][u] = true;
+            for(int i = edge_first[k][u]; i != 0; i = edge_next[k][i]) {
+                const int &v = edge_to[k][i];
+                if(dp[k][v] > dp[k][u] + edge_weight[k][i]) {
+                    dp[k][v] = dp[k][u] + edge_weight[k][i];
+                    q.emplace(v, dp[k][v]);
+                }
+            }
+        }
+    }
+
+    for(int i = 2; i <= n; ++i) { ans += dp[0][i] + dp[1][i]; }
+    std::cout << ans;
+}
+```
+
+### §6.1.B 虚点连边
+
+
+
 ## §6.2 Tarjan算法
 
 ### §6.2.1 强连通分量
@@ -13089,7 +13182,7 @@ Tarjan算法使用一遍DFS（**不需要单调栈，需要DFS生成树支持查
 | ❓   | `bool is_cutedge[M_MAX + 1]`             | 当前边是否为割边（无需定义`cutedge_count`，但不能参与排序）                                                                                                           | 全为`false`                               |
 | ❓   | `std::pair<int, int> cutedge[M_MAX + 1]` | 检测到的第`i`条割边的首尾节点（可以排序，但需要配合`cutedge_count`使用）                                                                                                   | 全为`0`                                   |
 
-需要注意的是：**`tarjan_low[]`的含义发生了改变**。在割点中，`tarjan_low[i]`表示在DFS搜索树遍历到节点`i`时，**给定节点`i`本身及其DFS搜索树的所有子树节点`j`**，它们的所有反祖边指向的已访问过的节点中，最早被访问的节点`k`的`tarjan_dfn[k]`。而在割边中，`tarjan_low[i]`表示**只有DFS搜索树的所有字数节点`j`**，它们的所有反祖边指向的最早访问节点k的`tarjan_dfn[k]`。
+需要注意的是：**`tarjan_low[]`的含义发生了改变**。在割点中，`tarjan_low[i]`表示在DFS搜索树遍历到节点`i`时，**给定节点`i`本身及其DFS搜索树的所有子树节点`j`**，它们的所有反祖边指向的已访问过的节点中，最早被访问的节点`k`的`tarjan_dfn[k]`。而在割边中，`tarjan_low[i]`表示**只有DFS搜索树的所有子树节点`j`**，它们的所有反祖边指向的最早访问节点`k`的`tarjan_dfn[k]`。
 
 因为`tarjan_low[]`的含义发生了改变，所以我们要更改`tarjan_dfs()`的逻辑：
 
@@ -14090,7 +14183,7 @@ int main() {
 Dijkstra算法用于求解单源最短路，也可以转化成单源最长路问题。形式化地，给定一个有向图$\mathcal{G}=(\mathcal{V}, \mathcal{E})$，时间复杂度为$O(m\log n)$，算法如下：
 
 1. 初始化：令尚未确定最短路的点集$\mathcal{V}_T=\mathcal{V}$，已经确定最短路的点集$\mathcal{V}_S=\varnothing$，从起点到点`i`的最短路长度`dp[i:1->n]`均为正无穷，`dp[起点]=0`除外。
-2. 将$\mathcal{V}_T$中的`dp[]`最小值点`u`取出，放到$\mathcal{V}_S$，并更新`u`构成的所有`e: u -> v`：`dp[v] = std::min(dp[v], dp[u])`。这个最小值可以用堆维护
+2. 将$\mathcal{V}_T$中的`dp[]`最小值点`u`取出，放到$\mathcal{V}_S$，并更新`u`构成的所有`e: u -> v`：`dp[v] = std::min(dp[v], dp[u] + edge_weight[e])`。这个最小值可以用堆维护。
 3. 重复第2步，直到$\mathcal{V}_T$为空。
 
 > [洛谷P4779](https://www.luogu.com.cn/problem/P4779)：给定一个含有`n<=1e5`个点、`m<=2e5`条边的有向边权图，求从起点`start`到其它点的最短路径长度。
