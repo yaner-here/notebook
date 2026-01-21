@@ -12727,15 +12727,15 @@ for(int i = 1; i <= n; ++i){
 
 在此基础上，我们还可以为第`i`条边指定起点`edge_from[i]`。
 
-### §6.1.A 反向建边
+### §6.1.A 反向建图
 
-反向建边可以将“多源到单点”问题转化为“单源到多点”的问题。
+反向建图可以将“多源到单点”问题转化为“单源到多点”的问题。
 
 > [洛谷P3916](https://www.luogu.com.cn/problem/P3916)：给定含有`n<=1e5`个点与`m<=1e5`条有向边的图$\mathcal{G}$，令$f(i)$表示从`i`出发能到达的点的编号最大值，求$f(1), f(2), \cdots, f(n)$的值。
 
 如果正向建边，则需要`n`次DFS，显然会超时。不妨考虑贪心性质——我们先选中第`n`个点$v_n$，判断有哪些点$v_i$可以到达$v_n$，然后标记答案`ans[i] = n`；然后选中第`n-1`个点、第`n-2`个点......，以此类推。如果DFS时已经发现`ans[i] <= 当前DFS的起点编号`，则说明已经被自己或编号更大的点占据了，直接剪枝即可。
 
-容易发现此时我们是从$v_n$出发，主动去寻找$v_i$，因此可以反向建边。
+容易发现此时我们是从$v_n$出发，主动去寻找$v_i$，因此可以反向建图。
 
 ```c++
 const int N_MAX = 1e5, M_MAX = 1e5;
@@ -18019,6 +18019,76 @@ int main() {
     for(int i = 1; i <= k; ++i) { c_2 = std::min(c_2, dp[unknown_count % 2][i]); }
 
     std::cout << c_1 + c_2 + c_3 << '\n';
+}
+```
+
+> 京东(2025秋招)：给定一个自然数数组`a[1->n<=1e5]<=n`，现在允许指定一个下标闭区间`[1<=L, R<=n]`（允许为空集），使得其中每个元素`a[i]`均加`+1`。求操作之后的数组`a'[]`的逆序对数量最小值。
+
+首先注意到，针对`[L, R]`区间操作之后，`[1, L)`会消灭逆序对，而`(R, n]`会产生逆序对，两者之间完全独立。因此，我们可以贪心地让`R = n`。设操作区间为$[L, n]$，操作之后的序列为$a_L[i]=\begin{cases} a[i] &, 1 \le i < L \\ a[i] + 1 &, L \le i \le n\end{cases}$。令$\text{left}'_{L}[v]$表示$a_L[1\le i \textcolor{red}{<} L]$内有多少个元素值等于$v$，$\text{right}'_{L}[v]$表示$a_L[L \textcolor{red}{\le} i \le n]$内有多少个元素值等于$v$，$\text{left}_{L}[v]$表示$a[1\le i \textcolor{red}{<} L]$内有多少个元素值等于$v$，$\text{right}_{L}[v]$表示$a[L \textcolor{red}{\le} i \le n]$内有多少个元素值等于$v$，$\text{inv}(L)$表示$a_L[]$的逆序对数量。我们设了很多未知变量，现在用已知变量来表示：
+$$
+\begin{align}
+	& \text{left}'_{L}[v] = \displaystyle\sum_{i\in[1,L)}\mathbb{1}_{\textcolor{red}{a_{L}[i]}=v} = \displaystyle\sum_{i\in[1,L)}\mathbb{1}_{\textcolor{red}{a[i]}=v} = \text{left}_{L}[v]\\
+	& \text{right}'_{L}[v] = \displaystyle\sum_{i\in[L,n]}\mathbb{1}_{\textcolor{red}{a_{L}[i]}=v} = \displaystyle\sum_{i\in[L,n]}\mathbb{1}_{\textcolor{red}{a[i]+1}=v} = \text{right}_{L}[v-1]
+\end{align}
+$$
+
+现在考虑$L\rightarrow L+1$的递推。此时$a[L]$不再被加`1`，因此$a_{L+1}[L] = a_{L}[L] - 1$。这时的逆序对数量会产生变化$\text{inv}(L+1)-\text{inv}(L)$，它有两个来源：
+
+1. `a[L]`与`a[1->L-1]`产生的逆序对。例如原先是`v, v`，现在是`v, v-1`，这就会产生逆序对。即$\text{left}'_{\textcolor{red}{L}}[a_{L+1}[L]+1]$。
+2. `a[L]`与`a[L+1->n]`消灭的逆序对。例如原先是`v, v-1`，现在是`v-1, v-1`，这就是消灭逆序对。即$\text{right}'_{\textcolor{red}{L+1}}[a_{L+1}[L]]$。
+
+整理后得到下式。注意到`a[]`全局加`1`也不会影响逆序对的数量，因此$\text{inv}(0)=\text{inv}(n+1)$，即为`a[]`的逆序对数量，这是树状数组的板子题。我们只需按`L:1->n`依次计算，相加求和即可得到任意$\text{inv}(\cdot)$的值：
+
+$$
+\begin{align}
+	\text{inv}(L+1)-\text{inv}(L) &= \text{left}'_{L}[a_{L+1}[L]+1] - \text{right}'_{L+1}[a_{L+1}[L]] \\
+		&= \text{left}'_{L}[a_{L}[L]] - \text{right}'_{L+1}[a_{L}[L] - 1] \\
+		&= \text{left}'_{L}[a[L] + 1] - \text{right}'_{L+1}[a[L]] \\
+		&= \text{left}_{L}[a[L] + 1] - \text{right}_{L+1}[a[L] - 1] \\
+\end{align}
+$$
+
+$\text{left}_{1}[v]$和$\text{right}_{1}[v]$可以由$O(n)$预处理得到，也容易维护$\text{left}_{L}[v]$和$\text{right}_{L}[v]$的递推关系：
+
+```c++
+// 初始化
+left[] = 全为0; // left_1
+right[] = 频数预处理; // right_1
+
+// 递推
+right[a[L]] -= 1; // right_{L+1}[a[L]] = right_{L}[a[l]] - 1;，其余均相等
+left[a[L]] += 1;  // left_{L+1}[a[L]] = left_{L}[a[l]] + 1;，其余均相等
+```
+
+综上所述，求`inv(0)`的时间复杂度是$O(n\log n)$，递推的时间复杂度是$O(n)$。
+
+```c++
+const int Q_MAX = 5, N_MAX = 1e5;
+int n, a[N_MAX + 1], inv_cur, inv_min, bit[N_MAX + 1];
+std::map<int, int> left, right;
+inline int lowbit(int x) { return x & -x; }
+inline int bit_sum(int r) { int ans = 0; while(r >= 1) { ans += bit[r]; r -= lowbit(r); } return ans; }
+inline int bit_sum(int l, int r) { return bit_sum(r) - bit_sum(l - 1); }
+inline void bit_incre(int x, const int &incre) { while(x <= n) { bit[x] += incre; x += lowbit(x); } }
+
+int main() {
+    std::cin >> n;
+    for (int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for (int i = n ; i >= 1; --i) {
+        inv_cur += bit_sum(a[i] - 1);
+        bit_incre(a[i], 1);
+    }
+    inv_min = inv_cur;
+
+    for (int i = 1; i <= n; ++i) { ++right[a[i]]; }
+    for (int i = 1; i <= n; ++i) {
+        --right[a[i]];
+        inv_cur = inv_cur + left[a[i] + 1] - right[a[i] - 1];
+        ++left[a[i]];
+        inv_min = std::min(inv_cur, inv_min);
+    }
+    std::cout << inv_min;
 }
 ```
 
