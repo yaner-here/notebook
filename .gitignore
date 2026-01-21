@@ -9,3 +9,6 @@ node_modules/**
 
 # Obsidian
 .obsidian/workspace.json
+
+# Private
+工作总结.md
