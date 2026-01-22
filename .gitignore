@@ -5,10 +5,10 @@ ebooks/**
 node_modules/**
 算法/**/*.exe
 算法/**/test.*
-.obsidian/workspace.json
 
 # Obsidian
 .obsidian/workspace.json
+.obsidian/plugins/
 
 # Private
 工作总结.md

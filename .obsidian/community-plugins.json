@@ -1,4 +1,8 @@
 [
   "lazy-plugins",
-  "fix-callout"
+  "fix-callout",
+  "better-export-pdf",
+  "tldraw",
+  "d2-obsidian",
+  "surfing"
 ]
