@@ -2,7 +2,7 @@
 
 ## §1.1 `<iomainip>`
 
-C++11起，`std::max` 可以接受多个参数，前提是要用花括号括起来，如：
+C++11起，`std::max()` 可以被传入`std::initializer_list`以处理多个参数，如：
 
 ```cpp
 int a = max({9, 9, 12, 97301, 937});
@@ -12699,6 +12699,11 @@ int main() {
 
 # §6 图
 
+在图$\mathcal{G}=\{\mathcal{V}, \mathcal{E}\}$中，我们有以下约定符号：
+
+- 入邻域$N^{-}(v):= \{u|\langle u,v\rangle\in\mathcal{E}\}$
+- 出邻域$N^{+}(u):= \{v|\langle u,v\rangle\in\mathcal{E}\}$
+
 ## §6.1 图的存储
 
 | 图的存储方式 | 实现原理   | 实现难度 | 删边难度                         |
@@ -12818,7 +12823,56 @@ int main() {
 
 ### §6.1.B 虚点连边
 
+给定一个DAG图$\mathcal{G}=\{\mathcal{V}, \mathcal{E}\}$，题目要求在$\mathcal{V}$的子集$\mathcal{V}_1, \mathcal{V}_2$上执行满足结合律的运算：$\forall u\in\mathcal{V_1}, v\in\mathcal{V}_2, \mathrm{dp}[v] \Leftarrow f(\mathrm{dp}[v], \mathrm{dp}[u])$，$f(\cdots)$。如果使用朴素解法，则我们需要创建$O(|\mathcal{V}_1|\times|\mathcal{V}_2|)$条边，执行$O(|\mathcal{V}_1|\times|\mathcal{V}_2|)$次运算。一种很容易想到的方法是：先花费$O(|\mathcal{V}_1|)$的时间计算$f(\mathcal{V}_1)=f(\mathrm{dp}[u_1], \mathrm{dp}[u_2], \cdots, \mathrm{dp}[u_{|\mathcal{V}_1|}])$，**将其暂存下来，不妨作为虚拟节点$v'$的值$\mathrm{dp}[v']$**，然后花费$O(|\mathcal{V}_2|)$的时间计算$\forall v\in\mathcal{V}_2, \mathrm{dp}[v] = f(\mathrm{dp}[v], f(\mathcal{V}_1))$，这样我们只需创建$O(|\mathcal{V}_1|+|\mathcal{V}_2|)$条边，执行$O(|\mathcal{V}_1|+|\mathcal{V}_2|)$即可。
 
+> [洛谷P1983](https://www.luogu.com.cn/problem/P1983)：给定数组`r[1->n<=1e3]`及关于它的`m<=1e3`条规则限制。第`i`条规则表示为：给定`s_cnt[i]`个递增的正整数数组`s[i][1->s_cnt[i]]`，将闭区间`[s[i][1], s[i][s_cnt[i]]]`内所有位于`s[i][1->s_cnt[i]]`中的值构成集合$\mathcal{V}_1$，不在的值构成集合$\mathcal{V}_2$，保证$\forall u\in\mathcal{V}_1, v\in\mathcal{V}_2$，均满足`r[u] <= r[v]`。将`r[1->n]`扔到集合里去重，求集合元素数量最小值。数据保证答案一定存在。
+
+不妨将`r[u] <= r[v]`视为一条有向边$\langle u, v\rangle$。由于答案一定存在，所以一定能形成一个DAG，容易想到答案就是最长路长度加`1`，表示最长路上经过了多少个节点。令`dp[v]`表示以`v`为终点的最长路长度，显然有状态转移方程`dp[v] = std::max(dp[v], dp[u] + 1)`。然而这样做会导致爆空间与时间，最坏情况下，每条规则均横跨区间`[1, n]`，且$|\mathcal{V}_1| = |\mathcal{V}_2| = \displaystyle\frac{n}{2}$，导致边的数量高达$O\left(m\times\displaystyle\frac{n^2}{4}\right)$，爆空间与时间。
+
+考虑虚点连边优化。我们在$\mathcal{V}_1$与$\mathcal{V}_2$中间加一个虚点$v'$用于暂存$\mathrm{dp}[v'] = \displaystyle\max_{\forall u\in\mathcal{V}_1}\left(\mathrm{dp}[u]\right)$的计算结果，但是不加`1`，然后更新$\forall v\in \mathcal{V}_2, \mathrm{dp}[v] = dp[v'] \textcolor{red}{+ 1}$，这里是需要加`1`的。这样我们只需开$n+m$个点空间，$mn$个边空间即可。
+
+```c++
+const int N_MAX = 1e3, M_MAX = 1e3;
+int n, n_total, m, s[1 + M_MAX][1 + N_MAX], s_cnt[1 + M_MAX]; 
+std::set<int> u_tmp_set; std::queue<int> q; int dp[1 + N_MAX + M_MAX];
+
+int edge_count, edge_first[1 + N_MAX + M_MAX], edge_next[1 + N_MAX * M_MAX], edge_to[1 + N_MAX * M_MAX], vertex_indeg[1 + N_MAX + M_MAX];
+inline void edge_add(const int &u, const int &v) {
+    ++edge_count;
+    edge_to[edge_count] = v;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    ++vertex_indeg[v];
+}
+
+int main() {
+    std::cin >> n >> m; n_total = n;
+    for(int i = 1; i <= m; ++i) { std::cin >> s_cnt[i]; for(int j = 1; j <= s_cnt[i]; ++j) { std::cin >> s[i][j]; } }
+    
+    for(int i = 1; i <= m; ++i) {
+        u_tmp_set.clear(); for(int j = 1; j <= s_cnt[i]; ++j) { u_tmp_set.insert(s[i][j]); }
+        ++n_total;
+        for(int j = s[i][1]; j <= s[i][s_cnt[i]]; ++j) {
+            if(u_tmp_set.count(j) == 1) {
+                edge_add(j, n_total);
+            } else {
+                edge_add(n_total, j);
+            }
+        }
+    }
+
+    for(int i = 1; i <= n; ++i) { if(vertex_indeg[i] == 0) { q.push(i); } }
+    while(!q.empty()) {
+        int u = q.front(); q.pop();
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            int v = edge_to[i];
+            dp[v] = std::max(dp[v], dp[u] + (v > n));
+            if(--vertex_indeg[v] == 0) { q.push(v); }
+        }
+    }
+    std::cout << *std::max_element(dp + 1, dp + n + 1) + 1;
+}
+```
 
 ## §6.2 Tarjan算法
 
