@@ -1,11 +1,11 @@
 {
 	"id": "tldraw",
-	"name": "Tldraw",
-	"version": "1.26.2",
+	"name": "tldraw",
+	"version": "1.26.3",
 	"minAppVersion": "1.7.7",
-	"description": "Integrates Tldraw into Obsidian, allowing users to draw and edit content on a virtual whiteboard.",
-	"author": "Jonathan Mendez, Sam Alhaqab",
-	"authorUrl": "https://github.com/tldraw-in-obsidian",
+	"description": "Create whiteboards, diagrams, and drawings with the official tldraw plugin.",
+	"author": "tldraw, Jonathan Mendez, Sam Alhaqab",
+	"authorUrl": "https://github.com/tldraw/obsidian-plugin",
 	"fundingUrl": "https://github.com/sponsors/jon-dez",
 	"isDesktopOnly": false
 }
