@@ -12823,7 +12823,7 @@ int main() {
 
 ### §6.1.B 虚点连边
 
-给定一个DAG图$\mathcal{G}=\{\mathcal{V}, \mathcal{E}\}$，题目要求在$\mathcal{V}$的子集$\mathcal{V}_1, \mathcal{V}_2$上执行满足结合律的运算：$\forall u\in\mathcal{V_1}, v\in\mathcal{V}_2, \mathrm{dp}[v] \Leftarrow f(\mathrm{dp}[v], \mathrm{dp}[u])$，$f(\cdots)$。如果使用朴素解法，则我们需要创建$O(|\mathcal{V}_1|\times|\mathcal{V}_2|)$条边，执行$O(|\mathcal{V}_1|\times|\mathcal{V}_2|)$次运算。一种很容易想到的方法是：先花费$O(|\mathcal{V}_1|)$的时间计算$f(\mathcal{V}_1)=f(\mathrm{dp}[u_1], \mathrm{dp}[u_2], \cdots, \mathrm{dp}[u_{|\mathcal{V}_1|}])$，**将其暂存下来，不妨作为虚拟节点$v'$的值$\mathrm{dp}[v']$**，然后花费$O(|\mathcal{V}_2|)$的时间计算$\forall v\in\mathcal{V}_2, \mathrm{dp}[v] = f(\mathrm{dp}[v], f(\mathcal{V}_1))$，这样我们只需创建$O(|\mathcal{V}_1|+|\mathcal{V}_2|)$条边，执行$O(|\mathcal{V}_1|+|\mathcal{V}_2|)$即可。
+虚点连边可以“多点到多源”问题转化为“多点到单源”与“单源到多点”的问题。
 
 > [洛谷P1983](https://www.luogu.com.cn/problem/P1983)：给定数组`r[1->n<=1e3]`及关于它的`m<=1e3`条规则限制。第`i`条规则表示为：给定`s_cnt[i]`个递增的正整数数组`s[i][1->s_cnt[i]]`，将闭区间`[s[i][1], s[i][s_cnt[i]]]`内所有位于`s[i][1->s_cnt[i]]`中的值构成集合$\mathcal{V}_1$，不在的值构成集合$\mathcal{V}_2$，保证$\forall u\in\mathcal{V}_1, v\in\mathcal{V}_2$，均满足`r[u] <= r[v]`。将`r[1->n]`扔到集合里去重，求集合元素数量最小值。数据保证答案一定存在。
 
@@ -12871,6 +12871,58 @@ int main() {
         }
     }
     std::cout << *std::max_element(dp + 1, dp + n + 1) + 1;
+}
+```
+
+> [洛谷P3393](https://www.luogu.com.cn/problem/P3393)：给定由`n<=1e5`个点、`m<=2e5`无向边构成的图。其中有`k<=1e5-2`个病源点，每个病源点会感染与其最短路径长度`<=s<=1e5`的点，变成感染点。感染点与病源点的点权为正整数`q<=1e5`，正常点的点权为正整数`p<=1e5`。求从第`1`个点出发，中途不碰到病源点，到达终点`n`的路径上的点权之和（不包括起点和终点）最小值。
+
+本题第一步要用BFS标记感染点，第二步使用Dijkstra求最短路。问题在于第一步怎么办，我们可定不能跑`k`次BFS，这会导致超时。一种思路是引入一个虚拟节点，连接所有感染点，这样只需跑一次BFS即可。在代码实现中，我们可以不必引入这个虚拟节点，而是直接把所有病源点加入到BFS初始队列中即可。
+
+```c++
+const int N_MAX = 1e5, M_MAX = 2e5, K_MAX = N_MAX - 2, S_MAX = 1e5; const int64_t P_MAX = 1e5, Q_MAX = 1e5, INF = 1e18;
+int n, m, k, s; int64_t p, q; int c_tmp, a_tmp, b_tmp; int64_t dp[1 + N_MAX];
+std::queue<std::pair<int, int>> queue_bfs; bool vis_bfs[1 + N_MAX], vis_disable[1 + N_MAX];
+using Point = std::pair<int, int64_t>; std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue_dijkstra([](const Point &child, const Point &root){ return root.second < child.second; }); bool vis_dijkstra[1 + N_MAX];
+
+int edge_count, edge_first[1 + N_MAX], edge_to[1 + M_MAX * 2], edge_next[1 + M_MAX * 2];
+inline void edge_add(const int &u, const int &v) {
+    edge_to[++edge_count] = v;
+    edge_next[edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+}
+
+int main() {
+    std::cin >> n >> m >> k >> s >> p >> q;
+    for(int i = 1; i <= k; ++i) { std::cin >> c_tmp; queue_bfs.emplace(0, c_tmp); vis_bfs[c_tmp] = true; vis_disable[c_tmp] = true; }
+    for(int i = 1; i <= m; ++i) { std::cin >> a_tmp >> b_tmp; edge_add(a_tmp, b_tmp); edge_add(b_tmp, a_tmp); }
+
+    for(int t = 1; t <= s; ++t) {
+        int queue_n = queue_bfs.size();
+        while(queue_n--) {
+            auto [root, u] = queue_bfs.front(); queue_bfs.pop();
+            for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+                int v = edge_to[i];
+                if(v == root) { continue; }
+                if(vis_bfs[v] == true) { continue; } vis_bfs[v] = true; queue_bfs.emplace(u, v);
+            }
+        }
+    }
+
+    std::fill(dp + 1, dp + n + 1, INF);
+    dp[1] = (vis_bfs[1] ? q : p); queue_dijkstra.emplace(1, dp[1]);
+    while(!queue_dijkstra.empty()) {
+        auto [u, dp_u] = queue_dijkstra.top(); queue_dijkstra.pop();
+        if(vis_dijkstra[u] == true) { continue; } vis_dijkstra[u] = true;
+        for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
+            const int v = edge_to[i]; 
+            if(vis_disable[v] == true) { continue; }
+            if(dp[u] + (vis_bfs[v] ? q : p) < dp[v]) {
+                dp[v] = dp[u] + (vis_bfs[v] ? q : p);
+                queue_dijkstra.emplace(v, dp[v]);
+            }
+        }
+    }
+    std::cout << dp[n] - (vis_bfs[1] ? q : p) - (vis_bfs[n] ? q : p);
 }
 ```
 
@@ -14270,8 +14322,10 @@ int main() {
 		if(vis[u] == true) { continue; } vis[u] = true;
 		for(int i = edge_first[u]; i != 0; i = edge_next[i]) {
 			int v = edge_to[i];
-			dp[v] = std::min(dp[v], dp[u] + edge_weight[i]);
-			if(vis[v] == false) { queue.emplace(v, dp[v]); }
+			if (dp[u] + edge_weight[i] < dp[v]) {
+			    dp[v] = dp[u] + edge_weight[i];
+			    queue.push({v, dp[v]}); 
+			}
 		}
 	}
 	
@@ -17926,6 +17980,44 @@ int main() {
     for(int i = 1; i <= n; ++i) {
         bit_incre(id_b[i], 1);
         ans = (ans + i - bit_query_prefixsum(id_b[i])) % MOD;
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P1787](https://www.luogu.com.cn/problem/P1787)：给定小写字母字符串`s[1->n<=1e5]`，求它有多少非空子串`s[l->r]`，满足其中出现次数最多的字符的出现次数小于等于$\displaystyle\left\lfloor \frac{r-l+1}{2}\right\rfloor$。
+
+不妨枚举字符集中所有的`26`个小写英文字母`char i`，令前缀和`c[i][j]`表示`s[1->j]`中字符`i`出现的次数，于是但凡有一个字符`i`不满足题意：$c[i][r] - c[i][l-1] > \left\lfloor\displaystyle\frac{r-l+1}{2}\right\rfloor$，则可以判定为不符合题意。**最终答案为非空子串总数量减去不符合题意的数量**。
+
+由于不等式$\lfloor x \rfloor + 1 > x \ge \lfloor x \rfloor$恒成立，因此原式可以改写成$c[i][r] - c[i][l-1] > \displaystyle\frac{r-l+1}{2}$，整理得到$2c[i][r] - r > 2c[i][l-1] - (l-1)$。不妨令`a[i][j] = 2 * c[i][j] - j`，于是原式转化为$a[i][r] > a[i][l-1]$，是一个顺序对计数问题。
+
+```c++
+const int N_MAX = 1e5, CHARSET_SIZE = 26;
+int n; char s[1 + N_MAX + 1]; int c[CHARSET_SIZE][1 + N_MAX]; int64_t ans;
+
+int64_t bit[CHARSET_SIZE][2 + N_MAX * 2]; int offset;
+inline int lowbit(const int &x) { return x & -x; }
+inline void bit_incre(const int &i, const int &x, const int64_t &incre) {
+    for(int j = x + offset; j <= n + offset; j += lowbit(j)) { bit[i][j] += incre; }
+}
+inline int64_t bit_query_presum(const int &i, const int &x) {
+    int64_t ans = 0;
+    for(int j = x + offset; j >= 1; j -= lowbit(j)) { ans += bit[i][j]; }
+    return ans;
+}
+
+int main() {
+    std::cin >> *reinterpret_cast<char(*)[N_MAX + 1]>(s + 1); n = std::strlen(s + 1); offset = n + 1;
+    for(int i = 0; i < CHARSET_SIZE; ++i) { for(int j = 1; j <= n; ++j) { c[i][j] += c[i][j - 1] + (s[j] == 'a' + i); } }
+
+    /* r=0的情况 */ for(int i = 0; i < CHARSET_SIZE; ++i) { bit_incre(i, 0, 1); }
+    for(int r = 1; r <= n; ++r) {
+        int64_t ans_tmp = 0;
+        for(int i = 0; i < CHARSET_SIZE; ++i) {
+            ans_tmp += bit_query_presum(i, 2 * c[i][r] - r - 1);
+            bit_incre(i, 2 * c[i][r] - r, 1);
+        }
+        ans += r - ans_tmp;
     }
     std::cout << ans;
 }
@@ -28579,7 +28671,7 @@ class BigInteger {
 };
 ```
 
-### §8.7.1 分数
+### §8.6.1 分数
 
 `Frac`用于表示分数$\displaystyle\frac{a}{b}$，支持通过模版使用自定义的高精度整数类，支持手动调用`.simplify()`方法化简约分，时间复杂度为$O(\underset{\mathrm{gcd(a,b)}}{\underbrace{\log_2{a}\log_2{b}}} + \underset{压位高精度除法}{\underbrace{\log_\omega{b}\log_{\omega}\log_{\omega}b}})$。如果保证分子分母的最大因数不超过`fact_max`，可以使用`.unsafe_simplify(int64_t fact_max)`来节省大量常数。
 
@@ -28646,9 +28738,76 @@ int main() {
 }
 ```
 
+## §8.7 博弈论
+
+### §8.7.1 Nim游戏
+
+> [洛谷P2197](https://www.luogu.com.cn/problem/P2197)：执行`t<=10`次查询。每次查询给定`n<=1e4`堆石子，第`i`堆含有`a[i]`个石子。两个玩家进行博弈，每回合只能从一堆石子中取出至少一个石子，若当前回合对应的玩家无石子可取，则判负。请判断先手是否有必胜策略。
+
+首先，我们可以将游戏出现的任一局面视为博弈图上的一个顶点。由于石子的数量一直减少，所以游戏过程中不会出现两次相同的局面，这意味着博弈图是一个DAG图。令`dp[u] = true或false`表示当前方处于博弈图上第`u`个节点对应的局面时，是必赢还是必输，称为必赢状态/必输状态，显然任何出度为`0`的点都代表游戏结束，它们的`dp[] = false`。于是我们有状态转移方程：
+
+$$
+\mathrm{dp}[u] = \begin{cases}
+    \mathrm{true}  &, \exists \langle u, v\rangle \in \mathcal{E}, \mathrm{dp}[v] = \mathrm{false} \\
+    \mathrm{false} &, \forall \langle u, v\rangle \in \mathcal{E}, \mathrm{dp}[v] = \mathrm{true}
+\end{cases}
+$$
+
+这表示如果我们想胜利，就必须让对方输；反之，如果下一步状态全都是必胜状态，说明我们这一步是必输状态。然而在Nim游戏中，每堆石子会有$a[i]+1$种不同的状态，因此博弈图中总共有$O\left(\displaystyle\prod_{i=1}^{n}(a[i]+1)\right)$个节点，显然会爆空间和时间，因此我们需要一种更高效的算法。
+
+这里我们直接给出答案：**如果$\displaystyle\bigoplus_{i=1}^{n}a[i] \ne 0$，则说明初始状态是必赢状态，反之为必输状态**。该结论可由数学归纳法证明：
+- 对于`a[1->n] = 0`的特殊状态，显然当前状态是游戏结局，按规则判定为必输状态。结论显然成立。
+- 对于$\displaystyle\bigoplus_{i=1}^{n}a[i] = k \ne 0$的状态`dp[u]`，欲证其`dp[u] = true`，只需证它的出邻域中存在一个节点`v`满足$\displaystyle\bigoplus_{i=1}^{n}a'[i] = 0$即可。这等价于我们可以从`a[1->n]`中挑出一堆石子$a[i]$，从中拿走至少一个石子，可以变为$a'[i] = a[i] \oplus k$，即$a[i] > a[i] \oplus k$。可以证明一定能选出这样的石堆`a[i]`——考虑`k`的二进制最高位`1`Bit的位置`d`，根据异或性质可以得到一定有一个`a[i]`的二进制的最高位`1`Bit的位置也是`d`，二者异或之后的结果`a[i]\oplus k`一定会变得更小。
+- 对于$\displaystyle\bigoplus_{i=1}^{n}a[i] = 0$的状态`dp[u]`，欲证其`dp[u] = false`，只需证它的出邻域中的所有节点`v`满足$\displaystyle\bigoplus_{i=1}^{n}a'[i] \ne 0$即可。这是显然的，因为对`a[i]`做任意改动，都会破坏它们异或和原先为`0`的优良性质。
+
+```c++
+const int Q_MAX = 10, N_MAX = 1e4;
+int q, n, a[1 + N_MAX], ans;
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> n;
+        for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+        ans = 0; for(int i = 1; i <= n; ++i) { ans ^= a[i]; }
+        std::cout << (ans != 0 ? "Yes" : "No") << '\n';
+    }
+}
+```
+
+> [洛谷P1247](https://www.luogu.com.cn/problem/P1247)：Nim游戏，但是如果先手必胜，则需要输出第一步的操作，即从第`i`堆中取出`j`个石子的二元对`(i,j)`，如果必胜策略有多个允许的第一步操作，则输出二元对字典序最小的那个，并且输出第一步结束后场上各石堆的剩余石子数量。
+
+本题考察Nim游戏结论的归纳法证明：
+- 对于$\displaystyle\bigoplus_{i=1}^{n}a[i] = k \ne 0$的状态`dp[u]`，欲证其`dp[u] = true`，只需证它的出邻域中存在一个节点`v`满足$\displaystyle\bigoplus_{i=1}^{n}a'[i] = 0$即可。这等价于我们可以从`a[1->n]`中挑出一堆石子$a[i]$，从中拿走至少一个石子，可以变为$a'[i] = a[i] \oplus k$，即$a[i] > a[i] \oplus k$。可以证明一定能选出这样的石堆`a[i]`——考虑`k`的二进制最高位`1`Bit的位置`d`，根据异或性质可以得到一定有一个`a[i]`的二进制的最高位`1`Bit的位置也是`d`，二者异或之后的结果`a[i]\oplus k`一定会变得更小。
+
+因此我们只需查找最先满足$a[i] > a[i] \oplus k$的那堆石子`a[i]`即可，`a[i] - (a[i] ^ k)`即为取走的石子数量。
+
+```c++
+const int N_MAX = 5e5;
+int n, a[1 + N_MAX], ans;
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for(int i = 1; i <= n; ++i) { ans ^= a[i]; }
+    if(ans == 0) {
+        std::cout << "lose";
+    } else {
+        for(int i = 1; i <= n; ++i) {
+            if(a[i] <= (a[i] ^ ans)) { continue; }
+            std::cout << a[i] - (a[i] ^ ans) << ' ' << i << '\n';
+            a[i] = a[i] ^ ans;
+            break;
+        }
+        for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; }
+    }
+}
+```
+
 # §9 模拟
 
-"与成功只差最后一步，卡在这里了"。
+"与成功只差最后一步，上不去下不来，卡在这里了。"
 
 ## §9.1 建模
 
