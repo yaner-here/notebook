@@ -3244,6 +3244,33 @@ int main() {
 }
 ```
 
+> [洛谷U593332](https://www.luogu.com.cn/problem/U593332)：给定长度为`n`的整数序列，首尾拼成一个环，从中选出一段连续子序列（可为空），求其元素之和的最大值。
+
+按以下两种情况分类讨论，计算各自的结果，取最大值即可。
+- 如果最终的连续子序列没有横跨首尾，那么就直接破环为串即可，得到答案`ans`。
+- 如果最终的连续子序列横跨首尾，那么它一定包含了`a[n]`和`a[1]`这两个元素，因此不妨将其拆分为两个部分：`a[1->i]`和`a[j->n]`。我们额外维护`a_presum_max[i]`表示`a_presum[1->i]`（给定`a[1->i]`这`i`个元素，且子序列必须包含`a[1]`）的最大值，因此我们只需枚举`j:n->1`，计算`ans = std::max(ans, a_postsum[j] + a_presum_max[j-1])`即可。
+
+```c++
+const int N_MAX = 5e6; const int64_t A_MAX = 1e9, INF = 1e18;
+int n; int64_t a[1 + N_MAX + 1], a_presum[1 + N_MAX + 1], a_presum_max[1 + N_MAX + 1], a_postsum[1 + N_MAX + 1];
+int64_t dp[1 + N_MAX + 1], ans = -INF;
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for(int i = 1; i <= n; ++i) { a_presum[i] = a_presum[i - 1] + a[i]; }
+    for(int i = 1; i <= n; ++i) { dp[i] = std::max(dp[i - 1] + a[i], a[i]); }
+    ans = *std::max_element(dp, dp + 1 + n); // dp[0]意味着空段
+
+    for(int i = 1; i <= n; ++i) { a_presum_max[i] = std::max(a_presum_max[i - 1], a_presum[i]); }
+    for(int i = n; i >= 1; --i) { a_postsum[i] = a_postsum[i + 1] + a[i]; }
+    for(int j = n; j >= 1; --j) { ans = std::max(ans, a_postsum[j] + a_presum_max[j - 1]); }
+    
+    std::cout << ans;
+}
+```
+
 > [洛谷P9147](https://www.luogu.com.cn/problem/P9147)：给定一个长度为`n`的整数序列`a[]`，只允许修改一个元素，求修改后最长严格递增连续子序列的长度。
 
 一种朴素的想法是：修改一个元素`a[i]`后，能将前后两个相邻的严格递增连续子序列合并在一起，从而增加长度。于是我们需要知道以`a[i-1]`为结尾的、以`a[i+1]`为开头的严格递增连续子序列最长长度，分别记为`dp_end[i-1]`和`dp_start[i+1]`。
@@ -28802,6 +28829,76 @@ int main() {
         }
         for(int i = 1; i <= n; ++i) { std::cout << a[i] << ' '; }
     }
+}
+```
+
+## §8.8 集合论
+
+### §8.8.1 置换
+
+> [洛谷P2582](https://www.luogu.com.cn/problem/P2582)：给定一个正整数集合`[1, n<=8e5]`上的置换$f(\cdot)$，如果存在另一个满射$g(\cdot)$满足$\forall x\in[1,n], g\circ f (x) = f \circ g (x)$，请输出$g(1\rightarrow n)$的值。如果有多个$g(\cdot)$满足条件，则输出答案字典序最小的那个。
+
+令有向图上$\mathcal{G}$存在`n`个点表示`[1, n]`中的每个正整数，存在`n`条边表示从`i`到`f(i)`的映射关系，显然$\mathcal{G}$是一个包含若干个环的森林。有环就意味着有循环节，令点`i`所在的循环节长度为`l[i]`，于是我们有$f^{(l[x])}(x) = x$。
+
+由题目条件可知：
+
+$$
+\begin{align}
+    & g\circ f (x) = f \circ g (x) \\
+    \Leftrightarrow & f(x) = g^{-1} \circ f \circ g(x) \\
+    \Leftrightarrow & f^{(k)}(x) = g^{-1} \circ f^{(k)} \circ g(x)
+\end{align}
+$$
+
+分别将`x`的循环节`l[x]`带入到上式的`k`中，可得：
+
+$$
+\begin{align}
+    & f^{(l[x])}(x) = g^{-1} \circ f^{(l[x])} \circ g(x) \\
+    \Leftrightarrow & x = g^{-1} \circ f^{(l[x])} \circ g(x) \\
+    \Leftrightarrow & g(x) = f^{(l[x])} \circ g(x)
+\end{align}
+$$
+
+这意味着`l[x]`一定是`g(x)`的循环节`l[g(x)]`的倍数，即$l[g(x)] \mid l[x]$。题目要求`g(1)`尽可能小，因此我们需要遍历`l[1]`的所有因数作为`d = l[g(1)]`的值，计算$\displaystyle\underset{i}{\mathrm{argmin}}l[g(1)] = d$即可。按照此方法计算出`u`的`g[u]`后，带入题目条件还可以得到`f[u]`的`g[f[u]]`值，它等于`g[f[u]] = f[g[u]]`，依次类推即可。
+
+```c++
+const int N_MAX = 8e5, M_MAX = N_MAX, INF = 1e9;
+int n, f[1 + N_MAX], g[1 + N_MAX], g_tmp;
+int ring_n, ring_map[1 + N_MAX], ring_l[1 + N_MAX], ring_min_i[1 + N_MAX], ring_l_min_i[1 + N_MAX];
+
+void dfs_1(const int &u, int dep, int u_min) {
+    if(ring_map[u] != 0) { ring_l[ring_n] = dep - 1; ring_min_i[ring_n] = u_min; return; } ring_map[u] = ring_n;
+    dfs_1(f[u], dep + 1, std::min(u_min, f[u]));
+}
+void dfs_2(const int &u, const int &g_u) {
+    if(g[u] != 0) { return; } 
+    g[u] = g_u;
+    dfs_2(f[u], f[g_u]);
+}
+
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> f[i]; }
+
+    std::fill(ring_l_min_i + 1, ring_l_min_i + 1 + n, INF);
+    for(int i = 1; i <= n; ++i) { 
+        if(ring_map[i] != 0) { continue; } 
+        ++ring_n; ring_min_i[ring_n] = i;
+        dfs_1(i, 1, i);
+        ring_l_min_i[ring_l[ring_map[i]]] = std::min(ring_l_min_i[ring_l[ring_map[i]]], ring_min_i[ring_map[i]]);
+    }
+    
+    for(int u = 1; u <= n; ++u) {
+        if(g[u] != 0) { continue; }
+        g_tmp = INF;
+        for(int d = 1; d <= ring_l[ring_map[u]]; ++d) {
+            if(ring_l[ring_map[u]] % d != 0) { continue; }
+            g_tmp = std::min(g_tmp, ring_l_min_i[d]);
+        }
+        dfs_2(u, g_tmp);
+    }
+    for(int i = 1; i <= n; ++i) { std::cout << g[i] << ' '; }
 }
 ```
 
