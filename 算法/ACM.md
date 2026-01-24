@@ -3200,77 +3200,6 @@ $$
 
 #TODO：？？？？？ 
 
-> [洛谷P2642](https://www.luogu.com.cn/problem/P2642)：给定长度为`n`的整数序列，从中选出两段不相邻的连续子序列，求两者元素之和的最大值。
-
-首先回忆一段连续子序列的元素之和最大值。令`dp[i]`表示给定前`i`个数，且选中第`i`个数构成的子序列元素之和最大值，需要使用以下状态转移方程：
-
-$$
-\begin{align}
-	\text{dp}[i] & = \begin{cases}
-		\text{dp}[i-1] + a[i] & , a[i] \ge 0 \\
-		\max(\text{dp}[i-1] + a[i], a[i]) & , a[i] < 0
-	\end{cases} \\
-	& = \max(\text{dp}[i-1] + a[i], a[i])
-\end{align}
-$$
-
-现在需要求两段不相邻连续子序列，我们不妨枚举两者之间间隔的位置`1<i<n`，以此为界限将原序列切割成`[1, i-1]`和`[i+1, n]`这不相邻的两段，分别求两段的元素之和最大值即可。为了更快地求出$\displaystyle\max_{i\in[1,i]}\text{dp}[i]$和$\displaystyle\max_{i\in[i,n]}\text{dp}[i]$，我们将其预处理为两个数组`summax_lr[i]`和`summax_rl[i]`。
-
-```c++
-const int N_MAX = 1e6;
-long long int n, a[N_MAX + 1], dp[N_MAX + 1], summax_lr[N_MAX + 2], summax_rl[N_MAX + 2];
-long long int max_temp, result;
-int main() {
-    std::ios::sync_with_stdio(false);
-    std::cin.tie(nullptr);
-    std::cout.tie(nullptr);
-    std::cin >> n;
-    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
-    for(int i = 1; i <= n; ++i) { dp[i] = std::max(a[i], dp[i - 1] + a[i]); }
-    max_temp = -1e18;
-    for(int i = 1; i <= n; ++i) {
-        max_temp = std::max(max_temp, dp[i]);
-        summax_lr[i] = max_temp;
-    }
-    for(int i = n; i >= 1; --i) { dp[i] = std::max(a[i], dp[i + 1] + a[i]); }
-    max_temp = -1e18;
-    for(int i = n; i >= 1; --i) {
-        max_temp = std::max(max_temp, dp[i]);
-        summax_rl[i] = max_temp;
-    }
-    result = -1e18;
-    for(int i = 2; i < n; ++i) { result = std::max(result, summax_lr[i - 1] + summax_rl[i + 1]); }
-    std::cout << result;
-}
-```
-
-> [洛谷U593332](https://www.luogu.com.cn/problem/U593332)：给定长度为`n`的整数序列，首尾拼成一个环，从中选出一段连续子序列（可为空），求其元素之和的最大值。
-
-按以下两种情况分类讨论，计算各自的结果，取最大值即可。
-- 如果最终的连续子序列没有横跨首尾，那么就直接破环为串即可，得到答案`ans`。
-- 如果最终的连续子序列横跨首尾，那么它一定包含了`a[n]`和`a[1]`这两个元素，因此不妨将其拆分为两个部分：`a[1->i]`和`a[j->n]`。我们额外维护`a_presum_max[i]`表示`a_presum[1->i]`（给定`a[1->i]`这`i`个元素，且子序列必须包含`a[1]`）的最大值，因此我们只需枚举`j:n->1`，计算`ans = std::max(ans, a_postsum[j] + a_presum_max[j-1])`即可。
-
-```c++
-const int N_MAX = 5e6; const int64_t A_MAX = 1e9, INF = 1e18;
-int n; int64_t a[1 + N_MAX + 1], a_presum[1 + N_MAX + 1], a_presum_max[1 + N_MAX + 1], a_postsum[1 + N_MAX + 1];
-int64_t dp[1 + N_MAX + 1], ans = -INF;
-int main() {
-    std::ios::sync_with_stdio(false); std::cin.tie(nullptr);
-    std::cin >> n;
-    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
-
-    for(int i = 1; i <= n; ++i) { a_presum[i] = a_presum[i - 1] + a[i]; }
-    for(int i = 1; i <= n; ++i) { dp[i] = std::max(dp[i - 1] + a[i], a[i]); }
-    ans = *std::max_element(dp, dp + 1 + n); // dp[0]意味着空段
-
-    for(int i = 1; i <= n; ++i) { a_presum_max[i] = std::max(a_presum_max[i - 1], a_presum[i]); }
-    for(int i = n; i >= 1; --i) { a_postsum[i] = a_postsum[i + 1] + a[i]; }
-    for(int j = n; j >= 1; --j) { ans = std::max(ans, a_postsum[j] + a_presum_max[j - 1]); }
-    
-    std::cout << ans;
-}
-```
-
 > [洛谷P9147](https://www.luogu.com.cn/problem/P9147)：给定一个长度为`n`的整数序列`a[]`，只允许修改一个元素，求修改后最长严格递增连续子序列的长度。
 
 一种朴素的想法是：修改一个元素`a[i]`后，能将前后两个相邻的严格递增连续子序列合并在一起，从而增加长度。于是我们需要知道以`a[i-1]`为结尾的、以`a[i+1]`为开头的严格递增连续子序列最长长度，分别记为`dp_end[i-1]`和`dp_start[i+1]`。
@@ -3632,9 +3561,21 @@ int main() {
 
 ### §2.2.6 最大子段和
 
-> [洛谷P2642](https://www.luogu.com.cn/problem/P2642)：给定`a[1->n<=1e6]`，请从中选择两个非空、非重叠的子段，使得两个段的段内元素之和取得最大值。
+> [洛谷P2642](https://www.luogu.com.cn/problem/P2642)：给定长度为`n`的整数序列，从中选出两段不相邻的连续子序列，求两者元素之和的最大值。
 
-我们已经知道了选择单个子段该怎么算。本题需要我们求出正向和反向对应的单段最大子段和DP，枚举两个字段的分隔点即可。
+首先回忆一段连续子序列的元素之和最大值。令`dp[i]`表示给定前`i`个数，且选中第`i`个数构成的子序列元素之和最大值，需要使用以下状态转移方程：
+
+$$
+\begin{align}
+	\text{dp}[i] & = \begin{cases}
+		\text{dp}[i-1] + a[i] & , a[i] \ge 0 \\
+		\max(\text{dp}[i-1] + a[i], a[i]) & , a[i] < 0
+	\end{cases} \\
+	& = \max(\text{dp}[i-1] + a[i], a[i])
+\end{align}
+$$
+
+现在需要求两段不相邻连续子序列，我们不妨枚举两者之间间隔的位置`1<i<n`，以此为界限将原序列切割成`[1, i-1]`和`[i+1, n]`这不相邻的两段，分别求两段的元素之和最大值即可。为了更快地求出$\displaystyle\max_{i\in[1,i]}\text{dp}[i]$和$\displaystyle\max_{i\in[i,n]}\text{dp}[i]$，我们将其预处理为两个数组`summax_lr[i]`和`summax_rl[i]`。
 
 ```c++
 const int N_MAX = 1e6;
@@ -3661,7 +3602,59 @@ int main() {
     result = -1e18;
     for(int i = 2; i < n; ++i) { result = std::max(result, summax_lr[i - 1] + summax_rl[i + 1]); }
     std::cout << result;
+}
+```
 
+> [洛谷U593332](https://www.luogu.com.cn/problem/U593332)：给定长度为`n`的整数序列，首尾拼成一个环，从中选出一段连续子序列（可为空），求其元素之和的最大值。
+
+按以下两种情况分类讨论，计算各自的结果，取最大值即可。
+- 如果最终的连续子序列没有横跨首尾，那么就直接破环为串即可，得到答案`ans`。
+- 如果最终的连续子序列横跨首尾，那么它一定包含了`a[n]`和`a[1]`这两个元素，因此不妨将其拆分为两个部分：`a[1->i]`和`a[j->n]`。我们额外维护`a_presum_max[i]`表示`a_presum[1->i]`（给定`a[1->i]`这`i`个元素，且子序列必须包含`a[1]`）的最大值，因此我们只需枚举`j:n->1`，计算`ans = std::max(ans, a_postsum[j] + a_presum_max[j-1])`即可。
+
+```c++
+const int N_MAX = 5e6; const int64_t A_MAX = 1e9, INF = 1e18;
+int n; int64_t a[1 + N_MAX + 1], a_presum[1 + N_MAX + 1], a_presum_max[1 + N_MAX + 1], a_postsum[1 + N_MAX + 1];
+int64_t dp[1 + N_MAX + 1], ans = -INF;
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr);
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for(int i = 1; i <= n; ++i) { a_presum[i] = a_presum[i - 1] + a[i]; }
+    for(int i = 1; i <= n; ++i) { dp[i] = std::max(dp[i - 1] + a[i], a[i]); }
+    ans = *std::max_element(dp, dp + 1 + n); // dp[0]意味着空段
+
+    for(int i = 1; i <= n; ++i) { a_presum_max[i] = std::max(a_presum_max[i - 1], a_presum[i]); }
+    for(int i = n; i >= 1; --i) { a_postsum[i] = a_postsum[i + 1] + a[i]; }
+    for(int j = n; j >= 1; --j) { ans = std::max(ans, a_postsum[j] + a_presum_max[j - 1]); }
+    
+    std::cout << ans;
+}
+```
+
+> [洛谷P1719](https://www.luogu.com.cn/problem/P1719)：给定一个矩阵`a[1->n<=120][1->n]`，求子矩形的元素之和最大值。
+
+本题将“最大子段和”问题推广到了二维情形。容易想到朴素做法：枚举矩形的左上与右下位置，使用二维前缀和优化求和计算，时间复杂度为$O(n^4)$，显然会超时。
+
+事实上，**本题存在$O(n^3)$的解法——我们只需遍历左右边界，用一维前缀和计算行元素之和，转化成列方向上的最大子段和问题即可**。
+
+```c++
+const int N_MAX = 120;
+int n, a[1 + N_MAX][1 + N_MAX], a_presum[1 + N_MAX][1 + N_MAX], dp[1 + N_MAX], ans;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { std::cin >> a[i][j]; } }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= n; ++j) { a_presum[i][j] = a_presum[i][j - 1] + a[i][j]; } }
+
+    for(int i = 1; i <= n; ++i) {
+        for(int j = i; j <= n; ++j) {
+            for(int k = 1; k <= n; ++k) {
+                dp[k] = std::max(dp[k - 1] + (a_presum[k][j] - a_presum[k][i - 1]), a_presum[k][j] - a_presum[k][i - 1]);
+            }
+            ans = std::max(ans, *std::max_element(dp, dp + 1 + n));
+        }
+    }
+    std::cout << ans;
 }
 ```
 
