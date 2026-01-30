@@ -206,6 +206,35 @@ extern "C++" class ios_base : public _Iosb<int> {
 - `std::fixed`：禁止使用科学计数法，一律使用定点表示法。
 - `std::setprecision(...)`：设置数字输出时的有效数字（无`std::fixed`时），或小数点后位数（有`std::fixed`时）。
 
+### §1.5.3 空行检测
+
+> [洛谷P2222](https://www.luogu.com.cn/problem/P2222)：给定三组数据，每组数据包含至少一条数据`i, j, v`，组之间使用空行分割。行末可能包含空格、`\r`和`\n`。
+
+这里我们创建一个字符串`std::string s`作为Buffer，直接使用`std::getline(std::cin, s)`读取一行数据，它会将空格与`\r`读入到字符串，丢弃`\n`。然后创建一个`std::stringstream ss(s)`，当作`std::cin`正常使用即可。
+
+```c++
+std::cin >> x >> y >> m >> n >> o >> p; 
+std::getline(std::cin, s); // 吸收`\n`
+
+while(std::getline(std::cin, s)) {
+	while(!s.empty() && (s.back() == '\r' || s.back() == ' ')) { s.pop_back(); }
+	if(s.empty()) { break; } // 数据组之间使用空行分隔
+	std::stringstream ss(s); ss >> i_tmp >> j_tmp >> v_tmp;
+}
+
+while(std::getline(std::cin, s)) {
+	while(!s.empty() && (s.back() == '\r' || s.back() == ' ')) { s.pop_back(); }
+	if(s.empty()) { break; } // 数据组之间使用空行分隔
+	std::stringstream ss(s); ss >> i_tmp >> j_tmp >> v_tmp;
+}
+
+while(std::getline(std::cin, s)) {
+	while(!s.empty() && (s.back() == '\r' || s.back() == ' ')) { s.pop_back(); }
+	if(s.empty()) { break; } // 数据组之间使用空行分隔
+	std::stringstream ss(s); ss >> i_tmp >> j_tmp >> v_tmp;
+}
+```
+
 ## §1.4 `<queue>`
 
 ### §1.4.1 `std::priority_queue`
@@ -301,7 +330,7 @@ int main() {
 - 只用到`dp[n][]`单层的递推式，使用一行滚动数组存储完毕后必须再次初始化，防止干扰下一层。
 - 不满足严格偏序关系，必须使用两行滚动数组`dp[(n++)&1][j]`，且使用新行之前必须初始化为新值，否则本次在该行未经更新的数值就是两轮之前 的`dp[n-2][j]`
 
-### §2.1.1 0/1背包
+### §2.1.1 0/1背包 & 完全背包
 
 > [洛谷P1048](https://www.luogu.com.cn/problem/P1048)：给定容量为`capacity`的背包，`n`个体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -410,9 +439,7 @@ int main(){
 
 该优化在$\text{capacity}$特别大时非常有效。
 
-#### §2.1.1.1 时间最优做法
-
-为了进一步优化时间，我们考虑上述常数优化的枚举范围。其左端点极度依赖于$\sum_{j=p}^{n}\text{volume}[j]$，我们希望这个值越大越好，这依赖于`volumn`数组的顺序。于是，当$\text{volume}[i]$非常大时，先处理代价（本题为体积）较大的物品能更缩小枚举范围。只需付出一点很小的排序时间开销，就能抵消大$\text{volume}[i]$造成的劣势。
+为了优化时间，我们考虑上述常数优化的枚举范围。其左端点极度依赖于$\sum_{j=p}^{n}\text{volume}[j]$，我们希望这个值越大越好，这依赖于`volumn`数组的顺序。于是，当$\text{volume}[i]$非常大时，先处理代价（本题为体积）较大的物品能更缩小枚举范围。只需付出一点很小的排序时间开销，就能抵消大$\text{volume}[i]$造成的劣势。
 
 ```c++
 long long int dp[100001];
@@ -440,11 +467,7 @@ int main(){
 }
 ```
 
-#### §2.1.1.2 空间最优做法
-
-注意到在最外层循环中，遍历到第`p`个物品时，只有该物品的代价和价值参与了计算。因此我们可以不用一次性保存所有石子的全部数据，而是按需读入，即用即扔。空间复杂度$O(\text{capacity}\cdot n)$仍未改变，只是缩小了$O(n)$的常数而已。
-
-该做法与常数优化冲突，因为遍历到第`p`个物品时，我们只知道$\sum_{j=1}^{p}\text{volume}[j]$，而常数优化要求的是$\sum_{j=p}^{n}\text{volume}[j]$，我们无法提前“预知”后面物品的`volume`属性。
+为了优化空间，注意到在最外层循环中，遍历到第`p`个物品时，只有该物品的代价和价值参与了计算。因此我们可以不用一次性保存所有石子的全部数据，而是按需读入，即用即扔。空间复杂度$O(\text{capacity}\cdot n)$仍未改变，只是缩小了$O(n)$的常数而已。该做法与时间常数优化冲突，因为遍历到第`p`个物品时，我们只知道$\sum_{j=1}^{p}\text{volume}[j]$，而常数优化要求的是$\sum_{j=p}^{n}\text{volume}[j]$，我们无法提前“预知”后面物品的`volume`属性。
 
 ```c++
 long long int dp[1001];
@@ -467,8 +490,6 @@ int main(){
     return 0;
 }
 ```
-
-### §2.1.2 完全背包
 
 > 给定容量为`capacity`的背包，`n`种供应量无穷大的，体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -505,26 +526,38 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n)$。
 
+```c++
+for (int i = 0; i < n; ++i) { // 遍历每种物品
+	int itemCost = cost[i];
+	int itemValue = value[i];
+
+	// 更新当前选择的最小和最大代价范围
+	minCost = max(0, min(minCost, minCost + itemCost));
+	maxCost = min(maxCapacity, max(maxCost, maxCost + itemCost));
+
+	for (int j = minCost; j <= maxCost; ++j) {
+		if (j >= itemCost && dp[j - itemCost] != INF) {
+			dp[j] = max(dp[j], dp[j - itemCost] + itemValue);
+		}
+	}
+}
 ```
-    for (int i = 0; i < n; ++i) { // 遍历每种物品
-        int itemCost = cost[i];
-        int itemValue = value[i];
 
-        // 更新当前选择的最小和最大代价范围
-        minCost = max(0, min(minCost, minCost + itemCost));
-        maxCost = min(maxCapacity, max(maxCost, maxCost + itemCost));
+#### §2.1.1.1 混合背包
 
-        for (int j = minCost; j <= maxCost; ++j) {
-            if (j >= itemCost && dp[j - itemCost] != INF) {
-                dp[j] = max(dp[j], dp[j - itemCost] + itemValue);
-            }
-        }
-    }
+混合背包指的是上述背包问题中提到的物品特性混合起来。针对此类问题，我们只需对不同问题的物品分别套用不同的转移方程即可。
+
+```
+for i=1..N
+    if 第i件物品属于01背包
+        // ...
+    else if 第i件物品属于完全背包
+        // ...
+    else if 第i件物品属于多重背包
+        // ...
 ```
 
-
-
-### §2.1.3 分组背包
+### §2.1.2 分组背包
 
 > [洛谷P1757](https://www.luogu.com.cn/problem/P1757)：给定容量为`capacity`的背包，`n`个供应量无穷大的，体积、价值、类别分别为`volume[i]`、`value[i]`和`type[i]`的物品，每个类别中最多只能挑出一个物品装入背包，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -568,7 +601,7 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n)$。
 
-### §2.1.4 多重背包
+### §2.1.3 多重背包
 
 > [洛谷P1776](https://www.luogu.com.cn/problem/P1776)：给定容量为`capacity`的背包，`n`种数量为`count[i]`的，体积和价值分别为`volume[i]`和`value[i]`的物品，使得背包容纳的物品总价值最大化。其中所有物品的体积和价值均大于0。
 
@@ -610,7 +643,111 @@ int main(){
 
 该算法的空间复杂度显然为$O(\text{capacity})$，每个空间都要进行$n\cdot\log_2(\text{count}[i])$次运算，因此时间复杂度也为$O(\text{capacity}\cdot n\cdot\log_2(\text{count}[i]))$。
 
-### §2.1.5 费用背包
+### §2.1.4 恰满背包
+
+之前我们接触的背包题型往往带有$\sum\text{volume}_i\le \text{capacity}$的约束条件。本节讨论的是$\sum\text{volume}_i= \text{capacity}$。
+
+- 以价值最大化问题为例，我们希望不合法的状态全为负无穷大，这样在$\max(\cdot)$的各参数大小竞争中，非法状态就会不起作用，等价于不存在。于是`dp[0][0]`为0，而`dp[0][1->n]`均为负无穷大。
+- 以统计方案数问题为例，我们希望不合法的状态不对应任何方案，也就是0。于是`dp[0][0]`反而是一种合法的方案，因为什么都不选也能填满容量为0的背包，而`dp[0][1->n]`均为0。
+
+> [洛谷P1284](https://www.luogu.com.cn/problem/P1284)：给定`n<=40`个长度分别为`a[i]<=40`的木棍，请用**所有的**木棍拼成三条边，且恰好能构成三角形。求三角形最大面积`ans`。如果三角形不存在则输出`-1`，如果存在则输出`(int64_t)(ans * 100)`。
+
+预处理关于`a[]`的前缀和数组`a_presum[]`。令`bool dp[i][j][k]`表示给定前`i`个木棍，能否拼成三条长度分别为`j`、`k`、`a_presum[i] - j - k`的边，**注意这三条边不一定非要组成三角形**。于是给定一条新木棍`a[i]`，我们有三种选择：
+
+- 把`a[i]`拼在长度为`j`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j - a[i]][k]`，前提是`j >= a[i]`。
+- 把`a[i]`拼在长度为`k`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j][k - a[i]]`，前提是`k >= a[i]`。
+- 把`a[i]`拼在长度为`a_presum[i] - j - k`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j][k]`，前提是`a_presum[i] - j - k >= a[i]`。
+
+以上三种情况进行或运算即可。初始值`dp[0][0][0] = true`，其余`dp[0][*][*] = false`。注意到以上状态转移方程可以用滚动数组优化，把第一维砍成一行。
+
+计算得到`dp[n][*][*]`后，只需遍历所有可以取到的三条边长度组合情况，带入海伦公式$\begin{cases}p = \displaystyle\frac{a+b+c}{2}\\S=\sqrt{p(p-a)(p-b)(p-c)}\end{cases}$求**能组成三角形**的所有情况的最大值即可。
+
+```c++
+const int N_MAX = 40, A_MAX = 40; const double INF = 1e18;
+int n, a[1 + N_MAX], a_presum[1 + N_MAX]; bool dp[1 + N_MAX * A_MAX][1 + N_MAX * A_MAX]; double ans = -INF;
+double calc_triangle_area(double a, double b, double c) {
+    if(!(a + b > c && a + c > b && b + c > a)) { return -INF; }
+    double p = (a + b + c) / 2;
+    return std::sqrt(p * (p - a) * (p - b) * (p - c));
+}
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_presum[i] = a_presum[i - 1] + a[i]; }
+
+    dp[0][0] = true;
+    for(int i = 1; i <= n; ++i) {
+        for(int j = a_presum[i]; j >= 0; --j) {
+            for(int k = a_presum[i]; k >= 0; --k) {
+                dp[j][k] = std::ranges::any_of(std::initializer_list<bool>{
+                    j >= a[i] ? dp[j - a[i]][k] : false,
+                    k >= a[i] ? dp[j][k - a[i]] : false,
+                    a_presum[i] - j - k >= 0 ? dp[j][k] : false
+                }, std::identity{});
+            }
+        }
+    }
+    for(int j = 0; j <= a_presum[n]; ++j) {
+        for(int k = 0; k <= a_presum[n]; ++k) {
+            if(dp[j][k] == true) {
+                ans = std::max(ans, calc_triangle_area(j, k, a_presum[n] - j - k));
+            }
+        }
+    }
+    std::cout << (ans == -INF ? -1ll : (int64_t)(ans * 100));
+}
+```
+
+### §2.1.5 依赖背包
+
+> [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定`m`个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个子物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$n$的约束条件下，求物品价值之和的最大值。
+
+？？？？？？？？？？？？？？？？？？？TODO：
+
+> [洛谷P1455](https://www.luogu.com.cn/problem/P1455)：给定`n`个物品的价格`cost[i]`和价值`value[i]`，与`m`个捆绑销售关系。如果`i`和`j`是捆绑销售关系，则要么两者都不选，要么都选。给定预算`budget`，求价值最大值。
+
+本题的关键在于意识到多个物品捆绑成了一个大物品。我们用并查集维护大物品的总价格和总价值，然后对`i:1->n`进行遍历，以`dsu_find(i) == i`为大物品的判断依据，对所有大物品使用0/1背包求解即可。
+
+```c++
+const int N_MAX = 1e4, M_MAX = 5e3, BUDGET_MAX = 1e4;
+int dsu_parent[N_MAX + 1],  dsu_cost[N_MAX + 1], dsu_value[N_MAX + 1];
+int n, m, budget, u_temp, v_temp, dp[BUDGET_MAX + 1];
+int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
+inline void dsu_unite(int child, int root) {
+    int child_parent = dsu_find(child), root_parent = dsu_find(root);
+    if(child_parent != root_parent) {
+        dsu_cost[root_parent] += dsu_cost[child_parent];
+        dsu_value[root_parent] += dsu_value[child_parent];
+        dsu_parent[child_parent] = root_parent;
+    }
+}
+int main() {
+    std::cin >> n >> m >> budget;
+    std::iota(dsu_parent + 1, dsu_parent + 1 + n, 1);
+    for(int i = 1; i <= n; ++i) { std::cin >> dsu_cost[i] >> dsu_value[i]; }
+    for(int i = 1; i <= m; ++i) {
+        std::cin >> u_temp >> v_temp;
+        dsu_unite(u_temp, v_temp);
+    }
+    for(int i = 1; i <= n; ++i) {
+        if(dsu_find(i) != i) { continue; }
+        for(int j = budget; j >= dsu_cost[i]; --j) {
+            dp[j] = std::max(dp[j], dp[j - dsu_cost[i]] + dsu_value[i]);
+        }
+    }
+    std::cout << dp[budget];
+}
+```
+
+### §2.1.6 费用背包
+
+我们将背包问题中出现的各种约束条件，统一地抽象为以下类型：
+
+- 限制条件：必须满足`∑a[i] <= A`、`∑b[i] >= B`。例如背包不能装满、必须填满坑洞。
+- 最优化条件：最大化/最小化`∑c[i]`的值，如果有多个方案满足要求则继续最大化最小化`∑d[i]`的值。
+
+本节介绍的题型都是以上两种条件的排列组合。
+
+#### §2.1.6.1 单限制单最优化
 
 > [洛谷P1510](https://www.luogu.com.cn/problem/P1510)：给定一个体积为`v`的坑洞，需要用石子填满（允许体积溢出）。石子的体积和代价（附属值）分别为`v[i]`和`c[i]`，求完成该任务的代价最小值。
 
@@ -688,6 +825,8 @@ int main(){
   }
   ```
 
+#### §2.1.6.2 多限制单最优化
+
 > [洛谷P2340](https://www.luogu.com.cn/problem/P2340)：给定`n`个物品，每种物品都有两种代价`cost_1[i]`、`cost_2[i]`，代价可正可负。在物品的两种总代价均大于等于0的情况下，求这两种总代价之和的最大值。
 
 令`dp[i][j]`表示前`i`个物品的第一种代价之和恰好为`j`时，第二种代价之和的最大值。于是有状态转移方程：
@@ -735,116 +874,45 @@ int main(){
 }
 ```
 
-### §2.1.6 恰满背包
+> [洛谷P2079](https://www.luogu.com.cn/problem/P2079)：给定`n<=100`个物品，每个物品含有属性`c[i]>=0`、`x[i]∈[-5,5]`、`y[i]∈[-1e3,1e3]`。请从中选出一些物品，要求`∑c[i]<=c_budget<=500`、`∑x[i]>=0`，求`∑y[i]`的最大值，如果其小于`0`则输出`-1`。
 
-之前我们接触的背包题型往往带有$\sum\text{volume}_i\le \text{capacity}$的约束条件。本节讨论的是$\sum\text{volume}_i= \text{capacity}$。
+本题的关键在于`x[i]`的取值范围很小，因此可以作为DP状态。令`dp[i][j][k]`表示给定前`i`个物品，物品选择方案的`∑c[i]`恰好为`j`、`∑x[i]`恰好为`k`时，`∑y[i]`的最大值。于是有状态转移方程：
 
-- 以价值最大化问题为例，我们希望不合法的状态全为负无穷大，这样在$\max(\cdot)$的各参数大小竞争中，非法状态就会不起作用，等价于不存在。于是`dp[0][0]`为0，而`dp[0][1->n]`均为负无穷大。
-- 以统计方案数问题为例，我们希望不合法的状态不对应任何方案，也就是0。于是`dp[0][0]`反而是一种合法的方案，因为什么都不选也能填满容量为0的背包，而`dp[0][1->n]`均为0。
+$$
+\mathrm{dp}[i][j][k] = \max(
+	\mathrm{dp}[i-1][j][k],
+	\mathrm{dp}[i][j-c[i]][k-x[i]]  + y[i]
+)
+$$
 
-> [洛谷P1284](https://www.luogu.com.cn/problem/P1284)：给定`n<=40`个长度分别为`a[i]<=40`的木棍，请用**所有的**木棍拼成三条边，且恰好能构成三角形。求三角形最大面积`ans`。如果三角形不存在则输出`-1`，如果存在则输出`(int64_t)(ans * 100)`。
-
-预处理关于`a[]`的前缀和数组`a_presum[]`。令`bool dp[i][j][k]`表示给定前`i`个木棍，能否拼成三条长度分别为`j`、`k`、`a_presum[i] - j - k`的边，**注意这三条边不一定非要组成三角形**。于是给定一条新木棍`a[i]`，我们有三种选择：
-
-- 把`a[i]`拼在长度为`j`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j - a[i]][k]`，前提是`j >= a[i]`。
-- 把`a[i]`拼在长度为`k`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j][k - a[i]]`，前提是`k >= a[i]`。
-- 把`a[i]`拼在长度为`a_presum[i] - j - k`的边：`dp[i][j][k] = dp[i][j][k] | dp[i][j][k]`，前提是`a_presum[i] - j - k >= a[i]`。
-
-以上三种情况进行或运算即可。初始值`dp[0][0][0] = true`，其余`dp[0][*][*] = false`。注意到以上状态转移方程可以用滚动数组优化，把第一维砍成一行。
-
-计算得到`dp[n][*][*]`后，只需遍历所有可以取到的三条边长度组合情况，带入海伦公式$\begin{cases}p = \displaystyle\frac{a+b+c}{2}\\S=\sqrt{p(p-a)(p-b)(p-c)}\end{cases}$求**能组成三角形**的所有情况的最大值即可。
+用滚动数组可以把第一维压成一行。**由于`c[i]>=0`恒成立，因此循环第二维时要逆序遍历**。由于`x[i]`可正可负，所以第三维遍历的顺序要随着其正负号而变化。
 
 ```c++
-const int N_MAX = 40, A_MAX = 40; const double INF = 1e18;
-int n, a[1 + N_MAX], a_presum[1 + N_MAX]; bool dp[1 + N_MAX * A_MAX][1 + N_MAX * A_MAX]; double ans = -INF;
-double calc_triangle_area(double a, double b, double c) {
-    if(!(a + b > c && a + c > b && b + c > a)) { return -INF; }
-    double p = (a + b + c) / 2;
-    return std::sqrt(p * (p - a) * (p - b) * (p - c));
-}
-int main() {
-    std::cin >> n;
-    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_presum[i] = a_presum[i - 1] + a[i]; }
+const int N_MAX = 1e2, C_BUDGET_MAX = 500, X_MAX = 5, X_OFFSET = N_MAX * X_MAX, Y_MAX = 1e3, INF = 1e9;
+int n, c_budget, c[1 + N_MAX], x[1 + N_MAX], y[1 + N_MAX], x_offset;
+int dp[1 + C_BUDGET_MAX][1 + 2 * N_MAX * X_MAX], ans = -INF;
+int main() { // 多约束单最优化
+    std::cin >> n >> c_budget; x_offset = n * X_MAX;
+    for(int i = 1; i <= n; ++i) { std::cin >> c[i] >> x[i] >> y[i]; }
 
-    dp[0][0] = true;
+    std::fill(&(dp[0][0]), &(dp[C_BUDGET_MAX][2 * N_MAX * X_MAX]) + 1, -INF); dp[0][0 + x_offset] = 0;
     for(int i = 1; i <= n; ++i) {
-        for(int j = a_presum[i]; j >= 0; --j) {
-            for(int k = a_presum[i]; k >= 0; --k) {
-                dp[j][k] = std::ranges::any_of(std::initializer_list<bool>{
-                    j >= a[i] ? dp[j - a[i]][k] : false,
-                    k >= a[i] ? dp[j][k - a[i]] : false,
-                    a_presum[i] - j - k >= 0 ? dp[j][k] : false
-                }, std::identity{});
+        for(int j = c_budget; j >= c[i]; --j) {
+            if(x[i] >= 0) {
+                for(int k = n * X_MAX; k >= -n * X_MAX + x[i]; --k) {
+                    dp[j][k + x_offset] = std::max(dp[j - c[i]][k - x[i] + x_offset] + y[i], dp[j][k + x_offset]);
+                }
+            } else if(x[i] < 0) {
+                for(int k = -n * X_MAX; k <= n * X_MAX - x[i]; ++k) {
+                    dp[j][k + x_offset] = std::max(dp[j - c[i]][k - x[i] + x_offset] + y[i], dp[j][k + x_offset]);
+                }
             }
         }
     }
-    for(int j = 0; j <= a_presum[n]; ++j) {
-        for(int k = 0; k <= a_presum[n]; ++k) {
-            if(dp[j][k] == true) {
-                ans = std::max(ans, calc_triangle_area(j, k, a_presum[n] - j - k));
-            }
-        }
-    }
-    std::cout << (ans == -INF ? -1ll : (int64_t)(ans * 100));
+    for(int j = 0; j <= c_budget; ++j) { for(int k = 0; k <= x_offset; ++k) { ans = std::max(ans, dp[j][k + x_offset]); } }
+    std::cout << (ans < 0 ? -1 : ans);
 }
 ```
-
-### §2.1.7 依赖背包
-
-> [洛谷P1064](https://www.luogu.com.cn/problem/P1064)：给定`m`个物品的价值`value[i]`和代价`cost[i]`。现将其分成若干组，每组物品均包含1个主物品和0~2个次物品。如果选择了某个子物品，则必须同时选择其组内的主物品。在各物品代价之和小于等于$n$的约束条件下，求物品价值之和的最大值。
-
-？？？？？？？？？？？？？？？？？？？TODO：
-
-> [洛谷P1455](https://www.luogu.com.cn/problem/P1455)：给定`n`个物品的价格`cost[i]`和价值`value[i]`，与`m`个捆绑销售关系。如果`i`和`j`是捆绑销售关系，则要么两者都不选，要么都选。给定预算`budget`，求价值最大值。
-
-本题的关键在于意识到多个物品捆绑成了一个大物品。我们用并查集维护大物品的总价格和总价值，然后对`i:1->n`进行遍历，以`dsu_find(i) == i`为大物品的判断依据，对所有大物品使用0/1背包求解即可。
-
-```c++
-const int N_MAX = 1e4, M_MAX = 5e3, BUDGET_MAX = 1e4;
-int dsu_parent[N_MAX + 1],  dsu_cost[N_MAX + 1], dsu_value[N_MAX + 1];
-int n, m, budget, u_temp, v_temp, dp[BUDGET_MAX + 1];
-int dsu_find(int x) { return dsu_parent[x] == x ? x : dsu_parent[x] = dsu_find(dsu_parent[x]); }
-inline void dsu_unite(int child, int root) {
-    int child_parent = dsu_find(child), root_parent = dsu_find(root);
-    if(child_parent != root_parent) {
-        dsu_cost[root_parent] += dsu_cost[child_parent];
-        dsu_value[root_parent] += dsu_value[child_parent];
-        dsu_parent[child_parent] = root_parent;
-    }
-}
-int main() {
-    std::cin >> n >> m >> budget;
-    std::iota(dsu_parent + 1, dsu_parent + 1 + n, 1);
-    for(int i = 1; i <= n; ++i) { std::cin >> dsu_cost[i] >> dsu_value[i]; }
-    for(int i = 1; i <= m; ++i) {
-        std::cin >> u_temp >> v_temp;
-        dsu_unite(u_temp, v_temp);
-    }
-    for(int i = 1; i <= n; ++i) {
-        if(dsu_find(i) != i) { continue; }
-        for(int j = budget; j >= dsu_cost[i]; --j) {
-            dp[j] = std::max(dp[j], dp[j - dsu_cost[i]] + dsu_value[i]);
-        }
-    }
-    std::cout << dp[budget];
-}
-```
-
-### §2.1.8 混合背包
-
-混合背包指的是上述背包问题中提到的物品特性混合起来。针对此类问题，我们只需对不同问题的物品分别套用不同的转移方程即可。
-
-```
-for i=1..N
-    if 第i件物品属于01背包
-        // ...
-    else if 第i件物品属于完全背包
-        // ...
-    else if 第i件物品属于多重背包
-        // ...
-```
-
-### §2.1.9 多维代价背包
 
 > [洛谷P1855](https://www.luogu.com.cn/problem/P1855)：在0/1背包的基础上，总共引入了两个约束条件。
 
@@ -989,7 +1057,7 @@ int main(){
 }
 ```
 
-### §2.1.10 二维极值背包
+#### §2.1.6.3 多限制多最优化
 
 > [洛谷P1509](https://www.luogu.com.cn/problem/P1509)：给定`n`个物品，第`i`个物品含有金钱代价`money[i]`、幸运代价`luck[i]`、时间代价`time[i]`和价值`value[i]`（本题恒为1）。现在金钱预算只有`money_budget`，幸运运算只有`luck_budget`。请求出一种方案，使得物品总价值最大化。如果有多种方式均能使得物品总价值到达最大值，则选取时间总代价最小的方案，并输出该方案所需的时间总代价。
 
@@ -1026,7 +1094,7 @@ int main(){
 }
 ```
 
-### §2.1.11 泛化物品背包
+### §2.1.7 泛化物品背包
 
 在泛化物品背包问题中，物品的价值不再是一个定值，而是关于物品代价的函数。
 
@@ -1170,7 +1238,7 @@ int main() {
 }
 ```
 
-### §2.1.12 剔除物品背包
+### §2.1.8 剔除物品背包
 
 剔除物品背包在普通背包已经求解完毕的前提下，在可选择的物品列表中剔除某些物品，随后提问最优值。
 
@@ -1234,7 +1302,7 @@ $$
 
 剩余步骤完全相同。
 
-### §2.1.13 次优解/第`k`优解
+### §2.1.9 次优解/第`k`优解
 
 > [洛谷P1858](https://www.luogu.com.cn/problem/P1858)：求0/1背包的前`k`个最优解之和。不同的解法之间的选择的物品组合禁止相同。
 
@@ -1275,7 +1343,7 @@ int main(){
 }
 ```
 
-### §2.1.14 面值背包
+### §2.1.10 面值背包
 
 > [洛谷P2725](https://www.luogu.com.cn/problem/solution/P2725)：给定`n`种无限供应的、面值`value[i]`不同的硬币。从中最多选择`k`枚硬币，要求输出不能组合出的正整数面值的最小值。
 
@@ -1438,7 +1506,7 @@ int main() {
 }
 ```
 
-### §2.1.15 树上背包
+### §2.1.11 树上背包
 
 树上背包本质上完全等价于依赖背包，因为任何依赖关系都可以用树来表示。
 
@@ -1480,7 +1548,7 @@ int main(){
 }
 ```
 
-#### §2.1.15.1 伪常数优化
+#### §2.1.11.1 伪常数优化
 
 接下来介绍一种的伪常数优化方案。之所以将其称为伪常数，是因为它实际上将时间复杂度从$O(nm^2)$降低到了$O(nm)$。令`dp[x][i][j]`表示将第`x`个节点视为根节点，只考虑根节点与前`i-1`个子节点构成的泛化物品组，**恰好**分配`j`个单位的限额所能达到的最大价值。令`f[i][j]`表示给第`i`个节点及其子树分配`j`个单位的限额能达到的最大价值。于是显然有状态转移方程：
 
@@ -1573,7 +1641,7 @@ int main(){
 
 表面上单层`dfs()`函数仍然涉及三重循环，看似这是减小了常数的$O(nm^2)$。其实不然，实际上这种伪常数优化的时间复杂度是$O(nm)$。由于各个节点的内层遍历范围被`cost[x]`数组所钳制，因此单个节点的遍历复杂度至多为$O(m)$，一共有`n`个节点，于是总的时间复杂度为$O(nm)$。
 
-#### §2.1.15.2 二重循环优化
+#### §2.1.11.2 二重循环优化
 
 令`dp[x][i][j]`表示对于根节点`x`的第`i`个子节点，在必须选择根节点`x`及其所有祖先节点、可以选择根节点`x`的前`i`个子节点及其子树的前提下，分配`j`个单位的代价限额（不必全部花完）能获得的最大价值。令`f[i][j]`表示`dp[x][i-1][j]`的基础上，在选择节点`i`及其所有祖先节点的情况下（可以不选择`i`节点下属的子树），分配`j`个代价限额能取得的价值最大值。
 
@@ -1694,7 +1762,7 @@ int main(){
 }
 ```
 
-#### §2.1.15.3 空间最优做法
+#### §2.1.11.3 空间最优做法
 
 > [洛谷P2967](https://www.luogu.com.cn/problem/P2967)：给定`n`组物品，第`i`组物品中含有一个主物品和`game_count[i]`个副物品，它们的代价和价值分别为`host_cost[i]`和`0`、`game_cost[i][j]`和`game_value[i][j]`。如果选择副物品，则必须选择该组中的主物品。已给定代价预算`budget`，求价值最大值。
 
@@ -1757,7 +1825,7 @@ int main() {
 > [洛谷P4516](https://www.luogu.com.cn/problem/P4516)：
 #TODO：？？？？？
 
-### §2.1.16 数量最少背包
+### §2.1.12 数量最少背包
 
 > [洛谷P1687](https://www.luogu.com.cn/problem/P1687)：给定`n`个价值均为`1`、代价分别为`cost[i]`的物品。现有无限供应的背包，单个背包的代价容量最大值为`cost_budget`。要装载总价值恰好为`k`的物品，求至少使用的背包数量。与此同时，选择物品的编号`i`与背包编号`j`严格满足：不存在这样的$i_1,i_2$，使得$i_1$排在$i_2$的左边（即$i_1<i_2$），但是所在的背包编号反而$j_1>j_2$。
 
@@ -1997,7 +2065,7 @@ int main() {
 }
 ```
 
-### §2.1.17 物品选择策略
+### §2.1.13 物品选择策略
 
 要输出**一种**最优策略下的物品选择策略，我们只需定义一个新的布尔数组`is_selected[i][j]`，表示给定前`i`个物品、代价预算为`j`的最优决策是否会选择第`i`个物品，在状态转移的时候更新这个数组，最后在输出方案时依照下列逻辑读取：
 
@@ -2074,7 +2142,7 @@ int main() {
 }
 ```
 
-#### §2.1.17.1 字典序物品选择策略
+#### §2.1.13.1 字典序物品选择策略
 
 > [洛谷P1759](https://www.luogu.com.cn/problem/P1759)：给定一个二维费用背包问题。给定`n`个物品，其重力代价、阻力代价、价值分别为`weight[i]`、`friction[i]`、`value[i]`。背包的重力预算和阻力预算分别为`weight_budget`和`friction_budget`。求一种物品选择方案，使得总价值最大。**如果存在多个使得总价值达到最大值的方案，则输出字典序最小的一种。**
 
@@ -2159,7 +2227,7 @@ int main() {
 }
 ```
 
-### §2.1.18 顺序物品背包
+### §2.1.14 顺序物品背包
 
 在一般的背包问题中，物品序列可以视为乱序，即无论如何排列选择物品的次序都不会影响最终答案。但在时间背包中，物品选择次序是固定的。即使背包容量充足，能否选择后面的物品也会取决于前面的物品的选择策略。
 
@@ -3607,7 +3675,7 @@ int main() {
 
 > [洛谷U593332](https://www.luogu.com.cn/problem/U593332)：给定长度为`n`的整数序列，首尾拼成一个环，从中选出一段连续子序列（可为空），求其元素之和的最大值。
 
-按以下两种情况分类讨论，计算各自的结果，取最大值即可。
+第一种做法是顺着题意模拟，按以下两种情况分类讨论，计算各自的结果，取最大值即可。
 - 如果最终的连续子序列没有横跨首尾，那么就直接破环为串即可，得到答案`ans`。
 - 如果最终的连续子序列横跨首尾，那么它一定包含了`a[n]`和`a[1]`这两个元素，因此不妨将其拆分为两个部分：`a[1->i]`和`a[j->n]`。我们额外维护`a_presum_max[i]`表示`a_presum[1->i]`（给定`a[1->i]`这`i`个元素，且子序列必须包含`a[1]`）的最大值，因此我们只需枚举`j:n->1`，计算`ans = std::max(ans, a_postsum[j] + a_presum_max[j-1])`即可。
 
@@ -3630,6 +3698,38 @@ int main() {
     
     std::cout << ans;
 }
+```
+
+第二种做法是使用逆向思维，按以下两种情况分类讨论，计算各自的结果，取最大值即可。
+- 如果最终的连续子序列没有横跨首尾，那么就直接破环为串即可，得到答案`ans`。
+- 如果最终的连续子序列横跨首尾，则剩下的元素构成了不会横跨首尾的新连续子序列。由于元素总和不变，因此求连续子序列之和最大值，就相当于求不在连续子序列中的元素之和的最小值。用总和减该最小值即可。
+
+```c++
+const int N_MAX = 5e6; const int64_t A_MAX = 1e9, INF = 1e18;
+int n; int64_t a[1 + N_MAX + 1], a_sum, ans;
+int64_t dp_max[1 + N_MAX + 1], dp_min[1 + N_MAX + 1];
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; a_sum += a[i]; }
+
+    for(int i = 1; i <= n; ++i) { dp_max[i] = std::max(dp_max[i - 1] + a[i], a[i]); }
+    ans = *std::max_element(dp_max, dp_max + n + 1);
+    
+    for(int i = 1; i <= n; ++i) { dp_min[i] = std::min(dp_min[i - 1] + a[i], a[i]); }
+    ans = std::max(ans, a_sum - *std::min_element(dp_min, dp_min + n + 1));
+
+    std::cout << ans;
+}
+```
+
+> [洛谷P1121](https://www.luogu.com.cn/problem/P1121)：给定长度为`n`的整数序列，首尾拼成一个环，从中选出两段连续子序列（不可为空），求其元素之和的最大值。
+
+按以下两种情况分类讨论，计算各自的结果，取最大值即可。
+- 如果首尾没有被某段连续子序列同时占用，则问题从环退化为串，$O(n)$枚举两段非空连续子序列的分隔点即可。
+- 如果首尾被某段连续子序列同时占用，则剩下的元素构成了不会横跨首尾的新两段连续子序列，因此求两段连续子序列之和最大值，就相当于求不在连续子序列中的元素之和的最小值，问题转化为线性序列上的两段最小子段和问题。用总和减该最小值即可。
+
+```c++
+
 ```
 
 > [洛谷P1719](https://www.luogu.com.cn/problem/P1719)：给定一个矩阵`a[1->n<=120][1->n]`，求子矩形的元素之和最大值。
@@ -7703,7 +7803,7 @@ int main(){
 }
 ```
 
-> [洛谷P2627](https://www.luogu.com.cn/problem/P2627)：给定一个长度为`n`数组`a[]`，从中选出某个子序列（可以不连续地选），要求子序列中的数字在原数组中连续相同部分的长度最大为`k`。在所有符合条件的子序列中，求子序列各元素之和的最大值。
+> [洛谷P2627](https://www.luogu.com.cn/problem/P2627)/[洛谷P2034](https://www.luogu.com.cn/problem/P2034)：给定一个长度为`n`数组`a[]`，从中选出一些元素，但是不能在原数组中连续地选择大于`k`个元素，求子序列各元素之和的最大值。
 
 令`dp[i]`表示给定前`i`个元素时，符合条件的子序列的各元素之和最大值。由于引入了第`i`个元素，所以我们要考虑第`i`个元素是否参与构成了连续相同部分。如果构成了，则构成的连续部分的长度至多为`k`，且与前面的连续部分之间至少要间隔一个元素；如果没构成，则直接从`dp[j-1]`转移而来。因此可以得出状态转移方程：
 
@@ -27047,6 +27147,19 @@ int main() {
 }
 ```
 
+### §8.3.6 最大公因数&最小公倍数
+
+欧几里得算法/辗转相除法：
+
+```c++
+int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
+```
+
+扩展欧几里德算法：
+
+```c++
+
+```
 ## §8.4 快速幂
 
 快速幂$a^b$的核心思想是：将`b`拆成二进制，于是$a^b$等价于$a^1$、$a^2$、$a^4$、...、$a^{2^{k}}$的线性相乘组合。时间复杂度从恒定的$O(b)$降为最坏情况下的$O(2\log_2{b})$。
