@@ -713,6 +713,13 @@ MySQL是关系型数据库，设计的初衷是存储结构化数据，而不是
 
 # §11 分布式
 
+### 实现分布式事务。例如创建订单与扣减库存，如果创建订单后MQ宕机，无法发送消息来扣减库存，应该怎么办？
+
+> 使用本地消息表。
+> 1. 创建订单的事务提交时，订单状态为`NEW`，发送MQ`库存-topic`和本地消息表的`NEW`。这时的MQ可能宕机。
+> 2. 扣减库存监听`库存-topic`，事务提交时，发送MQ`库存结果-tpoic`的`SUCCESS`或`FAILED`。
+> 3. 消息恢复系统一方面监听MQ`库存结果-topic`，发送更改本地消息表的订单状态为`CONFIRMED`/`FAILED`，另一方面用定时任务取出本地消息表中的`FAILED`订单，然后再发一遍MQ`库存-topic`的`NEW`进行重试，发送成功后更新本地消息表的订单状态为`SENT`。
+
 # §12 设计模式
 
 ## §11.1 单例模式
@@ -776,7 +783,6 @@ class Singleton {
 }
 ```
 
-
 # §13 Git
 
 > Redis如何统计连续签到天数？
@@ -837,12 +843,53 @@ class Singleton {
 > 
 > 明确问题的现象与影响范围，评估严重程度，采取应急措施（服务降级、流量限制、回滚版本）。查看日志与监控表（网络/中间件）、代码分析、性能分析工具与监控工具，复现问题，考虑解决方案，复盘和总结。
 
-# §6 分布式
+# §C 项目八股
 
-> 实现分布式事务。例如创建订单与扣减库存，如果创建订单后MQ宕机，无法发送消息来扣减库存，应该怎么办？
-> 
-> 使用本地消息表。
-> 1. 创建订单的事务提交时，订单状态为`NEW`，发送MQ`库存-topic`和本地消息表的`NEW`。这时的MQ可能宕机。
-> 2. 扣减库存监听`库存-topic`，事务提交时，发送MQ`库存结果-tpoic`的`SUCCESS`或`FAILED`。
-> 3. 消息恢复系统一方面监听MQ`库存结果-topic`，发送更改本地消息表的订单状态为`CONFIRMED`/`FAILED`，另一方面用定时任务取出本地消息表中的`FAILED`订单，然后再发一遍MQ`库存-topic`的`NEW`进行重试，发送成功后更新本地消息表的订单状态为`SENT`。
+## AI-Agent
 
+```java
+OpenAiApi openAiApi = OpenAiApi.builder() // AI端点
+	.baseUrl()
+	.apiKey()
+	.completionsPath()
+	.embeddingsPath()
+	.build();
+	
+ChatModel = OpenAiChatModel.builder() // AI模型
+	.openAiApi(openAiApi)
+	.defaultOptions(
+		OpenAiChatOptions.builder()
+			.model()
+			.toolCallbacks( // AI MCP
+				new SyncMcpToolCallbackProvider()
+			)
+			.build()
+	);
+	
+ChatClient = ChatClient.builder(chatModel) // AI客户端
+	.defaultSystem() // AI系统提示词
+	.defaultToolCallbacks(
+		new SyncMcpToolCallbackProvider()
+	)
+	.defaultAdvisors( // AI顾问
+		PromptChatMemoryAdvisor.builder().build(), 
+		new RagAnswerAdvisor(),
+		SimpleLoggerAdvisor.builder().build()
+	)
+	.build();
+```
+一个
+
+| 表名                        | 作用       | 联系                                           | 字段                                         |
+| ------------------------- | -------- | -------------------------------------------- | ------------------------------------------ |
+| `ai_client_api`           | AI端点     | -                                            | API端点、API Key                              |
+| `ai_client_model`         | AI模型     | 由一个`ai_client_api`定义                         | 模型名称、模型接入商                                 |
+| `ai_client`               | AI客户端    | 由一个`ai_client_model`定义                       | 客户端名称                                      |
+| `ai_client_advisor`       | AI顾问     | -                                            | 顾问名称、顾问类型、顺序、参数                            |
+| `ai_client_system_prompt` | AI提示词    | -                                            | 提示词名称、提示词内容、描述                             |
+| `ai_client_tool_mcp`      | MCP      | -                                            | MCP名称、传输类型、参数<br>(STDIO/SSE)               |
+| `ai_agent`                | Agent    | -                                            | Agent名称、描述、渠道类型<br>(`agent`/`chat_stream`) |
+| `ai_agent_flow_config`    | Agent工作流 | 由一个`ai_agent`定义<br>由一个`client`定义             | 智能体、客户端、顺序                                 |
+| `ai_agent_task_schedule`  | 定时任务     | 由一个`ai_agent`定义                              | 智能体、任务名称、cron表达式、配置                        |
+| `ai_client_config`        | 配置图边     | 由源头与目标定义<br>`ai_chat_model`/`ai_chat_client` | 源头/目标的类型与ID、配置                             |
+| `ai_client_rag_order`     | RAG配置    |                                              |                                            |
