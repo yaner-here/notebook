@@ -26909,7 +26909,9 @@ int main() {
 
 ### §8.3.3 逆元
 
-#### §8.3.3.1 线性逆元
+#### §8.3.3.1 逆元打表
+
+##### §8.3.3.1.1 线性逆元
 
 注意到恒等式$\displaystyle\lfloor\frac{p}{i}\rfloor\cdot i + (p\%i) \equiv p \equiv 0 \pmod p$，于是变形可得$\displaystyle i^{-1}=-\lfloor\frac{p}{i}\rfloor\cdot(p\%i)^{-1}$，顺序递推即可。
 
@@ -26925,7 +26927,7 @@ int main() {
 }
 ```
 
-#### §8.3.3.2 阶乘逆元
+##### §8.3.3.1.2 阶乘逆元
 
 注意到恒等式$\displaystyle\frac{1}{n!}=(n+1)\cdot\frac{1}{(n+1)!}$，逆序递推即可。
 
@@ -26942,9 +26944,84 @@ int main() {
 }
 ```
 
-### §8.3.4 素数筛
+#### §8.3.3.2 合数逆元
 
-#### §8.3.4.1 埃氏筛
+现在要求解$a$在模$p$意义下的逆元。当$p$为合数时，无法保证$\forall a\in\mathbb{Z}, \gcd(a, p)=1$恒成立，因此费马小定理有可能会失效。此时我们只能使用扩展欧几里德算法。
+
+```c++
+std::tuple<int64_t, int64_t, int64_t> exgcd(const int64_t &a, const int64_t &b) { /* ax + by = gcd(a, b); return {gcd, x, y}; */ if (b == 0) { return {a, 1, 0}; } auto [gcd, x, y] = exgcd(b, a % b); return {gcd, y, x - a / b * y}; }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t inv_exgcd_mod(const int64_t a, const int64_t &p) { 
+	auto [gcd_a_p, x, y] = exgcd(a, p); 
+	assert(gcd_a_p == 1); // 判断逆元是否存在
+	return mod(x, p / gcd_a_p); 
+}
+```
+
+> [洛谷P1082](https://www.luogu.com.cn/problem/P1082)：求解关于$x$的同余方程$ax\equiv 1\pmod{b}$的最小正整数解。数据保证一定有解。
+
+$ax\equiv 1\pmod{b}$可以表示为$\exists y\in\mathbb{Z}, ax+by=1$。容易想到使用扩展欧几里德算法，直接求解$x$的值即可。注意题目要求$x$为正整数，所以要**特判$b=1$时$x=0$的特殊情况**。
+
+```c++
+const int T_MAX = 2e5;
+int64_t a, b, c, gcd_a_b, x_0, y_0, x_1, y_1, dx, x_min;
+int main() {
+    std::cin >> a >> b; c = 1;
+    std::tie(gcd_a_b, x_0, y_0) = exgcd(a, b);
+    assert(c % gcd_a_b == 0); // 题目保证数据一定有解
+    
+    x_1 = x_0 * (c / gcd_a_b);
+    dx = b / gcd_a_b;
+    x_min = mod(x_1, dx); if(x_min == 0) { x_min = dx; }
+
+    std::cout << x_min;
+}
+```
+
+本题较为特殊，因为方程是$ax\equiv \textcolor{red}{1}\pmod{b}$。这意味着$\gcd(a, b)=1$，即`gcd_a_b == 1`，带入代码中可以消除很多无用变量：
+
+```c++
+std::tuple<int64_t, int64_t, int64_t> exgcd(const int64_t &a, const int64_t &b) { /* ax + by = gcd(a, b); return {gcd, x, y}; */ if (b == 0) { return {a, 1, 0}; } auto [gcd, x, y] = exgcd(b, a % b); return {gcd, y, x - a / b * y}; }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t inv_exgcd_mod(const int64_t a, const int64_t &p) { auto [gcd_a_p, x, y] = exgcd(a, p); assert(gcd_a_p == 1); return mod(x, p / gcd_a_p); }
+
+const int T_MAX = 2e5;
+int64_t a, b, x;
+int main() {
+    std::cin >> a >> b;
+    x = inv_exgcd_mod(a, b); if(x == 0) { x = b; }
+    std::cout << x;
+}
+```
+
+> [洛谷P1495（中国剩余定理/CRT）](https://www.luogu.com.cn/problem/P1495)：求解关于$x$的一元线性同余方程组$\begin{cases}x\equiv a_1\pmod{p_1}\\x\equiv a_2\pmod{p_2}\\\vdots\\x\equiv a_k\pmod{p_k}\end{cases}$，**其中$p_1, p_2, \cdots, p_k$两两互质**。
+
+对于第$i$个方程，我们用费马小定理计算$\displaystyle\frac{\prod_{j=1}^{k}{p_j}}{p_i}$及其在模$p_i$意义下的逆元$\left(\displaystyle\frac{\prod_{j=1}^{k}{p_j}}{p_i}\right)^{-1}$（因为这两者必定互质），答案即为$x\equiv \displaystyle\sum_{i=1}^{k}a_i\times \displaystyle\frac{\prod_{j=1}^{k}{p_j}}{p_i}\times \left(\displaystyle\frac{\prod_{j=1}^{k}{p_j}}{p_i}\right)^{-1}\pmod{\prod_{j=1}^{k}{p_j}}$。这里求逆元时，$p_i$不一定为质数，所以不能使用费马小定理；但是两者必定互质，因此一定可以使用扩展欧几里德算法来求解。
+注意：**在计算$a_i\times \displaystyle\frac{\prod_{j=1}^{k}{p_j}}{p_i}\times \left(\displaystyle\frac{\prod_{j=1}^{k}{p_j}}{p_i}\right)^{-1}$时可能会爆`int64_t`，因此我们需要龟速乘**。
+
+```c++
+std::tuple<int64_t, int64_t, int64_t> exgcd(const int64_t &a, const int64_t &b) { /* ax + by = gcd(a, b); return {gcd, x, y}; */ if (b == 0) { return {a, 1, 0}; } auto [gcd, x, y] = exgcd(b, a % b); return {gcd, y, x - a / b * y}; }
+constexpr inline int64_t mod(const int64_t &x, const int64_t &p) { return (x % p + p) % p; }
+inline int64_t inv_exgcd_mod(const int64_t a, const int64_t &p) { auto [gcd_a_p, x, y] = exgcd(a, p); assert(gcd_a_p == 1); return mod(x, p / gcd_a_p); }
+inline int64_t safe_mul_mod(int64_t x, int64_t y, const int64_t &p) { int64_t ans = 0; for(ans = 0; y > 0; x = (x * 2) % p, y /= 2) { if(y & 1) { ans = (ans + x) % p; } } return ans; }
+inline int64_t safe_mul_mod(const std::initializer_list<int64_t> &x, const int64_t &p) { return std::accumulate(x.begin(), x.end(), 1ll, [&p](int64_t acc, int64_t v) { return safe_mul_mod(acc, v, p); }); }
+
+const int N_MAX = 10;
+int n; int64_t a[1 + N_MAX], p[1 + N_MAX], p_prod = 1, x;
+int main() {
+    std::cin >> n;
+    for(int i = 1; i <= n; ++i) { std::cin >> p[i] >> a[i]; p_prod *= p[i]; }
+
+    for(int i = 1; i <= n; ++i) {
+        x += safe_mul_mod({a[i], p_prod / p[i], inv_exgcd_mod(p_prod / p[i], p[i])}, p_prod);
+    }
+    std::cout << mod(x, p_prod);
+}
+```
+
+### §8.3.3 素数筛
+
+#### §8.3.3.1 埃氏筛
 
 要求出所有的素数，一种显然的方法是从`2`遍历到`n`，一旦遇到一个素数$i$，就把$2i$、$3i$、...全部标记为合数。由素数分布相关知识，可以证明时间复杂度为$O(n\ln\ln n)$。
 
@@ -27010,7 +27087,7 @@ int main() {
 }
 ```
 
-#### §8.3.4.2 欧式筛/线性筛
+#### §8.3.3.2 欧式筛/线性筛
 
 埃氏筛的一个显著缺点是它会重复标记同一个值。线性筛（又称欧式筛）在此基础上进行了优化，完全避免了这种无意义的步骤，将时间复杂度将至$O(n)$。
 
@@ -27042,7 +27119,7 @@ int main() {
 }
 ```
 
-### §8.3.5 阶
+### §8.3.4 阶
 
 当$a, p$互质时，方程$a^x \equiv 1 \pmod p$的最小正整数解称为$a$模$p$的**阶**，记为$\mathrm{ord}_p(a)$
 
@@ -27171,7 +27248,7 @@ int main() {
 }
 ```
 
-### §8.3.6 最大公因数&最小公倍数
+### §8.3.5 最大公因数&最小公倍数
 
 欧几里得算法/辗转相除法：
 
@@ -27179,11 +27256,58 @@ int main() {
 int64_t gcd(int64_t a, int64_t b) { return b == 0 ? a : gcd(b, a % b); }
 ```
 
-扩展欧几里德算法：
+扩展欧几里德算法：给定整数$a,b,c$，若$\gcd(a,b) \mid c$，则关于$x,y$的线性丢番图方程$ax + by = c$一定存在解。特殊地，先考虑$c = \gcd(a,b)$时，$ax_0+by_0=\gcd(a,b)$的特解$(x_0, y_0)$：
 
 ```c++
-
+std::tuple<int64_t, int64_t, int64_t> exgcd(const int64_t &a, const int64_t &b) { 
+	/* 对于ax + by = gcd(a, b), 解得(gcd, x, y) */ 
+	if (b == 0) { return {a, 1, 0}; } 
+	auto [gcd, x, y] = exgcd(b, a % b); 
+	return {gcd, y, x - a / b * y}; 
+}
 ```
+
+两侧同乘$\displaystyle\frac{c}{\gcd(a,b)}$，方程变形为$a\left(x_0\cdot\displaystyle\frac{c}{\gcd(a,b)}\right) + b\left(y_0\cdot\displaystyle\frac{c}{\gcd(a,b)}\right) = c$，显然$\begin{cases}x=x_0\cdot\displaystyle\frac{c}{\gcd(a,b)}\\y=y_0\cdot\displaystyle\frac{c}{\gcd(a,b)}\end{cases}$即为原方程$ax+by=c$的一组特解，其通解为$\begin{cases}x=x_0\cdot\displaystyle\frac{c}{\gcd(a,b)}+k\displaystyle\frac{b}{\gcd(a,b)}\\y=y_0\cdot\displaystyle\frac{c}{\gcd(a,b)}-k\displaystyle\frac{a}{\gcd(a,b)}\end{cases},\forall k\in \mathbb{Z}$，不妨令这四个中间变量（**显然均为整数**）表示为$\begin{cases}x_1=x_0\cdot\displaystyle\frac{c}{\gcd(a,b)}\\y_1=y_0\cdot\displaystyle\frac{c}{\gcd(a,b)}\\\mathrm{dx}=\displaystyle\frac{b}{\gcd(a,b)}\\\mathrm{dy}=\displaystyle\frac{a}{\gcd(a,b)}\end{cases}$，于是通解可改写为$\begin{cases}x=x_1+k\cdot\mathrm{dx}\\y=y_1-k\cdot\mathrm{dy}\end{cases}$，**其中$x$与$y$呈负相关关系**。
+
+> [洛谷P5656](https://www.luogu.com.cn/problem/P5656)：求解关于整数$x, y$的不定方程$ax+by=c$。（1）若无整数解，输出`-1`；（2）若有整数解，但无正整数解，则输出$x$的最小正整数值、$y$的最小正整数值；（3）若有正整数解，则输出正整数解的数量、$x$最小正整数值，$y$最小正整数值，$x$最大正整数值，$y$最大正整数值。
+
+根据扩展欧几里德算法，当且仅当$\gcd(a,b)\mid c$时，$ax+by=c$存在整数解$\begin{cases}x=x_1+k\cdot\mathrm{dx}\\y=y_1-k\cdot\mathrm{dy}\end{cases}$。现在考虑其正整数解$x\ge 1, y\ge 1$，解该不等式组可得$k\in\left[\displaystyle\frac{1-x_1}{\mathrm{dx}}, \displaystyle\frac{y_1-1}{\mathrm{dy}}\right]$。该区间内有多少个整数，就代表着原方程有多少组解。为了避免判断端点是否为整数的繁琐运算，我们可以利用$k$为整数的性质，将解集改写为$k\in\left[\left\lceil\displaystyle\frac{1-x_1}{\mathrm{dx}}\right\rceil, \left\lfloor\displaystyle\frac{y_1-1}{\mathrm{dy}}\right\rfloor\right]$，记为$k\in[k_{\mathrm{min}}, k_{\mathrm{max}}]$。于是题目所求的最小值/最大值即可表示为$\begin{cases}x_\mathrm{min}=x_1+k_\mathrm{min}\cdot\mathrm{dx}\\x_\mathrm{max}=x_1+k_\mathrm{max}\cdot\mathrm{dx}\\y_\mathrm{min}=y_1-k_\mathrm{max}\cdot\mathrm{dy}\\y_\mathrm{min}=x_1-k_\mathrm{max}\cdot\mathrm{dy}\\\end{cases}$。
+
+```c++
+std::tuple<int64_t, int64_t, int64_t> exgcd(const int64_t &a, const int64_t &b) { /* ax + by = gcd(a, b); return {gcd, x, y}; */ if (b == 0) { return {a, 1, 0}; } auto [gcd, x, y] = exgcd(b, a % b); return {gcd, y, x - a / b * y}; }
+int64_t frac_floor(int64_t a, int64_t b) { if(b < 0) { return frac_floor(-a, -b); } return a >= 0 ? a / b : (a - b + 1) / b; }
+int64_t frac_ceil(int64_t a, int64_t b) { if(b < 0) { return frac_ceil(-a, -b); } return a >= 0 ? (a + b - 1) / b : a / b; }
+
+const int T_MAX = 2e5;
+int t; int64_t a, b, c, gcd_a_b, x_0, y_0, x_1, y_1, dx, dy, k_min, k_max, x_min, x_max, y_min, y_max;
+int main() {
+    std::ios::sync_with_stdio(false); std::cin.tie(nullptr); std::cout.tie(nullptr);
+    std::cin >> t;
+    while(t--) {
+        std::cin >> a >> b >> c;
+        std::tie(gcd_a_b, x_0, y_0) = exgcd(a, b);
+        if(c % gcd_a_b != 0) { std::cout << -1 << '\n'; continue; }
+        
+        x_1 = x_0 * (c / gcd_a_b);
+        y_1 = y_0 * (c / gcd_a_b);
+        dx = b / gcd_a_b;
+        dy = a / gcd_a_b;
+        k_min = frac_ceil(1 - x_1, dx);
+        k_max = frac_floor(y_1 - 1, dy);
+        x_min = x_1 + k_min * dx;
+        x_max = x_1 + k_max * dx;
+        y_min = y_1 - k_max * dy;
+        y_max = y_1 - k_min * dy;
+
+        if(k_max < k_min) { 
+            std::cout << x_min << ' ' << y_min << '\n';
+        } else {
+            std::cout << k_max - k_min + 1 << ' ' << x_min << ' ' << y_min << ' ' << x_max << ' ' << y_max << '\n';
+        }
+    }
+}
+```
+
 ## §8.4 快速幂
 
 快速幂$a^b$的核心思想是：将`b`拆成二进制，于是$a^b$等价于$a^1$、$a^2$、$a^4$、...、$a^{2^{k}}$的线性相乘组合。时间复杂度从恒定的$O(b)$降为最坏情况下的$O(2\log_2{b})$。
@@ -28914,7 +29038,7 @@ $$
 
 这里我们直接给出答案：**如果$\displaystyle\bigoplus_{i=1}^{n}a[i] \ne 0$，则说明初始状态是必赢状态，反之为必输状态**。该结论可由数学归纳法证明：
 - 对于`a[1->n] = 0`的特殊状态，显然当前状态是游戏结局，按规则判定为必输状态。结论显然成立。
-- 对于$\displaystyle\bigoplus_{i=1}^{n}a[i] = k \ne 0$的状态`dp[u]`，欲证其`dp[u] = true`，只需证它的出邻域中存在一个节点`v`满足$\displaystyle\bigoplus_{i=1}^{n}a'[i] = 0$即可。这等价于我们可以从`a[1->n]`中挑出一堆石子$a[i]$，从中拿走至少一个石子，可以变为$a'[i] = a[i] \oplus k$，即$a[i] > a[i] \oplus k$。可以证明一定能选出这样的石堆`a[i]`——考虑`k`的二进制最高位`1`Bit的位置`d`，根据异或性质可以得到一定有一个`a[i]`的二进制的最高位`1`Bit的位置也是`d`，二者异或之后的结果`a[i]\oplus k`一定会变得更小。
+- 对于$\displaystyle\bigoplus_{i=1}^{n}a[i] = k \ne 0$的状态`dp[u]`，欲证其`dp[u] = true`，只需证它的出邻域中存在一个节点`v`满足$\displaystyle\bigoplus_{i=1}^{n}a'[i] = 0$即可。这等价于我们可以从`a[1->n]`中挑出一堆石子$a[i]$，从中拿走至少一个石子，可以变为$a'[i] = a[i] \oplus k$，即$a[i] > a[i] \oplus k$。可以证明一定能选出这样的石堆`a[i]`——考虑`k`的二进制最高位`1`Bit的位置`d`，根据异或性质可以得到一定有一个`a[i]`的二进制的最高位`1`Bit的位置也是`d`，二者异或之后的结果$a[i]\oplus k$一定会变得更小。
 - 对于$\displaystyle\bigoplus_{i=1}^{n}a[i] = 0$的状态`dp[u]`，欲证其`dp[u] = false`，只需证它的出邻域中的所有节点`v`满足$\displaystyle\bigoplus_{i=1}^{n}a'[i] \ne 0$即可。这是显然的，因为对`a[i]`做任意改动，都会破坏它们异或和原先为`0`的优良性质。
 
 ```c++
