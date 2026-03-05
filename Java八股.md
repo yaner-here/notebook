@@ -496,6 +496,45 @@ class YanerThreadPool {
 }
 ```
 
+### 手写阻塞队列
+
+```c++
+class MyBlockingQueue<T> {
+    private final Queue<T> queue = new LinkedList<>();
+    private final int capacity;
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition notFull = lock.newCondition();
+    private final Condition notEmpty = lock.newCondition();
+
+    public MyBlockingQueue(int capacity) {
+        this.capacity = capacity;
+    }
+
+    public void put(T element) throws InterruptedException {
+        lock.lockInterruptibly(); // 提前加锁,防止多个put()产生竞态条件,同时put()超出容量
+        try {
+            while(queue.size() == capacity) { notFull.await(); }
+            queue.add(element);
+            notEmpty.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public T take() throws InterruptedException {
+        lock.lockInterruptibly(); // 提前加锁,防止多个take()产生静态条件,同时take()取空
+        try {
+            while(queue.size() == 0) { notEmpty.await(); }
+            T item = queue.poll();
+            notFull.signal();
+            return item;
+        } finally {
+            lock.unlock();
+        }
+    }
+}
+```
+
 # §4 JVM
 
 > OOM怎么办？
