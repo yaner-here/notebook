@@ -9,7 +9,7 @@
 
 ### 手写HashMap
 
-手写HashMap，只要求实现最基本的插入和查找操作。这里我们使用哈希映射到`Entries[]`数组+链表尾插法。
+手写HashMap，只要求实现最基本的插入和查找操作。这里我们使用哈希映射到`Entries[]`数组+链表尾插法（即**拉链法**）。
 
 ```java
 class CustomizedHashMap<K, V> {
