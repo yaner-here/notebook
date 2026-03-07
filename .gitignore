@@ -8,6 +8,7 @@ node_modules/**
 
 # Obsidian
 .obsidian/workspace.json
+.obsidian/workspace-mobile.json
 .obsidian/plugins/
 
 # Private
