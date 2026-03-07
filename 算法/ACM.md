@@ -24991,7 +24991,7 @@ int main() {
 }
 ```
 
-> [洛谷P3334](https://www.luogu.com.cn/problem/P3334)：给定一枚硬币，正面朝上（记为`H`）的概率为$p_1=\displaystyle\frac{a}{b}$，反面朝上（记为`T`）的概率为$p_0\displaystyle 1-\frac{a}{b}$，其中`1<=a, b<=100`。给定一个序列`char s[1->S<=1e3]`，求首次抛出该序列所需的硬币抛掷次数的期望值。
+> [洛谷P3334](https://www.luogu.com.cn/problem/P3334)：给定一枚硬币，正面朝上（记为`H`）的概率为$p_1=\displaystyle\frac{a}{b}$，反面朝上（记为`T`）的概率为$p_0=\displaystyle 1-\frac{a}{b}$，其中`1<=a, b<=100`。给定一个序列`char s[1->S<=1e3]`，求首次抛出该序列所需的硬币抛掷次数的期望值。
 
 令`dp[i]`表示首次抛出子序列`s[1->i]`所需的硬币抛掷次数的期望值，显然`dp[0] = 0`。考虑从`dp[i]`的转移来源：
 
