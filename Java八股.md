@@ -11,6 +11,14 @@
 
 # §2 Java集合
 
+### ThreadLocal为什么会导致内存泄漏？
+
+每个`Thread`内部维护一个`ThreadLocalMap`实例。`ThreadLocalMap`本质上是`Map<K=ThreadLocal, V=Object>`，内部维护一个`Entry[]`数组，`Entry`继承了`WeakReference<ThreadLocal>`并添加了`Object value`字段，弱引用`ThreadLocal`，强引用`Object value`。每次调用`ThreadLocal.get()/set()`时，程序会查找当前`Thread`对应的`ThreadLocalMap`实例，查找当前`ThreadLocal`对应的键值对`Entry`，然后返回值。
+
+只要线程未销毁，`Thread -> ThreadLocalMap --> Entry[] --> Entry --> V value`这条强引用链就一直存活，导致内存泄漏。所以必须在线程执行完每个任务后，手动调用`threadLocal.remove()`。
+
+`Entry`必须弱引用`ThreadLocal`。因为`ThreadLocalMap`在`get()/set()`时会顺便探测`Entry`的`K = ThreadLocal`是否仍然存在，如果不存在则顺便撤销对`V = Object`的强引用，供GC回收。
+
 ## §2.A 编程题
 
 ### 手写HashMap
@@ -82,6 +90,80 @@ class CustomizedHashMap<K, V> {
             }
             prevEntry = curEntry; curEntry = curEntry.next;
         }
+    }
+}
+```
+
+### 手写LRU
+
+`HashMap` + 模拟双向链表。
+
+```java
+class LRUCache {
+    static class LinkedNode {
+        int key, value;
+        LinkedNode prev, next;
+        public LinkedNode() { }
+        public LinkedNode(int key, int value) { this.key = key; this.value = value; }
+    }
+
+    private Map<Integer, LinkedNode> cache = new HashMap<Integer, LinkedNode>();
+    private int size = 0, capacity;
+    private LinkedNode head = new LinkedNode(), tail = new LinkedNode();
+
+    public LRUCache(int capacity) {
+        this.capacity = capacity;
+        head.next = tail; tail.prev = head;
+    }
+
+    private void pushHeadNode(LinkedNode node) {
+        node.prev = head; node.next = head.next;
+        head.next.prev = node; head.next = node;
+    }
+    private void removeNode(LinkedNode node) {
+        node.prev.next = node.next; node.next.prev = node.prev;
+    }
+
+    public int get(int key) {
+        LinkedNode node = cache.get(key);
+        if(node == null) { return -1; }
+        removeNode(node); pushHeadNode(node);
+        return node.value;
+    }
+
+    public void put(int key, int value) {
+        LinkedNode node = cache.get(key);
+        if(node == null) {
+            node = new LinkedNode(key, value);
+            cache.put(key, node); pushHeadNode(node); ++size;
+            while(size > capacity) { cache.remove(tail.prev.key); removeNode(tail.prev); --size; }
+        } else {
+            node.value = value;
+            removeNode(node); pushHeadNode(node);
+        }
+    }
+}
+```
+
+Java提供的`LinkedHashMap`直接覆盖了LRU的需求，但是面试大概率不让用。
+
+```java
+class LRUCache {
+    private LinkedHashMap<Integer, Integer> map;
+    
+    public LRUCache(int capacity) {
+        map = new LinkedHashMap<>(capacity, 0.75F, true) { // accessOrder = true, 否则为行为类似于队列
+            @Override protected boolean removeEldestEntry(Map.Entry<Integer, Integer> eldest) {
+                return size() > capacity;
+            }
+        };
+    }
+
+    public int get(int key) {
+        return map.getOrDefault(key, -1);
+    }
+    public void put(int key, int value) {
+        map.put(key, value);
     }
 }
 ```
