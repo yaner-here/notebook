@@ -12511,6 +12511,8 @@ int main() {
             dp[i] = dp[i - 1] + 2 + dp[i - dp[i - 1] - 2];
         } else if(s[i] == ']' && s[i - dp[i - 1] - 1] == '[') {
             dp[i] = dp[i - 1] + 2 + dp[i - dp[i - 1] - 2];
+        } else { // s[i]是右括号，但是找不到匹配的左括号，因此判定为非法
+	        dp[i] = 0;
         }
     }
     ans_index = std::max_element(dp + 1, dp + 1 + n) - dp;
