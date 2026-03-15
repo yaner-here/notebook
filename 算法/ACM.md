@@ -16793,6 +16793,50 @@ int main() {
 }
 ```
 
+> [洛谷P6121](https://www.luogu.com.cn/problem/P6121)：给定一个包含`n`个点与`m`条无向边构成的图。现在给定这`n`个点的删除顺序`d[1->n]`（保证每个点只会被删除一次），每删除一个点还会连带删除它涉及的边。求删除前`i:0->n-1`个点后，剩余的图是否仍然是弱连通图。
+
+不妨考虑逆向思维，问题转化为不断加点加边，判断是否为弱连通图。于是只需使用并查集维护当前图中的联通块个数`dsu_count`是否为`1`即可。每次加一个点先认为它是孤立的，联通块数量加`1`，然后遍历该点涉及的边，尝试合并边的两侧节点到同一个联通块，并让联通块数量减`1`。
+
+```c++
+const int N_MAX = 2e5, M_MAX = 2e5;
+int n, m, u_tmp, v_tmp, d[1 + N_MAX]; bool ans[1 + N_MAX];
+
+int edge_first[1 + N_MAX], edge_to[1 + M_MAX * 2], edge_next[1 + M_MAX * 2], edge_count; bool vertex_enable[1 + N_MAX];
+inline void edge_add(const int &u, const int &v) {
+    edge_next[++edge_count] = edge_first[u];
+    edge_first[u] = edge_count;
+    edge_to[edge_count] = v;
+}
+
+int dsu_father[1 + N_MAX], dsu_count = 0;
+inline void dsu_init(int n) { std::iota(dsu_father, dsu_father + 1 + n, 0); }
+inline int dsu_find(int x) { return dsu_father[x] == x ? x : dsu_father[x] = dsu_find(dsu_father[x]); }
+inline void dsu_unite(int child, int root) { child = dsu_find(child); root = dsu_find(root); if(child != root) { dsu_father[child] = root; } }
+
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= m; ++i) { std::cin >> u_tmp >> v_tmp; edge_add(u_tmp, v_tmp); edge_add(v_tmp, u_tmp); }
+    for(int i = 1; i <= n; ++i) { std::cin >> d[i]; }
+
+    dsu_init(n);
+    for(int i = n; i >= 1; --i) {
+        const int &u = d[i]; vertex_enable[u] = true; ++dsu_count;
+        for(int j = edge_first[u]; j != 0; j = edge_next[j]) {
+            const int &v = edge_to[j];
+            if(vertex_enable[v] == true) {
+                if(dsu_find(u) != dsu_find(v)) {
+                    dsu_unite(u, v);
+                    --dsu_count;
+                }
+            }
+        }
+        ans[i] = (dsu_count == 1);
+    }
+
+    for(int i = 1; i <= n; ++i) { std::cout << (ans[i] ? "YES" : "NO") << '\n'; }
+}
+```
+
 > [洛谷P3420](https://www.luogu.com.cn/problem/P3420)：给定一个有`n`个顶点、**`n`条有向边**的有向图。**每个顶点的入度和出度均为`1`**。求至少要选择多少顶点作为起点，才能保证任意顶点可达？
 
 本题其实是[洛谷P2746](https://www.luogu.com.cn/problem/P2746)/[洛谷P2812](https://www.luogu.com.cn/problem/P2812)的弱化版，直接对强连通分量缩点，输出入度为`0`的强连通分量个数即可，时间复杂度为$O(n+m)=O(2n)$。但是本题给定了众多优良的性质，我们可以用并查集解决，时间复杂度为$O(n)$。
