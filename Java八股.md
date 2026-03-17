@@ -1,10 +1,24 @@
 参考文献：
 
-| 来源       | 文章标题                                                                                                                                                                                                                                                                                                                                                   | 进度  |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- |
-| 小林Coding | 图解网络-应用层篇-HTTP/3强势来袭                                                                                                                                                                                                                                                                                                                                   | √   |
-| 小林Coding | 图解Redis-前言-图解Redis介绍<br>图解Redis-基础篇-什么是Redis<br>图解Redis-数据类型篇-Redis数据结构<br>图解Redis-数据类型篇-Redis常见数据类型和应用场景<br>图解Redis-持久化篇-AOF持久化是怎么实现的<br>图解Redis-持久化篇-RDB快照是怎么实现的<br>图解Redis-持久划篇-Redis大Key对持久化有什么影响<br>图解Redis-功能篇-Redis过期删除策略和内存淘汰策略有什么区别<br>图解Redis-功能篇-多节点争抢资源，Redis分布式锁是怎么实现的<br>图解Redis-高可用篇-如何保证Redis分布式所的高可用和高性能<br>图解Redis-缓存篇-数据库和缓存如何保证一致性 | √   |
-|          |                                                                                                                                                                                                                                                                                                                                                        |     |
+| 来源       | 文章标题                 | 进度  |
+| -------- | -------------------- | --- |
+| 小林Coding | 图解网络-应用层篇-HTTP/3强势来袭 | √   |
+| 小林Coding |                      | √   |
+|          |                      |     |
+- 小林Coding
+	1. 图解Redis - 前言 - 图解Redis介绍
+	2. 图解Redis - 基础篇 - 什么是Redis
+	3. 图解Redis - 数据类型篇 - Redis数据结构
+	4. 图解Redis - 数据类型篇 - Redis常见数据类型和应用场景
+	5. 图解Redis - 持久化篇 - AOF持久化是怎么实现的
+	6. 图解Redis - 持久化篇 - RDB快照是怎么实现的
+	7. 图解Redis - 持久划篇 - Redis大Key对持久化有什么影响
+	8. 图解Redis - 功能篇 - Redis过期删除策略和内存淘汰策略有什么区别
+	9. 图解Redis - 功能篇 - 多节点争抢资源，Redis分布式锁是怎么实现的
+	10. 图解Redis - 高可用篇 - 如何保证Redis分布式所的高可用和高性能
+	11. 图解Redis - 缓存篇 - 数据库和缓存如何保证一致性
+- Agent
+	- [BIlibili - OpenSpec新版本SDD落地实践分享（20261.X版）](https://www.bilibili.com/video/BV1KafcB4Ecn/)
 
 # §1 Java基础
 
@@ -1199,6 +1213,70 @@ ChatClient = ChatClient.builder(chatModel) // AI客户端
 | `ai_agent_task_schedule`  | 定时任务     | 由一个`ai_agent`定义                              | 智能体、任务名称、cron表达式、配置                        |
 | `ai_client_config`        | 配置图边     | 由源头与目标定义<br>`ai_chat_model`/`ai_chat_client` | 源头/目标的类型与ID、配置                             |
 | `ai_client_rag_order`     | RAG配置    |                                              |                                            |
+
+# §D Agent
+
+### 什么是SDD？
+
+规格驱动开发（Spec-Driven Development）。
+
+- `spec-kit`：严格注重流程，7步流程，思维模型线性向前，适合0-1项目，适合组织完善、流程严格的大型团队
+- `kiro`：强调速度与自动化，适合初创团队、适合快速迭代的项目，治理能力较弱。
+- OpenSpec：强调变更隔离、风险控制，适合1-n项目，轻快敏捷。
+
+### 什么是MCP？它与Function Calling有什么区别？
+
+MCP是由Anthropic提出的Tool Calling标准，工具提供商实现MCP Server，Agent通过统一的MCP Client与外部进行交互。MCP底层走的是JSON-RPC协议，可以通过STDIO或Socket进行通信。
+
+传统的Function Calling与项目的耦合度往往很高，协议也没有固定的标准。
+
+### 什么是Skills？它与Prompt的区别是什么？
+
+一份Skill包含
+
+### 什么是ReAct框架？
+
+ReAct是目前Agent最主流的执行模式，也就是循环做推理和执行（`Planner -> Executor -> Verifier`），直到`Verifier`判定任务结束或超出最大循环次数为止。
+
+ReAct的意思是`Reasoning + Action`，可以与外部环境和MCP工具交互，幻觉风险更低。而CoT只有`Reasoning`，没有执行这一步，只能依赖模型内部知识，幻觉风险更高。
+
+### 什么是OpenSpec？
+
+OpenSpec是一种用于管理Agent开发规范的命令行工具。它能生成市面上常见的Agent适配格式，例如Claude Code、Codex、OpenCode、Trae等等。
+
+OpenSpec规定了以下工件（Artifacts）：
+- `specs/.../spec.md`：包含若干需求(Requirement)，每个需求包含若干场景(Scenario)
+- `proposal.md`：是什么、为什么。
+- `design.md`：怎么做。
+- `tasks.md`：做的步骤。
+
+```shell
+workspace:
+├─.opencode
+│  ├─command
+│  │      opsx-apply.md
+│  │      opsx-archive.md
+│  │      opsx-explore.md
+│  │      opsx-propose.md
+│  └─skills
+│      ├─openspec-explore # 阅读代码、按需生成工件用于记录发散性想法
+│      │      SKILL.md
+│      ├─openspec-propose # 创建变更、强制生成工件用于细化开发规范
+│      │      SKILL.md
+│      ├─openspec-apply-change # 执行变更，编辑tasks.md来更新进度
+│      │      SKILL.md
+│      └─openspec-archive-change # 存档变更
+│             SKILL.md
+└─openspec
+    │  config.yaml
+    ├─changes # 存储所有变更的目录
+    │  └─archive
+    └─specs
+```
+
+### 如何保证Vide Coding的代码质量？
+
+
 
 # §D HR面
 
