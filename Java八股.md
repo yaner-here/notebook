@@ -18,6 +18,7 @@
 	10. 图解Redis - 高可用篇 - 如何保证Redis分布式所的高可用和高性能
 	11. 图解Redis - 缓存篇 - 数据库和缓存如何保证一致性
 - Agent
+	- [Bilibili - MCP与Function Calling到底什么关系，以及为什么我认为大部分人的观点都是错误的](https://www.bilibili.com/video/BV15YJTzkENC)
 	- [BIlibili - OpenSpec新版本SDD落地实践分享（20261.X版）](https://www.bilibili.com/video/BV1KafcB4Ecn/)
 
 # §1 Java基础
@@ -1218,21 +1219,55 @@ ChatClient = ChatClient.builder(chatModel) // AI客户端
 
 ### 什么是SDD？
 
-规格驱动开发（Spec-Driven Development）。
+规格驱动开发（Spec-Driven Development）：在编写代码之前，必须编写一份详细精确的规范。
 
-- `spec-kit`：严格注重流程，7步流程，思维模型线性向前，适合0-1项目，适合组织完善、流程严格的大型团队
-- `kiro`：强调速度与自动化，适合初创团队、适合快速迭代的项目，治理能力较弱。
-- OpenSpec：强调变更隔离、风险控制，适合1-n项目，轻快敏捷。
+- Spec Kit：注重严格流程。步骤有：确立原则`constitution`、创建需求`specify`、创建方案`plan`、创建任务`tasks`、执行更改`implement`。
+- `kiro`：注重快速迭代。步骤有：需求分析`requirements`、创建方案`design`、创建任务与执行`tasks`。
+- OpenSpec：注重变更隔离。步骤有：头脑风暴`explore`、创建工件`proposal`、执行更改`apply-change`、存档更改`archive-change`、
 
 ### 什么是MCP？它与Function Calling有什么区别？
 
+```mermaid
+sequenceDiagram
+    actor user as 用户
+    participant tool as 网络搜索
+    participant gateway as OpenAI网关
+    participant model as 模型
+
+    user ->> gateway: 今天适合出门吗?
+        rect rgb(230, 245, 255)
+            Note over gateway, model: Function Calling
+            gateway ->> model: 今天适合出门吗?<br/>可用工具: 网络搜索
+            model ->> gateway: 调用网络搜索
+        end
+        rect rgb(255, 235, 235)
+            Note over tool, gateway: MCP
+            gateway ->> tool: 调用网络搜索
+            tool ->> gateway: 网络搜索返回: 今天是晴天
+        end
+        rect rgb(230, 245, 255)
+            Note over gateway, model: Function Calling 阶段
+            gateway ->> model: 网络搜索返回: 今天是晴天
+            model ->> gateway: 今天可以出门
+        end
+    gateway ->> user: 今天可以出门
+```
+
 MCP是由Anthropic提出的Tool Calling标准，工具提供商实现MCP Server，Agent通过统一的MCP Client与外部进行交互。MCP底层走的是JSON-RPC协议，可以通过STDIO或Socket进行通信。
 
-传统的Function Calling与项目的耦合度往往很高，协议也没有固定的标准。
+MCP与Function Calling的区别：
+1. 当用户向网关发送请求时，网关先会把工具列表传给LLM，LLM按照特定的格式返回调用工具的参数，这一过程称为Function Calling；网关会把调用工具的参数发送到工具，工具按照特定的格式返回调用结果，这一过程称为MCP。两者是互相配合的关系，不存在一者替代另一者的说法。
+2. Function Calling必须一开始就加载所有工具列表，而MCP可以热更新。
+`[TODO]`
 
 ### 什么是Skills？它与Prompt的区别是什么？
 
-一份Skill包含
+传统的Prompt工程由于要覆盖所有边界情况，往往会造成上下文腐败的问题。Skill把Prompt与外部数据源封装成一个文件夹，为LLM提供了一套可以按需加载的SOP。既能在处理简单任务时控制上下文长度，又能在处理复杂任务时瞬时加载庞大的Prompt。
+
+SKill分为三层：元数据层、指令层、资源层。
+- 元数据层（Metadata）：`SKILL.md`的元数据，包括名称、描述、版本号。这一部分占用的Token很少（`<1%`）。LLM会先加载所有Skill的元数据。
+- 指令层（Instruction）：`SKILL.md`的正文部分。这一部分占用的Token很少（`<10%`）。LLM会按需加载指令，这种技术也叫做渐进式披露。
+- 资源层（Resource）：提供大量领域知识的Reference、查询外部数据源的Script。这一部分占用的Token很多。LLM对于Resource的内容用的是“用完即弃”的策略。
 
 ### 什么是ReAct框架？
 
