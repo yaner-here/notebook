@@ -1219,7 +1219,7 @@ ChatClient = ChatClient.builder(chatModel) // AI客户端
 
 ### 什么是SDD？
 
-规格驱动开发（Spec-Driven Development）：在编写代码之前，必须编写一份详细精确的规范。
+规范驱动开发（Spec-Driven Development）：在编写代码之前，必须编写一份详细精确的规范。
 
 - Spec Kit：注重严格流程。步骤有：确立原则`constitution`、创建需求`specify`、创建方案`plan`、创建任务`tasks`、执行更改`implement`。
 - `kiro`：注重快速迭代。步骤有：需求分析`requirements`、创建方案`design`、创建任务与执行`tasks`。
@@ -1309,9 +1309,15 @@ workspace:
     └─specs
 ```
 
+### Prompt/Context/Agentic Engineering的区别是什么？
+
+- Prompt工程在单次交互内引入了文本指令模版，用于角色设定和Zero/Few-Shot Learning，缺点是每次交互之间互相独立，无法维护随时间演变的任务状态，容易发生上下文腐败。
+- Context工程在长期交互内引入了RAG、Memory、MCP、上下文压缩，用于让模型与外部交互与控制上下文长度。
+- Agentic工程引入了一个或多个Agent，将它们编排成循环、树状、层级的结构，例如现在主流的ReAct模式与SDD。
+
 ### 如何保证Vide Coding的代码质量？
 
-
+`[TODO]`
 
 # §D HR面
 
