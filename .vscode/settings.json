@@ -3,5 +3,7 @@
         "iostream": "cpp",
         "xutility": "cpp",
         "algorithm": "cpp"
-    }
+    },
+    "markdown.editor.updateLinksOnPaste.enabled": false,
+    "editor.pasteAs.enabled": false
 }

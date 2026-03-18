@@ -3787,6 +3787,47 @@ int main() {
 }
 ```
 
+> [洛谷P2267](https://www.luogu.com.cn/problem/P2267)：给定一个数组`a[1->n<=5e5]<=1e9`，取其所有非空子序列放入集合中去重，求集合的大小，模`MOD`输出。
+
+令`dp[i]`表示`a[1->i]`的子序列（**可以为空子序列**）的种类数量。考虑从`dp[i-1]`向`dp[i]`的转移过程：
+- 如果`a[i]`从未在`a[1->i-1]`出现过，则可以将`dp[i-1]`所有的子序列后面都可以追加或不追加一个`a[i]`，即`dp[i] = 2 * dp[i-1]`；
+- 如果`a[i]`最近一次在`a[1->i-1]`的`a[a_last[a[i]]]`处出现过，那么`dp[i-1]`对应的子序列可以分为两类：
+	- 一类是不以`a[a_last[a[i]]]`为结尾的，那么可以放心地`×2`。
+	- 一类是以`a[a_last[a[i]]]`为结尾的，那么这群子序列既可以以前者为结尾，也可以以`a[i]`为结尾，那么只能`×1`，这等价于`×2`后减去`dp[a_last[i] - 1]`。
+
+因此我们有状态转移方程：
+
+$$
+\mathrm{dp}[i] = 2 \times \mathrm{dp}[i-1] - \mathrm{dp}[\mathrm{a\_last}[i]-1]
+$$
+
+初始状态`dp[0] = 1`表示空序列。特殊地，我们令`dp[-1] = 0`。输出时要减去空序列的特殊情况。
+
+```c++
+const int N_MAX = 5e5; int64_t MOD;
+int n, a[1 + N_MAX], a_cnt, a_last[1 + N_MAX], a_last_cur[1 + N_MAX]; int64_t dp[1 + N_MAX]; std::set<int> a_set; std::unordered_map<int, int> a_map;
+int main() {
+    std::cin >> n >> MOD;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+
+    for(int i = 1; i <= n; ++i) { a_set.insert(a[i]); }
+    for(const int &v : a_set) { a_map[v] = ++a_cnt; }
+    for(int i = 1; i <= n; ++i) { a[i] = a_map[a[i]]; }
+    for(int i = 1; i <= n; ++i) { a_last[i] = a_last_cur[a[i]]; a_last_cur[a[i]] = i; }
+    
+    dp[0] = 1;
+    for(int i = 1; i <= n; ++i) { 
+        if(a_last[i] == 0) {
+            dp[i] = 2 * dp[i - 1];
+        } else {
+            dp[i] = 2 * dp[i - 1] - dp[a_last[i] - 1];
+        }
+        dp[i] = mod(dp[i], MOD);
+    }
+    std::cout << mod(dp[n] - 1, MOD);
+}
+```
+
 ## §2.3 棋盘DP
 
 ### §2.3.1 棋盘路径DP
@@ -14152,6 +14193,94 @@ int main() {
 
 不妨对`i`按`m->1`进行降序遍历，如果第`i+1`条边原先在最小生成树中，且在当前回合中被删除，才需要重跑一次最小生成树。
 
+> [洛谷P2266](https://www.luogu.com.cn/problem/P2266)：给定`n×m`的棋盘，每个方格具有高度`int a[1->n<=600][1->m<=600]`。给定一个起点`(x, y)`，从其出发向上下左右四个方向进行游走（不能走出棋盘外），直到至少经过了`t<=n×m`个方格为止，并定义游走过程中跨越的高度差绝对值的最大值为该起点的代价。现通过`bool b[1->n][1->m]`给定若干个起点，求这些起点代价之和的最小值。
+
+使用Kruskal算法。为每个格子的上下左右方向创建一条带权无向边，其中权值定义为边的两个顶点的高度差绝对值，贪心地从边权较小的边开始对顶点使用并查集做合并，并查集的每个联通块维护当前块内的元素数量`dsu_size`与起点数量`dsu_source_count`。
+
+容易发现，随着贪心加边，如果两个联通块合并的时候，发现存在一个联通块，在合并之前的`dsu_size < t`，在合并之后的`dsu_size > t`，则我们就找到了该联通块内共计`dsu_source_count`个起点共同的高度差最大值，记为它们的代价，累加到答案即可。
+
+```c++
+const int N_MAX = 600, M_MAX = 600;
+int n, m, t, a[1 + N_MAX][1 + M_MAX]; bool b[1 + N_MAX][1 + M_MAX]; int64_t ans;
+struct Edge { int u, v; int64_t w; }; std::priority_queue<Edge, std::vector<Edge>, std::function<bool(const Edge&, const Edge&)>> edge_queue([](const Edge &child, const Edge &root){ return child.w > root.w; });
+
+int dsu_father[1 + N_MAX * M_MAX], dsu_size[1 + N_MAX * M_MAX], dsu_source_count[1 + N_MAX * M_MAX];
+inline void dsu_init(int n) { std::iota(dsu_father, dsu_father + 1 + n, 0); std::fill(dsu_size, dsu_size + 1 + n, 1); }
+inline int dsu_find(int x) { return dsu_father[x] == x ? x : dsu_father[x] = dsu_find(dsu_father[x]); }
+inline void dsu_unite(int child, int root) { child = dsu_find(child); root = dsu_find(root); if(child != root) { dsu_father[child] = root; dsu_size[root] += dsu_size[child]; dsu_source_count[root] += dsu_source_count[child]; } }
+
+int main() {
+    std::cin >> n >> m >> t;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> a[i][j]; } }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> b[i][j]; } }
+
+    std::function<int(int, int)> get_index = [](int i, int j){ return (i - 1) * m + j; };
+    dsu_init(n * m); for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { dsu_source_count[get_index(i, j)] = b[i][j]; } }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            if(j < m) { edge_queue.emplace(get_index(i, j), get_index(i, j + 1), std::abs(a[i][j + 1] - a[i][j])); }
+            if(i < n) { edge_queue.emplace(get_index(i, j), get_index(i + 1, j), std::abs(a[i + 1][j] - a[i][j])); }
+        }
+    }
+
+    while(!edge_queue.empty()) {
+        auto [u, v, w] = edge_queue.top(); edge_queue.pop();
+        if(dsu_find(u) != dsu_find(v)) {
+            if(dsu_size[dsu_find(u)] + dsu_size[dsu_find(v)] >= t) {
+                if(dsu_size[dsu_find(u)] < t) { ans += w * dsu_source_count[dsu_find(u)]; }
+                if(dsu_size[dsu_find(v)] < t) { ans += w * dsu_source_count[dsu_find(v)]; }
+            }
+            dsu_unite(u, v);
+        }
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P2266](https://www.luogu.com.cn/problem/P2266)：给定`n×m`的棋盘，每个方格具有高度`int a[1->n<=600][1->m<=600]`。给定一个起点`(x, y)`，从其出发向上下左右四个方向进行游走（不能走出棋盘外），直到至少经过了`t<=n×m`个方格为止，并定义游走过程中跨越的高度差绝对值的最大值为该起点的代价。现通过`bool b[1->n][1->m]`给定若干个起点，求这些起点代价之和的最小值。
+
+使用Kruskal算法。为每个格子的上下左右方向创建一条带权无向边，其中权值定义为边的两个顶点的高度差绝对值，贪心地从边权较小的边开始对顶点使用并查集做合并，并查集的每个联通块维护当前块内的元素数量`dsu_size`与起点数量`dsu_source_count`。
+
+容易发现，随着贪心加边，如果两个联通块合并的时候，发现存在一个联通块，在合并之前的`dsu_size < t`，在合并之后的`dsu_size > t`，则我们就找到了该联通块内共计`dsu_source_count`个起点共同的高度差最大值，记为它们的代价，累加到答案即可。
+
+```c++
+const int N_MAX = 600, M_MAX = 600;
+int n, m, t, a[1 + N_MAX][1 + M_MAX]; bool b[1 + N_MAX][1 + M_MAX]; int64_t ans;
+struct Edge { int u, v; int64_t w; }; std::priority_queue<Edge, std::vector<Edge>, std::function<bool(const Edge&, const Edge&)>> edge_queue([](const Edge &child, const Edge &root){ return child.w > root.w; });
+
+int dsu_father[1 + N_MAX * M_MAX], dsu_size[1 + N_MAX * M_MAX], dsu_source_count[1 + N_MAX * M_MAX];
+inline void dsu_init(int n) { std::iota(dsu_father, dsu_father + 1 + n, 0); std::fill(dsu_size, dsu_size + 1 + n, 1); }
+inline int dsu_find(int x) { return dsu_father[x] == x ? x : dsu_father[x] = dsu_find(dsu_father[x]); }
+inline void dsu_unite(int child, int root) { child = dsu_find(child); root = dsu_find(root); if(child != root) { dsu_father[child] = root; dsu_size[root] += dsu_size[child]; dsu_source_count[root] += dsu_source_count[child]; } }
+
+int main() {
+    std::cin >> n >> m >> t;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> a[i][j]; } }
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> b[i][j]; } }
+
+    std::function<int(int, int)> get_index = [](int i, int j){ return (i - 1) * m + j; };
+    dsu_init(n * m); for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { dsu_source_count[get_index(i, j)] = b[i][j]; } }
+    for(int i = 1; i <= n; ++i) {
+        for(int j = 1; j <= m; ++j) {
+            if(j < m) { edge_queue.emplace(get_index(i, j), get_index(i, j + 1), std::abs(a[i][j + 1] - a[i][j])); }
+            if(i < n) { edge_queue.emplace(get_index(i, j), get_index(i + 1, j), std::abs(a[i + 1][j] - a[i][j])); }
+        }
+    }
+
+    while(!edge_queue.empty()) {
+        auto [u, v, w] = edge_queue.top(); edge_queue.pop();
+        if(dsu_find(u) != dsu_find(v)) {
+            if(dsu_size[dsu_find(u)] + dsu_size[dsu_find(v)] >= t) {
+                if(dsu_size[dsu_find(u)] < t) { ans += w * dsu_source_count[dsu_find(u)]; }
+                if(dsu_size[dsu_find(v)] < t) { ans += w * dsu_source_count[dsu_find(v)]; }
+            }
+            dsu_unite(u, v);
+        }
+    }
+    std::cout << ans;
+}
+```
+
 ### §6.3.2 Prim算法
 
 Prim算法使用贪心思想，**每次添加邻边权值最小的相邻顶点**，使用`visited[]`防止成环。
@@ -17415,6 +17544,91 @@ int main() {
 > [洛谷P2127](https://www.luogu.com.cn/problem/P2127)：给定元素不重复的序列`int a[1->n]`，每次可以交换序列中的任意两个数，交换的代价为这两个数之和。求排成升序所需的代价最小值。
 
 首先给`a[]`离散化到值域`[1, n]`中作为序号，问题转化为`1~n`号元素在`1~n`空间内的排序问题。令$f(i)=a[i]$，$f^{(l_i)}(i)=i$一定能形成环，其中环的长度为$l_i$。于是想到并查集，将同在一个环内的元素放到一个集合中。
+
+TODO：？？？
+
+> [洛谷P1621](https://www.luogu.com.cn/problem/P1621)：给定正整数集合`S = [1<=a, b<=1e5]`，若其中两个数含有`>=p`的公共质因数，则认为两者属于同一个类别。请输出`S`中有多少个类别。
+
+本题可等价地表述为：给定一个`>=p`的质数`q`，则$\{kq|k\in \mathbb{Z} \wedge kq\in[a,b]\}$属于同一个类别。于是使用素数筛得到$q\in[p, b]$之内的所有整数，依次使用并查集合并即可。初始时每个数字都是一个单独的类别，类别数为`b - a + 1`，每次并查集合并时只需让类别数减`1`即可。
+
+```c++
+int64_t frac_ceil(int64_t a, int64_t b) { if(b < 0) { return frac_ceil(-a, -b); } return a >= 0 ? (a + b - 1) / b : a / b; }
+
+const int N_MAX = 1e5;
+int a, b, p; bool is_prime[1 + N_MAX]; std::vector<int> prime;
+
+int dsu_father[1 + N_MAX], ans;
+inline void dsu_init(int n) { std::iota(dsu_father, dsu_father + 1 + n, 0); }
+inline int dsu_find(int x) { return dsu_father[x] == x ? x : dsu_father[x] = dsu_find(dsu_father[x]); }
+inline void dsu_unite(int child, int root) { child = dsu_find(child); root = dsu_find(root); if(child != root) { dsu_father[child] = root; } }
+
+int main() {
+    std::cin >> a >> b >> p;
+    
+    std::fill(is_prime, is_prime + 1 + b, true);
+    is_prime[1] = false;
+    for(int i = 2; i <= b; ++i) {
+        if(is_prime[i] == true) {
+            prime.push_back(i); 
+        }
+        for(int j : prime) {
+            if(i * j > b) { break; } is_prime[i * j] = false;
+            if(i % j == 0) { break; }
+        }
+    }
+
+    dsu_init(b); ans = b - a + 1;
+    for(auto it = std::ranges::lower_bound(prime, p); it != prime.end(); ++it) {
+        int &i = *it;
+        for(int j = frac_ceil(a, i) * i, k = j + i; k <= b; k += i) { 
+            if(dsu_find(j) != dsu_find(k)) {
+                dsu_unite(j, k); --ans; 
+            }
+        }
+    }
+    std::cout << ans;
+}
+```
+
+> [洛谷P2307](https://www.luogu.com.cn/problem/P2307)：给定`q`组查询，每个查询提供一个无向图，无向图由若干$(u, v)\in\mathbb{Z}^+$唯一指定，请问它是否是一颗树。
+
+由于`u, v`范围很大，所以需要预先对点的编号做离散化。判断图为树的充要条件是：点的数量`n`与边的数量`m`满足`m == n - 1`，且整个图只有一个联通块。容易想到使用并查集来维护联通块数量。
+
+```c++
+const int N_MAX = 1e6, M_MAX = 1e6;
+int n, m, u_tmp, v_tmp, edge[1 + M_MAX][2]; 
+std::set<int> n_set; std::unordered_map<int, int> n_map;
+
+int dsu_father[1 + N_MAX], dsu_count;
+inline void dsu_init(int n) { std::iota(dsu_father, dsu_father + 1 + n, 0); }
+inline int dsu_find(int x) { return dsu_father[x] == x ? x : dsu_father[x] = dsu_find(dsu_father[x]); }
+inline void dsu_unite(int child, int root) { child = dsu_find(child); root = dsu_find(root); if(child != root) { dsu_father[child] = root; } }
+
+int main() {
+    while(true) {
+        n = m = 0; n_set.clear(); n_map.clear();
+
+        while(true) {
+            std::cin >> u_tmp >> v_tmp; if(u_tmp == 0 && v_tmp == 0) { break; } if(u_tmp == -1 && v_tmp == -1) { return 0; }
+            ++m; edge[m][0] = u_tmp; edge[m][1] = v_tmp; 
+        }
+        
+        for(int i = 1; i <= m; ++i) { n_set.insert(edge[i][0]); n_set.insert(edge[i][1]); }
+        for(int u_tmp : n_set) { n_map[u_tmp] = ++n; }
+        for(int i = 1; i <= m; ++i) { edge[i][0] = n_map[edge[i][0]]; edge[i][1] = n_map[edge[i][1]]; }
+
+        dsu_init(n); dsu_count = n;
+        for(int i = 1; i <= m; ++i) {
+            int &u = edge[i][0], &v = edge[i][1];
+            if(dsu_find(u) != dsu_find(v)) {
+                dsu_unite(u, v); --dsu_count;
+            }
+        }
+
+        std::cout << (m == n - 1 && dsu_count == 1 ? 1 : 0) << '\n';
+    }
+}
+```
 
 ## §7.2 队列/单调队列
 
@@ -29750,6 +29964,304 @@ int main() {
     std::cout << num_stack.top();
 }
 ```
+
+# §12 LeetCode
+
+## §12.1 链表
+
+### §12.1.1 反转链表
+
+> [力扣206](https://leetcode.cn/problems/reverse-linked-list/)：反转链表。给定链表的头结点`ListNode head`，反转链表。
+
+```java
+class Solution {
+    public ListNode reverseList(ListNode head) {
+        ListNode prev = null, cur = head;
+        while(cur != null) {
+            ListNode next = cur.next;
+            cur.next = prev;
+            prev = cur;
+            cur = next;
+        }
+        return prev;
+    }
+}
+```
+
+> [力扣92](https://leetcode.cn/problems/reverse-linked-list-ii/)：翻转链表2。给定链表的头结点`ListNode head`，以`1-based`标注序号，翻转`[left, right]`区间内的链表。
+
+```c++
+class Solution {
+    public ListNode reverseBetween(ListNode head, int left, int right) {
+        ListNode dummy = new ListNode(0, head), head_prev = dummy;
+        for(int i = 1; i <= left - 1; ++i) { head_prev = head_prev.next; }
+        head = head_prev.next;
+        // head_prev = [left-1]; head = [left];
+
+        ListNode prev = null, cur = head;
+        for(int i = 1; i <= right - left + 1; ++i) {
+            ListNode next = cur.next;
+            cur.next = prev;
+            prev = cur;
+            cur = next;
+        }
+
+        head_prev.next = prev; // 让[right]在前,接到前面的链表
+        head.next = cur; // 让[left]在后,接入后面的链表
+        return dummy.next;
+    }
+}
+```
+
+> [力扣25](https://leetcode.cn/problems/reverse-nodes-in-k-group/)：K个一组翻转链表。给定链表的头结点`ListNode head`，以`k`个连续的节点为一组进行翻转链表，若末尾不足`k`个则不用翻转。
+
+```c++
+left = 2, right = 4
+
+1 -> 2 -> 3 -> 4 -> 5
+
+1 -> 2 <- 3 <- 4    5
+     └> null
+     
+┏------->------┓
+1    2 <- 3 <- 4    5
+     └------->------┘
+```
+
+```c++
+class Solution {
+    public ListNode reverseKGroup(ListNode head, int k) {
+        ListNode dummy = new ListNode(0, head), head_prev = dummy;
+        int n = 0; for(ListNode cur = head; cur != null; cur = cur.next) { ++n; }
+
+        ListNode prev = null, cur = head;
+        for(int i = 0; i + k <= n; i += k) {
+            for(int j = 1; j <= k; ++j) {
+                ListNode next = cur.next;
+                cur.next = prev;
+                prev = cur; cur = next;
+            }
+            head_prev.next = prev; head.next = cur;
+            head_prev = head; head = cur;
+        }
+
+        return dummy.next;
+    }
+}
+```
+
+### §12.1.2 查找/删除链表
+
+> [力扣876](https://leetcode.cn/problems/middle-of-the-linked-list/)：链表的中间结点。给定链表的头结点`ListNode head`，返回其中间节点，若有两个中间节点则返回**靠后**的那个。
+
+返回**靠后**的中间节点：
+
+```c++
+class Solution {
+    public ListNode middleNode(ListNode head) {
+        ListNode slow = head, fast = head; // 快慢指针起点均为head
+        while(fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+        }
+        return slow;
+    }
+}
+```
+
+返回**靠前**的中间节点：
+
+```c++
+class Solution {
+    public ListNode middleNode(ListNode head) {
+        ListNode slow = head, fast = head.next; // 慢指针起点为head,快指针起点更进一步
+        while(fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+        }
+        return slow;
+    }
+}
+```
+
+> [力扣19](https://leetcode.cn/problems/remove-nth-node-from-end-of-list/)：删除链表的倒数第N个结点。给定链表的头结点`ListNode head`，删除其倒数第`n`个节点。
+
+使用快慢指针，快指针比满指针提前`n+1`步。当快指针到末尾`null`时，慢指针即为所求的倒数第`n`个节点的**前一个节点**，基于此执行删除操作即可。
+
+```java
+class Solution {
+    public ListNode removeNthFromEnd(ListNode head, int n) {
+        ListNode dummy = new ListNode(0, head), slow = dummy, fast = dummy;
+        for(int i = 1 ; i <= n + 1; ++i) { fast = fast.next; }
+
+        while(fast != null) {
+            slow = slow.next;
+            fast = fast.next;
+        }
+        slow.next = slow.next.next;
+        return dummy.next;
+    }
+}
+```
+
+### §12.1.3 重排链表
+
+> [力扣21](https://leetcode.cn/problems/merge-two-sorted-lists/)：合并两个有序链表。给定两个升序链表，合并成一个新的升序链表并返回。
+
+```c++
+class Solution {
+    public ListNode mergeTwoLists(ListNode list1, ListNode list2) {
+        ListNode dummy = new ListNode(0), prev = dummy;
+        while(list1 != null && list2 != null) {
+            if(list1.val <= list2.val) {
+                prev.next = list1;
+                list1 = list1.next;
+            } else {
+                prev.next = list2;
+                list2 = list2.next;
+            }
+            prev = prev.next;
+        }
+        prev.next = (list1 != null ? list1 : list2); // 最后至少有一个链表非空,直接接入到末尾即可
+        return dummy.next;
+    }
+}
+```
+
+> [力扣143](https://leetcode.cn/problems/reorder-list/)：重排链表。给定链表`1->2->3->...->n`，请重新排列成`1->n->2->n-1->...`。
+
+本题分三步：
+1. 找到**靠左**的中间节点`mid`，将链表拆分为`1->2->...->n/2`与`n/2+1->...->n`两部分。
+2. 翻转后面的链表`mid.next`，变成`n->...->n/2+1`。
+3. 断开前面链表的末尾`mid.next = null`，此时前后两个链表彻底无关。
+4. 合并前后两个链表，得到`1->n->2->n-1->...`。
+
+```c++
+class Solution {
+    private ListNode middleNode(ListNode head) {
+        ListNode slow = head, fast = head.next;
+        while(fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+        }
+        return slow;
+    }
+
+    private ListNode reverseList(ListNode head) {
+        ListNode prev = null, cur = head;
+        while(cur != null) {
+            ListNode next = cur.next;
+            cur.next = prev;
+            prev = cur;
+            cur = next;
+        }
+        return prev;
+    }
+
+    private void mergeList(ListNode head_1, ListNode head_2) { // 保证两个链表长度之差<=1
+        while(head_1 != null && head_2 != null) {
+            ListNode next_1 = head_1.next, next_2 = head_2.next;
+            head_1.next = head_2; head_2.next = next_1; // [1]->[n]->[2]
+            head_1 = next_1; head_2 = next_2;
+        }
+    }
+
+    public void reorderList(ListNode head) {
+        ListNode mid = middleNode(head);
+        ListNode head_2 = revers+eList(mid.next);
+        mid.next = null;
+        mergeList(head, head_2);
+    }
+}
+```
+
+## §12.2 模拟
+
+> [力扣54](https://leetcode.cn/problems/spiral-matrix/)：螺旋矩阵。给定`m×n`的二维数组，按顺时针螺旋顺序输出。
+
+```c++
+class Solution {
+    public List<Integer> spiralOrder(int[][] matrix) {
+        int m = matrix.length, n = matrix[0].length;
+        int left = 0, right = n - 1, top = 0, bottom = m - 1;
+        
+        List<Integer> ans = new ArrayList<>();
+        while(true) {
+            for(int i = left; i <= right; ++i) { ans.add(matrix[top][i]); } if(++top > bottom) { break; }
+            for(int i = top; i <= bottom; ++i) { ans.add(matrix[i][right]); } if(--right < left) { break; }
+            for(int i = right; i >= left; --i) { ans.add(matrix[bottom][i]); } if(--bottom < top) { break; }
+            for(int i = bottom; i >= top; --i) { ans.add(matrix[i][left]); } if(++left > right) { break; }
+        }
+        return ans;
+    }
+}
+```
+
+## §12.3 随机
+
+> [力扣470](https://leetcode.cn/problems/implement-rand10-using-rand7/)：给定一个返回`[1, 7]`内随机正整数的函数`rand7()`，请据此写一个返回`[1, 10]`内随机正整数的函数`rand10()`。
+
+```java
+class Solution extends SolBase {
+    public int rand10() {
+        int ans;
+        while(true) {
+            ans = (rand7() - 1) * 7 + rand7(); // ans = ([1, 7] - 1) * 7 + [1, 7] ∈ [1, 49]
+            if(ans <= 40) { return ans % 10 + 1; } // 处理ans∈[1, 40]的分支
+            ans = (ans - 41) * 7 + rand7(); // ans = ([41, 49] - 41) * 7 + [1, 7] ∈ [1, 63]
+            if(ans <= 60) { return ans % 10 + 1; } // 处理ans∈[1, 60]的分支
+            ans = (ans - 61) * 7 + rand7(); // ans = ([61, 63] - 61) * 7 + [1, 7] ∈ [1, 21]
+            if(ans <= 20) { return ans % 10 + 1; } // 处理ans∈[1, 20]的分支
+            // ans为21,仍然无法映射,只能再来一轮
+        }
+    }
+}
+```
+
+## §12.4 树
+
+> [力扣958](https://leetcode.cn/problems/check-completeness-of-a-binary-tree/)：二叉树的完全性检验。给定一颗二叉树的头节点`TreeNode root`，判定其是否为完全二叉树。
+
+```java
+class Solution {
+    public boolean isCompleteTree(TreeNode root) {
+        Deque<TreeNode> deque = new LinkedList<>();
+        boolean hasEmpty = false;
+        
+        deque.offerLast(root);
+        while(!deque.isEmpty()) {
+            TreeNode cur = deque.pollFirst();
+            if(cur == null) { hasEmpty = true; }
+            if(cur != null && hasEmpty == true) { return false; } // 本来从现在起理应全为空节点,但凡出现非空节点则可判false
+            if(cur != null && hasEmpty == false) {
+                deque.offerLast(cur.left);
+                deque.offerLast(cur.right);
+            }
+        }
+        return true;
+    }
+}
+```
+
+## §12.5 位运算
+
+> [力扣面试题17.01](https://leetcode.cn/problems/add-without-plus-lcci/)：不用加号的加法。
+
+注意到`a + b`可以拆分为无进位加法`a ^ b`加上进位结果`(a & b) << 1`，于是可得递推公式$\mathrm{add}(a, b) = a\oplus b + (a \& b) << 1 = \mathrm{add}(a\oplus b, (a \& b) << 1)$。重复调用即可。
+
+```java
+class Solution {
+    public int add(int a, int b) {
+        while(b != 0) {
+	        int carry = (a & b) << 1;
+	        a ^= b;
+	        b = carry;
+        }
+        return a;
+    }
+}
+```
+
 # §A 技巧与警钟长鸣
 
 ## §A.1 Segment Fault
