@@ -8755,7 +8755,7 @@ int main(){
 
 有了以上规则，我们已经能括号嵌套的情形，例如`((x)x)x`。
 
-- 如果`*c == '|'`，则说明后面的部分可以单独成一个平行层级，后面的部分计算完毕后，与前面的部分取`max`就可以直接`return std::max(len_max, regex_dfs())`了。**这里千万不能`len_max = std::max(len_max, regex_dfs())`。以输入`(x|)`为例，导致`|`被返回的是`)`，它被用与回溯`|`后，就没有与`(`配对的右括号了，从而导致越界**。
+- 如果`*c == '|'`，则说明后面的部分可以单独成一个平行层级，后面的部分计算完毕后，与前面的部分取`max`就可以直接`return std::max(len_max, regex_dfs())`了。**这里千万不能`len_max = std::max(len_max, regex_dfs())`，而是必须要提前`return`。以输入`(x|)`为例，导致`|`被返回的是`)`，它被用与回溯`|`后，就没有与`(`配对的右括号了，从而导致越界**。
 
 有了以上规则，我们就完成了本题。例如`x|xx|xxx`就会被等价地处理为`max(x, max(xx, xxx))`。
 
@@ -8856,7 +8856,7 @@ int main() {
             const std::function<void(const int &, const int &)> queue_push_check = [&q](const int &x, const int &y) {
                 int x_mod = mod(x, n), y_mod = mod(y, m);
                 if(map[x_mod][y_mod] == false || (vis[x_mod][y_mod][0] == 1 && x == vis[x_mod][y_mod][1] && y == vis[x_mod][y_mod][2])) { return; }
-                if(vis[x_mod][y_mod][0] == 0) { vis[x_mod][y_mod][0] = 1; vis[x_mod][y_mod][1] = x; vis[x_mod][y_mod][2] = y; } // 提前打vis标记，以供后续queue_push_check()剪枝，否则超吃
+                if(vis[x_mod][y_mod][0] == 0) { vis[x_mod][y_mod][0] = 1; vis[x_mod][y_mod][1] = x; vis[x_mod][y_mod][2] = y; } // 提前打vis标记，以供后续queue_push_check()剪枝，否则超时
                 q.emplace(x, y);
             };
             queue_push_check(p.x + 1, p.y);
