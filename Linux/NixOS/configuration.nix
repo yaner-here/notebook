@@ -259,6 +259,7 @@
     gpustat = "gpustat -cupF -P limit --watch 1";
     sqlite3 = "litecli --auto-vertical-output --table";
     wget = "wget -c";
+    cloc = "cloc --by-file-by-lang --no-autogen --follow-links --exclude-dir=\".git,node_modules,docs,dist,build,.vscode,.github,.claude\" --exclude-ext=\"lock\" --not-match-f=\"package-lock.json\" ./";
     nixbuild = "sudo nixos-rebuild switch --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
     nixbuild-flake = "sudo nix-channel --update && sudo nix flake update --flake /etc/nixos && sudo nixos-rebuild switch --flake /etc/nixos --option substituters 'https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store'";
   };
@@ -492,14 +493,22 @@
 
     cmd-wrapped
     
+    # File Manager
     yazi
     
+    # Code line statistics
+    cloc
+
+    # Download
     curl
     wget
     
+    # Resource Monitor
     btop
     htop
     gpustat
+
+
     mission-center 
     nvtopPackages.nvidia # top
     nginx # Web Server
@@ -510,9 +519,11 @@
     sqlite
     litecli
  
+    # Compression
     zip
-    p7zip # Compression
+    p7zip
 
+    # C/C++ Compiler
     gcc
     musl
     gdb
@@ -520,14 +531,15 @@
     cmake
     clang
     clang-tools
-    lldb # C/C++ Compilier
+    lldb
 
     b3sum # Hash
 
     screen
 
+    # Python
     python3
-    conda # Python
+    conda
     
     # Go
     go
@@ -591,7 +603,7 @@
     mkcert # Cert
     libreoffice
 
-    dufs #HTTP & WebDAV File Server
+    dufs # HTTP & WebDAV File Server
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
