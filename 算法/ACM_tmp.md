@@ -132,3 +132,102 @@ int main(){
     }
 }
 ```
+
+# 组合数学 - 卡特兰数
+
+> [洛谷P1641](https://www.luogu.com.cn/problem/P1641)：给定`n`个字符`1`与`m`个字符`0`构成的字符串，如果其任意长度的前缀均满足`1`的数量大于等于`0`的数量，则称该字符串合法。求合法的字符串总数量，答案模`20100403`输出。
+
+卡特兰数板子题。
+
+```c++
+const int N_MAX = 1e6, M_MAX = 1e6; const int64_t MOD = 20100403;
+int n, m;
+
+int64_t fact[1 + N_MAX + M_MAX], fact_inv[1 + N_MAX + M_MAX];
+inline int64_t C(const int64_t n, const int64_t m, const int64_t &p) {
+    if(m < 0) { return 0; }
+    // if(m >= 0 && n >= m) { return mul_mod({fact[n], fact_inv[m], fact_inv[n - m]}, p); }
+    if(m >= 0 && n >= m) { return fact[n] * fact_inv[m] % p * fact_inv[n - m] % p; }
+    if(m >= 0 && 0 <= n && n < m) { return 0; }
+    if(m >= 0 && n < 0) { return (m % 2 == 0 ? 1 : -1) * C(m - n - 1, m, p); }
+    assert(false && "impossible");
+    return -1;
+}
+
+int main() {
+    fact[0] = 1; for(int i = 1; i <= N_MAX + M_MAX; ++i) { fact[i] = fact[i - 1] * i % MOD; }
+    fact_inv[N_MAX + M_MAX] = inv_mod(fact[N_MAX + M_MAX], MOD); for(int i = N_MAX + M_MAX - 1; i >= 0; --i) { fact_inv[i] = (fact_inv[i + 1] * (i + 1)) % MOD; }
+
+    std::cin >> n >> m;
+    std::cout << mod(C(n + m, m, MOD) - C(n + m, m - 1, MOD), MOD);
+}
+```
+
+> [洛谷P5014](https://www.luogu.com.cn/problem/P5014)：给定一个杨辉三角图形，从左向右、从上到下地给每个节点从`1`开始编号。每个节点在每一步都可以到达左下方或右下方的节点，求从节点`1`出发到节点`u[1->q]<=5e11+5e5`的方案数有多少，答案模`998244353`输出。
+
+不妨将杨辉三角图形做同胚变换：
+
+```
+1
+| \
+2 - 3
+| \ | \
+4 - 5 - 6
+| \ | \ | \
+7 - 8 - 9 - 10
+......
+```
+
+令向下为`x`轴正方向，向右为`y`轴正方向，于是问题转化为：从`(1, 1)`到`(n, m)`的方案数有多少。显然`u -> (n<=1e6, m)`是一一对应的关系，使用二分可以方便地求出`n`的值，再经过一次减法得到`m`的值。由于本题是从`(1, 1)`开始出发，因此为了方便起见，我们将问题改写为从`(0, 0)`到`(n-1, m-1)`的方案数有多少。**接下来的讨论均默认已执行`n -= 1; m -= 1;`**。
+
+如果没有斜边的存在，则本题显然为卡特兰数模板题——一定会向下`n`次、向右`m`次，且`n>=m`，总共操作`n+m`次。现在引入了斜边，等价于同时向下与向右，因此**不妨令走了`i`次斜边**，则一定会向下`n-i`次、向右`m-i`次，**总共操作`n+m-2i + i == n-m-i`次**。我们分两方面考虑：
+
+1. `i`次斜边可以安排在`n+m-i`的任何`i`个位置处，因此斜边的执行位置会产生$C_{n+m-i}^{i}$中情况。
+2. 向下`n-i`次、向右`m-i`、且`n-1<=m-1`，因此仍然是卡特兰数模板题，直接套结论：$C_{n+m-2i}^{m-i} - C_{n+m-2i}^{m-i-1}$。
+
+注意到`i`的取值范围为`[0, min(n, m)] = [0, m]`，因此我们可得最终答案：
+
+$$
+\displaystyle\sum_{i=0}^{m} C_{n+m-i}^{i} \times \left( C_{n+m-2i}^{m-i} - C_{n+m-2i}^{m-i-1} \right)
+$$
+
+```c++
+const int Q_MAX = 100; const int64_t U_MAX = 5e11 + 5e5, N_MAX = 1e6, M_MAX = 1e6; const int64_t MOD = 998244353;
+int q; int64_t u[1 + Q_MAX], n, m, n_left, n_right, n_mid, ans;
+int64_t fact[1 + N_MAX + M_MAX], fact_inv[1 + N_MAX + M_MAX];
+
+inline int64_t C(const int64_t n, const int64_t m, const int64_t &p) {
+    if(m < 0) { return 0; }
+    // if(m >= 0 && n >= m) { return mul_mod({fact[n], fact_inv[m], fact_inv[n - m]}, p); }
+    if(m >= 0 && n >= m) { return fact[n] * fact_inv[m] % p * fact_inv[n - m] % p; }
+    if(m >= 0 && 0 <= n && n < m) { return 0; }
+    if(m >= 0 && n < 0) { return (m % 2 == 0 ? 1 : -1) * C(m - n - 1, m, p); }
+    assert(false && "impossible"); return -1;
+}
+
+int main() {
+    fact[0] = 1; for(int i = 1; i <= N_MAX + M_MAX; ++i) { fact[i] = fact[i - 1] * i % MOD; }
+    fact_inv[N_MAX + M_MAX] = inv_mod(fact[N_MAX + M_MAX], MOD); for(int i = N_MAX + M_MAX - 1; i >= 0; --i) { fact_inv[i] = (fact_inv[i + 1] * (i + 1)) % MOD; }
+    
+    std::cin >> q; 
+    for(int i = 1; i <= q; ++i) { std::cin >> u[i]; }
+    
+    for(int i = 1; i <= q; ++i) {
+        n_left = 1; n_right = N_MAX;
+        while(n_left <= n_right) {
+            n_mid = (n_left + n_right) / 2;
+            if(n_mid * (n_mid - 1) / 2 + 1 <= u[i]) {
+                n_left = n_mid + 1;
+            } else {
+                n_right = n_mid - 1;
+            }
+        }
+        n = n_right; m = u[i] - n * (n - 1) / 2; ans = 0; --n; --m;
+        for(int j = 0; j <= m; ++j) {
+            ans += C(n + m - j, j, MOD) * mod(C(n + m - 2 * j, m - j, MOD) - C(n + m - 2 * j, m - j - 1, MOD), MOD);
+            ans %= MOD;
+        }
+        std::cout << ans << '\n';
+    }
+}
+```
