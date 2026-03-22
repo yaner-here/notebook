@@ -2,7 +2,7 @@
   "lazy-plugins",
   "fix-callout",
   "better-export-pdf",
-  "d2-obsidian",
   "surfing",
-  "custom-font-loader"
+  "tldraw",
+  "obsidian-excalidraw-plugin"
 ]
