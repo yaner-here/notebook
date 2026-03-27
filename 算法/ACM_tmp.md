@@ -1,3 +1,36 @@
+# 线性DP
+
+> [洛谷P15360](https://www.luogu.com.cn/problem/P15360)：给定平面上的`n<=5e3`个横坐标递增的点`int x[1->n], y[1->n]`，依次做线性插值得到函数$f(x)$。现在删除其中除了首尾以外的`m`个点，剩余的点做线性插值得到函数$f'(x)$。若$|f(x)-f'(x)|\le d$恒成立，求`m`的最大值。
+
+令`dp[i]`表示给定前`i`个点，且选中第`i`个点时，能删除的点的数量最大值。考虑在删除了若干个点的$f'(x)$中，第`i`个点的前面是点`j`，则在`x,y[j+1 -> i-1]`这`i-j-1`个点中，每个点都会对斜率造成一定的区间要求。最终要求第`i`点与第`j`的点形成的斜线斜率`k`需要属于这个斜率区间`[k_min, k_max]`内，**这等价于两个要求**：`k_min <= k_max`、`k_min <= k && k <= k_max`。本题对精度要求较高，要么用`long double`，要么用`Frac`分数板子。
+
+```c++
+const int N_MAX = 5e3, X_MAX = 1e9, Y_MAX = 1e9, D_MAX = 1e9;
+int q, n, d, x[1 + N_MAX], y[1 + N_MAX], dp[1 + N_MAX];
+Frac<int64_t> k, k_max, k_min;
+int main() {
+    std::cin >> q;
+    while(q--) {
+        std::cin >> n >> d;
+        for(int i = 1; i <= n; ++i) { std::cin >> x[i]; }
+        for(int i = 1; i <= n; ++i) { std::cin >> y[i]; }
+
+        std::fill(dp, dp + 1 + n, 0); dp[1] = dp[2] = 0;
+        for(int i = 3, j; i <= n; ++i) {
+            k_min = {-Y_MAX - D_MAX, 1}; k_max = {Y_MAX + D_MAX, 1};
+            for(j = i - 1; j >= 1; --j) {
+                k = Frac<int64_t>{y[i] - y[j], x[i] - x[j]}; k.simplify();
+                k_max = std::min(k_max, Frac<int64_t>{y[i] - y[j] + d, x[i] - x[j]}); k_max = k_max.simplify();
+                k_min = std::max(k_min, Frac<int64_t>{y[i] - y[j] - d, x[i] - x[j]}); k_min = k_min.simplify();
+                if(k_max < k_min) { break; }
+                if(k_min <= k && k <= k_max) { dp[i] = std::max(dp[i], dp[j] + i - j - 1); }
+            }
+        }
+        std::cout << dp[n] << '\n';
+    }
+}
+```
+
 # 并查集
 
 > [洛谷P2189](https://www.luogu.com.cn/problem/P2189)：给定包含`n<=1e5`个顶点与`m<=2e5`条无向边构成的图。执行`q`次查询，每次查询给编号为`src[1->k]`的节点安装一次性报警器，初始时从`src[1]`出发，依次经过`src[1->k]`的各个点， 只有首次到达含有一次性报警器的节点时才会报警，请判断是否存在一条路径，使得报警顺序恰好为`src[1->k]`。
