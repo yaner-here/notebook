@@ -1005,22 +1005,10 @@ Redis实例检查自己是否负责这个哈希槽，如果不负责则返回`MO
 
 # §10 Spring
 
-> 什么是Spring框架？
-> 
-> Spring是一款开源的轻量级框架，集合了很多模块，支持IoC和AOP的特性。
+### `@Autowired`与`@Resource`的区别是什么？
 
-> 介绍Spring包含的模块。
-> 
-> 
-
-> SpringBoot默认最多可以同时处理多少请求？
-> 
-> `application.yml`的`server.tomcat`配置项下有以下选项：
-> - 最小工作线程数`threads.min-spare`：SpringBoot Tomcat最小并发数。
-> - 最大工作线程数`threads.max`：SpringBoot Tomcat最大并发数。
-> - 最大连接数`max-connections`：SpringBoot Tomcat接受的请求，有`threads.max`个请求会被处理，其它会等待。
-> - 最大队列数`accept-count`：未被SpringBoot Tomcat接受的请求，会放在操作系统级别的TCP等待队列。
-> 答案是：`max-connections + accept-count = 8192 + 100 = 8292`。
+- 来源不同。`@Autowired`是Spring提供的注解，`@Resource`是Java EE提供的注解。
+- 注入方式不同：`@Autowired`默认通过类型（`byType`）注入。`@Resource`默认通过名称（`byName`）注入，如果未指定名称才会默认通过类型注入。
 
 # §11 分布式
 
@@ -1261,6 +1249,10 @@ ChatClient = ChatClient.builder(chatModel) // AI客户端
 | `ai_client_rag_order`     | RAG配置    |                                              |                                            |
 
 # §D Agent
+
+### 你如何编写Prompt？
+
+
 
 ### 什么是SDD？✅
 
