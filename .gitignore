@@ -10,6 +10,7 @@ node_modules/**
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 .obsidian/plugins/
+.obsidian/community-plugins.json
 
 # Private
 工作总结.md
