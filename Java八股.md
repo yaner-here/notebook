@@ -997,6 +997,12 @@ Redis实例检查自己是否负责这个哈希槽，如果不负责则返回`MO
 - ZooKeeper满足CAP中的CP，通过ZAB（ZooKeeper原子广播）协议保证强一致性，主要用于类似于文件系统的层级场景。为分布式锁提供了按顺序分配的实现，安全性很高，但是Watcher机制向客户端主动发送心跳信号，网络开销很大。
 - Etcd满足CAP中的CP，通过Raft协议保证强一致性，主要用于同步微服务的配置。为分布式锁提供了CAS的租约机制，被动检查客户端是否仍然持有租约，网络开销很小，而且支持MVCC搜索历史快照。
 
+### 你了解哪些RPC协议？知道gRPC/Thrift/JsonRPC协议吗？
+
+- gRPC：HTTP2上的Protobuf。HTTP2携带流`id`、路径名`method`，Protobuf携带`params`/（`result`、`error`）。
+- Thrift：Binary Protocol，每个字段表示成`字段类型 + 字段编号 + 字段值`。
+- JsonRPC：Json字符串，包含协议版本、`id`、（`method`、`params`）/（`result`、`error`）。
+
 ## Nacos
 
 `[TODO]`
