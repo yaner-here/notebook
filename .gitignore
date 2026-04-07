@@ -1,12 +1,14 @@
-#.obsidian/**
-.trash/**
-GPT_history/**
+# Assets
 ebooks/**
+
+# Temp file
 node_modules/**
 算法/**/*.exe
 算法/**/test.*
 
 # Obsidian
+.trash/**
+.history/**
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 .obsidian/plugins/
@@ -14,6 +16,5 @@ node_modules/**
 
 # Private
 工作总结.md
-
-# Diary
 Abuse.md
+GPT_history/**
