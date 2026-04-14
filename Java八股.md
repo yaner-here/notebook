@@ -1935,8 +1935,6 @@ Redis：
 	15. 图解Redis - 缓存篇 - 数据库和缓存如何保证一致性
 
 消息队列：
-- [大话面试（需解锁付费内容）](https://open8gu.com/message-queue/kafka)
-	- 消息队列 - Kafka - Kafka如何做到消息的有序性
 - [腾讯云 - 《面试八股文》之Kafka 21卷](https://cloud.tencent.com/developer/article/1853417)
 
 分布式：
@@ -1956,13 +1954,15 @@ Agent：
 - [Agentic - Bilibili: 安心养虾！从OpenClaw看云上AI安全落地路径](https://www.bilibili.com/video/BV1keXqBuEMD)
 
 TODO：
-	- Agentic - Claude Code民间复现教程项目`learn-claude-code`
-		- 官方Github仓库：[Github: `shareAI-lab/learn-claude-code`](https://github.com/shareAI-lab/learn-claude-code)
-		- 官方文档教程：[learn-claude-code](https://learn.shareai.run/zh/)
-		- 民间视频教程：[Bilibili: @畅想EidolaAI 降虾十八招](https://space.bilibili.com/3546981949507978/lists/7754236)
-	- Agentic - OpenClaw民间复现教程项目`claw0`
-		- 官方Github仓库：[Github: `shareAI-lab/claw0`](https://github.com/shareAI-lab/claw0)
-	- Agentic - Agent民间教程项目
-		- 官方Github仓库：[Github: `cookjohn/teammcp`](https://github.com/cookjohn/teammcp)
-	- Agentic - 联网搜索Skill`web-access`
-		- 官方Github仓库：[Github: `eze-is/web-access`](https://github.com/eze-is/web-access)
+- Agentic - Claude Code民间复现教程项目`learn-claude-code`
+	- 官方Github仓库：[Github: `shareAI-lab/learn-claude-code`](https://github.com/shareAI-lab/learn-claude-code)
+	- 官方文档教程：[learn-claude-code](https://learn.shareai.run/zh/)
+	- 民间视频教程：[Bilibili: @畅想EidolaAI 降虾十八招](https://space.bilibili.com/3546981949507978/lists/7754236)
+- Agentic - OpenClaw民间复现教程项目`claw0`
+	- 官方Github仓库：[Github: `shareAI-lab/claw0`](https://github.com/shareAI-lab/claw0)
+- Agentic - Agent民间教程项目
+	- 官方Github仓库：[Github: `cookjohn/teammcp`](https://github.com/cookjohn/teammcp)
+- Agentic - 联网搜索Skill`web-access`
+	- 官方Github仓库：[Github: `eze-is/web-access`](https://github.com/eze-is/web-access)
+- [大话面试（需解锁付费内容）](https://open8gu.com/message-queue/kafka)
+	- 消息队列 - Kafka - Kafka如何做到消息的有序性
