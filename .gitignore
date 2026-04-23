@@ -15,6 +15,6 @@ node_modules/**
 .obsidian/community-plugins.json
 
 # Private
-工作总结.md
+工作/**
 Abuse.md
 GPT_history/**
