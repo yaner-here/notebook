@@ -1635,6 +1635,11 @@ Embedding侧重于检索两端文本的语义是否相似，Rerank侧重于判�
 
 ## Agentic
 
+- 2026.01：OpenClaw
+- 2026.02：Harness Engineering
+- 2026.03：CLI
+- 2026.04：LLM Wiki
+
 ### 你如何编写Prompt？
 
 Prompt格式：
@@ -1711,6 +1716,18 @@ MCP与Function Calling的区别：
 程序化工程调用（Programmatic Tool Calling）指的是Agent调用MCP工具时，先编写一段Python代码，发送给远程的沙箱做执行，然后把工具的返回结果进行清洗和汇总，最后返回给Agent。
 - 节省Token：在脚本内执行数据清理后才返回给Agent，避免全部注入到Context。
 - 降低延迟：传统的多次MCP会经过多次RTT，但是PTC只需要一个RTT。
+
+### 什么是CLI？它与MCP的区别是什么？
+
+CLI指的是我们只需给Agent提供一个`bash`MCP，通过CLI调用工具。在2026年3月，CLI这个概念进入到了国内，紧接着飞书/钉钉/企业微信都发布了自己的CLI。
+
+CLI的优点是省Token和效率高：
+- 省Token：LLM预训练就已经引入了CLI的使用方式，不必像MCP那样每次都从上下文学习Metadata
+- 效率高：可以通过Shell语法（&&符，管道符），来方便的编排、批量调用CLI，避免多次MCP调用的延迟，适合个人场景。
+
+MCP的优点是可控和安全：
+- 可控：MCP底层走的是Json-RPC，而Json自带特殊字符转义和Schema校验，因此大模型可以参考MCP工具的Metadata，进行更精准的调用。还可以以工具为单位进行细粒度的权限管理和调用审计。
+- 安全：MCP工具有原子性，它的功能是有限的，造成的影响也是有限的，所以大模型幻觉的造成的后果也是可控的，尤其是在企业云端，很多用户共用一个Linux实例的场景。CLI虽然也有Sandbox，但是也有很多漏洞能绕过限制，有安全风险
 
 ### 什么是Skills？它与Prompt的区别是什么？
 
