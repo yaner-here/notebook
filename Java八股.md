@@ -1789,6 +1789,12 @@ MCP与Function Calling的区别：
 3. **错误提示要更明确**。工具出错时，要显示错误原因、改进措施。比如`查询某一天的订单`，日期格式错误的时候，不能只返回一个`HTTP 400 Bad Request`，需要返回明确的错误原因是`输入日期格式错误，格式应该为YYYY-mm-DD`。
 4. **延迟加载（`defer_loading`）**：只加载工具的`Name`和`Description`，调用工具时再加载形参的含义和用法。
 
+### MCP数量多了怎么办？
+
+我在实习项目中也发现了这个问题，我们的Agent会加载很多MCP，有查询代码托管平台的工具、有查询日志平台的工具、有业务相关的Memory，总共加起来有50多个工具。我只是简单的问了一个问题，比如“你是谁”，5w Token就没了。
+
+Anthorpic之前提出了`Tool Search Tool`（TST）的概念，也就是用来搜索工具的工具，像Skills一样也是渐进式披露的思想。具体来说，我们会把所有工具注册到TST中，起初只把TST这一个工具提供给Agent。当Agent需要调用工具时，会调用TST进行搜索，TST通过字符串查找、正则匹配、Embedding检索的方式返回一批相关的工具Schema，然后Agent再调用获得的新工具。[Spring AI的博客](https://spring.io/blog/2025/12/11/spring-ai-tool-search-tools-tzolov)做过实验，在单任务的场景下可以节省约30%的Token。
+
 ### 什么是PTC？它与MCP的区别是什么？
 
 程序化工程调用（Programmatic Tool Calling）指的是Agent调用MCP工具时，先编写一段Python代码，发送给远程的沙箱做执行，然后把工具的返回结果进行清洗和汇总，最后返回给Agent。
