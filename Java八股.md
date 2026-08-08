@@ -1717,6 +1717,7 @@ Embedding侧重于检索两端文本的语义是否相似，Rerank侧重于判�
 - 2026.02：Harness Engineering
 - 2026.03：Hermes & CLI
 - 2026.04：LLM Wiki
+- 2026.07：Graph Engineering
 
 ### 什么是Agent？（小林Coding）
 
@@ -1748,12 +1749,17 @@ Prompt格式：
 - 手动模拟CoT，`Think step by step`。
 - 根据模型输出不断调整Prompt，但是要注意不要过长，否则模型的指令跟随能力会下降。
 
-### Prompt/Context/Agentic/Harness Engineering的区别是什么？
+### Prompt/Context/Agentic/Harness/Loop/Graph Engineering的区别是什么？
 
 - Prompt工程在单次交互内引入了文本指令模版，用于少样本学习，缺点是每次交互之间互相独立，无法维护任务状态。
 - Context工程在长期交互内引入了RAG、MCP、Memory、上下文压缩，用于让模型与外部交互、控制上下文长度。
 - Agentic工程引入了一个或多个Agent，将它们编排成循环、树状、层级的结构，例如现在主流的ReAct模式与SDD。
 - Harness工程引入了流程约束（`Types -> Config -> Repo -> Service -> Runtime -> UI`）和可观测性MCP（`Chrome Devtools`），所有文档都以Markdown形式渐进式披露给Context，人工只需要构建环境。
+- Graph工程会让Loop之间互相交流、互相监督。传统的Loop Engineering的起点是一个单一的Goal，整个Loop都是为了这个Goal而运作的。但是这个Goal不一定准确，不一定能完全衡量用户的真实初衷，有可能为了优化一个单一指标而不惜一切代价，甚至牺牲其他指标，这类似于Reward Hacking/过拟合的问题。
+
+### Graph Engineering和Workflow都是图结构，它们的区别是什么？
+
+Workflow类似于工厂流水线，每一步都是提前确定好要做什么的，这样做容易导致误差的传播和累积。Graph Engineering可以理解为多个Loop Engineering的结合体，每个Loop都是动态确定的。
 
 ### 如何保证Vide Coding的代码质量？
 
@@ -1872,11 +1878,21 @@ Agent如何解决：
 - Function Call：通过MCP Tools与外界互动。
 - Memory：把Memory和之前的Messages合并在一起，作为Prompt输入给LLM。
 
-### 短期Memory、长期Memory的存储方案是什么？
+### Memory如何设计？短期Memory、长期Memory的存储方案是什么？
 
-内存、文件、Redis、分布式存储。
+Memory检索方式：
+- `grep`
+- 倒排索引`GIN` + `BM25`
+- 向量数据库
+- 知识图谱（图数据库）
 
-对于Redis来说，单用户量不成问题，`10MB`内存可以容纳`1e6`个字符；亿级用户量会成问题，需要用到分布式存储，目前主流的方案是`Redis混合数据库`与`LevelDB磁盘数据库`混合使用。
+Memory Schema：原文文本 + 摘要文本 + Metadata(Tag、时间等等) + 原文向量 + 摘要向量(容易召回)
+
+Memory存储方式：
+- 内存
+- 文件
+- Redis：单用户量不成问题，`10MB`内存可以容纳`1e6`个字符；
+- 分布式存储：亿级用户量会成问题，需要用到分布式存储，目前主流的方案是`Redis混合数据库`与`LevelDB磁盘数据库`混合使用。
 
 ### 如何实现MCP Tools列表的动态更新？
 
@@ -2049,6 +2065,15 @@ Agent Teams之间的任务交接Prompt：
 - 做出的假设（默认的开发环境依赖、用户模糊的意图）
 
 Agent Teams为了降低成本，主Agent可以使用更好的模型。但是推荐选择同一系列的模型，防止Agent跨协议和跨风格，否则一个LLM使用的代码风格，另一个LLM很可能看不懂。
+
+## Agent Sandbox
+
+### 有没有了解过Agent Sandbox的实现？讲讲阿里OpenSandbox的架构
+
+运行时：
+- `runc`：
+
+## Agent Evaluation
 
 ## IDE
 
