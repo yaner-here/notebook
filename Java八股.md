@@ -1717,7 +1717,10 @@ Embedding侧重于检索两端文本的语义是否相似，Rerank侧重于判�
 - 2026.02：Harness Engineering
 - 2026.03：Hermes & CLI
 - 2026.04：LLM Wiki
+- 2026.05：SkillOpt
+- 2026.06：Loop Engineering & Rubric
 - 2026.07：Graph Engineering
+- 2026.08：DeepSeek Harness
 
 ### 什么是Agent？（小林Coding）
 
@@ -2072,6 +2075,28 @@ Agent Teams为了降低成本，主Agent可以使用更好的模型。但是推�
 
 运行时：
 - `runc`：
+
+## Agent算法
+
+### SkillOpt
+
+原有的Skills自沉淀通常根据单条Trace，一次性重写整个Skills。SkillOpt以Batch进行分析，每次有限条Skills编辑指令，使用验证集做回测。
+
+SkillOpt-sleep的流程是：
+1. 对外以Skills的能力，提供了一个Shell脚本用于触发SkillOpt流水线。
+2. Harvest：从Agent Runtime中抽取最近一段时间内的Agent Trace，提取结构化信息并按规则筛选高质量对话，得到`SessionDigest`。
+    - 排除子Agent的Trace、仅包含斜杠指令的Trace、Agent框架自行发起的Trace(上下文压缩/Memory沉淀)、会话Turn数量过少的Trace
+    - `SessionDigest`包含：
+        - Metadata：SessionID、项目根目录、Git分支名
+        - 对话记录：User Prompt、最后五条Assistant记录、工具使用记录、文件更改情况
+        - Trace执行结果：维护了一套情感词汇表，分为积极(`thanks`/`perfect`/`fixed`/`works`)和消极(`broken`/`wrong`/`not working`/`error again`)，做子串匹配做预分类
+3. Mine：根据SessionDigest抽取有重复执行价值的任务，得到`TaskRecord`，拆成训练集和评测集，以Batch为基本单位。
+    - TaskRecord包含：
+        - `intent`：可复用的任务描述
+        - `checks`：检查指标，包含`contains`/`not_contains`/`regex`/`tool_called`
+        - `rubric`：用自然语言描述答案需要满足的条件
+4. Replay：使用Agent Runtime提供的沙盒模式对训练集的Batch做回测，输出硬分数/软分数，得到`ReplayResult`
+5. Consolidate：筛选出训练集的Bad Case，在原有Skills的基础上追加一部分可编辑区域，交给LLM生成Skill的编辑命令(<=4)。如果在评测集上的指标有提高则保留更改，反之则回滚。
 
 ## Agent Evaluation
 
