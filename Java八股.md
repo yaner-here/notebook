@@ -16,6 +16,21 @@
 
 `Entry`必须弱引用`ThreadLocal`。因为`ThreadLocalMap`在`get()/set()`时会顺便探测`Entry`的`K = ThreadLocal`是否仍然存在，如果不存在则顺便撤销对`V = Object`的强引用，供GC回收。
 
+### Java/JDK新版本的特性有哪些？
+
+从开发便利的角度来说，JDK新版本有以下特性。
+- JDK 8：Lambda表达式、Stream API、Optional类、CompletableFuture
+	- Lambda表达式：替代`Runnable`/`Comparator`等匿名内部类，通过`::`语法获取一个已有方法的引用
+	- Stream API：对集合数据进行链式操作，例如筛选/排序/统计
+	- Optional类：解决NPE问题，使用`.ifPresent()`处理对象非空，使用`.orElseThrow()`处理对象为空，使用`.orElse()`处理对象为空的兜底。
+- JDK 11：ZGC
+- JDK 17：`switch-case`箭头语法糖
+- JDK 21：分代ZGC、字符串模板(类似于Python的`f-string`)、虚拟线程
+	- 虚拟线程：由JVM管理线程，一个系统级线程可以对应多个虚拟线程。
+- JDK 25：灵活的构造函数体、作用域值
+	- 灵活的构造函数体：原先子类的构造函数必须在第一行代码的位置引用父类的构造函数`super()`，现在可以延后执行，只要不提前引用正在构造的实例。
+	- 作用域值：在线程之间共享不可变的变量。`ScopedValues`适用于虚拟线程，性能优于适用于线程的`ThreadLocal`。
+
 ## §2.A 编程题
 
 ### 手写HashMap
@@ -1539,7 +1554,7 @@ DDD（Domain-Driven Design）的全称是领域驱动设计，它是一种针对
 - 中阶段：根据用户的等级加载对应的奖池、生成随机数并映射到奖品、扣减奖品的Redis库存、生成Redis滑块锁、发送消息队列到MySQL做异步更新。
 - 后阶段：根据奖品类型调用不同的奖品发放接口。
 
-## AI-Agent
+## Agent Chatbot
 
 ```java
 OpenAiApi openAiApi = OpenAiApi.builder() // AI端点
@@ -2076,7 +2091,7 @@ Agent Teams为了降低成本，主Agent可以使用更好的模型。但是推�
 运行时：
 - `runc`：
 
-## Agent算法
+## Agent自进化
 
 ### SkillOpt
 
@@ -2099,6 +2114,28 @@ SkillOpt-sleep的流程是：
 5. Consolidate：筛选出训练集的Bad Case，在原有Skills的基础上追加一部分可编辑区域，交给LLM生成Skill的编辑命令(<=4)。如果在评测集上的指标有提高则保留更改，反之则回滚。
 
 ## Agent Evaluation
+
+## Agent Memory
+
+### 长短期记忆/分层记忆是如何实现的？TencentDB-Agent-Memory的原理是什么？
+
+存储过程：
+1. **Level0-Trace级别**：提取Trace，保存到Level0数据库(附带向量/倒排索引)，当用户介入次数>=5时push到Level1队列
+2. **Level1-Memory级别**对Trace的`messages`切成[0:10],[11:20],...的子`messages`，分别调用LLM，提取以下记忆写入到Level1数据库(附带向量/倒排索引)：
+    - 个性化记忆`persona`：用户的稳定属性、偏好、技能、价值观、习惯
+    - 事件记忆`episodic`：`用户在某时某地的动作、决定、结果是
+    - 指令记忆`instruction`：用户提出的长期行为规则、格式偏好、语气控制等要求。
+    - 每条记忆`memory`都包含优先级、置信度、信源引用`message_id[]`、对话情景`scene`(话题转变/目标改变)
+3. **Level2-Scene级别**为每个对话场景`scene`维护一个Level2长期记忆`MEMORY.md`，内含总结摘要`summary`、热度`hot`、用户特征/偏好/演变轨迹、隐形信号、矛盾点。对于给定`scene`的新`memory`，注入到TencentDB-Agent-Memory的轻量级Agent运行时中，对原有的`scene`做CRUD的工具调用。若`scene`数量`>=15`则跨`scene`合并。`hot`表示当前Skills被编辑的次数，用于召回排序，越高越好。
+4. **Level3-Persona级别**：提取`Scene`之间的共同规律（长期偏好、决策逻辑、轨迹涌现特征），编辑`persona.md`
+
+召回过程：
+1. 用户每次提问时，Level1追加到User Input，Level2 & Level 3追加到System Prompt：
+    - **Level1-Memory级别**：BM25倒排+向量召回，过RRF融合，筛选出前5个
+    - **Level2-Scene级别**：读取`scene`全量索引，格式化成Markdown
+    - **Level3-Persona级别**：全量注入`persona.md`
+2. 为Agent提供Level1的检索工具，给定`query`/`type`/`limit`/`scene`入参，做BM25倒排+向量召回+RRF+截断
+
 
 ## IDE
 
