@@ -10,7 +10,7 @@
 
 ### ThreadLocal为什么会导致内存泄漏？
 
-每个`Thread`内部维护一个`ThreadLocalMap`实例。`ThreadLocalMap`本质上是`Map<K=ThreadLocal, V=Object>`，内部维护一个`Entry[]`数组，`Entry`继承了`WeakReference<ThreadLocal>`并添加了`Object value`字段，弱引用`ThreadLocal`，强引用`Object value`。每次调用`ThreadLocal.get()/set()`时，程序会查找当前`Thread`对应的`ThreadLocalMap`实例，查找当前`ThreadLocal`对应的键值对`Entry`，然后返回值。
+每个`Thread`内部维护一个`ThreadLocalMap`实例。`ThreadLocalMap`本质上是`Map<K=ThreadLocal<T>, V=T>`，通过内部维护的一个`Entry[]`数组作为哈希表来实现。`Entry`继承了`WeakReference<ThreadLocal>`并添加了`Object value`字段，弱引用`ThreadLocal`，强引用`Object value`。每次调用`ThreadLocal.get()/set()`时，程序会查找当前`Thread`对应的`ThreadLocalMap`实例，查找当前`ThreadLocal`对应的键值对`Entry`，然后返回值。
 
 只要线程未销毁，`Thread -> ThreadLocalMap --> Entry[] --> Entry --> V value`这条强引用链就一直存活，导致内存泄漏。所以必须在线程执行完每个任务后，手动调用`threadLocal.remove()`。
 
@@ -1651,7 +1651,7 @@ IVF（Inverted File，倒排文件）先对向量进行KMeans聚类构建IVF索�
 
 ### 什么是HNSW？
 
-HNSW（Hierarchical Navigable Small World graphs，分层可导航小世界图）是一种类似于跳表的近似最近邻（ANN）算法。它构建了一个多层图，最下层包含所有数据点，逐级采样得到上层。搜索时从顶层的一个固定数据点开始，在每一层都贪心的移动到最近邻，然后跳转到下层，重复这一步骤。
+HNSW（`/haɪəˈrɑːkɪkɔ/` Hierarchical Navigable Small World graphs，分层可导航小世界图）是一种类似于跳表的近似最近邻（ANN）算法。它构建了一个多层图，最下层包含所有数据点，逐级采样得到上层。搜索时从顶层的一个固定数据点开始，在每一层都贪心的移动到最近邻，然后跳转到下层，重复这一步骤。
 
 有三个重要的参数：
 - `M`：建立索引时每个节点最多连接多少条边。推荐值为`30`。
@@ -1827,12 +1827,6 @@ MCP与Function Calling的区别：当用户向网关发送请求时，网关先�
 2. **给工具的名称`name`加上命名空间，详细描述`Description`避免有歧义，传参的时候尽量使用扁平的数据结构（嵌套的JSON容易导致幻觉）。**
 3. **错误提示要更明确**。工具出错时，要显示错误原因、改进措施。比如`查询某一天的订单`，日期格式错误的时候，不能只返回一个`HTTP 400 Bad Request`，需要返回明确的错误原因是`输入日期格式错误，格式应该为YYYY-mm-DD`。
 4. **延迟加载（`defer_loading`）**：只加载工具的`Name`和`Description`，调用工具时再加载形参的含义和用法。
-
-### MCP数量多了怎么办？
-
-我在实习项目中也发现了这个问题，我们的Agent会加载很多MCP，有查询代码托管平台的工具、有查询日志平台的工具、有业务相关的Memory，总共加起来有50多个工具。我只是简单的问了一个问题，比如“你是谁”，5w Token就没了。
-
-Anthorpic之前提出了`Tool Search Tool`（TST）的概念，也就是用来搜索工具的工具，像Skills一样也是渐进式披露的思想。具体来说，我们会把所有工具注册到TST中，起初只把TST这一个工具提供给Agent。当Agent需要调用工具时，会调用TST进行搜索，TST通过字符串查找、正则匹配、Embedding检索的方式返回一批相关的工具Schema，然后Agent再调用获得的新工具。[Spring AI的博客](https://spring.io/blog/2025/12/11/spring-ai-tool-search-tools-tzolov)做过实验，在单任务的场景下可以节省约30%的Token。
 
 ### 什么是PTC？它与MCP的区别是什么？
 
