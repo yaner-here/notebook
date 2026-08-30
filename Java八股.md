@@ -2100,11 +2100,11 @@ Agent Teams为了降低成本，主Agent可以使用更好的模型。但是推�
 SkillOpt-sleep的流程是：
 1. 对外以Skills的能力，提供了一个Shell脚本用于触发SkillOpt流水线。
 2. Harvest：从Agent Runtime中抽取最近一段时间内的Agent Trace，提取结构化信息并按规则筛选高质量对话，得到`SessionDigest`。
-    - 排除子Agent的Trace、仅包含斜杠指令的Trace、Agent框架自行发起的Trace(上下文压缩/Memory沉淀)、会话Turn数量过少的Trace
+    - 排除低质量Trace，例如子Agent的Trace、仅包含斜杠指令的Trace、Agent框架自行发起的Trace(上下文压缩/Memory沉淀)、会话Turn数量过少的Trace
     - `SessionDigest`包含：
         - Metadata：SessionID、项目根目录、Git分支名
         - 对话记录：User Prompt、最后五条Assistant记录、工具使用记录、文件更改情况
-        - Trace执行结果：维护了一套情感词汇表，分为积极(`thanks`/`perfect`/`fixed`/`works`)和消极(`broken`/`wrong`/`not working`/`error again`)，做子串匹配做预分类
+        - Trace执行结果：维护了一套情感词汇表，分为积极(`thanks`/`perfect`/`fixed`/`works`)和消极(`broken`/`wrong`/`not working`/`error again`)，通过子串匹配对Trace是否满足任务需求做预分类。
 3. Mine：根据SessionDigest抽取有重复执行价值的任务，得到`TaskRecord`，拆成训练集和评测集，以Batch为基本单位。
     - TaskRecord包含：
         - `intent`：可复用的任务描述
@@ -2121,12 +2121,12 @@ SkillOpt-sleep的流程是：
 
 存储过程：
 1. **Level0-Trace级别**：提取Trace，保存到Level0数据库(附带向量/倒排索引)，当用户介入次数>=5时push到Level1队列
-2. **Level1-Memory级别**对Trace的`messages`切成[0:10],[11:20],...的子`messages`，分别调用LLM，提取以下记忆写入到Level1数据库(附带向量/倒排索引)：
+2. **Level1-Memory级别**：对Trace的`messages`切成`[0:10],[11:20],...`的子`messages`，分别调用LLM，提取以下记忆写入到Level1数据库(附带向量/倒排索引)：
     - 个性化记忆`persona`：用户的稳定属性、偏好、技能、价值观、习惯
     - 事件记忆`episodic`：`用户在某时某地的动作、决定、结果是
     - 指令记忆`instruction`：用户提出的长期行为规则、格式偏好、语气控制等要求。
     - 每条记忆`memory`都包含优先级、置信度、信源引用`message_id[]`、对话情景`scene`(话题转变/目标改变)
-3. **Level2-Scene级别**为每个对话场景`scene`维护一个Level2长期记忆`MEMORY.md`，内含总结摘要`summary`、热度`hot`、用户特征/偏好/演变轨迹、隐形信号、矛盾点。对于给定`scene`的新`memory`，注入到TencentDB-Agent-Memory的轻量级Agent运行时中，对原有的`scene`做CRUD的工具调用。若`scene`数量`>=15`则跨`scene`合并。`hot`表示当前Skills被编辑的次数，用于召回排序，越高越好。
+3. **Level2-Scene级别**：为每个对话场景`scene`维护一个Level2长期记忆`MEMORY.md`，内含总结摘要`summary`、热度`hot`、用户特征/偏好/演变轨迹、隐形信号、矛盾点。对于给定`scene`的新`memory`，注入到TencentDB-Agent-Memory的轻量级Agent运行时中，对原有的`scene`做CRUD的工具调用。若`scene`数量`>=15`则跨`scene`合并。`hot`表示当前Skills被编辑的次数，用于召回排序，越高越好。
 4. **Level3-Persona级别**：提取`Scene`之间的共同规律（长期偏好、决策逻辑、轨迹涌现特征），编辑`persona.md`
 
 召回过程：
@@ -2135,7 +2135,6 @@ SkillOpt-sleep的流程是：
     - **Level2-Scene级别**：读取`scene`全量索引，格式化成Markdown
     - **Level3-Persona级别**：全量注入`persona.md`
 2. 为Agent提供Level1的检索工具，给定`query`/`type`/`limit`/`scene`入参，做BM25倒排+向量召回+RRF+截断
-
 
 ## IDE
 
