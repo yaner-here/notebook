@@ -30201,7 +30201,7 @@ class Solution {
 
     public void reorderList(ListNode head) {
         ListNode mid = middleNode(head);
-        ListNode head_2 = revers+eList(mid.next);
+        ListNode head_2 = reverseList(mid.next);
         mid.next = null;
         mergeList(head, head_2);
     }

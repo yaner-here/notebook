@@ -16,6 +16,21 @@
 
 `Entry`必须弱引用`ThreadLocal`。因为`ThreadLocalMap`在`get()/set()`时会顺便探测`Entry`的`K = ThreadLocal`是否仍然存在，如果不存在则顺便撤销对`V = Object`的强引用，供GC回收。
 
+### Java/JDK新版本的特性有哪些？
+
+从开发便利的角度来说，JDK新版本有以下特性。
+- JDK 8：Lambda表达式、Stream API、Optional类、CompletableFuture
+	- Lambda表达式：替代`Runnable`/`Comparator`等匿名内部类，通过`::`语法获取一个已有方法的引用
+	- Stream API：对集合数据进行链式操作，例如筛选/排序/统计
+	- Optional类：解决NPE问题，使用`.ifPresent()`处理对象非空，使用`.orElseThrow()`处理对象为空，使用`.orElse()`处理对象为空的兜底。
+- JDK 11：ZGC
+- JDK 17：`switch-case`箭头语法糖
+- JDK 21：分代ZGC、字符串模板(类似于Python的`f-string`)、虚拟线程
+	- 虚拟线程：由JVM管理线程，一个系统级线程可以对应多个虚拟线程。
+- JDK 25：灵活的构造函数体、作用域值
+	- 灵活的构造函数体：原先子类的构造函数必须在第一行代码的位置引用父类的构造函数`super()`，现在可以延后执行，只要不提前引用正在构造的实例。
+	- 作用域值：在线程之间共享不可变的变量。`ScopedValues`适用于虚拟线程，性能优于适用于线程的`ThreadLocal`。
+
 ## §2.A 编程题
 
 ### 手写HashMap
@@ -1539,7 +1554,7 @@ DDD（Domain-Driven Design）的全称是领域驱动设计，它是一种针对
 - 中阶段：根据用户的等级加载对应的奖池、生成随机数并映射到奖品、扣减奖品的Redis库存、生成Redis滑块锁、发送消息队列到MySQL做异步更新。
 - 后阶段：根据奖品类型调用不同的奖品发放接口。
 
-## AI-Agent
+## Agent Chatbot
 
 ```java
 OpenAiApi openAiApi = OpenAiApi.builder() // AI端点
@@ -1717,6 +1732,28 @@ Embedding侧重于检索两端文本的语义是否相似，Rerank侧重于判�
 - 2026.02：Harness Engineering
 - 2026.03：Hermes & CLI
 - 2026.04：LLM Wiki
+- 2026.05：SkillOpt
+- 2026.06：Loop Engineering & Rubric
+- 2026.07：Graph Engineering
+- 2026.08：DeepSeek Harness
+
+### 什么是Agent？（小林Coding）
+
+Agent本质上是一个能自主决策的系统。传统的LLM有四个问题：知识被冻结、无法行动、无状态、无法自主纠错。
+- **知识被冻结**：LLM的参数固定在训练完成的那一刻。Agent通过MCP Tools，可以从环境中获得最新的知识。
+- **无法行动**：LLM只能输出字符串。Agent通过MCP Tools，有了操作外界环境的能力。
+- **无状态**：LLM只能手动传输上下文才有记忆。Agent通过Memory机制保证上下文连贯，其中短期记忆保存单个Session内的信息，比如对话记录和执行步骤，长期记忆保存跨Session的信息，比如用户偏好和环境信息。
+- **无法自主纠错**：LLM输出之后无法得知自己的答案是否正确。Agent可以检测到某一步执行失败、分析原因、换一种方法重试。
+
+### Agent兴起的前提条件是什么？为什么2025年才火起来？（小林Coding）
+
+- LLM的逻辑推理能力、指令遵循能力都得到了极大的提高，现在有能力去规划复杂的任务。
+- 工具调用有了最佳实践。OpenAI在2023年提出了Function Calling，Anthropic在2024年提出了MCP，这些都降低了工具的开发和迁移成本。
+- Agent框架生态越来越完善。LangChain、LangGraph、DeepAgents这些框架简化了Agent开发的流程。
+
+### Agent由哪些部分和组件构成？（小林Coding）
+
+
 
 ### 你如何编写Prompt？
 
@@ -1730,12 +1767,17 @@ Prompt格式：
 - 手动模拟CoT，`Think step by step`。
 - 根据模型输出不断调整Prompt，但是要注意不要过长，否则模型的指令跟随能力会下降。
 
-### Prompt/Context/Agentic/Harness Engineering的区别是什么？
+### Prompt/Context/Agentic/Harness/Loop/Graph Engineering的区别是什么？
 
 - Prompt工程在单次交互内引入了文本指令模版，用于少样本学习，缺点是每次交互之间互相独立，无法维护任务状态。
 - Context工程在长期交互内引入了RAG、MCP、Memory、上下文压缩，用于让模型与外部交互、控制上下文长度。
 - Agentic工程引入了一个或多个Agent，将它们编排成循环、树状、层级的结构，例如现在主流的ReAct模式与SDD。
 - Harness工程引入了流程约束（`Types -> Config -> Repo -> Service -> Runtime -> UI`）和可观测性MCP（`Chrome Devtools`），所有文档都以Markdown形式渐进式披露给Context，人工只需要构建环境。
+- Graph工程会让Loop之间互相交流、互相监督。传统的Loop Engineering的起点是一个单一的Goal，整个Loop都是为了这个Goal而运作的。但是这个Goal不一定准确，不一定能完全衡量用户的真实初衷，有可能为了优化一个单一指标而不惜一切代价，甚至牺牲其他指标，这类似于Reward Hacking/过拟合的问题。
+
+### Graph Engineering和Workflow都是图结构，它们的区别是什么？
+
+Workflow类似于工厂流水线，每一步都是提前确定好要做什么的，这样做容易导致误差的传播和累积。Graph Engineering可以理解为多个Loop Engineering的结合体，每个Loop都是动态确定的。
 
 ### 如何保证Vide Coding的代码质量？
 
@@ -1777,10 +1819,7 @@ sequenceDiagram
 
 MCP是Anthropic提出的标准，服务提供商实现MCP Server，Agent通过MCP Client使用外部服务。MCP底层走的是JSON-RPC协议，可以通过STDIO或SSE进行通信。
 
-MCP与Function Calling的区别：
-1. 当用户向网关发送请求时，网关先会把工具列表传给LLM，LLM按照特定的格式返回调用工具的参数，这一过程称为Function Calling；网关会把调用工具的参数发送到工具，工具按照特定的格式返回调用结果，这一过程称为MCP。两者是互相配合的关系，不存在一者替代另一者的说法。
-2. Function Calling必须一开始就加载所有工具列表，而MCP可以热更新。
-`[TODO]`
+MCP与Function Calling的区别：当用户向网关发送请求时，网关先会把工具列表传给LLM，LLM按照特定的格式返回调用工具的参数，这一过程称为Function Calling；网关会把调用工具的参数发送到工具，工具按照特定的格式返回调用结果，这一过程称为MCP。两者是互相配合的关系，不存在一者替代另一者的说法。
 
 ### 如何设计一个好的MCP工具？
 
@@ -1851,11 +1890,21 @@ Agent如何解决：
 - Function Call：通过MCP Tools与外界互动。
 - Memory：把Memory和之前的Messages合并在一起，作为Prompt输入给LLM。
 
-### 短期Memory、长期Memory的存储方案是什么？
+### Memory如何设计？短期Memory、长期Memory的存储方案是什么？
 
-内存、文件、Redis、分布式存储。
+Memory检索方式：
+- `grep`
+- 倒排索引`GIN` + `BM25`
+- 向量数据库
+- 知识图谱（图数据库）
 
-对于Redis来说，单用户量不成问题，`10MB`内存可以容纳`1e6`个字符；亿级用户量会成问题，需要用到分布式存储，目前主流的方案是`Redis混合数据库`与`LevelDB磁盘数据库`混合使用。
+Memory Schema：原文文本 + 摘要文本 + Metadata(Tag、时间等等) + 原文向量 + 摘要向量(容易召回)
+
+Memory存储方式：
+- 内存
+- 文件
+- Redis：单用户量不成问题，`10MB`内存可以容纳`1e6`个字符；
+- 分布式存储：亿级用户量会成问题，需要用到分布式存储，目前主流的方案是`Redis混合数据库`与`LevelDB磁盘数据库`混合使用。
 
 ### 如何实现MCP Tools列表的动态更新？
 
@@ -2004,13 +2053,100 @@ Hermes会创建后台任务自动回顾历史对话记录——判断其是否�
 - **从工具变成数字同事**。“一人公司”——一个Leader带着很多个Agent组成一个团队。
 - **多Agent协同**。单个Agent可能会出现幻觉，甚至失控。多个Agent划分成专门用于规划的、执行的、监督的。
 
+### 长程任务 & Harness & Loop的难点是什么？
+
+- 误差积累：一步错步步错
+- 原地复读：卡在一个步骤一直原地重试
+- 上下文污染：无关信息作为噪声，稀释注意力权重
+- 验收标准：不能自己又当选手又当裁判
+
 ### 你在算法岗层面有没有什么成就/学习经历？
 
 `[TODO]: OpenClaw + Claude Code源码 + 自己写的DeepAgents项目`
 
+## Agent Teams
+
+Agent Teams曾经有段时间是一比一模拟人类的组织体系，比如小组部门、三省六部。但是Agent其实不擅长归纳总结，要么会丢失一些关键信息，要么会造出可读性不强的AI文言文；其次Agent Teams必须要有很厚重的Harness工程约束，例如不能让Agent之间直接通信，只能做任务派发/汇报，这引入了很大的复杂性，很容易出现崩溃。
+
+Agent Teams之间的任务交接Prompt：
+- 本次任务的目标
+- 每次调用工具的日志（工具名称、调用次数、主要用途）
+- 执行阶段清单（阶段名称、目标、使用的工具、做了什么动作）
+- 与任务直接相关的发现、对整体项目有参考价值的发现
+- 参考资料（代码的文件路径、类名、方法名、行号）+（网络搜索的关键词 + 信息来源）+（思考过程）
+- 做出的假设（默认的开发环境依赖、用户模糊的意图）
+
+Agent Teams为了降低成本，主Agent可以使用更好的模型。但是推荐选择同一系列的模型，防止Agent跨协议和跨风格，否则一个LLM使用的代码风格，另一个LLM很可能看不懂。
+
+## Agent Sandbox
+
+### 有没有了解过Agent Sandbox的实现？讲讲阿里OpenSandbox的架构
+
+运行时：
+- `runc`：
+
+## Agent自进化
+
+### SkillOpt
+
+原有的Skills自沉淀通常根据单条Trace，一次性重写整个Skills。SkillOpt以Batch进行分析，每次有限条Skills编辑指令，使用验证集做回测。
+
+SkillOpt-sleep的流程是：
+1. 对外以Skills的能力，提供了一个Shell脚本用于触发SkillOpt流水线。
+2. Harvest：从Agent Runtime中抽取最近一段时间内的Agent Trace，提取结构化信息并按规则筛选高质量对话，得到`SessionDigest`。
+    - 排除子Agent的Trace、仅包含斜杠指令的Trace、Agent框架自行发起的Trace(上下文压缩/Memory沉淀)、会话Turn数量过少的Trace
+    - `SessionDigest`包含：
+        - Metadata：SessionID、项目根目录、Git分支名
+        - 对话记录：User Prompt、最后五条Assistant记录、工具使用记录、文件更改情况
+        - Trace执行结果：维护了一套情感词汇表，分为积极(`thanks`/`perfect`/`fixed`/`works`)和消极(`broken`/`wrong`/`not working`/`error again`)，做子串匹配做预分类
+3. Mine：根据SessionDigest抽取有重复执行价值的任务，得到`TaskRecord`，拆成训练集和评测集，以Batch为基本单位。
+    - TaskRecord包含：
+        - `intent`：可复用的任务描述
+        - `checks`：检查指标，包含`contains`/`not_contains`/`regex`/`tool_called`
+        - `rubric`：用自然语言描述答案需要满足的条件
+4. Replay：使用Agent Runtime提供的沙盒模式对训练集的Batch做回测，输出硬分数/软分数，得到`ReplayResult`
+5. Consolidate：筛选出训练集的Bad Case，在原有Skills的基础上追加一部分可编辑区域，交给LLM生成Skill的编辑命令(<=4)。如果在评测集上的指标有提高则保留更改，反之则回滚。
+
+## Agent Evaluation
+
+## Agent Memory
+
+### 长短期记忆/分层记忆是如何实现的？TencentDB-Agent-Memory的原理是什么？
+
+存储过程：
+1. **Level0-Trace级别**：提取Trace，保存到Level0数据库(附带向量/倒排索引)，当用户介入次数>=5时push到Level1队列
+2. **Level1-Memory级别**对Trace的`messages`切成[0:10],[11:20],...的子`messages`，分别调用LLM，提取以下记忆写入到Level1数据库(附带向量/倒排索引)：
+    - 个性化记忆`persona`：用户的稳定属性、偏好、技能、价值观、习惯
+    - 事件记忆`episodic`：`用户在某时某地的动作、决定、结果是
+    - 指令记忆`instruction`：用户提出的长期行为规则、格式偏好、语气控制等要求。
+    - 每条记忆`memory`都包含优先级、置信度、信源引用`message_id[]`、对话情景`scene`(话题转变/目标改变)
+3. **Level2-Scene级别**为每个对话场景`scene`维护一个Level2长期记忆`MEMORY.md`，内含总结摘要`summary`、热度`hot`、用户特征/偏好/演变轨迹、隐形信号、矛盾点。对于给定`scene`的新`memory`，注入到TencentDB-Agent-Memory的轻量级Agent运行时中，对原有的`scene`做CRUD的工具调用。若`scene`数量`>=15`则跨`scene`合并。`hot`表示当前Skills被编辑的次数，用于召回排序，越高越好。
+4. **Level3-Persona级别**：提取`Scene`之间的共同规律（长期偏好、决策逻辑、轨迹涌现特征），编辑`persona.md`
+
+召回过程：
+1. 用户每次提问时，Level1追加到User Input，Level2 & Level 3追加到System Prompt：
+    - **Level1-Memory级别**：BM25倒排+向量召回，过RRF融合，筛选出前5个
+    - **Level2-Scene级别**：读取`scene`全量索引，格式化成Markdown
+    - **Level3-Persona级别**：全量注入`persona.md`
+2. 为Agent提供Level1的检索工具，给定`query`/`type`/`limit`/`scene`入参，做BM25倒排+向量召回+RRF+截断
+
+
+## IDE
+
+### 如何统计一个项目中AI生成的代码数量？
+
+记录AI编辑的每一个文件名、生成的每一行代码及其Hash，记录当前commit的位置，在远程异步统计后10个commit内Hash完全命中的代码行，优先贪心匹配最近的commit，防止若干通用语句（例如`package com.xxx.xxx;`）导致匹配数量爆炸。最后Git仓库中的每行代码只参与一次匹配，避免重复统计。
+
+以下情况会导致统计失效：
+- Agent调用工具，修改文件名
+- IDE没有打开整个项目，只是打开单个文件
+- Agent绕过自带的`write`工具，通过`bash`工具编辑文件
+- Formatter/Linter导致行匹配失效
+- `git reset`/`git rebase`
+
 ## 算法岗
 
-### 大模型后训练的方法有哪些？SFT/RLHF/DPO的定义/优缺点是什么？
+### LLM后训练的方法有哪些？SFT/RLHF/DPO的定义/优缺点是什么？
 
 - SFT（监督微调，Supervised Fine-Tuning）：用输入输出对进行训练，提升模型在特定任务上的准确性，依赖于交叉熵损失。优点是训练速度快，能稳定收敛。缺点是在其它任务上通常会出现明显的降智。
 - PEFT（高效参数微调，Parameter-Efficient Fine-Tuning）：在SFT的基础上，冻结大部分参数，只训练一小部分参数。例如LoRA，它假设模型参数的变化值是一个低秩矩阵，于是可以分解成两个较小矩阵的成绩。优点是训练成本低，能即插即用。缺点是对于复杂推理任务的效果并不好，只适合微调语言风格和输出格式。
@@ -2019,6 +2155,10 @@ Hermes会创建后台任务自动回顾历史对话记录——判断其是否�
 - GRPO（群体相对策略优化，Group Relative Policy Optimization）：给定一个Prompt，由大模型生成若干个不同的回答，交给奖励模型打分，以此为依据做DPO。
 
 一般来说，先SFT提高模型回答准确率（快速落地），再RLHF降低模型回答有害率（用于高风险合规场景），最后用DPO来迅速更新模型知识。
+
+### LLM是怎么学会调用工具的？
+
+第一步通过SFT，让LLM知道调用工具的格式。第二步通过RLHF，让LLM知道什么时候该调用什么工具。
 
 # §D HR面
 
@@ -2101,55 +2241,16 @@ Hermes会创建后台任务自动回顾历史对话记录——判断其是否�
 
 # 参考文献
 
-| 来源       | 文章标题                 | 进度  |
-| -------- | -------------------- | --- |
-| 小林Coding | 图解网络-应用层篇-HTTP/3强势来袭 | √   |
-| 小林Coding |                      | √   |
-|          |                      |     |
+| 来源                 | 文章标题                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 小林Coding           | 图解网络-应用层篇-HTTP/3强势来袭                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 小林Coding - 图解MySQL | 前言 - 图解MySQL介绍<br>基础篇 - 执行一条select语句，期间发生了什么<br>基础篇 - MySQL一行记录是怎么存储的<br>索引篇 - 索引常见面试题<br>索引篇 - 从数据页的角度看 B+ 树<br>索引篇 - 为什么 MySQL 采用 B+ 树作为索引<br>索引篇 - MySQL 单表不要超过 2000W 行，靠谱吗<br>索引篇 - 索引失效有哪些<br>索引篇 - `count(*)`和`count(1)`有什么区别，哪个性能最好<br>索引篇 - MySQL 分页有什么性能问题，怎么优化<br>事务篇 - 事务隔离级别是怎么实现的<br>事务篇 - MySQL可重复读隔离级别，完全解决幻读了吗<br>锁篇 - MySQL有哪些锁<br>锁篇 - MySQL是怎么加锁的<br>锁篇 - update没加索引会锁全表<br>锁篇 - MySQL记录锁+间隙锁可以防止删除操作而导致的幻读吗<br>锁篇 - MySQL 死锁了，怎么办<br>锁篇 - 字节面试：加了什么锁，导致死锁的<br>日志篇 - MySQL日志：undo log、redo log、binlog有什么用<br>内存篇 - 揭开 Buffer Pool 的面纱<br>架构篇 - MySQL架构是怎样的？ |
+| 小林Coding - 图解Redis | 前言 - 图解Redis介绍<br>基础篇 - 什么是Redis<br>数据类型篇 - Redis数据结构<br>数据类型篇 - Redis常见数据类型和应用场景<br>持久化篇 - AOF持久化是怎么实现的<br>持久化篇 - RDB快照是怎么实现的<br>持久化篇 - Redis大Key对持久化有什么影响<br>功能篇 - Redis过期删除策略和内存淘汰策略有什么区别<br>功能篇 - 多节点争抢资源，Redis分布式锁是怎么实现的<br>高可用篇 - 主从复制是怎么实现的<br>高可用篇 - 为什么要有哨兵<br>高可用篇 - 为什么要有cluster集群<br>高可用篇 - 如何保证Redis分布式锁的高可用和高性能<br>缓存篇 - 什么是缓存雪崩、击穿、穿透<br>缓存篇 - 数据库和缓存如何保证一致性                                                                                                                                                                                                    |
 
 数据库：
 - [Bilibili: LSM树: NoSQL背后的秘密](https://www.bilibili.com/video/BV1d1o9YcEip)
 - [稀土掘金: 面试官：你真的认为ElasticSearch比MySQL快？](https://juejin.cn/post/7384047803738325027)
 - 小林Coding
-	1. 图解MySQL - 前言 - 图解MySQL介绍
-	2. 图解MySQL - 基础篇 - 执行一条select语句，期间发生了什么
-	3. 图解MySQL - 基础篇 - MySQL一行记录是怎么存储的
-	4. 图解MySQL - 索引篇 - 索引常见面试题
-	5. 图解MySQL - 索引篇 - 从数据页的角度看 B+ 树
-	6. 图解MySQL - 索引篇 - 为什么 MySQL 采用 B+ 树作为索引
-	7. 图解MySQL - 索引篇 - MySQL 单表不要超过 2000W 行，靠谱吗
-	8. 图解MySQL - 索引篇 - 索引失效有哪些
-	9. 图解MySQL - 索引篇 - `count(*)`和`count(1)`有什么区别，哪个性能最好
-	10. 图解MySQL - 索引篇 - MySQL 分页有什么性能问题，怎么优化
-	11. 图解MySQL - 事务篇 - 事务隔离级别是怎么实现的
-	12. 图解MySQL - 事务篇 - MySQL可重复读隔离级别，完全解决幻读了吗
-	13. 图解MySQL - 锁篇 - MySQL有哪些锁
-	14. 图解MySQL - 锁篇 - MySQL是怎么加锁的
-	15. 图解MySQL - 锁篇 - update没加索引会锁全表
-	16. 图解MySQL - 锁篇 - MySQL记录锁+间隙锁可以防止删除操作而导致的幻读吗
-	17. 图解MySQL - 锁篇 - MySQL 死锁了，怎么办
-	18. 图解MySQL - 锁篇 - 字节面试：加了什么锁，导致死锁的
-	19. 图解MySQL - 日志篇 - MySQL日志：undo log、redo log、binlog有什么用
-	20. 图解MySQL - 内存篇 - 揭开 Buffer Pool 的面纱
-	21. 图解MySQL - 架构篇 - MySQL架构是怎样的？
-
-Redis：
-- 小林Coding
-	1. 图解Redis - 前言 - 图解Redis介绍
-	2. 图解Redis - 基础篇 - 什么是Redis
-	3. 图解Redis - 数据类型篇 - Redis数据结构
-	4. 图解Redis - 数据类型篇 - Redis常见数据类型和应用场景
-	5. 图解Redis - 持久化篇 - AOF持久化是怎么实现的
-	6. 图解Redis - 持久化篇 - RDB快照是怎么实现的
-	7. 图解Redis - 持久化篇 - Redis大Key对持久化有什么影响
-	8. 图解Redis - 功能篇 - Redis过期删除策略和内存淘汰策略有什么区别
-	9. 图解Redis - 功能篇 - 多节点争抢资源，Redis分布式锁是怎么实现的
-	10. 图解Redis - 高可用篇 - 主从复制是怎么实现的
-	11. 图解Redis - 高可用篇 - 为什么要有哨兵
-	12. 图解Redis - 高可用篇 - 为什么要有cluster集群
-	13. 图解Redis - 高可用篇 - 如何保证Redis分布式所的高可用和高性能
-	14. 图解Redis - 缓存篇 - 什么是缓存雪崩、击穿、穿透
-	15. 图解Redis - 缓存篇 - 数据库和缓存如何保证一致性
 
 消息队列：
 - [腾讯云 - 《面试八股文》之Kafka 21卷](https://cloud.tencent.com/developer/article/1853417)
