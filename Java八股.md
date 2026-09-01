@@ -1223,7 +1223,7 @@ Redis 6.0以后，网络IO部分改成了多线程，因为随着硬件性能的
 	- 不能保证强一致性，可能造成数据丢失。
 	- 适合写多的场景，例如CPU缓存。
 
-### Redis与数据库如何保证一致性？
+### Redis与数据库如何保证数据一致性？
 
 使用旁路缓存策略（Cache Aside）。如果第二步的删除缓存失败，则可以：
 
@@ -1735,7 +1735,7 @@ Embedding侧重于检索两端文本的语义是否相似，Rerank侧重于判�
 - 2026.05：SkillOpt
 - 2026.06：Loop Engineering & Rubric
 - 2026.07：Graph Engineering
-- 2026.08：DeepSeek Harness
+- 2026.08：DeepSeek Harness & Grok Bot
 
 ### 什么是Agent？（小林Coding）
 
@@ -2107,11 +2107,16 @@ SkillOpt-sleep的流程是：
 4. Replay：使用Agent Runtime提供的沙盒模式对训练集的Batch做回测，输出硬分数/软分数，得到`ReplayResult`
 5. Consolidate：筛选出训练集的Bad Case，在原有Skills的基础上追加一部分可编辑区域，交给LLM生成Skill的编辑命令(<=4)。如果在评测集上的指标有提高则保留更改，反之则回滚。
 
-## Agent Evaluation
+## Agent Eval
 
 ## Agent Memory
 
-### 长短期记忆/分层记忆是如何实现的？TencentDB-Agent-Memory的原理是什么？
+### 长短期记忆/分层记忆是如何实现的？
+
+
+### TencentDB-Agent-Memory的原理是什么？
+
+TencentDB-Agent-Memory是**腾讯**开源的一个Agent Memory中间件。
 
 存储过程：
 1. **Level0-Trace级别**：提取Trace，保存到Level0数据库(附带向量/倒排索引)，当用户介入次数>=5时push到Level1队列
@@ -2124,11 +2129,39 @@ SkillOpt-sleep的流程是：
 4. **Level3-Persona级别**：提取`Scene`之间的共同规律（长期偏好、决策逻辑、轨迹涌现特征），编辑`persona.md`
 
 召回过程：
-1. 用户每次提问时，Level1追加到User Input，Level2 & Level 3追加到System Prompt：
+1. 用户每次提问时，Level1追加到User Input，Level2 & Level3追加到System Prompt：
     - **Level1-Memory级别**：BM25倒排+向量召回，过RRF融合，筛选出前5个
     - **Level2-Scene级别**：读取`scene`全量索引，格式化成Markdown
     - **Level3-Persona级别**：全量注入`persona.md`
 2. 为Agent提供Level1的检索工具，给定`query`/`type`/`limit`/`scene`入参，做BM25倒排+向量召回+RRF+截断
+
+### OpenViking的原理是什么？
+
+OpenVIking是**字节**开源的一个Agent Memory中间件。
+
+存储过程：
+1. 提取Trace，创建`viking://user/<USER>/sessions/{SESSION}`根目录，按照`./hisotry/<ARCHIVE>/`进行切Chunk存档，发送到第2步的任务队列。
+	- `messages.json`：当前Chunk的原始消息
+	- `.meta.json`：
+	- `.abstract.md`
+	- `.overview.md`
+	- `memory_diff.json`
+	- `.done.json`/`.failed.json`
+2. 使用一个带有`read`工具的ReAct创建若干条针对Memory的操作命令，从而提取和更新Memory，并保存在`viking://user/<USER>/memories/`目录下：
+
+| 文件名称              | 路径               | 内容含义                                  |
+| ----------------- | ---------------- | ------------------------------------- |
+| `entities.md`     | `./entities`     | 描述实体（人物/组织/地点/产品）的名称、类别、评价结论以及证据文本    |
+| `profile.md`      | `./`             | 用户的职业角色、工作范围、沟通风格、习惯喜好                |
+| `cases.md`        | `./cases`        | 可复用的案例/任务的名称、意图、效果边界、成功条件。            |
+| `events.md`       | `./events`       | 任务对应的事件日志以及总结摘要                       |
+| `experiences.md`  | `./experiences`  | 某个任务的情景、成功方法、错误反思                     |
+| `identity.md`     | `./events`       | Agent的名称、类型、性格、自我介绍                   |
+| `preferences.md`  | `./preference`   | 用户偏好，例如工作流/代码风格/工具链/日常生活              |
+| `skills.md`       | `./skills`       | Skill的名称、使用次数、推荐场景、依赖项、常见失败原因、建议      |
+| `soul.md`         | `./`             | Agent的价值观、边界规则、沟通风格                   |
+| `tools.md`        | `./tools`        | 工具调用的记录、成功率、使用时机、最佳实参、常见失败原因、建议       |
+| `trajectories.md` | `./trajectories` | 有重复执行价值的任务，及其操作意图、前提条件、执行过程、验收标准Trace |
 
 ## IDE
 
