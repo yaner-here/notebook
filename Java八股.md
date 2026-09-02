@@ -2111,12 +2111,28 @@ SkillOpt-sleep的流程是：
 
 ## Agent Memory
 
-### 长短期记忆/分层记忆是如何实现的？
+### Memory的种类有哪些？长短期记忆/分层记忆是如何实现的？如何为长程任务设计Memory？
 
+> 注：以下内容参考自2025年12月的Memory综述[《Memory in the Age of AI Agents: A Survey》](https://arxiv.org/html/2512.13564v2)。
+
+- **短期记忆（工作记忆）**：在单个Session中受上下文窗口长度、注意力稀释等问题，而创建的临时工作区，表示Agent现在正在思考什么。
+	- 单轮工作记忆：Agent Loop的单轮Turn可能会接受大量的输入，需要事先对原始输入做过滤和压缩，从而减少输入的Token数量。例如Skill Fork模式、历史Tool结果暂存到VFS，都是用到了上下文卸载的思想。
+	- 多轮工作记忆：在长程任务中维护任务状态和历史相关信息。类似于`todo`工具的思想，将总任务拆分成多层次的子任务，子任务活跃时就详细展开，子任务完成后就压缩成简洁的摘要。给定时刻$t$的多轮工作记忆$x_t$和状态$s_t$，业界通常采用$x_{t+1} = f(x_{t}, s_t)$的方式做RNN风格的更新。为了避免RNN风格的语义损失风险，现在也有$y_{t+1} = f(y_{t-k}, y_{y-k+1}, y_{y-k+2}, \cdots, y_{t}, s_{t})$的Map-Reduce风格。
+- **长期记忆 - 事实记忆**：记录用户信息和环境状态，整理成时间线。保证Agent执行任务时的连贯性，防止Agent出现目标偏移的问题。
+	- Trace保留任务指令的输入、环境状态、输出结果的映射关系。
+	- Strategy从Trace中提取通用的执行流程，分析规律，提高其它任务的泛化能力，对无用的思考分支做剪枝优化。
+	- Skill从Strategy中封装通用的执行能力，汇总成模块化的技能。
+	- 实际的Memory经常会混合召回以上信息，取决于各家Memory的具体代码实现。
+	- 多轮工作记忆之间还可以构建成树状或图状的关系。
+- **长期记忆 - 经验记忆**：Agent提取过往Trace，总结成功和失败的经验。
+
+- **记忆去重**：尝试添加新Memory时，首先召回TopK条Memory，由LLM判断是否重复。空闲时也可执行Embedding + KMeans聚类，尝试合并一个Cluster中的Memory。
+- **记忆消岐**：在线或近线做消岐，推荐只做软删除（只追加Timeline）而非硬删除导致丢失历史信息。
+- **记忆淘汰**：根据上次更新时间计算新鲜度，根据召回频率计算LRU/LFU，根据LLM得到重要程度，综合计算淘汰分数归类成不同的等级（`hot->cold->archived->deleted`），默认只选用`hot`做Memory召回。
 
 ### TencentDB-Agent-Memory的原理是什么？
 
-TencentDB-Agent-Memory是**腾讯**开源的一个Agent Memory中间件。
+[TencentDB-Agent-Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory)是**腾讯-腾讯云**开源的一个Agent Memory中间件。
 
 存储过程：
 1. **Level0-Trace级别**：提取Trace，保存到Level0数据库(附带向量/倒排索引)，当用户介入次数>=5时push到Level1队列
@@ -2137,31 +2153,41 @@ TencentDB-Agent-Memory是**腾讯**开源的一个Agent Memory中间件。
 
 ### OpenViking的原理是什么？
 
-OpenVIking是**字节**开源的一个Agent Memory中间件。
+[OpenVIking](https://github.com/volcengine/OpenViking)是**字节-火山引擎**开源的一个Agent Memory中间件，按照Memory概括等级从低到高分为L2/L1/L0。
 
 存储过程：
 1. 提取Trace，创建`viking://user/<USER>/sessions/{SESSION}`根目录，按照`./hisotry/<ARCHIVE>/`进行切Chunk存档，发送到第2步的任务队列。
-	- `messages.json`：当前Chunk的原始消息
-	- `.meta.json`：
-	- `.abstract.md`
-	- `.overview.md`
-	- `memory_diff.json`
-	- `.done.json`/`.failed.json`
-2. 使用一个带有`read`工具的ReAct创建若干条针对Memory的操作命令，从而提取和更新Memory，并保存在`viking://user/<USER>/memories/`目录下：
 
-| 文件名称              | 路径               | 内容含义                                  |
-| ----------------- | ---------------- | ------------------------------------- |
-| `entities.md`     | `./entities`     | 描述实体（人物/组织/地点/产品）的名称、类别、评价结论以及证据文本    |
-| `profile.md`      | `./`             | 用户的职业角色、工作范围、沟通风格、习惯喜好                |
-| `cases.md`        | `./cases`        | 可复用的案例/任务的名称、意图、效果边界、成功条件。            |
-| `events.md`       | `./events`       | 任务对应的事件日志以及总结摘要                       |
-| `experiences.md`  | `./experiences`  | 某个任务的情景、成功方法、错误反思                     |
-| `identity.md`     | `./events`       | Agent的名称、类型、性格、自我介绍                   |
-| `preferences.md`  | `./preference`   | 用户偏好，例如工作流/代码风格/工具链/日常生活              |
-| `skills.md`       | `./skills`       | Skill的名称、使用次数、推荐场景、依赖项、常见失败原因、建议      |
-| `soul.md`         | `./`             | Agent的价值观、边界规则、沟通风格                   |
-| `tools.md`        | `./tools`        | 工具调用的记录、成功率、使用时机、最佳实参、常见失败原因、建议       |
-| `trajectories.md` | `./trajectories` | 有重复执行价值的任务，及其操作意图、前提条件、执行过程、验收标准Trace |
+| 文件               | 级别         | 含义                                               |
+| :--------------- | :--------- | :----------------------------------------------- |
+| `messages.jsonl` | L2         | 当前Chunk的原始消息                                     |
+| `.meta.json`     | Metadata   | 当前Chunk的Memory抽取Metadata：队列任务、归档状态、Token消耗量等统计信息 |
+| `.overview.md`   | L1         | Session的标题、目标主题、待办事项、事实、资源、错误与修复方案。              |
+| `.abstract.md`   | L1         | 从`.overview.md`提取满足`/^.*?:.*$/`格式的键值对            |
+2. 以`viking://user/<USER>/memories/`为根目录。`query`工具负责通过VikingFS提供的Sparse Embedding + Dense Embedding能力，召回根目录中的`preferences`/`entities`/`cases`。事先以本次归档的`messages`作为查询字符串，调用该`query`工具并将结果注入到Context，使用ReAct创建若干条针对Memory的操作命令，从而提取和更新Memory。更改记录保存在`memory_diff.json`中。
+
+| 记忆类型              | 级别  | 路径               | 内容含义                                  |
+| ----------------- | --- | ---------------- | ------------------------------------- |
+| `entities.md`     | L2  | `./entities`     | 描述实体（人物/组织/地点/产品）的名称、类别、评价结论以及证据文本    |
+| `profile.md`      | L2  | `./`             | 用户的职业角色、工作范围、沟通风格、习惯喜好                |
+| `cases.md`        | L2  | `./cases`        | 可复用的案例/任务的名称、意图、效果边界、成功条件。            |
+| `events.md`       | L2  | `./events`       | 任务对应的事件日志以及总结摘要                       |
+| `experiences.md`  | L2  | `./experiences`  | 某个任务的情景、成功方法、错误反思                     |
+| `identity.md`     | L2  | `./events`       | Agent的名称、类型、性格、自我介绍                   |
+| `preferences.md`  | L2  | `./preference`   | 用户偏好，例如工作流/代码风格/工具链/日常生活              |
+| `skills.md`       | L2  | `./skills`       | Skill的名称、使用次数、推荐场景、依赖项、常见失败原因、建议      |
+| `soul.md`         | L2  | `./`             | Agent的价值观、边界规则、沟通风格                   |
+| `tools.md`        | L2  | `./tools`        | 工具调用的记录、成功率、使用时机、最佳实参、常见失败原因、建议       |
+| `trajectories.md` | L2  | `./trajectories` | 有重复执行价值的任务，及其操作意图、前提条件、执行过程、验收标准Trace |
+
+召回过程：
+1. 使用用户`messages[-1]`做显式召回，或`.overview.md[:30000]` + `messages[-5:]`做意图召回，得到`query`字符串并发起召回请求。
+2. **首次召回**：查找L0/L1层记忆。做Dense Embedding + Sparse Embdding召回，得到10个可能相关的目录，使用Rerank做重排得到每个目录的权重分数$x_1$，放入优先队列中做BFS，对L2文档做Dense Embedding + Sparse Embdding得到权重分数$x_2$。记L2文档的总访问量为$n$，上次访问距离了$t$天，是否是其它用户的记忆$\mathbb{1}_{others}$，按照$\mathcal{L}_1 = \alpha \cdot x_1 + (1-\alpha)\cdot x_2 + \beta\cdot\sigma(\log{(1+h)}\times e^{-kt}) - \gamma\cdot\mathbb{1}_{\mathrm{others}}$对L2文档排序。
+3. **最终召回**：对Query进行改写，对**首次召回**的L2文档按桶分类，两者做笛卡尔积，重复**首次召回**的操作得到$\mathcal{L}_2$及其**最终召回**的L2文档。每次召回都有一个Token预算，外层贪心地注入$\mathcal{L}$分数更大的记忆，内层贪心地保证单条记忆不能超过总Token预算值的一半，如果超过了则按顺序`full->overview->abstract->uri`依次降级。最终跨Agent Trace Turn去重后按记忆类型分桶取前几名，防止一种记忆类型垄断召回结果，防止同一条记忆在Agent Trace Turn中被多次召回浪费上下文。
+
+首次召回作为索引，缩小后续的召回范围。最终召回使用Query改写召回更符合语义的记忆，保证记忆经过去重，且记忆种类分布均匀。**两者缺一不可**。
+
+> 注：Dense Embedding即最常见的Embedding，也就是将`string query, document[]`都输入到Embedding模型中得到`float[]`，做相似度匹配的向量召回。Sparse Embedding将`string query, document[]`都输入到TF-IDF/BM25中，计算各个词的得分作为Sparse Embedding得到类`one-hot`的`float[]`，做相似度匹配的向量召回。
 
 ## IDE
 
