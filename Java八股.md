@@ -1604,6 +1604,14 @@ ChatClient = ChatClient.builder(chatModel) // AI客户端
 
 # §D Agent
 
+$$
+\left\{
+	\begin{align}
+		\mathrm{Ａ\ \ Ｉ\ \ 一\ \ 天} & & \mathrm{人\ \ 间\ \ 一\ \ 年} \\
+		\mathrm{不\ \ 言\ \ 而\ \ 喻} & & \mathrm{一\ \ 目\ \ 了\ \ 然} \\
+	\end{align}
+\right\}
+$$
 - 2026.01：OpenClaw
 - 2026.02：Harness Engineering
 - 2026.03：Hermes & CLI
@@ -1612,6 +1620,7 @@ ChatClient = ChatClient.builder(chatModel) // AI客户端
 - 2026.06：Loop Engineering & Rubric
 - 2026.07：Graph Engineering
 - 2026.08：DeepSeek Harness & Grok Bot
+- 2026.09：
 
 ## RAG
 
@@ -2262,7 +2271,6 @@ SkillOpt-sleep的流程是：
 
 ## 校园经历
 
-
 ### 你本科参与过实习吗？
 
 没有。因为我本科期间一直在忙保研相关的事情，卷GPA，打比赛，做志愿活动，所以没有考虑过实习的事情。
@@ -2299,7 +2307,7 @@ SkillOpt-sleep的流程是：
 
 ### 找实习的目的是什么？
 
-暑期实习：**转正**。
+- 暑期实习：**转正**。
 
 ### 为什么没有在前司继续实习下去？
 
