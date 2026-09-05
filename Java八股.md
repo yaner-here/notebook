@@ -1904,17 +1904,22 @@ Plugins是一种扩展机制。一方面，它可以把MCP、Skills、Agent打�
 
 首次启动Agent时到远程仓库做全量同步，缓存到本地，然后定时检查更新。
 
-### Agent是如何处理大量的工具发现的？
+### Agent是如何处理大量的工具发现的？什么是TST？
 
-TODO：（search_tool Spring AI博客）
-### Sandbox的方案有哪些？
+Tool Search Tool（TST）。一开始Agent只能看到一个工具，就是TST，这个工具用于搜索出$n$个其它的工具。经过这一轮之后，Agent有了$n+1$个工具，继续后面的任务的操作。如果召回的工具不准确，可以考虑加大$n$的值。为了防止多次调用TST污染上下文，可以使用上下文卸载。
 
-- Docker容器：最主流的方案（例如NanoClaw、Gemini CLI），隔离性好，生态成熟，镜像管理方便。
-- gVisor/Firecracker：轻量的虚拟化方案，启动速度快（毫秒级），适合需要频繁创建和销毁Sandbox的场景。
-- WebAssembly：适用于浏览器端和Serverless场景，但是目前对系统调用的支持还不完善。
-- 纯函数式环境(Nix)：通过声明式的环境定义，确保每次执行的环境完全一致。
+Spring AI发布过一篇关于TST的实验报告，我记得它给Agent提供了28个工具，最终结论是虽然TST会让Agent Loop轮数变多，但是总的来说能至少节省30%的Token。
 
-TODO：Cloudflare沙箱？？？？gVisor、FireCracker的原理
+### Agent是如何处理大量Skills的？
+
+第一步是做检索——应用市场往往有数以万计的Skill，其中XX平台的总量级达到了
+1. 根据Skill Metadata的标签做粗检索，通过对场景和功能做筛选，防止后面召回一批语义相近但适用范围完全不同的Skill。比如阿里国际和淘天都有自己的全站推平台，都向商家提供了分析广告投放效果的Skill，它们的语义非常相近，但是涉及的平台完全不一样，经验也不相同。
+2. 走RAG的路，查询改写+倒排召回+向量召回+RRF/Rerank。
+
+第二步是压缩上下文——Skills加载后会一直占用上下文，导致上下文被稀释。
+- 上下文卸载：走MCP Tool的路，我们把加载Skills视为`read`工具的一部分，这个`read`工具会返回大量的文本，那么过一段时间后卸载掉即可，同时留下一个ID用于检索工具返回的内容。
+- 上下文压缩：走短期记忆的路，我们把之前的所有`messages`压缩成一个`TaskStatus`结构体，记录任务执行的状态。
+- Skill Fork：走子Agent的路，我们在Skill的Markdown文件的`frontmatter`中声明Skill类型（`context: fork`）和参数Schema（`arguments: ...`）。当Agent尝试加载这个Skill的时候，会传入参数值用于填充Skill中的字符串模板，最后开启一个子Agent。子Agent的上下文包含自己的System Prompt（例如`plan`/`agent`权限之分）、填充字符串模板后的Skill、运行环境Context，目前只有Claude Code和VSCode Copilot支持这个特性。
 
 ### 什么是ReAct框架？
 
@@ -2089,6 +2094,15 @@ Agent Teams之间的任务交接Prompt：
 
 运行时：
 - `runc`：
+
+### Sandbox的方案有哪些？
+
+- Docker容器：最主流的方案（例如NanoClaw、Gemini CLI），隔离性好，生态成熟，镜像管理方便。
+- gVisor/Firecracker：轻量的虚拟化方案，启动速度快（毫秒级），适合需要频繁创建和销毁Sandbox的场景。
+- WebAssembly：适用于浏览器端和Serverless场景，但是目前对系统调用的支持还不完善。
+- 纯函数式环境(Nix)：通过声明式的环境定义，确保每次执行的环境完全一致。
+
+TODO：Cloudflare沙箱？？？？gVisor、FireCracker的原理
 
 ## Agent Evolve
 
