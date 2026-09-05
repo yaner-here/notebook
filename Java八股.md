@@ -1904,9 +1904,12 @@ Plugins是一种扩展机制。一方面，它可以把MCP、Skills、Agent打�
 
 首次启动Agent时到远程仓库做全量同步，缓存到本地，然后定时检查更新。
 
-### Agent是如何处理大量的工具发现的？
+### 现在提供很多工具，如何保证Agent是做工具发现？
 
 TODO：（search_tool Spring AI博客）
+
+### Agent是如何很多Skills，如何处理上下文的大小
+
 ### Sandbox的方案有哪些？
 
 - Docker容器：最主流的方案（例如NanoClaw、Gemini CLI），隔离性好，生态成熟，镜像管理方便。
