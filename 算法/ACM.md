@@ -30000,6 +30000,8 @@ int main() {
 
 # §12 LeetCode
 
+以下题解全部使用Java完成。
+
 ## §12.1 链表
 
 ### §12.1.1 反转链表
@@ -30022,6 +30024,19 @@ class Solution {
 ```
 
 > [力扣92](https://leetcode.cn/problems/reverse-linked-list-ii/)：翻转链表2。给定链表的头结点`ListNode head`，以`1-based`标注序号，翻转`[left, right]`区间内的链表。
+
+```c++
+left = 2, right = 4
+
+1 -> 2 -> 3 -> 4 -> 5
+
+1 -> 2 <- 3 <- 4    5
+     └> null
+     
+┏------->------┓
+1    2 <- 3 <- 4    5
+     └------->------┘
+```
 
 ```c++
 class Solution {
@@ -30047,19 +30062,6 @@ class Solution {
 ```
 
 > [力扣25](https://leetcode.cn/problems/reverse-nodes-in-k-group/)：K个一组翻转链表。给定链表的头结点`ListNode head`，以`k`个连续的节点为一组进行翻转链表，若末尾不足`k`个则不用翻转。
-
-```c++
-left = 2, right = 4
-
-1 -> 2 -> 3 -> 4 -> 5
-
-1 -> 2 <- 3 <- 4    5
-     └> null
-     
-┏------->------┓
-1    2 <- 3 <- 4    5
-     └------->------┘
-```
 
 ```c++
 class Solution {
@@ -30119,7 +30121,7 @@ class Solution {
 
 > [力扣19](https://leetcode.cn/problems/remove-nth-node-from-end-of-list/)：删除链表的倒数第N个结点。给定链表的头结点`ListNode head`，删除其倒数第`n`个节点。
 
-使用快慢指针，快指针比满指针提前`n+1`步。当快指针到末尾`null`时，慢指针即为所求的倒数第`n`个节点的**前一个节点**，基于此执行删除操作即可。
+使用快慢指针，快指针比慢指针提前`n+1`步。当快指针到末尾`null`时，慢指针即为所求的倒数第`n`个节点的**前一个节点**，基于此执行删除操作即可。
 
 ```java
 class Solution {
@@ -30133,6 +30135,62 @@ class Solution {
         }
         slow.next = slow.next.next;
         return dummy.next;
+    }
+}
+```
+
+> [力扣61](https://leetcode.cn/problems/rotate-list/description/)：旋转链表。将链表中的每个节点向后移动`k`次。
+
+记链表长度为`n`，把链表首位连成环。注意到只需向后移动`k % n`次即可，等价于向左移动`n - k % n`次，然后把环断开即可。
+
+```c++
+class Solution {
+    public ListNode rotateRight(ListNode head, int k) {
+        if(head == null) { return head; }
+        
+        ListNode prev = null, cur = head;
+        int n = 0; while(cur != null) { prev = cur; cur = cur.next; ++n; }
+        prev.next = head;
+
+        prev = null; cur = head;
+        for(int i = 1; i <= (n - k % n); ++i) { prev = cur; cur = cur.next; }
+        prev.next = null;
+
+        return cur;
+    }
+}
+```
+
+> [力扣234](https://leetcode.cn/problems/palindrome-linked-list/)：判断一个链表是否是回文链表。
+
+把一个链表拆成前后两半`left, right`（`left`较长），对`right`做反转，问题转化为判断两个链表在`[1, std::min(left.size(), right.size())]`范围内是否相同。
+
+```c++
+class Solution {
+    public boolean isPalindrome(ListNode head) {
+        ListNode slow = head, fast = head;
+        while(fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+        }
+
+        ListNode prev = null, cur = slow;
+        while(cur != null) {
+            ListNode next = cur.next;
+            cur.next = prev;
+            prev = cur;
+            cur = next;
+        }
+
+        ListNode left = head, right = prev;
+        while(left != null && right != null) { // 可以简写成right != null
+            if(left.val != right.val) {
+                return false;
+            }
+            left = left.next; 
+            right = right.next;
+        }
+        return true;
     }
 }
 ```
@@ -30157,6 +30215,32 @@ class Solution {
         }
         prev.next = (list1 != null ? list1 : list2); // 最后至少有一个链表非空,直接接入到末尾即可
         return dummy.next;
+    }
+}
+```
+
+> [力扣86](https://leetcode.cn/problems/partition-list/)：分隔链表。对链表进行稳定排序，使得所有`<x`的节点在前，`>=x`的节点在后。
+
+本题实际上是[力扣21](https://leetcode.cn/problems/merge-two-sorted-lists/)的逆序版本。直接拆成两个链表`less`/`more`用于维护`<x`/`>=x`的节点，最后把`less`接在`more`之前即可。
+
+```c++
+class Solution {
+    public ListNode partition(ListNode head, int x) {
+        ListNode less_dummy = new ListNode(0, null), less = less_dummy;
+        ListNode more_dummy = new ListNode(0, null), more = more_dummy;
+        while(head != null) {
+            if(head.val < x) {
+                less.next = head;
+                less = less.next;
+            } else {
+                more.next = head;
+                more = more.next;
+            }
+            head = head.next;
+        }
+        less.next = more_dummy.next;
+        more.next = null;
+        return less_dummy.next;
     }
 }
 ```
