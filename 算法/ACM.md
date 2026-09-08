@@ -30025,7 +30025,7 @@ class Solution {
 
 > [力扣92](https://leetcode.cn/problems/reverse-linked-list-ii/)：翻转链表2。给定链表的头结点`ListNode head`，以`1-based`标注序号，翻转`[left, right]`区间内的链表。
 
-```c++
+```
 left = 2, right = 4
 
 1 -> 2 -> 3 -> 4 -> 5
@@ -30038,7 +30038,7 @@ left = 2, right = 4
      └------->------┘
 ```
 
-```c++
+```java
 class Solution {
     public ListNode reverseBetween(ListNode head, int left, int right) {
         ListNode dummy = new ListNode(0, head), head_prev = dummy;
@@ -30063,13 +30063,18 @@ class Solution {
 
 > [力扣25](https://leetcode.cn/problems/reverse-nodes-in-k-group/)：K个一组翻转链表。给定链表的头结点`ListNode head`，以`k`个连续的节点为一组进行翻转链表，若末尾不足`k`个则不用翻转。
 
-```c++
+```
+... -> i-2 -> i-1 -> [i -> i+1 -> i+2 -> ... -> i+k] -> i+k+1 -> ...
+           head_prev head                       prev     cur
+```
+
+```java
 class Solution {
     public ListNode reverseKGroup(ListNode head, int k) {
-        ListNode dummy = new ListNode(0, head), head_prev = dummy;
+        ListNode dummy = new ListNode(0, head);
         int n = 0; for(ListNode cur = head; cur != null; cur = cur.next) { ++n; }
 
-        ListNode prev = null, cur = head;
+        ListNode head_prev = dummy, prev = null, cur = head;
         for(int i = 0; i + k <= n; i += k) {
             for(int j = 1; j <= k; ++j) {
                 ListNode next = cur.next;
@@ -30091,7 +30096,7 @@ class Solution {
 
 返回**靠后**的中间节点：
 
-```c++
+```java
 class Solution {
     public ListNode middleNode(ListNode head) {
         ListNode slow = head, fast = head; // 快慢指针起点均为head
@@ -30106,7 +30111,7 @@ class Solution {
 
 返回**靠前**的中间节点：
 
-```c++
+```java
 class Solution {
     public ListNode middleNode(ListNode head) {
         ListNode slow = head, fast = head.next; // 慢指针起点为head,快指针起点更进一步
@@ -30139,11 +30144,33 @@ class Solution {
 }
 ```
 
+> [力扣1721](https://leetcode.cn/problems/swapping-nodes-in-a-linked-list/)：交换链表正数第`k`个节点和倒数第`k`个节点的值。
+
+本题只需使用[力扣19](https://leetcode.cn/problems/remove-nth-node-from-end-of-list/)的方法，定位到倒数第`k`个节点后，做值交换即可。
+
+```java
+class Solution {
+    public ListNode swapNodes(ListNode head, int k) {
+        ListNode dummy = new ListNode(0, head);
+        
+        ListNode slow = dummy, fast = dummy;
+        for(int i = 1; i <= k; ++i) { fast = fast.next; }
+        while(fast != null) { slow = slow.next; fast = fast.next; } // slow = [-k]
+        
+        ListNode cur = dummy;
+        for(int i = 1; i <= k; ++i) { cur = cur.next; } // cur = [k]
+
+        int tmp = cur.val; cur.val = slow.val; slow.val = tmp;
+        return dummy.next;
+    }
+}
+```
+
 > [力扣61](https://leetcode.cn/problems/rotate-list/description/)：旋转链表。将链表中的每个节点向后移动`k`次。
 
 记链表长度为`n`，把链表首位连成环。注意到只需向后移动`k % n`次即可，等价于向左移动`n - k % n`次，然后把环断开即可。
 
-```c++
+```java
 class Solution {
     public ListNode rotateRight(ListNode head, int k) {
         if(head == null) { return head; }
@@ -30165,7 +30192,7 @@ class Solution {
 
 把一个链表拆成前后两半`left, right`（`left`较长），对`right`做反转，问题转化为判断两个链表在`[1, std::min(left.size(), right.size())]`范围内是否相同。
 
-```c++
+```java
 class Solution {
     public boolean isPalindrome(ListNode head) {
         ListNode slow = head, fast = head;
@@ -30199,7 +30226,7 @@ class Solution {
 
 > [力扣21](https://leetcode.cn/problems/merge-two-sorted-lists/)：合并两个有序链表。给定两个升序链表，合并成一个新的升序链表并返回。
 
-```c++
+```java
 class Solution {
     public ListNode mergeTwoLists(ListNode list1, ListNode list2) {
         ListNode dummy = new ListNode(0), prev = dummy;
@@ -30223,24 +30250,48 @@ class Solution {
 
 本题实际上是[力扣21](https://leetcode.cn/problems/merge-two-sorted-lists/)的逆序版本。直接拆成两个链表`less`/`more`用于维护`<x`/`>=x`的节点，最后把`less`接在`more`之前即可。
 
-```c++
+```java
 class Solution {
     public ListNode partition(ListNode head, int x) {
         ListNode less_dummy = new ListNode(0, null), less = less_dummy;
         ListNode more_dummy = new ListNode(0, null), more = more_dummy;
-        while(head != null) {
-            if(head.val < x) {
-                less.next = head;
+        for(ListNode cur = head; cur != null; cur = cur.next) {
+            if(cur.val < x) {
+                less.next = cur;
                 less = less.next;
             } else {
-                more.next = head;
+                more.next = cur;
                 more = more.next;
             }
-            head = head.next;
         }
         less.next = more_dummy.next;
         more.next = null;
         return less_dummy.next;
+    }
+}
+```
+
+> [力扣328](https://leetcode.cn/problems/odd-even-linked-list/)：奇偶链表。把`1->2->3->...->n`排列成`1->3->5->...->2->4->6->...->n`
+
+本题实际上是[力扣21](https://leetcode.cn/problems/merge-two-sorted-lists/)的逆序版本，与[力扣86](https://leetcode.cn/problems/partition-list/)非常相似。直接拆成两个链表`left`/`rifht`用于维护序号为奇数和偶数的节点，最后把`left`接在`right`之前即可。
+
+```java
+class Solution {
+    public ListNode oddEvenList(ListNode head) {
+        ListNode left_dummy = new ListNode(0, null), right_dummy = new ListNode(0, null);
+        ListNode left = left_dummy, right = right_dummy; int n = 0;
+        for(ListNode cur = head; cur != null; cur = cur.next) {
+            if(++n % 2 == 1) {
+                left.next = cur;
+                left = left.next;
+            } else {
+                right.next = cur;
+                right = right.next;
+            }
+        }
+        left.next = right_dummy.next;
+        right.next = null;
+        return left_dummy.next;
     }
 }
 ```
@@ -30253,7 +30304,7 @@ class Solution {
 3. 断开前面链表的末尾`mid.next = null`，此时前后两个链表彻底无关。
 4. 合并前后两个链表，得到`1->n->2->n-1->...`。
 
-```c++
+```java
 class Solution {
     private ListNode middleNode(ListNode head) {
         ListNode slow = head, fast = head.next;
@@ -30292,11 +30343,92 @@ class Solution {
 }
 ```
 
+### §12.1.4 环形链表
+
+> [力扣141](https://leetcode.cn/problems/linked-list-cycle/)：环形链表。判断链表是否成环。
+
+使用Floyd判圈算法——原理是快慢指针。如果链表无环，则快指针最终会变为`null`。如果链表有环，则快慢指针一开始的距离会`+=1`，两者同时进入环后每次的距离`-=1`，从而保证最终一定能相遇。
+
+```java
+public class Solution {
+    public boolean hasCycle(ListNode head) {
+        ListNode slow = head, fast = head;
+        while(fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+            if(slow == fast) { return true; }
+        }
+        return false;
+    }
+}
+```
+
+> [力扣142](https://leetcode.cn/problems/linked-list-cycle-ii/)：环形链表2。判断链表是否成环。如果是，则返回进入环的第一个节点；如果不是，返回`null`。
+
+```
+                      ┌> 1 -> 2 -> ... -> b
+1 -> 2 -> 3 -> ... -> a                   ↓
+                      └< c <- ... <- 2 <- 1
+```
+
+如果链表有环。不妨设环外部分的长度为`a`。由[力扣141](https://leetcode.cn/problems/linked-list-cycle/)可知快慢指针最后一定相遇，**且慢指针走过的长度一定小于环的长度**。假设慢指针进入环后经过了距离`b`与快指针相遇，此时快指针已经走了`n`圈，环的其它部分长度为`c`，则慢指针走过的距离为$a + b$，快指针走过的距离为$a + (b + c)n + b$。又已知快指针走过的距离一定是慢指针的两倍，可解得$a = c + (b+c)(n-1)$。于是此时在链表头部定义第三个指针（此时距离为`0`），慢指针移动`c`距离时，第三个指针一定会与慢指针相遇在环入口节点处。
+
+如果链表无环，则快指针最终会变为`null`。
+
+```java
+public class Solution {
+    public ListNode detectCycle(ListNode head) {
+        ListNode slow = head, fast = head;
+        while(fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+            if(slow == fast) { break; }
+        }
+        if(fast == null || fast.next == null) { // 链表无环
+            return null;
+        }
+        ListNode ptr = head;
+        while(ptr != slow) {
+            ptr = ptr.next;
+            slow = slow.next;
+        }
+        return ptr;
+    }
+}
+```
+
+> [力扣160](https://leetcode.cn/problems/intersection-of-two-linked-lists/)：相交链表。请判断两个链表`headA`/`headB`是否有相交节点，如果有请返回。
+
+```
+headA: 1 -> 2 -> 3 -> ... -> a ┐
+                               v
+                               1 -> 2 -> ... -> c
+                               ^
+headB:      1 -> 2 -> ... -> b ┘
+```
+
+如果存在相交节点，不妨假设`headA`独有的部分长度为`a`，`headB`独有的部分长度为`b`，两者共有的部分长度为`c`。两个指针同时前进，到达`null`尽头时切换到另一个链表的起点。于是两个指针第二次到达相交节点的时候，经过的距离分别为$a + c + b$和$b + c + a$，两者恰好相等，说明一定会在此时相遇。
+
+如果不存在相交节点，则两个指针最终经过的距离分别为$a + b$和$b + a$，两者恰好相等，因此可以保证都会同时遇到`null`。
+
+```java
+public class Solution {
+    public ListNode getIntersectionNode(ListNode headA, ListNode headB) {
+        ListNode headA_dummy = new ListNode(0, headA), headB_dummy = new ListNode(0, headB);
+        while(headA != headB) {
+            headA = (headA != null ? headA.next : headB_dummy.next);
+            headB = (headB != null ? headB.next : headA_dummy.next);
+        }
+        return headA;
+    }
+}
+```
+
 ## §12.2 模拟
 
 > [力扣54](https://leetcode.cn/problems/spiral-matrix/)：螺旋矩阵。给定`m×n`的二维数组，按顺时针螺旋顺序输出。
 
-```c++
+```java
 class Solution {
     public List<Integer> spiralOrder(int[][] matrix) {
         int m = matrix.length, n = matrix[0].length;
