@@ -30469,6 +30469,41 @@ class Solution extends SolBase {
 
 ## §12.4 树
 
+### §12.4.1 二叉搜索树
+
+> [力扣98](https://leetcode.cn/problems/validate-binary-search-tree/)：判断给定的二叉树是否是二叉搜索树
+
+二叉搜索树在搜索的过程中，检索的值范围`(min, max)`不断缩小，模拟该过程即可。
+
+```java
+class Solution {
+    public boolean isValidBST(TreeNode root) {
+        return isValidBST(root, Long.MIN_VALUE, Long.MAX_VALUE);
+    }
+    public boolean isValidBST(TreeNode root, long min, long max) {
+        if(root == null) { return true; }
+        if(root.val >= max) { return false; }
+        if(root.val <= min) { return false; }
+        return isValidBST(root.left, min, root.val) && isValidBST(root.right, root.val, max);
+    }
+}
+```
+
+### §12.4.2 二叉树
+
+> [力扣100](https://leetcode.cn/problems/same-tree/)：判断两颗二叉树是否完全相同。
+
+```c++
+class Solution {
+    public boolean isSameTree(TreeNode p, TreeNode q) {
+        if(p == null && q == null) { return true; }
+        if(p == null && q != null || p != null && q == null) { return false; }
+        if(p.val != q.val) { return false; }
+        return isSameTree(p.left, q.left) && isSameTree(p.right, q.right);
+    }
+}
+```
+
 > [力扣958](https://leetcode.cn/problems/check-completeness-of-a-binary-tree/)：二叉树的完全性检验。给定一颗二叉树的头节点`TreeNode root`，判定其是否为完全二叉树。
 
 ```java
@@ -30488,6 +30523,146 @@ class Solution {
             }
         }
         return true;
+    }
+}
+```
+
+> [力扣96](https://leetcode.cn/problems/unique-binary-search-trees/)：给定值为`1->n`的`n`个节点，其能构成的二叉搜索树有多少？
+
+注意到本题等价于：包含`n`个节点的二叉树的数量有多少。考虑DP。不妨设给定`i`个节点，左子树有`j`个节点，根有`1`个节点，右子树有`i-j-1`个基点，做笛卡尔积即可。
+
+```java
+class Solution {
+    public int numTrees(int n) {
+        int[] dp = new int[n + 1];
+        dp[0] = dp[1] = 1;
+        for(int i = 2; i <= n; ++i) { // 给定i个节点
+            for(int j = 0; j < i; ++j) { // 左子树有j个节点，根有1个节点，右子树有i-j-1个基点
+                dp[i] += dp[j] * dp[i - j - 1];
+            }
+        }
+        return dp[n];
+    }
+}
+```
+
+> [力扣95](https://leetcode.cn/problems/unique-binary-search-trees-ii/)：给定值为`1->n`的`n`个节点，其能构成的二叉搜索树有多少？请全部返回。
+
+考虑回溯。考虑到二叉搜索树的性质，假设根节点的值为`i`，则左子树包含的节点为`[1, i)`，右子树包含的节点为`(i, n]`。做笛卡尔积即可。
+
+```java
+class Solution {
+    public List<TreeNode> generateTrees(int n) {
+        return generateTrees(1, n);
+    }
+    public List<TreeNode> generateTrees(int l, int r) {
+        List<TreeNode> ans = new ArrayList<TreeNode>();
+        if(l > r) { ans.add(null); return ans; }
+        for(int i = l; i <= r; ++i) { // i作为根节点，左子树节点为[l, i)，右子树节点为(i, r]
+            List<TreeNode> left_ans = generateTrees(l, i - 1);
+            List<TreeNode> right_ans = generateTrees(i + 1, r);
+            for(TreeNode left : left_ans) {
+                for(TreeNode right : right_ans) {
+                    ans.add(new TreeNode(i, left, right));
+                }
+            }
+        }
+        return ans;
+    }
+}
+```
+
+> [力扣111](https://leetcode.cn/problems/minimum-depth-of-binary-tree/)：返回一个二叉树的最小深度。特殊的，空节点深度为`0`。
+
+考虑这样的一个二叉树：
+
+```
+    a
+   /
+  b
+```
+
+它的深度是`2`。但是我们在计算时，不能计入`a.right`的深度，因为`a.right`并不是叶子节点。
+
+```java
+class Solution {
+    public int minDepth(TreeNode root) {
+        if(root == null) { return 0; }
+        if(root.left == null && root.right == null) { return 1; }
+        return Math.min(
+            root.left != null ? minDepth(root.left) : Integer.MAX_VALUE, 
+            root.right != null ? minDepth(root.right) : Integer.MAX_VALUE
+        ) + 1;
+    }
+}
+```
+
+> [力扣222](https://leetcode.cn/problems/count-complete-tree-nodes/)：给定一颗完全二叉树，求其节点数量。
+
+```
+    1
+   / \
+  2   3
+ / \ /
+4  5 6
+```
+
+观察这幅图，一颗完全二叉树的左右子树要么是满二叉树，要么同样是完全二叉树。满二叉树的节点数量可根据树的高度$h$由$2^h-1$得来，于是仅需递归求解即可。最坏情况下要递归$\log_2{n}$次，每次计算书的高度的时间复杂度为$O(\log_2{n})$，于是总时间复杂度为$O(\log_2^2{n})$。
+
+```java
+class Solution {
+    public int countNodes(TreeNode root) {
+        int left_height = 0, right_height = 0;
+        for(TreeNode left = root; left != null; left = left.left) { ++left_height; }
+        for(TreeNode right = root; right != null; right = right.right) { ++right_height; }
+        if(left_height == right_height) { return (int)Math.pow(2, left_height) - 1; }
+        return countNodes(root.left) + countNodes(root.right) + 1;
+    }
+}
+```
+
+> [力扣110](https://leetcode.cn/problems/balanced-binary-tree/)：判断一个二叉树是否为平衡二叉树。
+
+`solve()`用于返回树的的高度。特殊地，如果判定为非平衡二叉树则返回`-1`。
+
+```java
+class Solution {
+    public boolean isBalanced(TreeNode root) {
+        if(root == null) { return true; }
+        return solve(root) != -1;
+    }
+    public int solve(TreeNode root) {
+        if(root == null) { return 0; }
+        int ans_left = solve(root.left), ans_right = solve(root.right);
+        if(ans_left == -1 || ans_right == -1) { return -1; }
+        if(Math.abs(ans_left - ans_right) > 1) { return -1; }
+        return Math.max(ans_left, ans_right) + 1;
+    }
+}
+```
+
+### §12.4.3 层次遍历
+
+> [力扣199](https://leetcode.cn/problems/binary-tree-right-side-view/)：返回二叉树的右视图。
+
+本题只需做层次遍历即可，每层的最右侧节点即为右视图对应深度的节点。
+
+```java
+class Solution {
+    public List<Integer> rightSideView(TreeNode root) {
+        List<Integer> ans = new ArrayList<>();
+        Queue<TreeNode> queue = new ArrayDeque<>();
+        if(root != null) { queue.offer(root); }
+        while(!queue.isEmpty()) {
+            int n = queue.size();
+            for(int i = 1; i <= n; ++i) {
+                TreeNode node = queue.poll();
+                if(node.left != null) { queue.offer(node.left); }
+                if(node.right != null) { queue.offer(node.right); }
+                if(i == n) { ans.add(node.val); }
+            }
+        }
+        return ans;
     }
 }
 ```
