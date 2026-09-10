@@ -30090,6 +30090,44 @@ class Solution {
 }
 ```
 
+> [力扣138](https://leetcode.cn/problems/copy-list-with-random-pointer/)：随机链表的复制。给定`struct Node { int val; Node next, random; }`，构建链表的深拷贝。
+
+```
+原链表：
+    A -> B -> C
+
+经过第一个for循环：
+    A -> A' -> B -> B' -> C -> C'
+
+此时可保证对于原链表中的节点cur，其cur.next即为深拷贝节点，于是可以用这个特性做第二个循环：先获得原链表的random节点cur.random，再得到新链表版本cur.random.next
+
+再经过第三个循环进行拆分：
+    A -> B -> C
+    A' -> B' -> C'
+```
+
+```java
+class Solution {
+    public Node copyRandomList(Node head) {
+        for(Node cur = head; cur != null; cur = cur.next.next) {
+            Node cur_new = new Node(cur.val);
+            cur_new.next = cur.next;
+            cur.next = cur_new;
+        }
+        for(Node cur = head; cur != null; cur = cur.next.next) {
+            cur.next.random = (cur.random != null ? cur.random.next : null);
+        }
+        Node ans = (head != null ? head.next : null);
+        for(Node cur = head; cur != null; cur = cur.next) {
+            Node cur_new = cur.next;
+            cur.next = cur.next.next;
+            cur_new.next = (cur.next != null ? cur.next.next : null);
+        }
+        return ans;
+    }
+}
+```
+
 ### §12.1.2 查找/删除链表
 
 > [力扣876](https://leetcode.cn/problems/middle-of-the-linked-list/)：链表的中间结点。给定链表的头结点`ListNode head`，返回其中间节点，若有两个中间节点则返回**靠后**的那个。
@@ -30246,6 +30284,25 @@ class Solution {
 }
 ```
 
+> [力扣2](https://leetcode.cn/problems/add-two-numbers/)：用链表来模拟大数相加运算，输入和输出的链表均为逆序。
+
+```java
+class Solution {
+    public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
+        ListNode ans = new ListNode(0, null), ans_cur = ans;
+        int flag = 0; // 十进制进位
+        while(l1 != null || l2 != null || flag != 0) {
+            int digit = (l1 != null ? l1.val : 0) + (l2 != null ? l2.val : 0) + flag;
+            ans_cur.next = new ListNode(digit % 10, null); ans_cur = ans_cur.next;
+            flag = digit / 10;
+            if(l1 != null) { l1 = l1.next; }
+            if(l2 != null) { l2 = l2.next; }
+        }
+        return ans.next;
+    }
+}
+```
+
 > [力扣86](https://leetcode.cn/problems/partition-list/)：分隔链表。对链表进行稳定排序，使得所有`<x`的节点在前，`>=x`的节点在后。
 
 本题实际上是[力扣21](https://leetcode.cn/problems/merge-two-sorted-lists/)的逆序版本。直接拆成两个链表`less`/`more`用于维护`<x`/`>=x`的节点，最后把`less`接在`more`之前即可。
@@ -30339,6 +30396,39 @@ class Solution {
         ListNode head_2 = reverseList(mid.next);
         mid.next = null;
         mergeList(head, head_2);
+    }
+}
+```
+
+> [力扣148](https://leetcode.cn/problems/sort-list/?envType=study-plan-v2)：排序链表。对链表做升序排序。
+
+```java
+class Solution {
+    public ListNode sortList(ListNode head) {
+        ListNode dummy = new ListNode(0, head);
+        int n = 0; for(ListNode cur = head; cur != null; cur = cur.next) { ++n; }
+        for(int l = 1; l < n; l *= 2) {
+            ListNode cur = dummy.next, tail = dummy;
+            while(cur != null) {
+                ListNode head_1 = cur;
+                for(int i = 1; i < l && cur != null && cur.next != null; ++i) { cur = cur.next; } // 前半段链表范围是[head_1, cur]
+                ListNode head_2 = cur.next; cur.next = null; cur = head_2; // 断开前半段链表和后半段链表
+                for(int i = 1; i < l && cur != null && cur.next != null; ++i) { cur = cur.next; } // 后半段链表范围是[head_2, cur];
+                if(head_2 != null) { ListNode tmp = cur.next; cur.next = null; cur = tmp; } // 断开后半段链表和后面的部分
+
+                while(head_1 != null && head_2 != null) { // 合并链表
+                    if(head_1.val <= head_2.val) { 
+                        tail.next = head_1; head_1 = head_1.next; 
+                    } else {
+                        tail.next = head_2; head_2 = head_2.next;
+                    }
+                    tail = tail.next;
+                }
+                tail.next = head_1 != null ? head_1 : head_2;
+                while(tail.next != null) { tail = tail.next; }
+            }
+        }
+        return dummy.next;
     }
 }
 ```
@@ -30469,27 +30559,63 @@ class Solution extends SolBase {
 
 ## §12.4 树
 
-### §12.4.1 二叉搜索树
+### §12.4.1 二叉树
 
-> [力扣98](https://leetcode.cn/problems/validate-binary-search-tree/)：判断给定的二叉树是否是二叉搜索树
+#### §12.4.1.1 前/中/后序遍历
 
-二叉搜索树在搜索的过程中，检索的值范围`(min, max)`不断缩小，模拟该过程即可。
+> [力扣105](https://leetcode.cn/problems/construct-binary-tree-from-preorder-and-inorder-traversal/)：从前序与中序遍历序列构造二叉树。
+
+已知前序遍历为`[root], ..., ..., ..., ...`，中序遍历为`..., ..., [root], ..., ...`，因此可以定位到前序遍历的`root`，并在中序遍历中查找其坐在的下标。不断递归建树即可。
 
 ```java
 class Solution {
-    public boolean isValidBST(TreeNode root) {
-        return isValidBST(root, Long.MIN_VALUE, Long.MAX_VALUE);
+    Map<Integer, Integer> inorder_inv = new HashMap<>();
+    public TreeNode buildTree(int[] preorder, int[] inorder) {
+        for(int i = 0; i < inorder.length; ++i) { inorder_inv.put(inorder[i], i); }
+        return buildTree(preorder, 0, preorder.length - 1, 0, inorder.length - 1);
     }
-    public boolean isValidBST(TreeNode root, long min, long max) {
-        if(root == null) { return true; }
-        if(root.val >= max) { return false; }
-        if(root.val <= min) { return false; }
-        return isValidBST(root.left, min, root.val) && isValidBST(root.right, root.val, max);
+    public TreeNode buildTree(int[] preorder, int preorder_l, int preorder_r, int inorder_l, int inorder_r) {
+        if(preorder_r < preorder_l) { return null; }
+
+        int inorder_k = inorder_inv.get(preorder[preorder_l]);
+        int size = inorder_k - inorder_l;
+
+        return new TreeNode(
+            preorder[preorder_l],
+            buildTree(preorder, preorder_l + 1, preorder_l + size, inorder_l, inorder_k - 1),
+            buildTree(preorder, preorder_l + size + 1, preorder_r, inorder_k + 1, inorder_r)
+        );
     }
 }
 ```
 
-### §12.4.2 二叉树
+> [力扣106](https://leetcode.cn/problems/construct-binary-tree-from-inorder-and-postorder-traversal/)：从中序与后序遍历序列构造二叉树。
+
+已知后序遍历为`..., ..., ..., ..., [root]`，中序遍历为`..., ..., [root], ..., ...`，因此可以定位到后序遍历的`root`，并在中序遍历中查找其坐在的下标。不断递归建树即可。
+
+```java
+class Solution {
+    Map<Integer, Integer> inorder_inv = new HashMap<>();
+    public TreeNode buildTree(int[] inorder, int[] postorder) {
+        for(int i = 0; i < inorder.length; ++i) { inorder_inv.put(inorder[i], i); }
+        return buildTree(postorder, 0, postorder.length - 1, 0, inorder.length - 1);
+    }
+    public TreeNode buildTree(int[] postorder, int postorder_l, int postorder_r, int inorder_l, int inorder_r) {
+        if(postorder_l > postorder_r) { return null; }
+
+        int inorder_k = inorder_inv.get(postorder[postorder_r]);
+        int size = inorder_k - inorder_l;
+        
+        return new TreeNode(
+            postorder[postorder_r],
+            buildTree(postorder, postorder_l, postorder_l + size - 1, inorder_l, inorder_k - 1),
+            buildTree(postorder, postorder_l + size, postorder_r - 1, inorder_k + 1, inorder_r)
+        );
+    }
+}
+```
+
+#### §12.4.1.2 完全二叉树
 
 > [力扣100](https://leetcode.cn/problems/same-tree/)：判断两颗二叉树是否完全相同。
 
@@ -30621,6 +30747,8 @@ class Solution {
 }
 ```
 
+#### §12.4.1.3 平衡二叉树
+
 > [力扣110](https://leetcode.cn/problems/balanced-binary-tree/)：判断一个二叉树是否为平衡二叉树。
 
 `solve()`用于返回树的的高度。特殊地，如果判定为非平衡二叉树则返回`-1`。
@@ -30641,7 +30769,105 @@ class Solution {
 }
 ```
 
-### §12.4.3 层次遍历
+> [力扣108](https://leetcode.cn/problems/convert-sorted-array-to-binary-search-tree/)：给定一个严格递增数组，请构建任意一种平衡二叉搜索树。
+
+使用递归的思想，每次取数组的中间的元素作为根节点，左边作为左子树，右边作为右子树即可。
+
+```java
+class Solution {
+    public TreeNode sortedArrayToBST(int[] nums) {
+        return sortedArrayToBST(nums, 0, nums.length - 1);
+    }
+    public TreeNode sortedArrayToBST(int[] nums, int l, int r) {
+        if(l > r) { return null; }
+        int mid = (l + r) / 2;
+        return new TreeNode(
+            nums[mid],
+            sortedArrayToBST(nums, l, mid - 1),
+            sortedArrayToBST(nums, mid + 1, r)
+        );
+    }
+}
+```
+
+> [力扣1382](https://leetcode.cn/problems/balance-a-binary-search-tree/)：给定一个二叉搜索树，将其变为平衡二叉搜索树。
+
+本题只需先做中序遍历，得到严格递增的数组，再按照[力扣108](https://leetcode.cn/problems/convert-sorted-array-to-binary-search-tree/)的思路构建平衡二叉搜索树即可。
+
+```java
+class Solution {
+    public TreeNode balanceBST(TreeNode root) {
+        List<Integer> ans = new ArrayList<>();
+        inorder(root, ans);
+        return sortArrayByBST(ans, 0, ans.size() - 1);
+    }
+    public void inorder(TreeNode root, List<Integer> ans) {
+        if(root == null) { return; }
+        inorder(root.left, ans); ans.add(root.val); inorder(root.right, ans);
+    }
+    public TreeNode sortArrayByBST(List<Integer> ans, int l, int r) {
+        if(l > r) { return null; }
+        int mid = (l + r) / 2;
+        return new TreeNode(
+            ans.get(mid),
+            sortArrayByBST(ans, l, mid - 1),
+            sortArrayByBST(ans, mid + 1, r)
+        );
+    }
+}
+```
+
+#### §12.4.1.3 层次遍历
+
+> [力扣102]()：对二叉树做从上到下、从左到右的层次遍历。
+
+```java
+class Solution {
+    public List<List<Integer>> levelOrder(TreeNode root) {
+        List<List<Integer>> ans = new ArrayList<>();
+        Queue<TreeNode> queue = new ArrayDeque<>(); if(root != null) { queue.offer(root); }
+        while(!queue.isEmpty()) {
+            List<Integer> ans_tmp = new ArrayList<>();
+            int n = queue.size();
+            for(int i = 1; i <= n; ++i) {
+                TreeNode cur = queue.poll();
+                ans_tmp.add(cur.val);
+                if(cur.left != null) { queue.offer(cur.left); }
+                if(cur.right != null) { queue.offer(cur.right); }
+            }
+            ans.add(ans_tmp);
+        }
+        return ans;
+    }
+}
+```
+
+> [力扣103](https://leetcode.cn/problems/binary-tree-zigzag-level-order-traversal/)：二叉树的锯齿形层序遍历。对二叉树做从上到下、偶数层从左到右、奇数层从右到左的层次遍历。
+
+```java
+class Solution {
+    public List<List<Integer>> zigzagLevelOrder(TreeNode root) {
+        List<List<Integer>> ans = new ArrayList<>();
+        if(root == null) { return ans; }
+        
+        int depth = 0;
+        Queue<TreeNode> queue = new ArrayDeque<>(); queue.offer(root); // Queue永远保持正常层次遍历的逻辑，只不过构建本层ans_tmp顺序时有顺序/逆序之分
+        while(!queue.isEmpty()) {
+            LinkedList<Integer> ans_tmp = new LinkedList<>();
+            int n = queue.size();
+            while(n-- > 0) {
+                TreeNode node = queue.poll();
+                if(depth % 2 == 0) { ans_tmp.addLast(node.val); }
+                if(depth % 2 == 1) { ans_tmp.addFirst(node.val); }
+                if(node.left != null) { queue.offer(node.left); }
+                if(node.right != null) { queue.offer(node.right); }
+            }
+            ans.add(ans_tmp); ++depth;
+        }
+        return ans;
+    }
+}
+```
 
 > [力扣199](https://leetcode.cn/problems/binary-tree-right-side-view/)：返回二叉树的右视图。
 
@@ -30666,6 +30892,61 @@ class Solution {
     }
 }
 ```
+
+#### §12.4.1.4 二叉搜索树
+
+> [力扣98](https://leetcode.cn/problems/validate-binary-search-tree/)：判断给定的二叉树是否是二叉搜索树
+
+二叉搜索树在搜索的过程中，检索的值范围`(min, max)`不断缩小，模拟该过程即可。
+
+```java
+class Solution {
+    public boolean isValidBST(TreeNode root) {
+        return isValidBST(root, Long.MIN_VALUE, Long.MAX_VALUE);
+    }
+    public boolean isValidBST(TreeNode root, long min, long max) {
+        if(root == null) { return true; }
+        if(root.val >= max) { return false; }
+        if(root.val <= min) { return false; }
+        return isValidBST(root.left, min, root.val) && isValidBST(root.right, root.val, max);
+    }
+}
+```
+
+> [力扣99](https://leetcode.cn/problems/recover-binary-search-tree/)：恢复二叉搜索树。已知二叉搜索树中恰好有两个节点被交换了位置，请逆还原。
+
+我们知道，二叉搜索树的中序遍历`a[1->n]`为严格递增序列，而交换其中的两个元素必定会破坏递增性，于是仅需找到不满足`a[i] < a[i + 1]`的位置即可。手动模拟可知，被交换的第一个节点的位置`ans_1`为首次不满足`a[i] < a[i + 1]`的`i`，被交换的第二个节点的位置`ans_2`为最后一个不满足`a[i] < a[i + 1]`的`i + 1`。定位到节点位置后，再次遍历一遍二叉搜索树，对节点做值交换即可。
+
+```java
+class Solution {
+    public void recoverTree(TreeNode root) {
+        List<Integer> vals = new ArrayList<Integer>();
+        inorder(root, vals); // 中序遍历
+
+        int ans_1 = -1, ans_2 = -1;
+        for(int i = 0; i < vals.size() - 1; ++i) {
+            if(vals.get(i) > vals.get(i + 1)) {
+                if(ans_1 == -1) { ans_1 = i; }
+                ans_2 = i + 1;
+            }
+        }
+        swapTwoNode(root, 2, vals.get(ans_1), vals.get(ans_2));
+    }
+    public void inorder(TreeNode root, List<Integer> vals) {
+        if(root == null) { return; }
+        inorder(root.left, vals); vals.add(root.val); inorder(root.right, vals);
+    }
+    public void swapTwoNode(TreeNode root, int count, int x, int y) {
+        if(count == 0) { return; }
+        if(root == null) { return; }
+        if(root.val == x || root.val == y) { root.val = root.val == x ? y : x; --count; }
+        swapTwoNode(root.left, count, x, y);
+        swapTwoNode(root.right, count, x, y);
+    }
+}
+```
+
+TODO：Morris遍历
 
 ## §12.5 位运算
 
