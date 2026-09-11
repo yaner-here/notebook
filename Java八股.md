@@ -1805,8 +1805,9 @@ Prompt格式：
 
 - Prompt工程在单次交互内引入了文本指令模版，用于少样本学习，缺点是每次交互之间互相独立，无法维护任务状态。
 - Context工程在长期交互内引入了RAG、MCP、Memory、上下文压缩，用于让模型与外部交互、控制上下文长度。
-- Agentic工程引入了一个或多个Agent，将它们编排成循环、树状、层级的结构，例如现在主流的ReAct模式与SDD。
+- Agentic工程引入了工具，有了与外界交互的能力。同时探究多个Agent的协作（主子Agent编排/OpenClaw数字员工去中心化交流），将它们编排成循环、树状、层级的结构，例如现在主流的ReAct模式与SDD。
 - Harness工程引入了流程约束（`Types -> Config -> Repo -> Service -> Runtime -> UI`）和可观测性MCP（`Chrome Devtools`），所有文档都以Markdown形式渐进式披露给Context，人工只需要构建环境。
+- Loop工程开始关注长程任务的稳定性，例如`/goal`模式。
 - Graph工程会让Loop之间互相交流、互相监督。传统的Loop Engineering的起点是一个单一的Goal，整个Loop都是为了这个Goal而运作的。但是这个Goal不一定准确，不一定能完全衡量用户的真实初衷，有可能为了优化一个单一指标而不惜一切代价，甚至牺牲其他指标，这类似于Reward Hacking/过拟合的问题。
 
 ### Graph Engineering和Workflow都是图结构，它们的区别是什么？
@@ -2297,7 +2298,7 @@ LangChain/LangGraph/DeepAgents都是同一个组织开源的项目。
 
 第一步通过SFT，让LLM知道调用工具的格式。第二步通过RLHF，让LLM知道什么时候该调用什么工具。
 
-# §D HR面
+# §E HR面
 
 ## 校园经历
 
@@ -2395,6 +2396,19 @@ LangChain/LangGraph/DeepAgents都是同一个组织开源的项目。
 <u>我的缺点是/我实习期间最大的收获是</u>：**第一次实习的时候，我的视角有时只放在纯粹的技术层面，一开始没有这种关注投入产出比的意识**。比如升级SDK的时候，我觉得原有的库表设计会导致升级SDK的人力成本很大，所以我指定了一份方案，能一劳永逸的解决这个问题。但是我的+1对我说，这个升级SDK的需要在很长一段时间内都不可能再发生了，因为这次升级本来就是从公司内部的AK/SK鉴权机制，向OpenAI通用的API Key鉴权机制过渡，所以产出并不高，反而会浪费我的人力成本。我后来反思了一下，+1说的确实对，这件事也让我**有了要关注投入产出比的意识，要关注更广阔的业务视角，才能让我自己有所成长**。
 
 ### 你在工作中最想吐槽的事情是什么？
+
+## 开源社区
+
+### 你为Spring AI解决过哪些问题？
+
+> [#5963 - DeepSeek V4 Pro要求`messages`中的`assistant`必须携带`reasoning_content`字段](https://github.com/spring-projects/spring-ai/issues/5963)
+> DeepSeek V4 Pro刚发布的时候，DeepSeek对官方的API做了一个Break Change，要求Agent在执行工具调用后，要发起第二次LLM API Call的之前，必须将发起这次工具调用所属的`assistant`信息中的Thinking部分（也就是`reasoning_content`字段）也回填到`messages`数组中，否则就会触发HTTP 400 Bad Request错误。我遇到了这个问题后，发现Issue区也有人遇到了相似的问题，于是我展开了排查，发现Spring AI果然没有回填，因此我提了一个PR用于保存`reasoning_content`并及时回填，于是解决了这个问题，通过了项目Maintainer的审批顺利Merge到了主分支。
+
+### 你给开源社区提PR的动机和流程是什么？难道只是用AI水PR吗，刷履历吗？
+
+首先我一直在使用Spring AI框架，一方面我的主力开发语言是Java，另一方面Spring AI也有Spring这种大名鼎鼎的背书。我平常会做一些自己感兴趣的个人小项目，Spring AI集成了很多模型厂商的SDK、接入了PostgreSQL/Redis的向量数据库实现、还有很多RAG的切Chunk和召回策略。在使用的过程中我有时候会遇到一些问题，例如[[#你为Spring AI解决过哪些问题？]]，我会先到Issues看看有没有人遇到过相同的问题，如果没有的话我就自己创建一个Issue，看一下报错的StackTrace，看看我自己能否解决这个问题，并为社区提一个PR。
+
+在这个过程中我肯定会使用AI来提效。但是我看看有无这个`patch`能否通过单元测试，保证我的`patch`是真的能解决一个真实存在的问题，最后我会对`commit`手工做一次Code Review，看看AI的解决思路是否合理，是否有可维护性，是否有一些代码能简化，是否符合项目命名规范等等。毕竟我得为我提交的代码质量负责嘛。
 
 # 参考文献
 

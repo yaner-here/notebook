@@ -30967,6 +30967,112 @@ class Solution {
 }
 ```
 
+## §12.6 动态规划
+
+> [力扣121](https://leetcode.cn/problems/best-time-to-buy-and-sell-stock/)：买卖股票的最佳时机。给定股价`prices[i]`，任意时刻最多只允许持有`1`股。只允许最多交易`1`次，求最大利润。
+
+简单的DP。显然答案为$\underset{\forall i\in[1, n]}{\max}\left(\mathrm{prices}[i] - \underset{\forall j\in[1, i]}{\min}\mathrm{prices}[j]\right)$，手动维护`prices[1->i]`的最小值`dp_min[i]`即可。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int n = prices.length;
+        int dp_min[] = new int[n], ans = 0;
+        dp_min[0] = prices[0];
+        for(int i = 1; i < n; ++i) {
+            dp_min[i] = Math.min(dp_min[i - 1], prices[i]);
+            ans = Math.max(ans, prices[i] - dp_min[i]);
+        }
+        return ans;
+    }
+}
+```
+
+> [力扣122](https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-ii/)：买卖股票的最佳时机2。给定股价`prices[i]`，任意时刻最多只允许持有`1`股。允许交易任意次，求最大利润。
+
+令`dp[i][0/1]`表示在第`i`天持仓/空仓时的最大收益。考虑状态转移方程：
+
+- `dp[i][0]`：第`i`天空仓，有可能是因为第`i - 1`天也空仓，也有可能是第`i - 1`天持仓并在第`i`天卖出。
+- `dp[i][1]`：第`i`天持仓，有可能是因为第`i - 1`天也持仓，也有可能是第`i - 1`天空仓并在第`i`天买入。
+
+特殊的，显然`dp[0][0] = 0`，`dp[0][1] = -prices[0]`表示在第`1`天就买入了股票。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int n = prices.length;
+        int[][] dp = new int[n][2]; dp[0][0] = 0; dp[0][1] = -prices[0];
+        for(int i = 1; i < n; ++i) {
+            dp[i][0] = Math.max(dp[i - 1][0], dp[i - 1][1] + prices[i]);
+            dp[i][1] = Math.max(dp[i - 1][1], dp[i - 1][0] - prices[i]);
+        }
+        return dp[n - 1][0];
+    }
+}
+```
+
+> [力扣309](https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-with-cooldown/)：买卖股票的最佳时机含冷冻期。给定股价`prices[i]`，任意时刻最多只允许持有`1`股，且上一次卖出与下一次买入之间至少相隔一天。允许交易任意次，求最大利润。
+
+这意味着今天持久的股票不可能是昨天买的，有可能是前天买的。从`dp[i - 2][0]`转移过来即可。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int n = prices.length;
+        int[][] dp = new int[1 + n][2];
+        dp[0][0] = 0; dp[0][1] = Integer.MIN_VALUE;
+        dp[1][0] = 0; dp[1][1] = -prices[0];
+        for(int i = 2; i <= n; ++i) {
+            dp[i][0] = Math.max(dp[i - 1][1] + prices[i - 1], dp[i - 1][0]);
+            dp[i][1] = Math.max(dp[i - 1][1], dp[i - 2][0] - prices[i - 1]);
+        }
+        return dp[n][0];
+    }
+}
+```
+
+> [力扣714](https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-with-transaction-fee/)：买卖股票的最佳时机含手续费。给定股价`prices[i]`，任意时刻最多只允许持有`1`股，且每次卖出都需要支付`fee`元的手续费。允许交易任意次，求最大利润。
+
+在DP转移方程的卖出环节中扣除交易费即可。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices, int fee) {
+        int n = prices.length;
+        int[][] dp = new int[1 + n][2];
+        dp[0][0] = 0; dp[0][1] = (int)-1e9;
+        for(int i = 1; i <= n; ++i) {
+            dp[i][0] = Math.max(dp[i - 1][1] + prices[i - 1] - fee, dp[i - 1][0]);
+            dp[i][1] = Math.max(dp[i - 1][1], dp[i - 1][0] - prices[i - 1]);
+        }
+        return dp[n][0];
+    }
+}
+```
+
+> [力扣123](https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-iii/)/[力扣188](https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-iv/)：买卖股票的最佳时机3/4。给定股价`prices[i]`，任意时刻最多只允许持有`1`股。只允许最多交易`2`/`k`次，求最大利润。
+
+```java
+class Solution {
+    public int maxProfit(int k, int[] prices) {
+        int n = prices.length;
+        int[][][] dp = new int[1 + n][1 + k][2]; // 强行让prices[1->n]为1-index
+
+        for(int j = 0; j <= k; ++j) { dp[0][j][0] = dp[0][j][1] = (int)-1e9; }
+        dp[0][0][0] = 0;
+        
+        for(int i = 1; i <= n; ++i) {
+            for(int j = 1; j <= k; ++j) {
+                dp[i][j][0] = Math.max(dp[i - 1][j][0], dp[i - 1][j][1] + prices[i - 1]);
+                dp[i][j][1] = Math.max(dp[i - 1][j][1], dp[i - 1][j - 1][0] - prices[i - 1]);
+            }
+        }
+        int ans = 0; for(int j = 0; j <= k; ++j) { ans = Math.max(ans, dp[n][j][0]); }
+        return ans;
+    }
+}
+```
+
 # §A 技巧与警钟长鸣
 
 ## §A.1 Segment Fault
