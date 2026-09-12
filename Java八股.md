@@ -2229,6 +2229,16 @@ SkillOpt-sleep的流程是：
 
 ## Agent Framework & Harness
 
+### 你平时用过哪些AI工具？
+
+- IDE：Codex、Claude Code、OpenCode、OhMyPi
+- API：cc-switch
+- Skill：SkillsManager
+- Session：AgentsView
+- Memory：TencentDB-agent-memory、OpenViking
+- Agent Teams：Multica、Orca
+- Eval：Langfuse
+
 ### 你了解过哪些Agent开发框架？
 
 - 基建：LangChain、Spring AI
