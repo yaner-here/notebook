@@ -2272,6 +2272,75 @@ LangChain/LangGraph/DeepAgents都是同一个组织开源的项目。
 - 部署到生产环境后QPS变大，需要砍掉无关的功能做性能优化。例如阿里的`iflow-agent`框架集成了企业微信Gateway、Redis定时任务等功能，导致单机性能非常差(`<=40QPS)。
 - 业务逻辑高度定制化，与通用框架的设计偏差很大。比如Agent通过SSE立即返回分析结果，异步执行分析结果中的调优操作并记录日志，这个功能无法使用`iflow-agent`自带的Agent机制实现，需要在Controller做Workflow编排。
 
+### 长程Harness框架怎么做？介绍一下DeerFlow框架
+
+DeerFlow是字节开源的一个针对长程任务（Long Horizon）的Harness框架。
+
+它接收Next.js WebUI、Channel、SDK传入的请求，经过Nginx做均衡负载，经过FastAPI做身份认证，最后接入Agent的编排层。这里主要介绍编排层是如何实现的。
+
+1. 用户创建一个会话`Thread`(`ThreadState`)后，每次向Agent发送的一个任务指令对应着一个`Run`，`Run`会交由协程池`asyncio.Task[]`中的一个`Worker`运行。
+	- 前端生成幂等键，防止`用户双击按钮`/`浏览器自动重试`/`网络断开重连`导致发送重复请求。
+	- 通过哈希表`dict[str, RunRecord]`，使用`asyncio.Lock`加锁保护，处理同线程、不同协程的重复任务创建请求。
+	- 通过数据库唯一主键，处理跨线程、不通过协程的重复任务创建请求。
+	- 通过数据库唯一索引`(thread_id, status="pending"/"running")`，保证一个Thread在任意时刻只存在一个活跃的`Run`（即`status="pending"/"running"`）。非活跃`Run`包括`status="success"/"error"/“cancelled”`。
+	- 通过数据库事务与`SELECT ... FOR UPDATE`锁定读，保证`中断旧Run，创建新Run`是原子性的，而且防止两个事务同时并发替换同一个`RUN`。
+	- 通过数据库CAS（即`UPDATE ... WHERE status="..."`），防止取消的`Run`复活。例如用户提交任务后立即取消，于是框架把`Run`的状态设置为`"pending"->"cancelled"`。一段时间后Worker分配完毕，框架尝试`UPDATE "pending" -> "running"`发现失败。如果没有CAS，那么`Run`就非预期地复活了。
+	- 通过数据库字段，实现Worker的租约，防止僵尸Worker写回`Run`状态。
+	- 内部维护了`Thread`的读写锁，禁止关键操作并发执行。例如`Thread`在`status=running`时就不能同时执行`branch`/`delete`操作。
+2. `Worker`根据本次`Run`配置，通过`langchain.agents.create_agent(...)`创建Agent实例。DeerFlow提供了主Agent（Lead Agent）、`general-purpose`通用子Agent、`bash`命令执行子Agent的配置。
+	- 主Agent的内置Tool：
+		- 网络（`web_search`/`web_fetch`/`image_search`）
+		- 文件（`ls`/`read_file`/`glob`/`grep`）
+		- 命令（`bash`，可配置Sandbox实现、可启用Hot Bash模式(即绕过Sandbox在宿主机中执行bash)）
+		- 记忆（`memory_search`/`memory_add`/`memory_update`/`memory_delete`，可配置Memory实现）
+		- 代办（`write_todos`，需开启`is_plan_mode=true`）
+		- DeerFlow（`present_files`交付文件、`list_upload_files`查看上传文件、`ask_clarification`请求用户补充信息、`view_image`调用VLM解释图片、`list/cancel_background_task`执行MCP后台任务、`skill_manage`Skill自进化、`invoke_acp_agent`调用其它Agent运行时、`task`子Agent(需要开启`subagent_enabled=true`)、`batch_task`/`batch_status`/`cancel_batch`*Durable SubAgent Batch*、`setup/update_agent`专用于*Bootstrap Agnet*）。
+	- 主Agent的内置Skills。每个Skills都有相关的Tool清单，取近期加载Skills的滑动窗口，将工具清单动态的加入到Agent中，保证多个Skills协同工作。为了避免Tool无限膨胀，故引入滑动窗口机制。
+		- `deep-research`：通用网络深度调研
+		- `systematic-literature-review`：系统性的arXiv学术论文综述
+		- `academic-paper-review`：学术论文稍高
+		- `github-deep-research`：Github仓库分析
+		- `data-analysis`：Excel/CSV的Python数据分析
+		- `chart-visualization`：数据可视化为Node.js图表
+		- `consulting-analysis`：咨询公司级研究报告
+		- `code-documentation`：生成代码仓库文档
+		- `frontend-design`：前端设计
+		- `ppt-generation`：生成PPT
+		- `image-generation`：根据文本生成图片
+		- `video-generation`：根据文本与图片调用VLM生成视频
+		- `podcast-generation`：专业文本转换为博客演讲稿
+		- `skill-creator`：创建与更改Skills
+		- `skill-reviewer`：只读审查Skills
+		- `bootstrap`：与用户进行交流，创建Agent的`SOUL.md`
+	- Agent包括Prompt/LLM模型/Tool组限制/Skill白名单/允许使用的子Agent类型/自定义Middleware/checkpointer/store。调用`agent.astream()`执行图。如果Thread存在Goal，还会运行Goal Evaluator，若Eval存在问题(`satisfied=false`)，则生成得到Continuation，再次执行`agent.astream(continuation_input)`。Worker获取`agent.astrem() -> AsyncIterator`，通过`async for ...`消费LangGraph的事件流，通过DeerFlow的`StreamBridge`模块推送到前端。
+	- 主Agent只负责规划执行流程——通过`task`工具创建子Agent并发地执行任务，并验证其输出的结论，必要时亲自下场检验结论冲突之处。子Agent移除了`task`工具防止再次创建子Agent，移除了`ask_clarification`工具防止直接向用户提问，移除了`present_files`防止交付文件，令`checkpointer=false`不支持恢复。一次LLM Call相应最多创建3个子Agent，一个主Agent最多创建6个子Agent，每个Worker最多并发执行3个子Agent，任务队列长度为64。
+```json
+{
+	"prompt": "分析worker.py中的Run执行流程",
+	"subagent_type": "general-purpose",
+	"description": "分析Run Worker",
+	"context_mode": "isolated",
+	"acceptance_criteria": [
+		"必须说明Agent如何创建",
+		"必须给出关键源码路径"
+	]
+}
+```
+3. 执行完毕后，如果设置了`/goal`模式，接下来经过一个评估器。
+	- 如果CheckPoint还有`pending_writes`，或者`messages[-1]`不是来自`assistant`的，则输出`"blocker": "failed"`。
+	- 对LLM发起单次调用，在System Prompt中设定角色为，User Input只包含`messages[-20:]`中的`user`和`assistant`的非思考部分，不包含`tool`和`middleware`私有消息，上下文按`user_input[:12000]`截断。
+	- `"blocker": "none"`：目标已完成。故完成执行，并清除Goal。
+	- `"blocker": "goal_not_met_yet"`：任务未完成，允许Agent继续执行。故继续执行Goal。
+	- `"blocker": "missing_evidence"`：主Agent的一家之词表意模糊，无法判断是否完全实现了全部Goal。保险起见暂停Goal，防止重复执行任务造成非幂等性的副作用，不过这样做确实会影响用户体验。
+	- `"blocker": "needs_user_input"`：等待用户确认需求或信息。故中断Goal。
+	- `"blocker": "external_wait"`：等待外部系统。故中断Goal。
+	- `"blocker": "run_failed"`：Agent Turn运行失败，或Checkpoint保存失败。故中断Goal。
+4. 如果判定Agent继续执行，则构建Continuation注入到主Agent上下文中，包含Goal和Evaluator结果。
+5. 执行完毕后对`Thread`管理的文件夹做`os.walk()`扫描文件快照，统计Agent执行前后的差分情况（`symlink_created`/`created`/`modified`/`deleted`），作为交付文件。
+
+`present_files`工具调用DeerFlow的`RunJournal`模块。
+
+
 ## LLM网关的作用是什么？
 
 - 网关的通用能力：统一鉴权、限流、日志追踪
