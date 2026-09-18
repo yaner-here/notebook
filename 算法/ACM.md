@@ -30064,8 +30064,8 @@ class Solution {
 > [力扣25](https://leetcode.cn/problems/reverse-nodes-in-k-group/)：K个一组翻转链表。给定链表的头结点`ListNode head`，以`k`个连续的节点为一组进行翻转链表，若末尾不足`k`个则不用翻转。
 
 ```
-... -> i-2 -> i-1 -> [i -> i+1 -> i+2 -> ... -> i+k] -> i+k+1 -> ...
-           head_prev head                       prev     cur
+... -> i-2 -> i-1 -> [i -> i+1 -> i+2 -> ... -> i+k-1] -> i+k+1 -> ...
+           head_prev head                        prev      cur
 ```
 
 ```java
@@ -30536,6 +30536,75 @@ class Solution {
 }
 ```
 
+### §12.2.1 双指针
+
+> [力扣15](https://leetcode.cn/problems/3sum/)：三数之和。给定长度为`n`的数组`nums[]`，请返回所有满足`i<j<k∈[0, n), a[i] + a[j] + a[k] = 0`的无序三元组$(a[i],a[j],a[k])$，放入集合中去重后返回。
+
+对数组排序，不失一般性，不妨重新令大小关系为$k<i<j$。对$k$按顺序遍历，自动跳过`nums[k:0->n-1]`重复的情况。在内层的`(k, n)`范围内遍历左右指针`i, j`，使用双指针查找所有满足`a[k]+a[i]+a[j]=0`的`i, j`。由于要去重，自动跳过`nums[i:k+1->n-1]`、`nums[j:k+1->n-1]`之内的情况（注意，不包含nums[i:k]，对应着`a[k] == a[i]`是被允许的），而且要保证`i<j`。
+
+特殊的，本题可以剪枝——如果`nums[k] > 0`，则由排序数组的递增性可知`nums[i] > 0, nums[j] > 0`，因此`nums[k] + nums[i] + nums[j] > 0`恒成立，不可能满足题目要求，直接剪枝即可。本处略。
+
+```java
+class Solution {
+    public List<List<Integer>> threeSum(int[] nums) {
+        int n = nums.length; Arrays.sort(nums);
+        List<List<Integer>> ans = new ArrayList<>();
+        for(int k = 0; k < n; ++k) {
+            if(k > 0 && nums[k] == nums[k - 1]) { continue; }
+            for(int i = k + 1, j = n - 1; i < j; ) {
+                while(i > k + 1 && i < j && nums[i - 1] == nums[i]) { ++i; }
+                while(j < n - 1 && i < j && nums[j] == nums[j + 1]) { --j; }
+                if(!(i < j)) { break; }
+                int sum = nums[k] + nums[i] + nums[j];
+                if(sum == 0) {
+                    ans.add(List.of(nums[k], nums[i], nums[j]));
+                    ++i; --j;
+                } else if(sum < 0) {
+                    ++i;
+                } else if(sum > 0) {
+                    --j;
+                }
+            }
+        }
+        return ans;
+    }
+}
+```
+
+> [力扣18](https://leetcode.cn/problems/4sum/)：四数之和。给定长度为`n`的数组`nums[]`，请返回所有满足`i<j<k<l∈[0, n), a[i] + a[j] + a[k] + a[l] = target`的无序三元组$(a[i],a[j],a[k], a[l])$，放入集合中去重后返回。
+
+思路与[力扣15](https://leetcode.cn/problems/3sum/)类似。只不过外面换成二层循环，里面使用左右指针。
+
+```java
+class Solution {
+    public List<List<Integer>> fourSum(int[] nums, int target) {
+        int n = nums.length; Arrays.sort(nums);
+        List<List<Integer>> ans = new ArrayList<>();
+        for(int i = 0; i < n; ++i) {
+            if(i >= 1 && nums[i] == nums[i - 1]) { continue; }
+            for(int j = i + 1; j < n; ++j) {
+                if(j > i + 1 && nums[j] == nums[j - 1]) { continue; }
+                for(int k = j + 1, l = n - 1; k < l; ) {
+                    while(k > j + 1 && k < l && nums[k] == nums[k - 1]) { ++k; }
+                    while(l < n - 1 && k < l && nums[l + 1] == nums[l]) { --l; }
+                    if(!(k < l)) { break; }
+                    long sum = (long)nums[i] + nums[j] + nums[k] + nums[l];
+                    if(sum == target) {
+                        ans.add(List.of(nums[i], nums[j], nums[k], nums[l]));
+                        ++k; --l;
+                    } else if(sum < target) {
+                        ++k;
+                    } else if(sum > target) {
+                        --l;
+                    }
+                }
+            }
+        }
+        return ans;
+    }
+}
+```
+
 ## §12.3 随机
 
 > [力扣470](https://leetcode.cn/problems/implement-rand10-using-rand7/)：给定一个返回`[1, 7]`内随机正整数的函数`rand7()`，请据此写一个返回`[1, 10]`内随机正整数的函数`rand10()`。
@@ -30817,7 +30886,7 @@ class Solution {
 }
 ```
 
-#### §12.4.1.3 层次遍历
+#### §12.4.1.4 层次遍历
 
 > [力扣102]()：对二叉树做从上到下、从左到右的层次遍历。
 
@@ -30893,7 +30962,7 @@ class Solution {
 }
 ```
 
-#### §12.4.1.4 二叉搜索树
+#### §12.4.1.5 二叉搜索树
 
 > [力扣98](https://leetcode.cn/problems/validate-binary-search-tree/)：判断给定的二叉树是否是二叉搜索树
 
@@ -30947,6 +31016,24 @@ class Solution {
 ```
 
 TODO：Morris遍历
+
+> [力扣230](https://leetcode.cn/problems/kth-smallest-element-in-a-bst/)：二叉搜索树中第K小的元素。
+
+```java
+class Solution {
+    int k, ans;
+    public int kthSmallest(TreeNode root, int k) {
+        this.k = k; dfs(root);
+        return ans;
+    }
+    public void dfs(TreeNode root) {
+        if(root == null) { return; }
+        dfs(root.left);
+        if(--k == 0) { ans = root.val; }
+        dfs(root.right);
+    }
+}
+```
 
 ## §12.5 位运算
 

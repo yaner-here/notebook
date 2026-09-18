@@ -2166,7 +2166,6 @@ volumes:
 - `docker-compose top`：查看所有服务容器内运行的进程，及其在主机上的PID（而非容器内的PID）、创建该进程的用户名、持续运行时间、带参数的命令行指令。
 - `docker-compose stop`：只是停止服务而已。
 - `docker-compose restart`：重启所有服务。
-- 
 
 ## §4.x 项目开发实战
 

@@ -182,9 +182,29 @@ class LRUCache {
 
 # §3 Java并发
 
+### 线程池的状态有哪些？线程池是如何回收非核心线程的？
+
+`ThreadPoolExecutor`使用一个`AtomicInteger`同时维护两个值：线程池状态、当前线程数量。
+
+```mermaid
+graph LR
+	RUNNING["RUNNING<br/>接受新任务，执行队列任务"] --"shutdown()"--> SHUTDOWN["SHUTDOWN<br/>不接受新任务，执行队列任务"]
+	RUNNING --"shutdownNow()"--> STOP["STOP<br/>不接受新任务，中断队列任务"]
+	SHUTDOWN & STOP --"工作队列为空<br/>当前线程数为0"--> TIDYING --> TERMINATED
+```
+
+`ThreadPoolExecutor`定义了内部类`Worker {Thread, Runnable}`，并且实现了`Runnable`接口的`run()`方法。多个`Worker`使用`HashSet<Worker>`统一管理。
+- 本质上是`Thread`被工作队列阻塞，主动申领`Runnable`。
+- `Thread`并无`(非)核心线程`的标记，如果当前`总线程数>核心线程数`，则自动判定为`非核心线程`。
+
+**提交任务并创建线程**：如果需要创建线程，则初始化一个`Worker`。由于`Worker`实现了`Runnable`接口，因此初始化`Thread`时用的是`new Thread(worker)`。随后使用JVM提供的`SharedThreadContainer`启动`Worker.thread`，这个`Thread`启动后会调用`worker.run()`，通过其中`task.run()`执行任务。
+
+**非核心线程空闲超时自动回收**：`Thread`从“等待阻塞队列”的状态中超时中断，如果此时`总线程数>核心线程数`，则判定为`非核心线程`，从`HashSet<Worker>`中移除后自动终止即可。
+
 ### 如何配置线程池的参数？
 
-`[TODO]:`
+- **快速响应请求**：**加大线程数量，工作队列长度设置为`0`**，从而禁止暂存请求，保证快速响应。例如用户发起实时请求查看页面，如果半天都加载不出来，用户可能就放弃查看了。
+- **离线批量任务**：**按CPU核心设置线程数量，加大工作队列长度**，从而避免CPU利用率不足或频繁上下文切换，加大吞吐量。
 
 MySQL的连接池是优先创建新线程，其次等待最大超时时间。
 JDK的线程池是优先将任务放入队列中暂存，其次创建非核心线程。因此Tomcat对于网络IO的场景，并没有使用JDK的线程池，而是自己实现了一版，优先创建非核心线程，其次放入队列中暂存。
@@ -1368,7 +1388,7 @@ SnowFlake时钟回拨问题：NTP延迟、硬件时钟漂移都有可能导致�
 
 # §12 设计模式
 
-## §11.1 单例模式
+## §12.1 单例模式
 
 ### 实现单例模式的方法有哪些？
 
@@ -1628,8 +1648,6 @@ $$
 
 RAG（Retrieval-Augmented Generation，检索增强生成）指的是在Agent的上下文中注入召回的最相近结果，从而补充LLM缺少的知识。LLM训练结束后的参数就固定下来了，它不知道最新的知识。后来SFT/LoRA的思路是使用最新的知识微调大模型的参数，但是训练成本会很大，还有可能破坏LLM原有的能力。RAG的思路是在上下文中补充知识，发挥LLM的Zero-Shot Learning能力。
 
-
-
 ### 什么是TF-IDF？
 
 设文档库$D$中一共有$N$篇文档$\{d_1, d_2, \cdots, d_N\}$，给定查询$q=\{t_1, t_2, t_3, \cdots\}$，于是：
@@ -1683,7 +1701,14 @@ HNSW（`/haɪəˈrɑːkɪkɔ/` Hierarchical Navigable Small World graphs，分�
 - `ef`：最终检索时的结果数量。越小越利于提高检索速度，越大越利于提高检索精度。
 这三个参数都是越小越利于节省内存和提高建图/检索速度，越大越利于提高检索精度。
 
-### RAG为什么要切Chunk？如何切Chunk？
+### RAG的作用是什么，涉及哪些流程？
+
+LLM训练完毕后的参数是固定的，预训练的知识只有通过微调才能更新，而且微调的可解释性也很差。RAG（Retrieval-Augmented Generation，检索增强生成）允许LLM在生成答案之前先检索外部数据库的内容。
+
+离线构建：数据清洗（各种格式→文本）、切Chunk、过Embedding。
+在线召回：Query改写，倒排+向量召回、RRF/Reranker重拍
+
+### RAG为什么要切Chunk？如何切Chunk？如何避免切Chunk导致语义缺失的问题？
 
 为什么要切Chunk：
 1. LLM的上下文窗口长度有限。
@@ -1704,7 +1729,33 @@ HNSW（`/haɪəˈrɑːkɪkɔ/` Hierarchical Navigable Small World graphs，分�
 - Metadata
 	- 来源信息：这个Chunk属于哪个源文档，文件名称是什么，信息来源是什么，收集时间是什么。
 	- 位置信息：这个Chunk在源文档的哪个位置，章节编号是什么、所在页数是什么。
-	- 模态信息：这个Chunk是哪个类型的，标题文本/正文文本/表格/图片
+	- 模态信息：这个Chunk是哪个类型的，标题文本/正文文本/表格/图片。
+
+防止语义缺失：
+1. 使用**滑动窗口切块**或**语义切块**。
+2. 召回Chunk时加载其它相邻的Chunk。
+3. Anthoripic提出`[Embed(LLM(局部,全文)), Embed(局部)]`的Embedding设计方案，保留Chunk在文档中的位置信息。
+
+### RAG如何避免幻觉？
+
+- 提高RAG召回质量，覆盖Query所需的内容。
+- Rerank后得到相关性分数，使用阈值卡最低值。这个阈值没有通用值，需要根据业务确定，一般在`0.3~0.6`之间。
+- 在System Prompt明确要求只能参考Chunk内容，输出内容要标注Chunk来源，若无Chunk则回答“无法回答该问题，申请人工客服”。
+- 引入LLM Hook做最后的防幻觉校验。
+
+### 如果RAG召回的Chunk自相矛盾，该怎么办？
+
+- 在离线入库时，事先对Chunk本身做RAG，交给LLM做冲突检测。如果检测到冲突则等待人工审核。
+- 在业务层面，按照Chunk的来源指定可信度，让LLM优先使用可信度更高的Chunk。
+- 如果可信度一致，则应该自动FailBack到人工客服，同时异步地记录存在冲突的原因，等待人工审核。
+
+### 如何评估RAG的效果？
+
+- **Hit@K**：TopK中是否至少命中了一个Chunk。适合评估QA任务。
+- **Recall@K**/**Precision@K**：$\displaystyle\frac{A\cap \mathrm{TopK}}{A}$/$\displaystyle\frac{A\cap\mathrm{TopK}}{\mathrm{TopK}}$。
+- **MRR@K**：$\displaystyle\frac{1}{第一个命中的\mathrm{Chunk}的排序}$。适用于一个Chunk就能覆盖Query的场景，缺点是不会考虑后面命中的Chunk
+- **DCG@K**/**NDCG@K**：$\displaystyle\sum_{\forall b_i\in\mathrm{TopK}}\frac{2^{r_i} - 1}{\log_2(i + 1)}$/$\displaystyle\frac{\mathrm{DCG@K}}{理论\mathrm{DCG@K}最大值，即\mathrm{IDCG@K}}$。考虑到不同Chunk的重要程度$r_i$不一致。
+- **客户追问率**/**客户评价情况**/**转人工率**。
 
 ## 工作经历 - 审核Prompt Pipeline
 
@@ -2082,12 +2133,20 @@ Agent Teams之间的任务交接Prompt：
 - 参考资料（代码的文件路径、类名、方法名、行号）+（网络搜索的关键词 + 信息来源）+（思考过程）
 - 做出的假设（默认的开发环境依赖、用户模糊的意图）
 
-### 中心化/去中心化Agent Teams的优点和缺点是什么？
+### 中心化/去中心化（Supervisor/Swarm）Agent Teams的优点和缺点是什么？
 
-- 中心化Agent Teams：主Agent负责编排流程，开若干个子Agent并行执行任务。优点是各个子Agent之间职责清晰，出了问题可以快速定位，可以让主Agent动态重试或调整环节。
-- 去中心化Agent Teams：Agent之间通过共享的消息队列或状态空间自行沟通和协商。缺点是没有用于协调和分配任务的角色、无法保证执行顺序的稳定性，工程上不可控。
+- **Agent Supervisor（中心化Agent Teams）**：主Agent负责编排流程，开若干个子Agent并行执行任务。优点是各个子Agent之间职责清晰，出了问题可以快速定位，可以让主Agent动态重试或调整环节。
+- **Agent Swarm（去中心化Agent Teams）**：Agent之间通过共享的消息队列或状态空间自行沟通和协商。缺点是没有用于协调和分配任务的角色、无法保证执行顺序的稳定性，工程上不可控。
 
 所以实践中一般选择中心化的Agent Teams。为了降低成本，主Agent可以使用更好的模型。但是推荐选择同一系列的模型，防止Agent跨协议和跨风格，否则一个LLM使用的代码风格，另一个LLM很可能看不懂。
+
+### 在Coding Agent中，如何设计HandOff？
+
+- Metadata：本次Session的ID、Git仓库的名称/Owner、Issue编号与内容、更新时间、BUG现象/触发方式/预期行为
+- Analysis：判断Issue描述的问题是否真实存在、复现的环境和步骤、对应的证据链（文件名/代码行数/分析）
+- Plan：按SDD的方式，包含设计文档`proposal.md`与执行步骤`tasks.md`，可能存在的风险、需要向用户进一步追问的问题。
+- Goal：执行过程中的进展。例如PR相关的Metadata（`commit`与`branch`），以及每轮Loop后完成了哪些步骤，有哪些步骤本次无法完成，交付的Artifact的文件名/路径/diff有哪些。
+- Test：验收的判定标准，满足什么条件就能判定修复完毕。
 
 ## Agent Sandbox
 
@@ -2274,7 +2333,7 @@ LangChain/LangGraph/DeepAgents都是同一个组织开源的项目。
 
 ### 长程Harness框架怎么做？介绍一下DeerFlow框架
 
-DeerFlow是字节开源的一个针对长程任务（Long Horizon）的Harness框架。
+[DeerFlow](https://github.com/bytedance/deer-flow/tree/main)是字节开源的一个针对长程任务（Long Horizon）的Harness框架。可以按照`全局架构->Agent编排->单Agent稳定性`的顺序讲解。
 
 它接收Next.js WebUI、Channel、SDK传入的请求，经过Nginx做均衡负载，经过FastAPI做身份认证，最后接入Agent的编排层。这里主要介绍编排层是如何实现的。
 
@@ -2312,6 +2371,25 @@ DeerFlow是字节开源的一个针对长程任务（Long Horizon）的Harness�
 		- `skill-creator`：创建与更改Skills
 		- `skill-reviewer`：只读审查Skills
 		- `bootstrap`：与用户进行交流，创建Agent的`SOUL.md`
+	- 主Agent的内置Middleware：
+		1. 安全：
+			- `InputSanitizationMiddleware`/`ToolResultSanitizationMiddleware`：对用户输入/工具返回的`<>`做HTML转义，防止伪造`<system-reminder>`之类的标签。
+			- `GuardrailMiddleware`：根据Agent权限拦截Tool调用，防止外界恶意伪造Tool调用。例如普通用户无法调用`update_agnet`工具。
+			- `SandboxAuditMiddleware`：审计沙盒中的`bash`工具调用。命令不得为空，不得过长，不得包含`\0`。用正则表达式匹配并阻断`rm`/`dd`/`eval`/`base64 -d`等高危命令。
+			- `SystemMessageCoalescingMiddleware`：OpenAI允许`messages`包含多个`role="system"`，为防止其它厂商不兼容，故合并成一个System Prompt。
+		2. 单Agent稳定性：
+			- `ReadBeforeWriteMiddleware`：强制要求更改文件前必须先读取文件，且读取文件时会缓存文件Hash，在更改前保证Hash值不变。
+			- `ToolOutputBudgetMiddleware`：如果工具调用返回的结果过长，则只返回头尾采样，完整结果通过`read_file`分段读取。
+			- `DanglingToolCallMiddleware`：如果工具尚未执行完成就被打断，导致缺少`Message("tool", tool_call_id=...)`，则补一个合成的`Message("tool", tool_call_id=..., message="Error")`。
+			- `ToolProgressMiddleware`：检测同一工具多次重复调用，是否连续返回空结果/相同结果。出现的次数越多，策略按`正常->警告->中断`演进，警告指的是用Reminder提醒Agent不要在调用工具时陷入死循环。
+			- `LLMErrorHandlingMiddleware`：如果LLM API调用失败（连接失败或HTTP 429），则默认随机抖动+指数退避重试3次，若仍然失败则打开熔断器，熔断器全局每60秒发送一个试探请求，若成功则关闭熔断器。
+			- `DeerFlowSummarizationMiddleware`：上下文长度达到阈值时压缩，`messages = LLM(messages) + messages[-5:]`。
+			- `SubagentLimitMiddleware`/`TokenBudgetMiddleware`：限制子Agent和Token使用量，即将到达阈值时通过Reminder提醒Agent。
+		3. Skill & Memory & Todo
+			- `DynamicContextMiddleware`：在Context注入Memory和当前时间。
+			- `SkillActivationMiddleware`/`SkillToolPolicyMiddleware`：加载Skill，及其`frontmatter`中允许使用的工具。
+			- `TodoMiddleware`：提供`write_todos`工具。如果Agent结束Loop，但Todo未全部完成，则主动发起请求提醒Agent。最多提醒两次，防止Agent无法完成某项任务而死循环。
+			- `MemoryMiddleware`：Agent Loop结束后，把`messages[]`放入异步队列用于提取Memory。
 	- Agent包括Prompt/LLM模型/Tool组限制/Skill白名单/允许使用的子Agent类型/自定义Middleware/checkpointer/store。调用`agent.astream()`执行图。如果Thread存在Goal，还会运行Goal Evaluator，若Eval存在问题(`satisfied=false`)，则生成得到Continuation，再次执行`agent.astream(continuation_input)`。Worker获取`agent.astrem() -> AsyncIterator`，通过`async for ...`消费LangGraph的事件流，通过DeerFlow的`StreamBridge`模块推送到前端。
 	- 主Agent只负责规划执行流程——通过`task`工具创建子Agent并发地执行任务，并验证其输出的结论，必要时亲自下场检验结论冲突之处。子Agent移除了`task`工具防止再次创建子Agent，移除了`ask_clarification`工具防止直接向用户提问，移除了`present_files`防止交付文件，令`checkpointer=false`不支持恢复。一次LLM Call相应最多创建3个子Agent，一个主Agent最多创建6个子Agent，每个Worker最多并发执行3个子Agent，任务队列长度为64。
 ```json
@@ -2340,13 +2418,25 @@ DeerFlow是字节开源的一个针对长程任务（Long Horizon）的Harness�
 
 `present_files`工具调用DeerFlow的`RunJournal`模块。
 
+### 介绍一下DeepSeek Harness
+
+DeepAgents使用底层的LangGraph作为编排框架。类似的，DeepSeek Harness使用Cordis作为编排框架。我的使用体验是，这两者在设计理念上有很大的不同。
+- LangGraph有两种编排方式。第一种是手动创建图和边，编排DAG，整个图共享一个字典`State`作为全局状态；第二种是按照Hook的事件，把对应的Middleware编排成串行责任链，做日志、审核、数据格式化。
+- Cordis的理念是“一切皆插件”。MCP工具可以是插件，前端统计看板可以是插件，Agent Loop本题也可以是插件。
+  一个插件启用时会申请资源，然后向`ctx`注册插件功能，卸载时会执行析构函数去释放资源。对于服务插件来说，定义的抽象类作为Defination，继承的实现类作为Provider，下游消费者只需引用抽象类就能实现依赖注入。Cordis有三种编排方式，第一种是在插件内部的`inject: string[]`中声明引用其它插件，在插件代码内调用其它插件，Cordis会解析它们之间的依赖关系，并自动构建一个DAG，当插件发生热加载时，就把下游受影响的插件一并热加载。第二种是按照订阅者模式的Channel名称，把对应的`ctx.on()`事件监听回调函数编排成串行责任链或并行图，这一点类似于Spring AOP对弱共性做解耦，Cordis也通过订阅者模式做解耦。
+
+### SSE/WebSocket/WebRTC/StreamableHTTP在流式传输上的区别是什么？流式输出的时候有没有遇到过什么坑？
+
+- SSE是单工通信，只需在HTTP 1.1及以上版本的协议中声明`Content-Type: text/event-stream`即可，本质上是一个永不主动结束的Response。
+- WebSocket是双工通信，主要用于中途打断Agent的场景。
+
+1. Chrome/Firefox规定：在同一个域名下，HTTP 1.1的每个SSE都占用了一个TCP，最大连接数为`6`。如果用户开了`>6`个标签页，那么连接池资源会被耗尽，SSE被长时间阻塞而导致长时间刷不出Token。后来HTTP 2.0同通过多路复用解决了这个问题，双方可以通过协商决定最大连接数，默认为`100`，理论值无穷大。
+2. WebSocket是通过HTTP的`Upgrade: websocket`实现的，对于一些老旧的WAF/CDN来说，有可能会被拦截，兼容性较差。
 
 ## LLM网关的作用是什么？
 
-- 网关的通用能力：统一鉴权、限流、日志追踪
-- 意图识别，根据任务难度自适应路由到LLM，节省Token成本
-- 
-
+- 网关的通用能力：统一鉴权、限流/配额、日志追踪、负载均衡/故障转移、输入输出内容安全校验。
+- 意图识别，根据任务难度自适应路由到LLM，节省Token成本。
 
 ## IDE
 
@@ -2491,15 +2581,18 @@ DeerFlow是字节开源的一个针对长程任务（Long Horizon）的Harness�
 
 # 参考文献
 
-| 来源                      | 状态  | 文章标题                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ----------------------- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 小林Coding                |     | 图解网络-应用层篇-HTTP/3强势来袭                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 小林Coding - 图解MySQL      |     | 前言 - 图解MySQL介绍<br>基础篇 - 执行一条select语句，期间发生了什么<br>基础篇 - MySQL一行记录是怎么存储的<br>索引篇 - 索引常见面试题<br>索引篇 - 从数据页的角度看 B+ 树<br>索引篇 - 为什么 MySQL 采用 B+ 树作为索引<br>索引篇 - MySQL 单表不要超过 2000W 行，靠谱吗<br>索引篇 - 索引失效有哪些<br>索引篇 - `count(*)`和`count(1)`有什么区别，哪个性能最好<br>索引篇 - MySQL 分页有什么性能问题，怎么优化<br>事务篇 - 事务隔离级别是怎么实现的<br>事务篇 - MySQL可重复读隔离级别，完全解决幻读了吗<br>锁篇 - MySQL有哪些锁<br>锁篇 - MySQL是怎么加锁的<br>锁篇 - update没加索引会锁全表<br>锁篇 - MySQL记录锁+间隙锁可以防止删除操作而导致的幻读吗<br>锁篇 - MySQL 死锁了，怎么办<br>锁篇 - 字节面试：加了什么锁，导致死锁的<br>日志篇 - MySQL日志：undo log、redo log、binlog有什么用<br>内存篇 - 揭开 Buffer Pool 的面纱<br>架构篇 - MySQL架构是怎样的？                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 小林Coding - 图解Redis      | ✅   | 前言 - 图解Redis介绍<br>基础篇 - 什么是Redis<br>数据类型篇 - Redis数据结构<br>数据类型篇 - Redis常见数据类型和应用场景<br>持久化篇 - AOF持久化是怎么实现的<br>持久化篇 - RDB快照是怎么实现的<br>持久化篇 - Redis大Key对持久化有什么影响<br>功能篇 - Redis过期删除策略和内存淘汰策略有什么区别<br>功能篇 - 多节点争抢资源，Redis分布式锁是怎么实现的<br>高可用篇 - 主从复制是怎么实现的<br>高可用篇 - 为什么要有哨兵<br>高可用篇 - 为什么要有cluster集群<br>高可用篇 - 如何保证Redis分布式锁的高可用和高性能<br>缓存篇 - 什么是缓存雪崩、击穿、穿透<br>缓存篇 - 数据库和缓存如何保证一致性                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 小林面试笔记 - Agent面试题       | ✅   | [1. 什么是Agent？与大模型有什么本质不同？](https://xiaolinnote.com/ai/agent/1_whatisagent.html)<br>[2. Agent的基本架构由哪些核心组件构成？](https://xiaolinnote.com/ai/agent/2_components.html)<br>[3. Workflow/Agent/Tools这三个的概念和区别介绍一下？](https://xiaolinnote.com/ai/agent/3_workflow_tools.html#%E7%AC%AC%E4%B8%89%E5%B1%82-workflow-%E6%8A%8A%E6%89%80%E6%9C%89%E4%BA%BA%E7%BB%84%E7%BB%87%E8%B5%B7%E6%9D%A5%E7%9A%84%E6%80%BB%E6%8C%87%E6%8C%A5)<br>[4. 了解哪些其他的Agent设计范式？Agent和Workflow的区别是什么？](https://xiaolinnote.com/ai/agent/4_patterns.html)<br>[5. Agent推理模式有哪些？ReAct是啥？具体是怎么实现的？](https://xiaolinnote.com/ai/agent/5_react.html)<br>[6. ReAct、Plan-and-Execute、Reflection三种范式有什么核心区别？实际项目中该如何选型？](https://xiaolinnote.com/ai/agent/6_three_patterns.html)<br>[7. 复杂任务怎么做的任务拆分？为什么要拆分？效果如何提升？](https://xiaolinnote.com/ai/agent/7_tasksplit.html)<br>[8. 请你介绍一下 AI Agent 的记忆机制，并说明在实际开发中应该如何设计记忆模块？](https://xiaolinnote.com/ai/agent/8_memory.html)<br>[9. Agent的长短期记忆系统怎么做的？记忆是怎么存的？粒度是多少？怎么用的？](https://xiaolinnote.com/ai/agent/9_memory_storage.html)<br>[10. 什么是Multi-Agent？](https://xiaolinnote.com/ai/agent/10_multiagent.html)<br>[11. 说说Single-Agent和Multi-Agent的设计方案？](https://xiaolinnote.com/ai/agent/11_single_multi.html#%F0%9F%8E%AF-%E9%9D%A2%E8%AF%95%E6%80%BB%E7%BB%93)<br>[12. Agent记忆压缩通常有哪些方法？](https://xiaolinnote.com/ai/agent/12_memcompress.html#%E5%9B%9B%E7%A7%8D%E6%96%B9%E6%B3%95%E7%9A%84%E5%85%B3%E7%B3%BB%E6%A2%B3%E7%90%86)<br>[13. 在工程实践中，为什么有时候选择手搓Agent，而不是直接用成熟框架？](https://xiaolinnote.com/ai/agent/13_handcode.html)<br>[14. 如何赋予LLM规划能力？](https://xiaolinnote.com/ai/agent/14_planning.html)<br>[15. 讲讲Agent的反思机制？为什么要用反思？具体怎么实现？](https://xiaolinnote.com/ai/agent/15_reflection.html)<br>[16. 如何设计多Agent的协作与动态切换机制？](https://xiaolinnote.com/ai/agent/16_collab.html) |
-| 小林面试笔记 - LangChain框架面试题 | ✅   | [1. 你了解过哪些AI Agent开发框架？](https://xiaolinnote.com/ai/langchain/agent_frameworks.html)<br>[2. 请你谈谈对LangChain中核心概念Chain的理解，以及它的核心作用与设计理念](https://xiaolinnote.com/ai/langchain/chain.html)<br>[3. LangChain的底层架构与实现原理是什么？](https://xiaolinnote.com/ai/langchain/langchain_architecture.html)<br>[4. 使用LangChain构建Agent的核心步骤是什么？](https://xiaolinnote.com/ai/langchain/build_agent.html)<br>[5. 在LangChain中，如何为Agent注册工具？](https://xiaolinnote.com/ai/langchain/tool_registration.html)<br>[6. LangChain如何实现短期记忆和长期记忆？](https://xiaolinnote.com/ai/langchain/memory.html)<br>[7. LangChain和LlamaIndex有什么区别？](https://xiaolinnote.com/ai/langchain/langchain_vs_llamaindex.html)<br>[8. 请你谈谈LangChain4j这类Java生态的LangChain衍生框架，主要帮开发者解决了哪些核心问题？它的核心适用场景是什么？](https://xiaolinnote.com/ai/langchain/langchain4j.html)<br>[9. 请你详细说说LangChain和LangGraph的核心区别是什么？](https://xiaolinnote.com/ai/langchain/langchain_vs_langgraph.html)<br>[10. LangGraph相比于LangChain有哪些核心优势？更适配哪些Agent场景？](https://xiaolinnote.com/ai/langchain/langgraph_advantages.html)<br>[11. LangChain大版本升级有哪些核心变化？](https://xiaolinnote.com/ai/langchain/version_evolution.html)<br>[12. Deep Research的实现逻辑和适用场景是什么？](https://xiaolinnote.com/ai/langchain/deep_research.html)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-|                         |     | [1. 什么是Function Calling？原理是什么？](https://xiaolinnote.com/ai/tools/1_function_calling.html)<br>[2. LLM是如何学会调用外部工具的？](https://xiaolinnote.com/ai/tools/2_llm_tool_learning.html)<br>[3. 大模型的Function Call能力是怎么训练出来的？](https://xiaolinnote.com/ai/tools/3_fc_training.html)<br>[4. 什么是MCP（模型上下文协议）？讲讲它的核心内容？](https://xiaolinnote.com/ai/tools/4_what_is_mcp.html)<br>[5. MCP由哪几部分组成？](https://xiaolinnote.com/ai/tools/5_mcp_components.html)<br>[6. MCP和Function Calling有什么区别？有没有实际跑过MCP？](https://xiaolinnote.com/ai/tools/6_mcp_vs_fc.html)<br>[7. Function Calling也属于工具调用，请问什么场景下使用Function Calling，什么场景下使用MCP？](https://xiaolinnote.com/ai/tools/7_fc_vs_mcp_usage.html)<br>[8. 为什么有些特定的推理模型不支持MCP协议？](https://xiaolinnote.com/ai/tools/8_reasoning_no_mcp.html)<br>[9. Skill是什么？](https://xiaolinnote.com/ai/tools/9_skill.html)<br>[10. MCP和Agent Skill的区别是什么？](https://xiaolinnote.com/ai/tools/10_mcp_vs_skill.html)<br>[11. Function Calling、Skill、MCP这三个有什么区别？](https://xiaolinnote.com/ai/tools/11_fc_skill_mcp.html)<br>[12. 什么是A2A协议？它和MCP协议的区别是什么？](https://xiaolinnote.com/ai/tools/12_a2a_protocol.html)<br>[13. MCP协议通常采用什么通信方式？](https://xiaolinnote.com/ai/tools/13_mcp_transport.html)<br>[14. 说说WebSocket和SSE通信的区别及局限性？](https://xiaolinnote.com/ai/tools/14_sse_vs_websocket.html)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-|                         |     |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 来源                      | 状态  | 文章标题                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 小林Coding                |     | 图解网络-应用层篇-HTTP/3强势来袭                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 小林Coding - 图解MySQL      |     | 前言 - 图解MySQL介绍<br>基础篇 - 执行一条select语句，期间发生了什么<br>基础篇 - MySQL一行记录是怎么存储的<br>索引篇 - 索引常见面试题<br>索引篇 - 从数据页的角度看 B+ 树<br>索引篇 - 为什么 MySQL 采用 B+ 树作为索引<br>索引篇 - MySQL 单表不要超过 2000W 行，靠谱吗<br>索引篇 - 索引失效有哪些<br>索引篇 - `count(*)`和`count(1)`有什么区别，哪个性能最好<br>索引篇 - MySQL 分页有什么性能问题，怎么优化<br>事务篇 - 事务隔离级别是怎么实现的<br>事务篇 - MySQL可重复读隔离级别，完全解决幻读了吗<br>锁篇 - MySQL有哪些锁<br>锁篇 - MySQL是怎么加锁的<br>锁篇 - update没加索引会锁全表<br>锁篇 - MySQL记录锁+间隙锁可以防止删除操作而导致的幻读吗<br>锁篇 - MySQL 死锁了，怎么办<br>锁篇 - 字节面试：加了什么锁，导致死锁的<br>日志篇 - MySQL日志：undo log、redo log、binlog有什么用<br>内存篇 - 揭开 Buffer Pool 的面纱<br>架构篇 - MySQL架构是怎样的？                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 小林Coding - 图解Redis      | ✅   | 前言 - 图解Redis介绍<br>基础篇 - 什么是Redis<br>数据类型篇 - Redis数据结构<br>数据类型篇 - Redis常见数据类型和应用场景<br>持久化篇 - AOF持久化是怎么实现的<br>持久化篇 - RDB快照是怎么实现的<br>持久化篇 - Redis大Key对持久化有什么影响<br>功能篇 - Redis过期删除策略和内存淘汰策略有什么区别<br>功能篇 - 多节点争抢资源，Redis分布式锁是怎么实现的<br>高可用篇 - 主从复制是怎么实现的<br>高可用篇 - 为什么要有哨兵<br>高可用篇 - 为什么要有cluster集群<br>高可用篇 - 如何保证Redis分布式锁的高可用和高性能<br>缓存篇 - 什么是缓存雪崩、击穿、穿透<br>缓存篇 - 数据库和缓存如何保证一致性                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 小林面试笔记 - Agent面试题       | ✅   | [1. 什么是Agent？与大模型有什么本质不同？](https://xiaolinnote.com/ai/agent/1_whatisagent.html)<br>[2. Agent的基本架构由哪些核心组件构成？](https://xiaolinnote.com/ai/agent/2_components.html)<br>[3. Workflow/Agent/Tools这三个的概念和区别介绍一下？](https://xiaolinnote.com/ai/agent/3_workflow_tools.html#%E7%AC%AC%E4%B8%89%E5%B1%82-workflow-%E6%8A%8A%E6%89%80%E6%9C%89%E4%BA%BA%E7%BB%84%E7%BB%87%E8%B5%B7%E6%9D%A5%E7%9A%84%E6%80%BB%E6%8C%87%E6%8C%A5)<br>[4. 了解哪些其他的Agent设计范式？Agent和Workflow的区别是什么？](https://xiaolinnote.com/ai/agent/4_patterns.html)<br>[5. Agent推理模式有哪些？ReAct是啥？具体是怎么实现的？](https://xiaolinnote.com/ai/agent/5_react.html)<br>[6. ReAct、Plan-and-Execute、Reflection三种范式有什么核心区别？实际项目中该如何选型？](https://xiaolinnote.com/ai/agent/6_three_patterns.html)<br>[7. 复杂任务怎么做的任务拆分？为什么要拆分？效果如何提升？](https://xiaolinnote.com/ai/agent/7_tasksplit.html)<br>[8. 请你介绍一下 AI Agent 的记忆机制，并说明在实际开发中应该如何设计记忆模块？](https://xiaolinnote.com/ai/agent/8_memory.html)<br>[9. Agent的长短期记忆系统怎么做的？记忆是怎么存的？粒度是多少？怎么用的？](https://xiaolinnote.com/ai/agent/9_memory_storage.html)<br>[10. 什么是Multi-Agent？](https://xiaolinnote.com/ai/agent/10_multiagent.html)<br>[11. 说说Single-Agent和Multi-Agent的设计方案？](https://xiaolinnote.com/ai/agent/11_single_multi.html#%F0%9F%8E%AF-%E9%9D%A2%E8%AF%95%E6%80%BB%E7%BB%93)<br>[12. Agent记忆压缩通常有哪些方法？](https://xiaolinnote.com/ai/agent/12_memcompress.html#%E5%9B%9B%E7%A7%8D%E6%96%B9%E6%B3%95%E7%9A%84%E5%85%B3%E7%B3%BB%E6%A2%B3%E7%90%86)<br>[13. 在工程实践中，为什么有时候选择手搓Agent，而不是直接用成熟框架？](https://xiaolinnote.com/ai/agent/13_handcode.html)<br>[14. 如何赋予LLM规划能力？](https://xiaolinnote.com/ai/agent/14_planning.html)<br>[15. 讲讲Agent的反思机制？为什么要用反思？具体怎么实现？](https://xiaolinnote.com/ai/agent/15_reflection.html)<br>[16. 如何设计多Agent的协作与动态切换机制？](https://xiaolinnote.com/ai/agent/16_collab.html)                                                                                               |
+| 小林面试笔记 - RAG面试题         | ✅   | [1. 什么是RAG？详细描述一个完整RAG系统的详细工作流程？](https://xiaolinnote.com/ai/rag/1_whatisrag.html)<br>[2. 大模型的RAG主要用来解决什么问题？](https://xiaolinnote.com/ai/rag/2_rag_problems.html)<br>[3. 相比直接微调LLM，RAG解决了什么问题？微调和RAG各自的优劣势是什么？](https://xiaolinnote.com/ai/rag/3_rag_vs_finetune.html)<br>[4. RAG中的文档是怎么存的？粒度是多大？详细说说文档切割（Chunking）策略？](https://xiaolinnote.com/ai/rag/4_chunking.html)<br>[5. 怎么规避语义被切割掉的问题？](https://xiaolinnote.com/ai/rag/5_semantic_cuts.html)<br>[6. 在RAG中Embedding究竟是什么？如何选择和评估一个Embedding模型？](https://xiaolinnote.com/ai/rag/6_embedding.html)<br>[7. Embedding有哪几种算法你了解过吗？](https://xiaolinnote.com/ai/rag/7_embedding_algos.html)<br>[8. 什么是向量数据库？有没有做过向量数据库的对比选型？](https://xiaolinnote.com/ai/rag/8_vectordb.html)<br>[9. 讲讲你用的向量数据库？数据量级是多大？性能如何？遇到过性能瓶颈吗？](https://xiaolinnote.com/ai/rag/9_vectordb_practice.html)<br>[10. 你使用RAG给大模型一个输入，系统是怎样的工作流程？](https://xiaolinnote.com/ai/rag/10_online_workflow.html)<br>[11. 请你介绍一下向量检索和关键词检索的区别？](https://xiaolinnote.com/ai/rag/11_retrieval_types.html)<br>[12. 如何润色用户的Query（Query Rewrite）？目的是什么？](https://xiaolinnote.com/ai/rag/12_query_rewrite.html)<br>[13. 什么是多路召回？具体怎么做？](https://xiaolinnote.com/ai/rag/13_multi_retrieval.html)<br>[14. RAG检索优化策略有哪些？](https://xiaolinnote.com/ai/rag/14_retrieval_opt.html)<br>[15. 了解哪些更复杂的RAG范式？](https://xiaolinnote.com/ai/rag/15_advanced_paradigms.html)<br>[16. 在什么场景下，你会选择使用图数据库来增强传统的向量检索？](https://xiaolinnote.com/ai/rag/16_graph_db.html)<br>[17. 如何规避RAG系统中大模型的幻觉？](https://xiaolinnote.com/ai/rag/17_hallucination.html)<br>[18. 怎么量化你的RAG效果？](https://xiaolinnote.com/ai/rag/18_evaluation.html)<br>[19. RAG知识库如何实现动态与持续更新？](https://xiaolinnote.com/ai/rag/19_dynamic_update.html)<br>[20. 在实际落地中，你觉得RAG最难的地方是哪里？](https://xiaolinnote.com/ai/rag/20_hardest_parts.html)<br>[21. 不同来源的文档发生知识冲突时，RAG应该信谁？](https://xiaolinnote.com/ai/rag/21_knowledge_conflict.html) |
+| 小林面试笔记 - LLM工具调用面试题     | ✅   | [1. 什么是Function Calling？原理是什么？](https://xiaolinnote.com/ai/tools/1_function_calling.html)<br>[2. LLM是如何学会调用外部工具的？](https://xiaolinnote.com/ai/tools/2_llm_tool_learning.html)<br>[3. 大模型的Function Call能力是怎么训练出来的？](https://xiaolinnote.com/ai/tools/3_fc_training.html)<br>[4. 什么是MCP（模型上下文协议）？讲讲它的核心内容？](https://xiaolinnote.com/ai/tools/4_what_is_mcp.html)<br>[5. MCP由哪几部分组成？](https://xiaolinnote.com/ai/tools/5_mcp_components.html)<br>[6. MCP和Function Calling有什么区别？有没有实际跑过MCP？](https://xiaolinnote.com/ai/tools/6_mcp_vs_fc.html)<br>[7. Function Calling也属于工具调用，请问什么场景下使用Function Calling，什么场景下使用MCP？](https://xiaolinnote.com/ai/tools/7_fc_vs_mcp_usage.html)<br>[8. 为什么有些特定的推理模型不支持MCP协议？](https://xiaolinnote.com/ai/tools/8_reasoning_no_mcp.html)<br>[9. Skill是什么？](https://xiaolinnote.com/ai/tools/9_skill.html)<br>[10. MCP和Agent Skill的区别是什么？](https://xiaolinnote.com/ai/tools/10_mcp_vs_skill.html)<br>[11. Function Calling、Skill、MCP这三个有什么区别？](https://xiaolinnote.com/ai/tools/11_fc_skill_mcp.html)<br>[12. 什么是A2A协议？它和MCP协议的区别是什么？](https://xiaolinnote.com/ai/tools/12_a2a_protocol.html)<br>[13. MCP协议通常采用什么通信方式？](https://xiaolinnote.com/ai/tools/13_mcp_transport.html)<br>[14. 说说WebSocket和SSE通信的区别及局限性？](https://xiaolinnote.com/ai/tools/14_sse_vs_websocket.html)<br>[15. 为什么要用WebRTC协议？它和WebSocket在AI对话流中的核心差异是什么？](https://xiaolinnote.com/ai/tools/15_webrtc_vs_ws.html)<br>[16. 有没有用过大模型的网关框架？网关层解决了什么问题？](https://xiaolinnote.com/ai/tools/16_llm_gateway.html)<br>[17. 工具很多时，Agent如何做Tool Routing，减少Token并避免选错工具？](https://xiaolinnote.com/ai/tools/17_tool_routing.html)<br>[18. 工具调用格式非法、参数错误、超时或失败时，Agent如何容错？](https://xiaolinnote.com/ai/tools/18_tool_reliability.html)                                                                                                                                                                   |
+| 小林面试笔记 - LangChain框架面试题 | ✅   | [1. 你了解过哪些AI Agent开发框架？](https://xiaolinnote.com/ai/langchain/agent_frameworks.html)<br>[2. 请你谈谈对LangChain中核心概念Chain的理解，以及它的核心作用与设计理念](https://xiaolinnote.com/ai/langchain/chain.html)<br>[3. LangChain的底层架构与实现原理是什么？](https://xiaolinnote.com/ai/langchain/langchain_architecture.html)<br>[4. 使用LangChain构建Agent的核心步骤是什么？](https://xiaolinnote.com/ai/langchain/build_agent.html)<br>[5. 在LangChain中，如何为Agent注册工具？](https://xiaolinnote.com/ai/langchain/tool_registration.html)<br>[6. LangChain如何实现短期记忆和长期记忆？](https://xiaolinnote.com/ai/langchain/memory.html)<br>[7. LangChain和LlamaIndex有什么区别？](https://xiaolinnote.com/ai/langchain/langchain_vs_llamaindex.html)<br>[8. 请你谈谈LangChain4j这类Java生态的LangChain衍生框架，主要帮开发者解决了哪些核心问题？它的核心适用场景是什么？](https://xiaolinnote.com/ai/langchain/langchain4j.html)<br>[9. 请你详细说说LangChain和LangGraph的核心区别是什么？](https://xiaolinnote.com/ai/langchain/langchain_vs_langgraph.html)<br>[10. LangGraph相比于LangChain有哪些核心优势？更适配哪些Agent场景？](https://xiaolinnote.com/ai/langchain/langgraph_advantages.html)<br>[11. LangChain大版本升级有哪些核心变化？](https://xiaolinnote.com/ai/langchain/version_evolution.html)<br>[12. Deep Research的实现逻辑和适用场景是什么？](https://xiaolinnote.com/ai/langchain/deep_research.html)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+
+Java并发：
+- [美团 - Java线程池实现原理及其在美团业务中的实践](https://tech.meituan.com/2020/04/02/java-pooling-pratice-in-meituan.html)
 
 数据库：
 - [Bilibili: LSM树: NoSQL背后的秘密](https://www.bilibili.com/video/BV1d1o9YcEip)
