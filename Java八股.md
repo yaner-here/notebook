@@ -2425,7 +2425,7 @@ DeepAgents使用底层的LangGraph作为编排框架。类似的，DeepSeek Harn
 - Cordis的理念是“一切皆插件”。MCP工具可以是插件，前端统计看板可以是插件，Agent Loop本题也可以是插件。
   一个插件启用时会申请资源，然后向`ctx`注册插件功能，卸载时会执行析构函数去释放资源。对于服务插件来说，定义的抽象类作为Defination，继承的实现类作为Provider，下游消费者只需引用抽象类就能实现依赖注入。Cordis有三种编排方式，第一种是在插件内部的`inject: string[]`中声明引用其它插件，在插件代码内调用其它插件，Cordis会解析它们之间的依赖关系，并自动构建一个DAG，当插件发生热加载时，就把下游受影响的插件一并热加载。第二种是按照订阅者模式的Channel名称，把对应的`ctx.on()`事件监听回调函数编排成串行责任链或并行图，这一点类似于Spring AOP对弱共性做解耦，Cordis也通过订阅者模式做解耦。
 
-我曾经做过一个DeepSeek Harness的插件，主要是辅助我科研用，去自动整理我和Agent对话过程中提到的一些论文和Idea。监听`ctx.on("session/event")`事件，后台异步维护本次会话中的论文和Idea，Emit一个`ctx.on("paper/update")`事件存储到SQLite中。 后来发现市面上的文献管理软件都跟进了这些功能，而且比我做的还完善，这个插件就没有继续做下去。
+我曾经做过一个DeepSeek Harness的插件，主要是辅助我科研用，去自动整理我和Agent对话过程中提到的一些论文和Idea。监听`ctx.on("session/event")`事件，后台异步维护本次会话中的论文和Idea，Emit一个`ctx.on("paper/update")`事件存储到SQLite中。 后来发现市面上的文献管理软件都跟进了这些功能，而且比我做的还完善，比如我现在用的是Zotero MCP，这个插件就没有继续做下去。
 
 ### SSE/WebSocket/WebRTC/StreamableHTTP在流式传输上的区别是什么？流式输出的时候有没有遇到过什么坑？
 
