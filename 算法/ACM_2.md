@@ -14877,6 +14877,8 @@ int main() {
 
 ### §8.3.4 阶
 
+#### §8.3.4.1 互质阶
+
 当$a, p$互质时，方程$a^x \equiv 1 \pmod p$的最小正整数解称为$a$模$p$的**阶**，记为$\mathrm{ord}_p(a)$
 
 由欧拉定理：当$a, p$互质时，令$\varphi(p)$表示小于等于$p$且与$p$互质的正整数个数，则$a^{\varphi(p)} \equiv 1 \pmod p$。所以$\mathrm{ord}_p(a)$一定满足$\mathrm{ord}_p(a)\mid \varphi(a)$，我们只需穷举$\varphi(a)$的所有因数即可。令$n=\displaystyle\prod_{i=1}^{\omega(n)}p_{i}^{a_i}$，$\Omega(n)=\displaystyle\sum_{i=1}^{\omega{n}}a_i\sim \ln\ln n$，$\pi(n)=\displaystyle\sum_{p\in\mathbb{N}^+}{\mathbb{1}_{p\le n, p为素数}}\sim\frac{n}{\ln n}$，则以下代码实现的时间复杂度是$O\left(\underset{线性筛}{\underbrace{n}} + (\underset{因数数量}{\underbrace{\Omega(n)}} + \underset{素数数量}{\underbrace{\pi(n)}})\underset{快速幂}{\underbrace{\log_2{n}}})\right)=O(n \log_2(n))$。
@@ -15001,6 +15003,73 @@ int main() {
         }
         std::cout << ans << '\n';
     }
+}
+```
+
+#### §8.3.4.2 合数阶
+
+> [洛谷P1050](https://www.luogu.com.cn/problem/P1050)：给定`n<=1e100`与`k<=100`，于是根据抽屉原理，模$10^{k}$意义下的无穷项数列$[n, n^2, n^3, \cdots]$一定会进入循环，若第一个元素就位于循环节内，请输出循环节的长度，反之输出`-1`。
+
+令`dp[i]`表示模$10^{i}$意义下的数列循环节长度，于是“`dp[i]`对应的第一个元素就位于循环节中“可以转化为判断依据$n\equiv n^{\mathrm{dp}[i] + 1} \pmod{10^k}$。本题需要敏锐地注意到从`dp[i-1]`到`dp[i]`的过程中，十进制下的后`i-1`位的循环节内容与长度不会被第`i`位的值影响，因此才可以建立递推关系。由抽屉原理可知，如果`dp[i]`对应的第一个元素就位于循环节中，则第`i`位最多有`0~9`十种情况，因此只需要遍历所有潜在的$j\cdot\mathrm{dp}[i-1]$，验证其是否符合判断依据即可，并取最小值。即：
+
+$$
+    \mathrm{dp}[i]= \displaystyle\min_{j\in[1,10],n\equiv n^{j\cdot\mathrm{dp}[i-1] + 1}\mod{10^k}} (j \cdot dp[i-1])
+$$
+
+`dp[0]`初始化值为`0`即可。本题需要高精度版本的快速幂。
+
+第一处优化：由于状态转移方程每次都需要计算10次幂，因此为了避免沉重的高精度快速幂开销，我们可以通过$n^{j\cdot\mathrm{dp}[i-1]} = n^{(j-1)\cdot\mathrm{dp}[i-1]} \cdot n^{\mathrm{dp}[i-1]}$来递推得到，从而减小时间常数。
+
+第二处优化：从数论的角度分析，我们可以得出最终结论：对于`dp[1]`只需遍历$j\in\{1,2,4\}$，对于`dp[i>=2]`只需遍历$j\in\{1,2,5,10\}$。原因如下：
+
+- 注意到如果`dp[i]`能让后`i`位循环，则必然也能让后`i-1`位循环，只不过不一定是最小循环节而已。注意到$\mathrm{dp}[i]\mid 10\cdot\mathrm{dp}[i-1]$显然成立，因此$\displaystyle\frac{\mathrm{dp}[i]}{\mathrm{dp}[i-1]}=\frac{10}{整数}\in\{1,2,5,10\}$。
+- 以上分析对于`i=1`不一定成立，因为无法保证$\mathrm{dp}[i]\mid 10\cdot\mathrm{dp}[i-1]$。其根本原因是`dp[0]=1`对应的模数为`1`，于是$n\equiv n^{\mathrm{dp}[1] + 1}\mod 10^{0}$对于任何$\mathrm{dp}[0]$均成立，没有提供任何有效信息。更具体的，上式可以改写成$1\equiv n^{\mathrm{dp}[i]} \mod 10^{i-1}$，即$n^{\mathrm{dp}[i]} = 1 + c\times10^{i-1}$，于是根据二项式定理展开可得$n^{10\cdot\mathrm{dp}[i]} = (1 + c\times10^{i-1})^{10}$，当`i=1`时恒成立，无论$10^{i-1}$是什么，因此不能断定$\mathrm{dp}[i]\mid 10\cdot\mathrm{dp}[i-1]$。手工打表可知情况一共有`{1, 2, 4}`这三种情况。
+
+时间复杂度：一共经过$k$次状态转移，每次状态转移最多遍历4个数，每次遍历做一次$O(\log_2)$的快速幂，最坏情况下`dp[]`以$O(10^k)$的速度增长，一次高精度乘法或取模使用FFT的时间复杂度是$O(k\log_2{k})$，因此总时间复杂度为$O(k^3\log_2{k})$。
+
+```c++
+BigInteger n, k = 1, ans = 1, n_tmp; int k_log10;
+int main() {
+    std::cin >> n >> k_log10;
+
+    for(int i = 1; i <= k_log10; ++i) {
+        k *= 10; n_tmp = n % k; bool flag = false;
+
+        /* 无优化 */
+        // for(int j = 1; j <= 10; ++j) {
+        //     if(fast_pow(n_tmp, ans * j + 1, k) != n_tmp) { continue; }
+        //     ans = ans * j; flag = true; break;
+        // }
+
+        /* 第二处优化 */
+        // for(int i = 1; i <= k_log10; ++i) {
+        //     k *= 10; n_tmp = n % k; bool flag = false;
+        //     for(int j : {1, 2, 4, 5, 10}) {
+        //         if(fast_pow(n_tmp, ans * j + 1, k) != n_tmp) { continue; }
+        //         ans = ans * j; flag = true; break;
+        //     }
+        //     if(flag == false) { std::cout << -1; return 0; }
+        // }
+
+        /* 第一处+第二处优化 */
+        BigInteger n_tmp_1 = fast_pow(n_tmp, ans, k);
+        if((n_tmp_1 * n_tmp) % k == n_tmp) { ans = ans; flag = true; continue; }
+        
+        BigInteger n_tmp_2 = (n_tmp_1 * n_tmp_1) % k;
+        if((n_tmp_2 * n_tmp) % k == n_tmp) { ans = ans * 2; flag = true; continue; }
+        
+        BigInteger n_tmp_4 = (n_tmp_2 * n_tmp_2) % k;
+        if((i == 1) && ((n_tmp_4 * n_tmp) % k == n_tmp)) { ans = ans * 4; flag = true; continue; }
+        
+        BigInteger n_tmp_5 = (n_tmp_4 * n_tmp_1) % k;
+        if((i >= 2) && ((n_tmp_5 * n_tmp) % k == n_tmp)) { ans = ans * 5; flag = true; continue; }
+        
+        BigInteger n_tmp_10 = (n_tmp_5 * n_tmp_5) % k;
+        if((i >= 2) && ((n_tmp_10 * n_tmp) % k == n_tmp)) { ans = ans * 10; flag = true; continue; }
+        
+        if(flag == false) { std::cout << -1; return 0; }
+    }
+    std::cout << ans;
 }
 ```
 

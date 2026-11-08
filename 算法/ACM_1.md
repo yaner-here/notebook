@@ -235,6 +235,21 @@ while(std::getline(std::cin, s)) {
 }
 ```
 
+### §1.5.4 `\r\n`换行符
+
+> 给定以下`STDIN`输入：`1\r\n2\r\n3\r\r\nHello World\r\nAK IOI`，请分别输出`1`/`2`/`3`/`Hello World`/`AK IOI`。
+
+```c++
+int a, b, c; std::string s_tmp;
+std::cin >> a >> b >> c;
+
+// std::ignore(); // 只能吸收一个\r，不可行
+// std::ignore(2); // \r\n数量不固定，无法确定ignore的字符数
+std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // 一直ignore()直到遇到\n，并吸收\n，正确
+std::getline(std::cin, s_tmp); std::cout << s_tmp;
+std::getline(std::cin, s_tmp); std::cout << s_tmp;
+```
+
 ## §1.4 `<queue>`
 
 ### §1.4.1 `std::priority_queue`
@@ -8858,6 +8873,43 @@ int main() {
             queue.push(pending_status_temp);
         }
     }
+}
+```
+
+> [洛谷P1126](https://www.luogu.com.cn/problem/P1126)：给定一个`n×m<=50×50`的方格棋盘，及其表示是否有障碍物的`bool map[1->n][1->m]`。棋盘上有一个占地`2×2`的机器人，其起点与朝向分别为`struct Point { int x, y, d; }`，使用其靠近原点的一角方格坐标来表示其位置。机器人还有一个“朝向”的属性，总共有四种状态。每一回合，机器人可以从以下两类决策中选择一种：（1）向朝向方向前进`1/2/3`格，前提是途中不能碰到障碍物；（2）顺时针/逆时针旋转`90°`。给定终点位置，求从起点到重点的最短回合数。若无法到达终点则输出`-1`。
+
+不妨使用`A*`算法，显然总代价$f(x)=g(x)+h(x)$中的$g(x)$可以用经过的回合数来表示，$h(x)$可以用当前位置到终点的距离来表示，此处我们定义$h(x)=0.01(|x-x_e|+|y-y_e|)$。使用了`A*`算法后，效率会快很多。
+
+```c++
+const int N_MAX = 50, M_MAX = 50, DIR[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}}; // 正序逆时针
+const std::map<char, int> DIR_MAP{{'S', 0}, {'E', 1}, {'N', 2}, {'W', 3}};
+int n, m, map[1 + N_MAX][1 + M_MAX]; bool vis[1 + N_MAX][1 + M_MAX][4]; char d_tmp;
+struct Point { int x, y, d, c_pre; float c_post; } start, end; // 机器人占据的左上角格子坐标：x, y, 代价, 朝向
+inline float get_distance(Point &lhs, Point &rhs) { return 0.02 * (std::abs(lhs.x - rhs.x) + std::abs(lhs.y - rhs.y)); }
+inline bool check(Point &p) { return p.x >= 1 && p.x + 1 <= n && p.y >= 1 && p.y + 1 <= m && map[p.x][p.y] == 0 && map[p.x + 1][p.y] == 0 && map[p.x][p.y + 1] == 0 && map[p.x + 1][p.y + 1] == 0; }
+std::priority_queue<Point, std::vector<Point>, std::function<bool(const Point&, const Point&)>> queue([](const Point &child, const Point &root){ return root.c_pre + root.c_post < child.c_pre + child.c_post; });
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { for(int j = 1; j <= m; ++j) { std::cin >> map[i][j]; } }
+    std::cin >> start.x >> start.y >> end.x >> end.y >> d_tmp; 
+    start.d = DIR_MAP.at(d_tmp); start.c_post = get_distance(start, end);
+
+    if(vis[start.x][start.y][start.d] == true || check(start) == false) { std::cout << -1; return 0; } queue.emplace(start);
+    while(!queue.empty()) {
+        Point p = queue.top(); queue.pop();
+        if(vis[p.x][p.y][p.d] == true) { continue; } vis[p.x][p.y][p.d] = true;
+        if(p.x == end.x && p.y == end.y) { std::cout << p.c_pre; return 0; }
+
+        for(int l = 1; l <= 3; ++l) {
+            Point q{.x = p.x + l * DIR[p.d][0], .y = p.y + l * DIR[p.d][1], .d = p.d, .c_pre = p.c_pre + 1}; q.c_post = get_distance(q, end);
+            if(check(q) == false) { break; } 
+            if(vis[q.x][q.y][q.d] == true) { continue; }
+            queue.push(q);
+        }
+        Point q1{.x = p.x, .y = p.y, .d = mod(p.d + 1, 4), .c_pre = p.c_pre + 1}; q1.c_post = get_distance(q1, end); if(vis[q1.x][q1.y][q1.d] == false) { queue.emplace(q1); }
+        Point q2{.x = p.x, .y = p.y, .d = mod(p.d - 1, 4), .c_pre = p.c_pre + 1}; q1.c_post = get_distance(q2, end); if(vis[q2.x][q2.y][q2.d] == false) { queue.emplace(q2); }
+    }
+    std::cout << -1;
 }
 ```
 
