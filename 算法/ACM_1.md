@@ -5710,6 +5710,33 @@ int main() {
 }
 ```
 
+> [洛谷P17830](https://www.luogu.com.cn/problem/P17830)：给定一个序列`int a[1->n<=5e5]∈[1,m]⊂[1,3e5]`。定义`f(i): int -> int[]`为：给定从左到右的序列`a[i->n]`，并依次放到从左到右的空栈`b[1->...]`内，当遍历到`a[j]`时，如果栈中已有值为`a[j]`的元素`b[k]`，则先移除`b[k]`及其右侧的所有元素，然后让`a[j]`入栈，如果没有，则正常让`a[j]`入栈。求$\left\{\displaystyle\sum_{j=1}^{n}\mathbb{1}_{j\in f(i)}\right\}_{i=1}^{n}$。
+
+由于`b[k] == a[j]`，因此本题可以改写成：如果栈中已有值为`a[j]`的元素`b[k]`，则只移除`b[k+1->∞]`的所有元素。由题意可知，如果某一时刻`a[i]`已在栈内，那么我们非常警惕`a[i]`这个值下一次出现的位置`a_next[i]`，特殊地，下一次没有出现过则令`a_next[i] = 0`。于是存在状态转移方程：
+
+$$
+f[i] = \begin{cases}
+    f[\mathrm{a\_next}[i]] & ,\mathrm{a\_next}[i] \neq 0 \\
+    \{a[i]\} \cup f[\mathrm{a\_next}[i] + 1] & ,\mathrm{a\_next}[i] = 0
+\end{cases}
+$$
+
+注意到如果`j∈f[i]`，则`f[i]`在状态转移的过程中一定会向后跳转到`j`最后一次出现的位置，即`v_last[j]`。于是我们只需统计“从多少个起点出发，能跳转到位置`v_last[j]`”即可。令` dp[i]`为“从多少个起点出发，能跳转到位置`i`”，于是有状态转移方程：`dp[a_next[i]] += dp[i]`，其中`dp[*]`初值均为`1`，表示能从自己跳到自己。
+
+```c++
+const int N_MAX = 5e5, M_MAX = 3e5;
+int n, m, a[1 + N_MAX], a_next[1 + N_MAX], v_last[1 + M_MAX], dp[1 + N_MAX];
+int main() {
+    std::cin >> n >> m;
+    for(int i = 1; i <= n; ++i) { std::cin >> a[i]; }
+    for(int i = n; i >= 1; --i) { a_next[i] = v_last[a[i]]; v_last[a[i]] = i; }
+    for(int i = 1; i <= n; ++i) { v_last[a[i]] = i; }
+
+    std::fill(dp + 1, dp + 1 + n, 1);
+    for(int i = 1; i <= n; ++i) { dp[a_next[i] != 0 ? a_next[i] : i + 1] += dp[i]; }
+    for(int i = 1; i <= m; ++i) { std::cout << dp[v_last[i]] << ' '; }
+}
+```
 
 > [洛谷P6434](https://www.luogu.com.cn/problem/P6434)：给定`n<=2e6`个价值分别为`a[i]<=1e9`的互异物品，从中挑选出`k`个物品，重新排列后形成长度为`k`的、任意相邻元素满足$\frac{\text{dp}[i+1]}{\text{dp}[i]}\in[l,r]\subseteq[\mathbb{N}^+,\mathbb{N}^+]$的新数组`b[i]`。试求：（1）符合条件的数组`b[i]`的种类总数；（2）数组`b[]`的总价值最大值。答案均对`MOD`取模后输出。
 

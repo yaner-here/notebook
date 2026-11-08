@@ -1634,14 +1634,15 @@ $$
 $$
 - 2026.01：OpenClaw
 - 2026.02：Harness Engineering
-- 2026.03：Hermes & CLI替换MCP
+- 2026.03：Hermes & CLI替换MCP & Claude Code源码泄露
 - 2026.04：LLM Wiki
 - 2026.05：SkillOpt
 - 2026.06：Loop Engineering & Rubric
 - 2026.07：Graph Engineering
 - 2026.08：DeepSeek Harness & Grok Bot
-- 2026.09：Jev
-- 2026.10：Pi 1.0(durable) & Muse
+- 2026.09：Jev & RSI(例如Harness^2)
+- 2026.10：Pi 1.0(durable) & Muse & LayerFS 1.0
+- 2026.11：dsh-superagent
 
 ## RAG
 
@@ -2505,6 +2506,10 @@ DeepAgents使用底层的LangGraph作为编排框架。类似的，DeepSeek Harn
 ### 你为什么不考虑读博？
 
 读博所考虑的课题其实更注重Idea的创建性。我在实习过程中做过一些Agent项目，发现一个Agent应用开发如果要进入到生产的环境的话，其实单单只有Idea是远远不够的，还需要保证高QPS的稳定性这些工程的难题。我在这一过程中意识到了学术界和工程界是有脱节的。我其实更倾向于把一个Agent项目应用到实际的业务中，去应对真实世界的挑战，所以我放弃了读博这条路。
+
+### 你当时为什么没保研到更好的学校？
+
+### 你当时为什么选择了这个组读研？
 
 ## 实习规划
 
